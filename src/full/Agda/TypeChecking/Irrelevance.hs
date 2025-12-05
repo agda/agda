@@ -343,8 +343,9 @@ isDefSing a = do
             sings <- traverse (isDefSing . unDom) (tel `apply` vs)
             pure $ foldr minDefSing MaybeSing sings
           NoEta _ -> pure NeverSing
-        Axiom{}            -> do
-          pure $ NotSingIfStuck [d]
+        Axiom{}            -> pure $ NeverSing
+          -- TODO: Postulated type formers might still become definitionally
+          -- singular if further rewrites are added (see #8266)
         DataOrRecSig{}     -> pure NeverSing
         AbstractDefn{}     -> pure MaybeSing
           -- I am erring on the side of caution here: specifically, I am

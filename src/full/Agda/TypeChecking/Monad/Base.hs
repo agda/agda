@@ -2318,17 +2318,13 @@ defaultDisplayForm c = []
 
 -- | NLPat might become definitionally singular (after a substitution)
 data DefSing
-  = AlwaysSing
-    -- ^ Always definitionally singular (e.g. irrelevant or in |Prop|)
+  = NeverSing
+    -- ^ Never definitionally singular
   | MaybeSing
     -- ^ Might become definitionally singular after a substitution
-  | NotSingIfStuck [QName]
-    -- ^ Not definitionally singular, unless one of the postulates in the list
-    --   is a head symbol of a rewrite rule
-  deriving (Show, Generic)
-
-pattern NeverSing :: DefSing
-pattern NeverSing = NotSingIfStuck []
+  | AlwaysSing
+    -- ^ Always definitionally singular (e.g. irrelevant or in |Prop|)
+  deriving (Show, Generic, Enum, Bounded)
 
 relToDefSing :: Relevance -> DefSing
 relToDefSing r = if isIrrelevant r then AlwaysSing else NeverSing
@@ -2336,20 +2332,10 @@ relToDefSing r = if isIrrelevant r then AlwaysSing else NeverSing
 -- Only approximate if both sides are |NotDefSingIfInj| with non-empty
 -- injective constraints
 minDefSing :: DefSing -> DefSing -> DefSing
-minDefSing AlwaysSing s = s
-minDefSing s AlwaysSing = s
-minDefSing MaybeSing  s = s
-minDefSing s  MaybeSing = s
-minDefSing (NotSingIfStuck qs) (NotSingIfStuck qs')
-  = NotSingIfStuck $ if length qs < length qs' then qs else qs'
+minDefSing s s' = toEnum $ fromEnum s `min` fromEnum s'
 
 maxDefSing :: DefSing -> DefSing -> DefSing
-maxDefSing AlwaysSing s = AlwaysSing
-maxDefSing s AlwaysSing = AlwaysSing
-maxDefSing MaybeSing  s = MaybeSing
-maxDefSing s  MaybeSing = MaybeSing
-maxDefSing (NotSingIfStuck qs) (NotSingIfStuck qs')
-  = NotSingIfStuck $ qs <> qs'
+maxDefSing s s' = toEnum $ fromEnum s `max` fromEnum s'
 
 isAlwaysSing :: DefSing -> Bool
 isAlwaysSing AlwaysSing = True
@@ -2713,7 +2699,7 @@ projArgInfo (Projection _ _ _ _ lams) =
 
 -- | Should a record type admit eta-equality?
 data EtaEquality
-  = Specified { theEtaEquality :: !HasEta }  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
+  = Specified { theEtaEquality :: !HasEta }  -- ^ User specified 'eta-equality' or 'no-eta-equality'.
   | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
   deriving (Show, Eq, Generic)
 
@@ -2789,7 +2775,7 @@ data Defn
 data AxiomData = AxiomData
   { _axiomConstTransp :: Bool
     -- ^ Can transp for this postulate be constant?
-    --   Set to @True@ for bultins like String.
+    --   Set to @True@ for builtins like String.
   } deriving (Show, Generic)
 
 pattern Axiom :: Bool -> Defn

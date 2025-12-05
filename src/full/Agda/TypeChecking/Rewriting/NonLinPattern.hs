@@ -259,10 +259,8 @@ instance Monoid PatVars where
   mempty = PatVars mempty mempty
 
 instance Singleton (DefSing, Int) PatVars where
-  -- TODO: Don't ignore |qs| here! We need them for later seeing if new
-  -- rewrites make prior ones unsafe.
-  singleton (NotSingIfStuck qs, x) = PatVars (singleton x) empty
-  singleton (MaybeSing, x) = PatVars empty (singleton x)
+  singleton (NeverSing,  x) = PatVars (singleton x) empty
+  singleton (MaybeSing,  x) = PatVars empty (singleton x)
   singleton (AlwaysSing, x) = __IMPOSSIBLE__
 
 -- | Gather the set of pattern variables of a non-linear pattern

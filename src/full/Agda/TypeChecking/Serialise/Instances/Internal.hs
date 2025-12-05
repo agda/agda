@@ -276,15 +276,6 @@ instance EmbPrj Blocked_ where
   value = blockedFromMaybe <.> value
 
 instance EmbPrj DefSing where
-  icod_ AlwaysSing         = icodeN 0 AlwaysSing
-  icod_ MaybeSing          = icodeN 1 MaybeSing
-  icod_ (NotSingIfStuck a) = icodeN 2 NotSingIfStuck a
-
-  value = vcase valu where
-    valu (N1 0)   = valuN AlwaysSing
-    valu (N1 1)   = valuN MaybeSing
-    valu (N2 2 a) = valuN NotSingIfStuck a
-    valu _        = malformed
 
 instance EmbPrj NLPat where
   icod_ (PVar a b c)    = icodeN 0 PVar a b c
