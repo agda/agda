@@ -1485,22 +1485,23 @@ droppedPars d = case theDef d of
     PrimitiveSort{}          -> 0
     AbstractDefn{}           -> 0 -- not impossible when quoting, PR #7828
 
--- | Is it the name of a record projection?
+-- | Is it the name of a record projection or field or a projection-like function?
 {-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}
 isProjection :: HasConstInfo m => QName -> m (Maybe Projection)
 isProjection qn = isProjection_ . theDef <$> getConstInfo qn
 
+-- | Is it a record projection or field or a projection-like function?
 isProjection_ :: Defn -> Maybe Projection
-isProjection_ def =
-  case def of
+isProjection_ = \case
     Function { funProjection = Right result } -> Just result
     _                                         -> Nothing
 
--- | Is it the name of a non-irrelevant record projection?
+-- | Is it the name of a non-irrelevant record projection or field or projection-like function?
 {-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}
 isRelevantProjection :: HasConstInfo m => QName -> m (Maybe Projection)
 isRelevantProjection qn = isRelevantProjection_ <$> getConstInfo qn
 
+-- | Is it a non-irrelevant record projection or field or projection-like function?
 isRelevantProjection_ :: Definition -> Maybe Projection
 isRelevantProjection_ def =
   if isIrrelevant def then Nothing else isProjection_ $ theDef def

@@ -435,6 +435,8 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
 -- | Infer type of a neutral term.
 --   See also @infer@ in @Agda.TypeChecking.CheckInternal@, which has a very similar
 --   logic but also type checks all arguments.
+--
+--   Precondition: the term is not a projection-like function in prefix ('Def') form.
 inferNeutral :: (PureTCM m, MonadBlock m) => Term -> m Type
 inferNeutral u = do
   reportSDoc "tc.infer" 20 $ "inferNeutral" <+> prettyTCM u
@@ -445,6 +447,7 @@ inferNeutral u = do
       a <- typeOfBV i
       loop a (Var i) es
     Def f es -> do
+      -- f is not a lone projection-like function, see precondition.
       whenJustM (isRelevantProjection f) $ \_ -> nonInferable
       a <- defType <$> getConstInfo f
       loop a (Def f) es
