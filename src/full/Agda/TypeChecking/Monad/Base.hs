@@ -2346,6 +2346,8 @@ data NLPat
   = PVar DefSing !Int [Arg Int]
     -- ^ Matches anything (modulo non-linearity) that only contains bound
     --   variables that occur in the given arguments.
+    --   Tracks the definitional singularity of the surrounding pattern (not
+    --   the type of the variable itself)
   | PDef QName PElims
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
