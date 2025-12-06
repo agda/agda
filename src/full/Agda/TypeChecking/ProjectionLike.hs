@@ -79,6 +79,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.DropArgs
 
+import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -448,16 +449,23 @@ inferNeutral u = do
       loop a (Var i) es
     Def f es -> do
       -- f is not a lone projection-like function, see precondition.
-      whenJustM (isRelevantProjection f) $ \_ -> nonInferable
+      whenJustM (isRelevantProjection f) $ \_ -> impossible
       a <- defType <$> getConstInfo f
       loop a (Def f) es
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       loop a (MetaV x) es
-    _ -> nonInferable
+    Con{} -> impossible
+    Lit{} -> impossible
+    Lam{} -> impossible
+    Pi{} -> impossible
+    Sort{} -> impossible
+    Level{} -> impossible
+    Dummy{} -> impossible
+    DontCare{} -> impossible
   where
-    nonInferable :: MonadDebug m => m a
-    nonInferable = __IMPOSSIBLE_VERBOSE__ $ unlines
+    impossible :: (HasCallStack, MonadDebug m) => m a
+    impossible = __IMPOSSIBLE_VERBOSE__ $ unlines
       [ "inferNeutral: non-inferable term:"
       , "  " ++ prettyShow u
       ]
@@ -469,7 +477,8 @@ inferNeutral u = do
           ifPiTypeB t (\_ b -> return $ b `absApp` v)
             (patternViolation . getBlocker) -- Andreas, 2025-12-06, issue #8263 not __IMPOSSIBLE__
         IApply x y r ->
-          ifPath t (\_ b -> return $ b `absApp` r) __IMPOSSIBLE__
+          ifPathB t (\_ b -> return $ b `absApp` r)
+            (patternViolation . getBlocker) -- Andreas, 2025-12-06, issue #8263 this might not be __IMPOSSIBLE__ either, play it safe!
         Proj o f -> do
           -- @projectTyped@ expects the type to be reduced.
           t <- reduce t
