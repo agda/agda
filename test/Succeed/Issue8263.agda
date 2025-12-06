@@ -1,7 +1,7 @@
 -- Andreas, 2025-12-05, issue #8263
 -- Shrunk from https://github.com/HoTT-Intro/Agda
 -- Internal error in ProjectionLike, regression in 2.6.4
--- Culprit may be b6c76f409c294691c33112f9144ef2393a335cfe
+-- Culprit may have been b6c76f409c294691c33112f9144ef2393a335cfe
 
 {-# OPTIONS --without-K #-}
 
@@ -13,8 +13,10 @@ open import Agda.Primitive
 open import Agda.Builtin.Equality renaming (_≡_ to Id)
 open import Agda.Builtin.Nat renaming (Nat to ℕ)
 
-postulate
-  ANY : ∀{ℓ} {A : Set ℓ} → A
+
+tr :
+  {i j : Level} {A : Set i} (B : A → Set j) {x y : A} (p : Id x y) → B x → B y
+tr B refl b = b
 
 data Σ {l1 l2 : Level} (A : Set l1) (B : A → Set l2) : Set (l1 ⊔ l2) where
   pair : (x : A) → (B x → Σ A B)
@@ -25,6 +27,7 @@ pr1 (pair a _) = a
 pr2 : {l1 l2 : Level} {A : Set l1} {B : A → Set l2} → (t : Σ A B) → B (pr1 t)
 pr2 (pair a b) = b
 
+_×_ : {l1 l2 : Level} (A : Set l1) (B : Set l2) → Set (l1 ⊔ l2)
 _×_ = λ A B → Σ A (λ _ → B)
 
 is-contr :
@@ -135,9 +138,12 @@ htpy-equiv-cube :
 htpy-equiv-cube X Y e f =
   Σ ( pr1 (pr1 e) ~ pr1 (pr1 f))
     ( λ H → (d : pr1 (pr1 X)) →
-            ANY -- ( tr (pr1 ∘ pr2 Y) (H d) ∘ pr1 (pr2 e d))
+            ( tr (pr1 ∘ pr2 Y) (H d) ∘ pr1 (pr2 e d))
             ~
             ( pr1 (pr2 f d)))
+postulate
+  is-contr-total-htpy-equiv : {l1 l2 : Level} {A : Set l1} {B : Set l2}
+    (e : A ≃ B) → is-contr (Σ (A ≃ B) (λ e' → (pr1 e) ~ (pr1 e')))
 
 -- Internal error:
 is-contr-total-htpy-equiv-cube :
@@ -147,18 +153,20 @@ is-contr-total-htpy-equiv-cube X Y e =
   is-contr-total-Eq-structure
     ( λ α β H →
       ( d : pr1 (pr1 X)) →
-      ANY -- ( λ bar → tr (λ foo → pr1 (pr2 Y foo)) (H d) (pr1 (pr2 e d) bar))
+      ( λ bar → tr (λ foo → pr1 (pr2 Y foo)) (H d) (pr1 (pr2 e d) bar))
       ~
       ( pr1 (β d))
     )
-    ANY -- ( is-contr-total-htpy-equiv (pr1 e))
-    ANY -- ( pair (pr1 e) ANY) -- (λ _ → refl))
+    ( is-contr-total-htpy-equiv (pr1 e))
+    ( pair (pr1 e) (λ _ → refl))
     ( is-contr-total-Eq-Π
       ( λ d β → pr1 (pr2 e d) ~ pr1 β)
-      ANY -- ( λ d → is-contr-total-htpy-equiv (pr2 e d))
+      ( λ d → is-contr-total-htpy-equiv (pr2 e d))
     )
 
+-- Error was:
 -- An internal error has occurred. Please report this as a bug.
 -- Location of the error: __IMPOSSIBLE__, called at
--- src/full/Agda/TypeChecking/ProjectionLike.hs:466:54 in
--- Agda-2.9.0-inplace:Agda.TypeChecking.ProjectionLike
+-- src/full/Agda/TypeChecking/ProjectionLike.hs:466:54
+
+-- Should succeed

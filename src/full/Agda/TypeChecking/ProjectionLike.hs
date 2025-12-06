@@ -466,7 +466,8 @@ inferNeutral u = do
     loop t hd (e:es) = do
       t' <- case e of
         Apply (Arg ai v) ->
-          ifPiType t (\_ b -> return $ b `absApp` v) __IMPOSSIBLE__
+          ifPiTypeB t (\_ b -> return $ b `absApp` v)
+            (patternViolation . getBlocker) -- Andreas, 2025-12-06, issue #8263 not __IMPOSSIBLE__
         IApply x y r ->
           ifPath t (\_ b -> return $ b `absApp` r) __IMPOSSIBLE__
         Proj o f -> do
