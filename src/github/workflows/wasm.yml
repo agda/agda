@@ -45,6 +45,8 @@ on:
 
   pull_request:
     paths: *path_list
+    branches:
+    - master
 
   workflow_dispatch:
 
