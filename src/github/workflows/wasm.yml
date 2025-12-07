@@ -1,0 +1,122 @@
+name: Build and test WASM
+
+on:
+  push:
+    branches:
+    - master
+    - ci-*
+    - release*
+
+    paths: &path_list
+    # Prefix with ! to ignore.  Later matches override earlier matches.
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-including-and-excluding-paths
+    # Include everything at first (more robust wrt. additions to the repo).
+    - '**'
+    # Ignore github administrative information except for self (test.yaml).
+    - '!.github/**'
+    - '.github/workflows/wasm.yml'
+    - '!src/github/**'
+    - 'src/github/workflows/wasm.yml'
+    # Ignore components of the documentation which have no Agda code.
+    - '!doc/**'
+    - 'doc/user-manual/**/*.lagda.rst'
+    # Ignore other components not contributing to this test.
+    - '!src/agda-bisect/**'
+    - '!src/fix-whitespace/**'
+    - '!src/hs-tags/**'
+    - '!src/release-tools/**'
+    - '!.travis'
+    - '!macros/**'
+    - '!notes/**'
+    - '!.mailmap'
+    - '!.gitignore'
+    - '!.hlint.yaml'
+    - '!.readthedocs.yaml'
+    - '!.travis.yml'
+    - '!CHANGELOG.md'
+    - '!HACKING.md'
+    - '!LICENSE'
+    - '!README.md'
+    - '!fix-whitespace.yaml'
+    - '!hie*.yaml'
+    - '!stack-*.yaml'
+    - '!touchup.sh'
+    - '!CITATION.cff'
+
+  pull_request:
+    paths: *path_list
+
+  workflow_dispatch:
+
+env:
+  PARALLEL_TESTS: 2
+  AGDA_TESTS_OPTIONS: "-j${PARALLEL_TESTS} --hide-successes"
+
+  # tasty configuration (see issue #3905)
+  TASTY_ANSI_TRICKS: "false"
+
+  # Disable tests that spawn subprocesses
+  AGDA_NO_EXEC: 'true'
+
+jobs:
+  build:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: styfle/cancel-workflow-action@0.12.1
+      if: github.ref != 'refs/heads/master'
+      with:
+        access_token: ${{ github.token }}
+
+    - uses: easimon/maximize-build-space@v10
+      with:
+        root-reserve-mb: 30000
+        remove-dotnet: true
+        remove-android: true
+        remove-haskell: true
+        remove-codeql: true
+        remove-docker-images: true
+
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - uses: cachix/install-nix-action@v31
+
+    - name: "Setup Cabal"
+      run: nix develop --command bash -c "wasm32-wasi-cabal update && cabal update"
+
+    - name: "Build Agda (WASM)"
+      run: nix develop --command wasm32-wasi-cabal build -fdebug -foptimise-heavily
+
+    - name: "Build Agda (native)"
+      # text-icu fails to build in Nix (and for some reason, isn't added as a
+      # dependency), so disable it by overwriting CABAL_FLAG_ICU for now.
+      run: nix develop --command make CABAL_FLAG_ICU= install-bin
+
+    - name: "Setup test environment"
+      id: test-setup
+      run: |
+        echo "AGDA_WASM=$(nix develop --command wasm32-wasi-cabal list-bin agda 2> /dev/null)" >> $GITHUB_ENV
+        echo "AGDA_BIN=$PWD/test/run-agda-wasm.sh" >> $GITHUB_ENV
+
+    - name: "Suite of tests for bugs"
+      run: nix develop --command make bugs
+
+    - name: "Suite of successful tests: mini-library Common"
+      run: nix develop --command make common
+      if: ${{ !cancelled() && steps.test-setup.conclusion == 'success' }} # run test even if a previous test failed
+
+    - name: "Suite of successful tests"
+      run: nix develop --command make succeed
+      if: ${{ !cancelled() && steps.test-setup.conclusion == 'success' }} # run test even if a previous test failed
+
+    - name: "Suite of failing tests"
+      run: nix develop --command make fail
+      if: ${{ !cancelled() && steps.test-setup.conclusion == 'success' }} # run test even if a previous test failed

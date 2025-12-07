@@ -122,6 +122,15 @@ fdebugTestFilter =
   ]
   where disable = RFInclude
 
+-- | Filting out tests that shell out to other processes. This includes all
+-- tests that use @--ghc@ (without @--ghc-dont-call-ghc@) or @--allow-exec@.
+execTestFilter :: [RegexFilter]
+execTestFilter =
+  [ disable "Fail/Issue2248_COMPILED_TYPE"
+  , disable "Fail/DuplicateExecutable"
+  ]
+  where disable = RFInclude
+
 -- | We need to load an agda file in a subdirectory to trigger issue #7953.
 issue7953 :: TestTree
 issue7953 =

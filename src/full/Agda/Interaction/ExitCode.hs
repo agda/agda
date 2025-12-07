@@ -14,7 +14,7 @@ data AgdaError = UnknownError      -- ^ 1
                | TCMError          -- ^ 42
                | OptionError       -- ^ 71
                | CommandError      -- ^ 113
-               | ImpossibleError   -- ^ 154
+               | ImpossibleError   -- ^ 120
                deriving (Show, Eq, Enum, Bounded)
 
 agdaErrorToInt :: AgdaError -> Int
@@ -22,7 +22,7 @@ agdaErrorToInt UnknownError    = 1
 agdaErrorToInt TCMError        = 42
 agdaErrorToInt OptionError     = 71
 agdaErrorToInt CommandError    = 113
-agdaErrorToInt ImpossibleError = 154
+agdaErrorToInt ImpossibleError = 120
 
 -- ^ Return the error corresponding to an exit code from the
 --   Agda process

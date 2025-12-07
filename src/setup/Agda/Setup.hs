@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Agda's self-setup.
 
@@ -11,8 +12,7 @@ module Agda.Setup
   )
 where
 
-import           Control.Exception          ( IOException, try )
-import           Control.Monad              ( forM, forM_, unless, void, when )
+import           Control.Monad              ( forM_, unless, when )
 
 import           Data.ByteString            ( ByteString )
 import qualified Data.ByteString            as BS
@@ -29,17 +29,19 @@ import           Instances.TH.Lift          ()
 import           System.Directory
   ( XdgDirectory (..)
   , canonicalizePath, createDirectoryIfMissing, doesDirectoryExist
-  , getAppUserDataDirectory, getXdgDirectory, removeFile
+  , getAppUserDataDirectory, getXdgDirectory
   )
 import           System.Environment         ( lookupEnv )
-import           System.FileLock            ( pattern Exclusive, withFileLock )
-import           System.FilePath            ( (</>), joinPath, splitFileName, takeFileName )
+import           System.FilePath            ( (</>), splitFileName )
 import           System.IO                  ( hPutStrLn, stderr )
 
 import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
+import           Agda.Setup.LockFile        ( withLockFile )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
 
+#ifndef USE_XDG_DATA_HOME
 import qualified Paths_Agda                 as Paths
+#endif
 
 -- | Given the `Agda_datadir`, what should the Agda data dir be?
 
@@ -150,8 +152,7 @@ dumpDataDir verbose baseDataDir = do
   -- Create a file lock to prevent races caused by the dataDir already created
   -- but not filled with its contents.
   let lock = baseDataDir </> intercalate "-" [".lock", versionWithCommitInfo]
-  withFileLock lock Exclusive \ _lock -> do
-
+  withLockFile lock do
     forM_ embeddedDataDir \ (relativePath, content) -> do
 
       -- Make sure we also create the directories along the way.
@@ -163,10 +164,6 @@ dumpDataDir verbose baseDataDir = do
       let path = dir </> file
       when verbose $ inform $ "Writing " ++ path
       BS.writeFile path content
-
-  -- Remove the lock (this is surprisingly not done by withFileLock).
-  -- Ignore any IOException (e.g. if the file does not exist).
-  void $ try @IOException $ removeFile lock
 
 -- | Dump line of warning or information to stderr.
 inform :: String -> IO ()

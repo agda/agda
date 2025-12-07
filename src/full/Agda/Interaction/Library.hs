@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
@@ -248,7 +249,19 @@ findProjectConfig root = do
         filterM (\file -> and2M
           (pure $ takeExtension file == ".agda-lib")
           (doesFileExist (root </> file)))
-      case libFiles of
+#if defined(wasm32_HOST_ARCH)
+      -- During tests, wasmtime sometimes reports duplicate entries in a directory.
+      -- This extra step workarounds the quirky behavior; see comments in PR #8205.
+      let libFiles' = case libFiles of
+            []        -> []
+            [file]    -> [file]
+            (f:files)
+              | all (== f) files -> [f]  -- All entries are duplicates of the same file
+              | otherwise        -> libFiles
+#else
+      let libFiles' = libFiles
+#endif
+      case libFiles' of
         []     -> liftIO (upPath root) >>= \case
           Just up -> do
             conf <- over lensConfigAbove (+ 1) <$> findProjectConfig up
