@@ -65,66 +65,48 @@ name: Build and test WASM
     branches:
     - master
     paths:
-    - '**'
-    - '!.github/**'
     - .github/workflows/wasm.yml
-    - '!src/github/**'
     - src/github/workflows/wasm.yml
-    - '!doc/**'
-    - doc/user-manual/**/*.lagda.rst
-    - '!src/agda-bisect/**'
-    - '!src/fix-whitespace/**'
-    - '!src/hs-tags/**'
-    - '!src/release-tools/**'
-    - '!.travis'
-    - '!macros/**'
-    - '!notes/**'
-    - '!.mailmap'
-    - '!.gitignore'
-    - '!.hlint.yaml'
-    - '!.readthedocs.yaml'
-    - '!.travis.yml'
-    - '!CHANGELOG.md'
-    - '!HACKING.md'
-    - '!LICENSE'
-    - '!README.md'
-    - '!fix-whitespace.yaml'
-    - '!hie*.yaml'
-    - '!stack-*.yaml'
-    - '!touchup.sh'
-    - '!CITATION.cff'
+    - Agda.cabal
+    - cabal.project
+    - Makefile
+    - flake.lock
+    - flake.nix
+    - src/full/Agda/**
+    - src/main/**
+    - src/setup/Agda/**
+    - src/agda-mode/**
+    - src/data/lib/**
+    - test/run-agda-wasm.sh
+    - test/**/*.hs
+    - test/Bugs/**
+    - test/Common/**
+    - test/Fail/**
+    - test/Succeed/**
   push:
     branches:
     - master
     - ci-*
     - release*
     paths:
-    - '**'
-    - '!.github/**'
     - .github/workflows/wasm.yml
-    - '!src/github/**'
     - src/github/workflows/wasm.yml
-    - '!doc/**'
-    - doc/user-manual/**/*.lagda.rst
-    - '!src/agda-bisect/**'
-    - '!src/fix-whitespace/**'
-    - '!src/hs-tags/**'
-    - '!src/release-tools/**'
-    - '!.travis'
-    - '!macros/**'
-    - '!notes/**'
-    - '!.mailmap'
-    - '!.gitignore'
-    - '!.hlint.yaml'
-    - '!.readthedocs.yaml'
-    - '!.travis.yml'
-    - '!CHANGELOG.md'
-    - '!HACKING.md'
-    - '!LICENSE'
-    - '!README.md'
-    - '!fix-whitespace.yaml'
-    - '!hie*.yaml'
-    - '!stack-*.yaml'
-    - '!touchup.sh'
-    - '!CITATION.cff'
+    - Agda.cabal
+    - cabal.project
+    - Makefile
+    - flake.lock
+    - flake.nix
+    - src/full/Agda/**
+    - src/main/**
+    - src/setup/Agda/**
+    - src/agda-mode/**
+    - src/data/lib/**
+    - test/run-agda-wasm.sh
+    - test/**/*.hs
+    - test/Bugs/**
+    - test/Common/**
+    - test/Fail/**
+    - test/Succeed/**
+  schedule:
+  - cron: 0 0 * * 0
   workflow_dispatch: null
