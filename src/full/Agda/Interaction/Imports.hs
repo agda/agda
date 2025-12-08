@@ -294,6 +294,8 @@ moduleCheckMode = \case
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
+    addImport $ iTopLevelModuleName i
+
     let sig     = iSignature i
         builtin = Map.toAscList $ iBuiltin i
         primOrBi = \case
