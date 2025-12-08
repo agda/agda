@@ -354,9 +354,11 @@ prettyWarning = \case
 
     ParseWarning pw -> pretty pw
 
-    DeprecationWarning old new version -> fsep $
-      [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
-      "instead. This will be an error in Agda" ++ [text version <> "."]
+    DeprecationWarning old mnew version -> fsep $ concat $ concat
+      [ [ [text old], pwords "has been deprecated." ]
+      , [ ["Use", text new, "instead." ] | new <- maybeToList mnew ]
+      , [ pwords "This will be an error in", [text version <> "."] ]
+      ]
 
     NicifierIssue w -> pretty w
 

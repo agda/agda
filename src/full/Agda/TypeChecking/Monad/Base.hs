@@ -4743,9 +4743,10 @@ data Warning
   | OptionWarning            OptionWarning
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
-  | DeprecationWarning String String String
-    -- ^ `DeprecationWarning old new version`:
-    --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
+  | DeprecationWarning String (Maybe String) String
+    -- ^ @DeprecationWarning old new version@:
+    --   @old@ is deprecated, use @new@ instead (if given).
+    --   This will be an error in @version@.
   | UserWarning Text
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   | DuplicateUsing (List1 C.ImportedName)
