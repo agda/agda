@@ -210,32 +210,10 @@ For instance, the following code would lead to infinite η expansion when checki
   test = refl
 
 If you know what you are doing, you can override Agda and force a coinductive record to support η via the ``ETA`` pragma.
-For instance, η is safe for colists, as infinite η expansion is blocked by the choice between the ``Colist`` constructors:
 
-..
-  ::
-  module COLIST where
-    -- place in module to avoid clashing with another _∷_ below
+.. code-block:: agda
 
-::
-
-    open import Agda.Builtin.Equality
-
-    mutual
-      data Colist (A : Set) : Set where
-        []  : Colist A
-        _∷_ : A → ∞Colist A → Colist A
-
-      record ∞Colist (A : Set) : Set where
-        coinductive
-        constructor delay
-        field       force : Colist A
-    open ∞Colist
-
-    {-# ETA ∞Colist #-}
-
-    test : {A : Set} (x : ∞Colist A) → x ≡ delay (force x)
-    test x = refl
+  {-# ETA R #-}
 
 Note however that ``ETA`` is not allowed in :option:`--safe` mode, for reasons mentioned above.
 This pragma is intended for experiments and not recommended in production code.
