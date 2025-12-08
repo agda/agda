@@ -414,6 +414,8 @@ scopeCheckFileImport top = do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
 
+    -- #8273: We need to ensure the imported module is added to
+    -- stImportedModules and stImportedModulesTransitive before checking it
     addImport top
     -- Since scopeCheckFileImport is called from the scope checker,
     -- we need to reimburse her account.
@@ -910,6 +912,8 @@ loadDecodedModule sf@(SourceFile fi) mi = do
   -- If any of the imports are newer we need to re-typecheck.
   badHashMessages <- fmap lefts $ forM imports \ (impName, impHash) -> runExceptT do
     reportSLn "import.iface" 30 $ concat ["Checking that module hash of import ", prettyShow impName, " matches ", prettyShow impHash ]
+    -- TODO: Is this the right place?? (It fixes the error but...)
+    lift $ lift $ addImport impName
     latestImpHash <- lift $ lift $ setCurrentRange impName $ moduleHash impName
     reportSLn "import.iface" 30 $ concat ["Done checking module hash of import ", prettyShow impName]
     when (impHash /= latestImpHash) $
