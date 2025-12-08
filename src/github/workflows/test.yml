@@ -48,6 +48,10 @@ on:
 
   workflow_dispatch:
 
+  # Run weekly 0:00am on Sunday.
+  schedule:
+    - cron: '0 0 * * 0'
+
 env:
   # Part 1: Versions (need update)
   ###########################################################################
@@ -77,11 +81,15 @@ jobs:
   ###########################################################################
 
   build:
+    # Skip the workflow if requested by a tag in the commit message
+    # but not if it was scheduled or started manually.
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
+         && !contains(github.event.head_commit.message, '[ci skip]')
+         && !contains(github.event.head_commit.message, '[github skip]')
+         && !contains(github.event.head_commit.message, '[skip github]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
 
     runs-on: &runs_on ubuntu-24.04
 
@@ -380,9 +388,13 @@ jobs:
   ###########################################################################
 
   cubical:
+    # Only run the workflow with tag [cubical] in commit message or PR title
+    # or if it was scheduled or started manually.
     if: |
       contains(github.event.head_commit.message, '[cubical]')
       || contains(github.event.pull_request.title, '[cubical]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: *runs_on
 

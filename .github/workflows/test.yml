@@ -15,9 +15,11 @@ jobs:
   build:
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
+         && !contains(github.event.head_commit.message, '[ci skip]')
+         && !contains(github.event.head_commit.message, '[github skip]')
+         && !contains(github.event.head_commit.message, '[skip github]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
     - name: Info about the context
@@ -93,6 +95,8 @@ jobs:
     if: |
       contains(github.event.head_commit.message, '[cubical]')
       || contains(github.event.pull_request.title, '[cubical]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-24.04
     steps:
@@ -332,4 +336,6 @@ name: Build, Test, and Benchmark
     - '!stack-*.yaml'
     - '!touchup.sh'
     - '!CITATION.cff'
+  schedule:
+  - cron: 0 0 * * 0
   workflow_dispatch: null
