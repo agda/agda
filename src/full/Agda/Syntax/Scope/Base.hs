@@ -443,15 +443,19 @@ data OpenedModule = OpenedModule
       -- ^ Module we opened.
   , openedHasDir :: Bool
       -- ^ Whether the @open@ statement comes with @using@ or @renaming@.
-  , openedScope  :: NamesInScope
-      -- ^ The scope imported by the @open@ statement.
+  , openedNameScope  :: NamesInScope
+      -- ^ The names imported by the @open@ statement.
+      --   The keys ('C.Name') of this map should be the concrete names of
+      --   the opening directive, if such was given.
+  , openedModuleScope :: ModulesInScope
+      -- ^ The modules imported by the @open@ statement.
       --   The keys ('C.Name') of this map should be the concrete names of
       --   the opening directive, if such was given.
   } deriving (Generic)
 
 instance Null OpenedModule where
-  empty = OpenedModule empty empty empty empty empty
-  null (OpenedModule _ _ _ _ s) = null s
+  empty = OpenedModule empty empty empty empty empty empty
+  null (OpenedModule _ _ _ _ s ms) = null s && null ms
 
 -- | Information gathered during scope checking for the unused-imports warning.
 data UnusedImportsState = UnusedImportsState
@@ -461,19 +465,24 @@ data UnusedImportsState = UnusedImportsState
       -- ^ Names that were ambiguously resolved from a concrete name in the source.
       --   They are stored with their position in the file
       --   that is matched with disambiguation information produced by the type checker.
+  , moduleLookups      :: ![AbstractModule]
+      -- ^ Modules that were resolved from a concrete module name in the source.
   , openedModules      :: !(IntMap OpenedModule)
       -- ^ Log of module @open@s with the names they brought into scope.
   } deriving (Generic)
 
 instance Null UnusedImportsState where
-  empty = UnusedImportsState empty empty empty
-  null (UnusedImportsState u a o) = null u && null a && null o
+  empty = UnusedImportsState empty empty empty empty
+  null (UnusedImportsState u a m o) = null u && null a && null m && null o
 
 lensUnambiguousLookups :: Lens' UnusedImportsState [AbstractName]
 lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \ !x -> s { unambiguousLookups = x }
 
 lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 AbstractName))
 lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \ !x -> s { ambiguousLookups = x }
+
+lensModuleLookups :: Lens' UnusedImportsState [AbstractModule]
+lensModuleLookups f s = f (moduleLookups s) <&> \ !x -> s { moduleLookups = x }
 
 lensOpenedModules :: Lens' UnusedImportsState (IntMap OpenedModule)
 lensOpenedModules f s = f (openedModules s) <&> \ !x -> s { openedModules = x }
@@ -1654,6 +1663,12 @@ instance SetBindingSite A.ModuleName where
 
 instance SetBindingSite AbstractName where
   setBindingSite r x = x { anameName = setBindingSite r $ anameName x }
+
+instance HasRange AbstractModule where
+  getRange = getRange . amodName
+
+instance SetRange AbstractModule where
+  setRange r x = x { amodName = setRange r $ amodName x }
 
 instance SetBindingSite AbstractModule where
   setBindingSite r x = x { amodName = setBindingSite r $ amodName x }

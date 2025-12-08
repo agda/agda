@@ -1,14 +1,38 @@
 
+UnusedImportedModules.lagda.md:18.1-34: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Equality brings the following unused
+names/modules into scope: Eq
+
+UnusedImportedModules.lagda.md:24.1-34: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Equality brings the following unused
+names/modules into scope: Eq
+
 UnusedImportedModules.lagda.md:37.3-14: warning: -W[no]UnusedImports
 Redundant opening of Parent
 
 UnusedImportedModules.lagda.md:45.3-14: warning: -W[no]UnusedImports
 Redundant opening of Parent
+
+UnusedImportedModules.lagda.md:71.3-24: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Nat brings the following unused names/modules
+into scope: Nat
 
 ———— All done; warnings encountered ————————————————————————
 
+UnusedImportedModules.lagda.md:18.1-34: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Equality brings the following unused
+names/modules into scope: Eq
+
+UnusedImportedModules.lagda.md:24.1-34: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Equality brings the following unused
+names/modules into scope: Eq
+
 UnusedImportedModules.lagda.md:37.3-14: warning: -W[no]UnusedImports
 Redundant opening of Parent
 
 UnusedImportedModules.lagda.md:45.3-14: warning: -W[no]UnusedImports
 Redundant opening of Parent
+
+UnusedImportedModules.lagda.md:71.3-24: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Nat brings the following unused names/modules
+into scope: Nat

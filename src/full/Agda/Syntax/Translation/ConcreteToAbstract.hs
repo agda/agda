@@ -60,7 +60,7 @@ import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Scope.UnusedImports (lookedupName)
+import Agda.Syntax.Scope.UnusedImports (lookedupName, lookedupModule)
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete, ConOfAbs)
 import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
@@ -718,7 +718,9 @@ instance ToAbstract OldModuleName where
   type AbsOfCon OldModuleName = A.ModuleName
 
   toAbstract (OldModuleName q) = setCurrentRange q $ do
-    amodName <$> resolveModule q
+    m <- resolveModule q
+    lookedupModule q m
+    return $ amodName m
 
 -- Expressions ------------------------------------------------------------
 --UNUSED Liang-Ting Chen 2019-07-16

@@ -320,12 +320,13 @@ prettyWarning = \case
       pwords "Invalid character literal" ++ [text $ show c] ++
       pwords "(surrogate code points are not supported)"
 
-    UnusedImports m Nothing -> fsep $
+    UnusedImports m [] [] -> fsep $
       pwords "Redundant opening of" ++ [ prettyTCM m ]
 
-    UnusedImports m (Just xs) -> fsep $
-      [ "Opening", prettyTCM m ] ++ pwords "brings the following unused names into scope:"
-      ++ fmap prettyTCM (List1.toList xs)
+    UnusedImports m names modules -> fsep $
+      [ "Opening", prettyTCM m ] ++ pwords "brings the following unused" ++
+      (if null names && null modules then [] else pwords "names/modules into scope:") ++
+      fmap prettyTCM names ++ fmap prettyTCM modules
 
     UselessPragma _r d -> return d
 
