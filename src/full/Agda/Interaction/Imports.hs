@@ -294,8 +294,6 @@ moduleCheckMode = \case
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
-    addImport $ iTopLevelModuleName i
-
     let sig     = iSignature i
         builtin = Map.toAscList $ iBuiltin i
         primOrBi = \case
@@ -415,10 +413,11 @@ scopeCheckFileImport top = do
     verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
+
+    addImport top
     -- Since scopeCheckFileImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getNonMainInterface top Nothing
-    addImport top
 
     -- Print list of imported modules in current state.
     verboseS "import.iface.imports" 10 do
