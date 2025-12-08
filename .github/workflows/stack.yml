@@ -27,7 +27,7 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - id: haskell-setup
       uses: haskell-actions/setup@v2
       with:

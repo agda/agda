@@ -19,7 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - id: vars
       name: Set up platform-dependent variables
       run: |
@@ -174,7 +174,7 @@ jobs:
     needs: sanity-check
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         sparse-checkout: .
     - uses: actions/download-artifact@v6
