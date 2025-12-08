@@ -43,6 +43,10 @@ on:
 
   workflow_dispatch:
 
+  # Run weekly 0:00am on Sunday.
+  schedule:
+    - cron: '0 0 * * 0'
+
 env:
   PARALLEL_TESTS: 2
   AGDA_TESTS_OPTIONS: "-j${PARALLEL_TESTS} --hide-successes"
@@ -55,11 +59,13 @@ env:
 
 jobs:
   build:
+    # Only run the workflow with tag [wasm] in commit message or PR title
+    # or if it was scheduled or started manually.
     if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
+      contains(github.event.head_commit.message, '[wasm]')
+      || contains(github.event.pull_request.title, '[wasm]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
 
     runs-on: ubuntu-24.04
 

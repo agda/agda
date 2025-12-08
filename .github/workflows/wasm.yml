@@ -13,10 +13,10 @@ env:
 jobs:
   build:
     if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
+      contains(github.event.head_commit.message, '[wasm]')
+      || contains(github.event.pull_request.title, '[wasm]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
     - if: github.ref != 'refs/heads/master'
