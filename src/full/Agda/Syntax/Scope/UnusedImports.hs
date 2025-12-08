@@ -192,7 +192,7 @@ warnUnusedImports = do
         -- into used and unused ones.
         fName :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         fName = traverse $ traverse toImportedName
-        
+
         impsName, impsName', usedName, unusedName :: [(C.Name, List1 ImportedName)]
         (otherName, impsName) = partitionMaybe fName $ Map.toList nameScope
         impsName' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) impsName
@@ -202,7 +202,7 @@ warnUnusedImports = do
         -- into used and unused ones.
         fModule :: (C.Name, List1 AbstractModule) -> Maybe (C.Name, List1 ImportedModule)
         fModule = traverse $ traverse toImportedModule
-        
+
         impsModule, impsModule', usedModule, unusedModule :: [(C.Name, List1 ImportedModule)]
         (otherModule, impsModule) = partitionMaybe fModule $ Map.toList moduleScope
         impsModule' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) impsModule
