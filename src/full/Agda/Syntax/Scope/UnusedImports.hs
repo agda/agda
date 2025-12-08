@@ -16,6 +16,7 @@
 
 module Agda.Syntax.Scope.UnusedImports
   ( lookedupName
+  , lookedupModule
   , registerModuleOpening
   , warnUnusedImports
   ) where
@@ -95,6 +96,13 @@ lookedupName x = \case
 rangeToPosPos :: HasRange a => a -> Maybe Int
 rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange
 
+-- | Call this whenever a concrete module name was translated to an abstract one.
+lookedupModule ::
+     C.QName          -- ^ The concrete module name resolved by the scope checker.
+  -> AbstractModule   -- ^ The resolution of the module name.
+  -> ScopeM ()
+lookedupModule _x m = modifyTCLens stModuleLookups (m :)
+
 -- | Call this when opening a module with all the names it brings into scope.
 --   When the 'UnusedImports' warning is enabled, we will store this information
 --   to later issue a warning connected to this 'open' statement
@@ -123,12 +131,14 @@ registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dat
   when doWarn $ whenNothing (publicOpen dir) do
     let
       m = setRange (getRange x) m0
-      broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
-      broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
+      broughtNamesIntoScope :: NamesInScope
+      broughtNamesIntoScope = mergeNamesMany $ map (nsNames . snd) ns
+      broughtModulesIntoScope :: ModulesInScope
+      broughtModulesIntoScope = mergeNamesMany $ map (nsModules . snd) ns
       !k = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
       hasDir = not (null (using dir)) || not (null (impRenaming dir))
     modifyTCLens stOpenedModules $
-      IntMap.insert k (OpenedModule kwr m currentModule hasDir broughtIntoScope)
+      IntMap.insert k (OpenedModule kwr m currentModule hasDir broughtNamesIntoScope broughtModulesIntoScope)
 
 -- | Call this when a file has been checked to generate the unused-imports warnings for each opened module.
 --   Assumes that all names have been looked up via 'lookedupName'.
@@ -163,43 +173,67 @@ warnUnusedImports = do
       isInst = isJust . isInstanceDef
       isUsed = applyUnless qualifiedInstances (isInst ||) isLookedUp
 
+      -- Process module lookups similarly
+      moduleLookups' :: [ImportedModule]
+      (unknownModules, moduleLookups') = partitionMaybe toImportedModule (moduleLookups st)
+      isModuleLookedUp :: ImportedModule -> Bool
+      isModuleLookedUp = hasElem moduleLookups'
+
     reportSLn "warning.unusedImports" 60 $ "allLookups: " <> prettyShow allLookups
     reportSLn "warning.unusedImports" 60 $ "lookups: " <> prettyShow lookups
     reportSLn "warning.unusedImports" 60 $ "unknowns: " <> prettyShow unknowns
+    reportSLn "warning.unusedImports" 60 $ "moduleLookups: " <> prettyShow moduleLookups'
+    reportSLn "warning.unusedImports" 60 $ "unknownModules: " <> prettyShow unknownModules
 
     -- Iterate through the @open@ statements and issue warnings.
-    forM_ (openedModules st) \ (OpenedModule (kwr :: KwRange) (m :: A.ModuleName) (parent :: A.ModuleName) (hasDir :: Bool) (sc :: NamesInScope)) -> do
+    forM_ (openedModules st) \ (OpenedModule (kwr :: KwRange) (m :: A.ModuleName) (parent :: A.ModuleName) (hasDir :: Bool) (nameScope :: NamesInScope) (moduleScope :: ModulesInScope)) -> do
       let
         -- Partition the names brought into scope by the open statement
         -- into used and unused ones.
-        f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
-        f = traverse $ traverse toImportedName
-        -- f (x, ys) = (x ,) <$> traverse toImportedName ys
-        imps, imps', used, unused :: [(C.Name, List1 ImportedName)]
-        (other, imps) = partitionMaybe f $ Map.toList sc
-        imps' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) imps
-        (used, unused) = partition (any isUsed . snd) imps'
+        fName :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
+        fName = traverse $ traverse toImportedName
+        
+        impsName, impsName', usedName, unusedName :: [(C.Name, List1 ImportedName)]
+        (otherName, impsName) = partitionMaybe fName $ Map.toList nameScope
+        impsName' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) impsName
+        (usedName, unusedName) = partition (any isUsed . snd) impsName'
 
-      reportSLn "warning.unusedImports" 60 $ "used: " <> prettyShow used
-      reportSLn "warning.unusedImports" 60 $ "unused: " <> prettyShow unused
-      unless (null other) $ __IMPOSSIBLE_VERBOSE__ (show other)
+        -- Partition the modules brought into scope by the open statement
+        -- into used and unused ones.
+        fModule :: (C.Name, List1 AbstractModule) -> Maybe (C.Name, List1 ImportedModule)
+        fModule = traverse $ traverse toImportedModule
+        
+        impsModule, impsModule', usedModule, unusedModule :: [(C.Name, List1 ImportedModule)]
+        (otherModule, impsModule) = partitionMaybe fModule $ Map.toList moduleScope
+        impsModule' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) impsModule
+        (usedModule, unusedModule) = partition (any isModuleLookedUp . snd) impsModule'
+
+      reportSLn "warning.unusedImports" 60 $ "usedName: " <> prettyShow usedName
+      reportSLn "warning.unusedImports" 60 $ "unusedName: " <> prettyShow unusedName
+      reportSLn "warning.unusedImports" 60 $ "usedModule: " <> prettyShow usedModule
+      reportSLn "warning.unusedImports" 60 $ "unusedModule: " <> prettyShow unusedModule
+      unless (null otherName) $ __IMPOSSIBLE_VERBOSE__ (show otherName)
+      unless (null otherModule) $ __IMPOSSIBLE_VERBOSE__ (show otherModule)
 
       let
         -- Commands to issue the warnings:
-        warn = setCurrentRange (getRange (kwr, m)) . withCurrentModule parent . warning . UnusedImports m
-        warnModule = warn Nothing
+        warn names modules = setCurrentRange (getRange (kwr, m)) . withCurrentModule parent . warning $ UnusedImports m names modules
+        warnWholeModule = warn [] []
         warnEach = do
-          List1.unlessNull (map snd unused) \ unused1 -> do
-            warn $ Just $ fmap (iName . List1.head) unused1
+          let unusedNames = concatMap (List1.toList . snd) unusedName
+          let unusedMods = concatMap (List1.toList . snd) unusedModule
+          unless (null unusedNames && null unusedMods) $ do
+            warn (map iName unusedNames) (map imModule unusedMods)
 
       -- Issue warning.
-      -- If nothing was used, we warn about the whole import.
+      -- If nothing was used (neither names nor modules), we warn about the whole import.
       -- If the open statement has a 'using' or 'renaming' directive,
       -- or if the 'UnusedImportsAll_' warning is enabled,
-      -- we warn about each unused name individually.
+      -- we warn about each unused name/module individually.
       -- Otherwise, we just warn once about the whole import.
+      let usedAny = not (null usedName && null usedModule)
       if  | hasDir      -> warnEach
-          | null used   -> warnModule
+          | not usedAny -> warnWholeModule
           | warnAll     -> warnEach
           | otherwise   -> pure ()
 
@@ -234,6 +268,31 @@ toImportedName x = case anameLineage x of
   Applied{} -> Nothing
   Defined{} -> Nothing
 
+-- | A wrapper around 'AbstractModule' to make the position of the 'Opened' in the lineage available.
+--   This wrapper is needed when 'AbstractModule's are stored in sets
+--   so that we do not conflate different 'AbstractModule's with the same underlying 'A.ModuleName'
+--   that were brought into scope by different 'open' statements.
+data ImportedModule = ImportedModule
+  { imWhere  :: Int -- Position of 'Opened' extracted from the 'AbstractModule'.
+  , imModule :: AbstractModule
+  } deriving (Eq, Ord, Show)
+
+instance HasRange ImportedModule where
+  getRange = getRange . imModule
+
+instance SetRange ImportedModule where
+  setRange r (ImportedModule i m) = ImportedModule i (setRange r m)
+
+instance Pretty ImportedModule where
+  pretty (ImportedModule i m) = pretty m <> " (at position " <> pretty i <> ")"
+
+-- | Convert an 'AbstractModule' to an 'ImportedModule' if it was brought into scope by an 'open' statement.
+toImportedModule :: AbstractModule -> Maybe ImportedModule
+toImportedModule (AbsModule m why) = case why of
+  Opened om _ -> rangeToPosPos om <&> (`ImportedModule` AbsModule m why)
+  Applied{} -> Nothing
+  Defined{} -> Nothing
+
 -- Lenses for the components of the UnusedImportsState in the TCState.
 
 stUnambiguousLookups :: Lens' TCState [AbstractName]
@@ -241,6 +300,9 @@ stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
 
 stAmbiguousLookups :: Lens' TCState (IntMap (List2 AbstractName))
 stAmbiguousLookups = stUnusedImportsState . lensAmbiguousLookups
+
+stModuleLookups :: Lens' TCState [AbstractModule]
+stModuleLookups = stUnusedImportsState . lensModuleLookups
 
 stOpenedModules :: Lens' TCState (IntMap OpenedModule)
 stOpenedModules = stUnusedImportsState . lensOpenedModules

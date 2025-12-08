@@ -40,7 +40,7 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
-import Agda.Syntax.Scope.Base  (AbstractName(..))
+import Agda.Syntax.Scope.Base  (AbstractName(..), AbstractModule(..))
 import Agda.Syntax.Scope.Monad (withContextPrecedence)
 import Agda.Syntax.TopLevelModuleName
 
@@ -281,6 +281,7 @@ instance PrettyTCM IsForced           where prettyTCM = text . show             
 instance PrettyTCM Name         where prettyTCM = fmap P.pretty . abstractToConcrete_ ; {-# SPECIALIZE prettyTCM :: Name          -> TCM Doc #-}
 
 instance PrettyTCM AbstractName where prettyTCM = prettyTCM . anameName           ; {-# SPECIALIZE prettyTCM :: AbstractName -> TCM Doc #-}
+instance PrettyTCM AbstractModule where prettyTCM = prettyTCM . amodName         ; {-# SPECIALIZE prettyTCM :: AbstractModule -> TCM Doc #-}
 instance PrettyTCM ConHead      where prettyTCM = prettyTCM . conName             ; {-# SPECIALIZE prettyTCM :: ConHead      -> TCM Doc #-}
 instance PrettyTCM DBPatVar     where prettyTCM = prettyTCM . var . dbPatVarIndex ; {-# SPECIALIZE prettyTCM :: DBPatVar     -> TCM Doc #-}
 instance PrettyTCM EqualityView where prettyTCM = prettyTCM . equalityUnview      ; {-# SPECIALIZE prettyTCM :: EqualityView -> TCM Doc #-}
