@@ -247,6 +247,10 @@ Interaction and emacs mode
   regardless of whether invoked at toplevel or in a hole
   (Issue [#2410](https://github.com/agda/agda/issue/2410)).
 
+* Added key binding that switches to the associated mode for a
+  literate Agda file, with the option to automatically add a key
+  binding to switch back.
+
 Backends
 --------
 
