@@ -70,7 +70,7 @@ backend:
 
      Count extended grapheme clusters when generating LaTeX code (see
      :ref:`grapheme-clusters`).
-     Available only when Agda was built with Cabal flag :option:`enable-cluster-counting`.
+     Available only when Agda was built with Cabal flag ``enable-cluster-counting``.
 
      This option can be given in :ref:`OPTIONS<options-pragma>` pragmas
      since 2.5.4.
@@ -355,7 +355,7 @@ The :option:`--count-clusters` flag is not enabled in all builds of Agda,
 because the implementation depends on the ICU_ library, the
 installation of which could cause extra trouble for some users. The
 presence of this flag is controlled by the Cabal flag
-:option:`enable-cluster-counting`.
+``enable-cluster-counting``.
 
 .. _breaking-up-code-blocks:
 
