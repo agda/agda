@@ -34,8 +34,13 @@ Fixes to outdated instructions welcome!
 How to build Agda from source
 =============================
 
+Running `cabal install`, `stack install`, or `make` from the repository root should build Agda,
+assuming you set up dependencies correctly (see "Troubleshooting Cabal").
+
 With nix
 --------
+
+You can also build Agda with nix.
 
 Running
 
@@ -59,12 +64,6 @@ $ nix build .#test -L
 ```
 
 See the `flake.nix` to see what build goals are available.
-
-Without nix
------------
-
-Running `cabal install`, `stack install`, or `make` from the repository root should also build Agda,
-assuming you set up dependencies correctly (see "Troubleshooting Cabal").
 
 Cabal flag reference
 ====================
