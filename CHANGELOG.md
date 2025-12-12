@@ -153,6 +153,14 @@ Changes to the Agda syntax.
     r .(proj)
   ```
 
+* Idiom brackets and `do` notation may now appear *qualified*, as in
+  `M.do` or `M.(| f x y z |)`, in which case the functions needed for
+  desugaring these are looked up in `M` rather than in the surrounding
+  scope.
+
+* **Breaking:** The parser now enforces that the opening/closing
+  brackets of an idiom bracket are either both Unicode, or both ASCII.
+
 Language
 --------
 

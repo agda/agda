@@ -156,26 +156,28 @@ tokens :-
 <empty_layout_> ()              { emptyLayout }
 
 -- Keywords
+-- Wrapping all our keywords which are also Haskell keywords in quotes
+-- allows this file to basically syntax highlight as Haskell correctly
 <0,code> abstract          { keyword KwAbstract }
 <0,code> codata            { keyword KwCoData }
 <0,code> coinductive       { keyword KwCoInductive }
 <0,code> constructor       { keyword KwConstructor }
 <0,code> data              { keyword KwData }
-<0,code> do                { keyword KwDo }
+<0,code> "do"              { keyword KwDo }
 <0,code> "eta-equality"    { keyword KwEta }
 <0,code> field             { keyword KwField }
 <0,code> forall            { keyword KwForall }
 <0,code> import            { keyword KwImport }
-<0,code> in                { keyword KwIn }
+<0,code> "in"              { keyword KwIn }
 <0,code> inductive         { keyword KwInductive }
 <0,code> infix             { keyword KwInfix }
 <0,code> infixl            { keyword KwInfixL }
 <0,code> infixr            { keyword KwInfixR }
 <0,code> instance          { keyword KwInstance }
 <0,code> interleaved       { keyword KwInterleaved }
-<0,code> let               { keyword KwLet }
+<0,code> "let"             { keyword KwLet }
 <0,code> macro             { keyword KwMacro }
-<0,code> module            { keyword KwModule }
+<0,code> "module"          { keyword KwModule }
 <0,code> mutual            { keyword KwMutual }
 <0,code> "no-eta-equality" { keyword KwNoEta }
 <0,code> open              { keyword KwOpen }
@@ -194,7 +196,7 @@ tokens :-
 <0,code> unquoteDecl       { keyword KwUnquoteDecl }
 <0,code> unquoteDef        { keyword KwUnquoteDef  }
 <0,code> variable          { keyword KwVariable }
-<0,code> where             { keyword KwWhere }
+<0,code> "where"           { keyword KwWhere }
 <0,code> with              { keyword KwWith }
 <0,code> opaque            { keyword KwOpaque }
 <0,code> unfolding         { keyword KwUnfolding }
@@ -221,8 +223,8 @@ tokens :-
 <0,code> "_"            { symbol SymUnderscore }
 <0,code> "?"            { symbol SymQuestionMark }
 <0,code> "|"            { symbol SymBar }
-<0,code> "(|" /[$white] { symbol SymOpenIdiomBracket }
-<0,code> "|)"           { symbol SymCloseIdiomBracket }
+<0,code> "(|" /[$white] { symbol (SymOpenIdiomBracket False) }
+<0,code> "|)"           { symbol (SymCloseIdiomBracket False) }
 <0,code> "(|)"          { symbol SymEmptyIdiomBracket }
 <0,code> "("            { symbol SymOpenParen }
 <0,code> ")"            { symbol SymCloseParen }
@@ -247,11 +249,18 @@ tokens :-
 -- Literals
 <0,code> \'             { litChar }
 <0,code,pragma_> \"     { litString }
+-- " -- ← this silly incantation lets the rest of this file correctly
+-- syntax highlight as Haskell (otherwise it's all a string literal)
+
 <0,code> @integer       { literal' integer LitNat }
 <0,code> @float         { literal LitFloat }
 
+-- Qualified idiom brackets
+<0,code> @namespace "(|"  /[$white] { qualifiedToken }
+<0,code> @namespace "(|)"           { qualifiedToken }
+
 -- Identifiers
-<0,code,imp_dir_> @q_ident      { identifier }
+<0,code,imp_dir_> @q_ident { qualifiedToken }
 -- Andreas, 2013-02-21, added identifiers to the 'imp_dir_' state.
 -- This is to fix issue 782: 'toz' should not be lexed as 'to'
 -- (followed by 'z' after leaving imp_dir_).

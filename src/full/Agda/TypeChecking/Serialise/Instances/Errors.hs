@@ -297,6 +297,7 @@ instance EmbPrj ParseWarning where
     UnknownAttribute a b       -> icodeN 3 UnknownAttribute a b
     UnknownPolarity a b        -> icodeN 4 UnknownPolarity a b
     MisplacedAttributes a b    -> icodeN 5 MisplacedAttributes a b
+    MismatchedBrackets a b     -> icodeN 6 MismatchedBrackets a b
 
   value = vcase $ \case
     N2 0 a   -> valuN OverlappingTokensWarning a
@@ -305,6 +306,7 @@ instance EmbPrj ParseWarning where
     N3 3 a b -> valuN UnknownAttribute a b
     N3 4 a b -> valuN UnknownPolarity a b
     N3 5 a b -> valuN MisplacedAttributes a b
+    N3 6 a b -> valuN MismatchedBrackets a b
     _        -> malformed
 
 instance EmbPrj RecordFieldWarning where
