@@ -2255,7 +2255,14 @@ instance ToAbstract NiceDeclaration where
       localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
         out <- traverse toAbstract decls
         unless (any interestingOpaqueDecl out) $ setCurrentRange kwr $ warning UselessOpaque
-        pure $ UnfoldingDecl r names : out
+        -- Andreas, 2025-12-12
+        -- For reasons of caching, append the UnfoldingDecl (which is only for highlighting purposes)
+        -- at the end.  Otherwise, any change in the (potentially big) opaque block
+        -- will invalidate caching for the whole block.
+        -- With UnfoldingDecl at the end, it does not contribute to cache invalidation,
+        -- because if something changed in the opaque block, one of its declarations changed
+        -- which invalidates the cache for this declaration.
+        pure $ out ++ [UnfoldingDecl r names]
 
 declarationWarning :: MonadWarning m => DeclarationWarning' -> m ()
 declarationWarning w = withCurrentCallStack \ stk -> do
