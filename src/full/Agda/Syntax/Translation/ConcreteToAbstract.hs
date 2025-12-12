@@ -1034,12 +1034,12 @@ instance ToAbstract C.Expr where
       C.Paren _ e -> toAbstractCtx TopCtx e
 
   -- Idiom brackets
-      C.IdiomBrackets r es ->
-        toAbstractCtx TopCtx =<< parseIdiomBracketsSeq r es
+      C.IdiomBrackets r q es -> qualifiedExpression q $
+        toAbstractCtx TopCtx =<< parseIdiomBracketsSeq r q es
 
   -- Do notation
-      C.DoBlock _kwr ss ->
-        toAbstractCtx TopCtx =<< desugarDoNotation ss
+      C.DoBlock _kwr q ss -> qualifiedExpression q $
+        toAbstractCtx TopCtx =<< desugarDoNotation q ss
 
   -- Post-fix projections
       C.Dot _ _ -> typeError InvalidDottedExpression
@@ -1279,6 +1279,18 @@ makeDomainFull :: C.LamBinding -> C.TypedBinding
 makeDomainFull (C.DomainFull b) = b
 makeDomainFull (C.DomainFree x) = C.TBind r (singleton x) $ C.Underscore r Nothing
   where r = getRange x
+
+-- | Common code for finishing the scope checking of a "qualified" operation.
+-- By itself, does not affect name resolution at all!
+--
+-- If the 'C.QName' is present, then it must refer to an existing
+-- module, and a 'A.Qualified' wrapper is generated around the
+-- expression.
+qualifiedExpression :: Maybe C.QName -> ScopeM A.Expr -> ScopeM A.Expr
+qualifiedExpression Nothing cont = cont
+qualifiedExpression (Just mod) cont = do
+  mod <- toAbstract (OldModuleName mod)
+  A.Qualified mod <$> cont
 
 instance ToAbstract C.TypedBinding where
   type AbsOfCon C.TypedBinding = Maybe A.TypedBinding

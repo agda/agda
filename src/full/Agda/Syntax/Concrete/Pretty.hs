@@ -78,6 +78,10 @@ prettyFiniteness name
 prettyTactic' :: TacticAttribute -> Doc -> Doc
 prettyTactic' t = (pretty t <+>)
 
+qualifier :: Pretty a => Maybe a -> Doc -> Doc
+qualifier (Just x) k = pretty x <> dot <> k
+qualifier Nothing  k = k
+
 instance Pretty a => Pretty (TacticAttribute' a) where
   pretty (TacticAttribute t) =
     ifNull (pretty t) empty \ d -> "@" <> parens (hlKeyword "tactic" <+> d)
@@ -168,12 +172,11 @@ instance Pretty Expr where
                     , maybe empty (\ e -> hlKeyword "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
-            IdiomBrackets _ es ->
-              case es of
+            IdiomBrackets _ q es -> qualifier q case es of
                 []   -> emptyIdiomBrkt
                 [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
                 e:es -> leftIdiomBrkt <+> pretty e <+> fsep (map (("|" <+>) . pretty) es) <+> rightIdiomBrkt
-            DoBlock _ ss -> hlKeyword "do" <+> vcat (fmap pretty ss)
+            DoBlock _ q ss -> qualifier q $ hlKeyword "do" <+> vcat (fmap pretty ss)
             As _ x e  -> pretty x <> hlSymbol "@" <> pretty e
             Dot _ e   -> hlSymbol "." <> pretty e
             DoubleDot _ e  -> hlSymbol ".." <> pretty e

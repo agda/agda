@@ -124,43 +124,47 @@ mkValidName constructor' r s = do
         isValidId con (Id y) = do
           let x = rawNameToString y
               err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
-          case parse defaultParseFlags [0] (lexer return) x of
+          case parse defaultParseFlags [0] (lexer return) (x <> " ") of
             ParseOk _ TokId{}  -> return ()
             ParseFailed{}      -> parseError err
             ParseOk _ TokEOF{} -> parseError err
             ParseOk _ (TokKeyword KwConstructor _) | con -> pure ()
             ParseOk _ t   -> parseError . ((err ++ " because it is ") ++) $ case t of
               TokQId{}      -> "qualified"
+              TokQual q _ _ -> case q of
+                QualDo           -> "a qualified do-block"
+                QualOpenIdiom{}  -> "a qualified idiom bracket"
+                QualEmptyIdiom{} -> "a qualified idiom bracket"
               TokKeyword{}  -> "a keyword"
               TokLiteral{}  -> "a literal"
               TokSymbol s _ -> case s of
-                SymDot               -> __IMPOSSIBLE__ -- "reserved"
-                SymSemi              -> "used to separate declarations"
-                SymVirtualSemi       -> __IMPOSSIBLE__
-                SymBar               -> "used for with-arguments"
-                SymColon             -> "part of declaration syntax"
-                SymArrow             -> "the function arrow"
-                SymEqual             -> "part of declaration syntax"
-                SymLambda            -> "used for lambda-abstraction"
-                SymUnderscore        -> "used for anonymous identifiers"
-                SymQuestionMark      -> "a meta variable"
-                SymAs                -> "used for as-patterns"
-                SymOpenParen         -> "used to parenthesize expressions"
-                SymCloseParen        -> "used to parenthesize expressions"
-                SymOpenIdiomBracket  -> "an idiom bracket"
-                SymCloseIdiomBracket -> "an idiom bracket"
-                SymEmptyIdiomBracket -> "an empty idiom bracket"
-                SymDoubleOpenBrace   -> "used for instance arguments"
-                SymDoubleCloseBrace  -> "used for instance arguments"
-                SymOpenBrace         -> "used for hidden arguments"
-                SymCloseBrace        -> "used for hidden arguments"
-                SymOpenVirtualBrace  -> __IMPOSSIBLE__
-                SymCloseVirtualBrace -> __IMPOSSIBLE__
-                SymOpenPragma        -> "used for pragmas"
-                SymClosePragma       -> "used for pragmas"
-                SymEllipsis          -> "used for function clauses"
-                SymDotDot            -> "a modality"
-                SymEndComment        -> "the end-of-comment brace"
+                SymDot                 -> __IMPOSSIBLE__ -- "reserved"
+                SymSemi                -> "used to separate declarations"
+                SymVirtualSemi         -> __IMPOSSIBLE__
+                SymBar                 -> "used for with-arguments"
+                SymColon               -> "part of declaration syntax"
+                SymArrow               -> "the function arrow"
+                SymEqual               -> "part of declaration syntax"
+                SymLambda              -> "used for lambda-abstraction"
+                SymUnderscore          -> "used for anonymous identifiers"
+                SymQuestionMark        -> "a meta variable"
+                SymAs                  -> "used for as-patterns"
+                SymOpenParen           -> "used to parenthesize expressions"
+                SymCloseParen          -> "used to parenthesize expressions"
+                SymOpenIdiomBracket{}  -> "an idiom bracket"
+                SymCloseIdiomBracket{} -> "an idiom bracket"
+                SymEmptyIdiomBracket   -> "an empty idiom bracket"
+                SymDoubleOpenBrace     -> "used for instance arguments"
+                SymDoubleCloseBrace    -> "used for instance arguments"
+                SymOpenBrace           -> "used for hidden arguments"
+                SymCloseBrace          -> "used for hidden arguments"
+                SymOpenVirtualBrace    -> __IMPOSSIBLE__
+                SymCloseVirtualBrace   -> __IMPOSSIBLE__
+                SymOpenPragma          -> "used for pragmas"
+                SymClosePragma         -> "used for pragmas"
+                SymEllipsis            -> "used for function clauses"
+                SymDotDot              -> "a modality"
+                SymEndComment          -> "the end-of-comment brace"
               TokString{}   -> __IMPOSSIBLE__
               TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
               TokMarkup{}   -> __IMPOSSIBLE__  -- ditto
@@ -183,6 +187,10 @@ mkQName ss | Just (ss0, ss1) <- initLast ss = do
   xs1 <- mkName' True ss1
   return $ foldr Qual (QName xs1) xs0
 mkQName _ = __IMPOSSIBLE__ -- The lexer never gives us an empty list of parts
+
+-- | Turn a 'QualifiedToken' into a properly qualified name, and the range of its keyword.
+qualTokenName :: QualifiedToken -> Parser (QName, KwRange)
+qualTokenName (QualifiedToken _ iss kw) = (, kwRange kw) <$> mkQName iss
 
 mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
 mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p UserBinderName $ mkBoundName_ n

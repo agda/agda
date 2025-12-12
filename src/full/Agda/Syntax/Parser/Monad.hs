@@ -201,6 +201,7 @@ data ParseWarning
       -- ^ Unsupported attribute.
   | MultipleAttributes Range !(Maybe String)
       -- ^ Multiple attributes.
+  | MismatchedBrackets Range Bool
   deriving Show
 
 instance NFData ParseWarning where
@@ -210,6 +211,7 @@ instance NFData ParseWarning where
   rnf (UnknownAttribute _ s)       = rnf s
   rnf (UnsupportedAttribute _ s)   = rnf s
   rnf (MultipleAttributes _ s)     = rnf s
+  rnf (MismatchedBrackets _ s)     = rnf s
 
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
@@ -219,6 +221,7 @@ parseWarningName = \case
   UnknownAttribute{}         -> UnknownAttribute_
   UnsupportedAttribute{}     -> UnsupportedAttribute_
   MultipleAttributes{}       -> MultipleAttributes_
+  MismatchedBrackets{}       -> MismatchedBrackets_
 
 -- | The result of parsing something.
 data ParseResult a
@@ -309,6 +312,9 @@ instance Pretty ParseWarning where
       , "are not supported here."
       ]
 
+    MismatchedBrackets _ True  -> "Idiom brackets opened with `\x2987` must be closed with `\x2988`."
+    MismatchedBrackets _ False -> "Idiom brackets opened with `(|` must be closed with `|)`."
+
     MultipleAttributes _r ms -> hsep
       [ "Multiple", pretty ms, "attributes (ignored)." ]
 
@@ -320,6 +326,7 @@ instance HasRange ParseWarning where
   getRange (UnknownAttribute r _)              = r
   getRange (UnsupportedAttribute r _)          = r
   getRange (MultipleAttributes r _)            = r
+  getRange (MismatchedBrackets r _)            = r
 
 {--------------------------------------------------------------------------
     Running the parser

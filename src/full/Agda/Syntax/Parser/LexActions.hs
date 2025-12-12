@@ -17,7 +17,7 @@ module Agda.Syntax.Parser.LexActions
     , begin_, end_
     , lexError
       -- ** Specialized actions
-    , keyword, symbol, identifier, literal, literal', integer
+    , keyword, symbol, qualifiedToken, literal, literal', integer
       -- * Lex predicates
     , followedBy, eof, inState
     ) where
@@ -104,8 +104,8 @@ postToken (TokId (r, "\x2026")) = TokSymbol SymEllipsis r
 postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
 postToken (TokId (r, "\x2983")) = TokSymbol SymDoubleOpenBrace r
 postToken (TokId (r, "\x2984")) = TokSymbol SymDoubleCloseBrace r
-postToken (TokId (r, "\x2987")) = TokSymbol SymOpenIdiomBracket r
-postToken (TokId (r, "\x2988")) = TokSymbol SymCloseIdiomBracket r
+postToken (TokId (r, "\x2987")) = TokSymbol (SymOpenIdiomBracket True) r
+postToken (TokId (r, "\x2988")) = TokSymbol (SymCloseIdiomBracket True) r
 postToken (TokId (r, "\x2987\x2988")) = TokSymbol SymEmptyIdiomBracket r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
 postToken t = t
@@ -137,13 +137,16 @@ withInterval' f t = withInterval (t . second f)
 withInterval_ :: (Interval -> r) -> LexAction r
 withInterval_ f = withInterval (f . fst)
 
+-- | Enter the layout state for the given keyword.
+enterLayout :: Keyword -> Parser ()
+enterLayout kw = do
+  pushLexState layout
+  modify \st -> st { parseLayKw = kw }
 
 -- | Executed for layout keywords. Enters the 'Agda.Syntax.Parser.Lexer.layout'
 --   state and performs the given action.
 withLayout :: Keyword -> LexAction r -> LexAction r
-withLayout kw a = pushLexState layout `andThen` setLayoutKw `andThen` a
-  where
-  setLayoutKw = modify $ \ st -> st { parseLayKw = kw }
+withLayout kw a = enterLayout kw `andThen` a
 
 infixr 1 `andThen`
 
@@ -256,20 +259,37 @@ literal :: Read a => (a -> Literal) -> LexAction Token
 literal = literal' read
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
---   Example: @Foo.Bar.f@
-identifier :: LexAction Token
-identifier = qualified $ either (TokId . second toList) (TokQId . map (second toList))
+--
+-- This action also handles the lexing of the qualified @do@ keyword. It
+-- may thus modify the lexer state, and will not always return a
+-- 'TokId'/'TokQId'.
+--
+-- Example: @Foo.Bar.f@, @Foo.do@.
+qualifiedToken :: LexAction Token
+qualifiedToken = qualified $ either (pure . TokId . second toList) (qid . map (second toList)) where
+  qid :: [(Interval, String)] -> Parser Token
+  qid parts = case initLast parts of
+    -- For qualified 'do', we have to pretend to be a layout keyword
+    Just (initp, (i, "do")) ->
+      TokQual QualDo initp i <$ enterLayout KwDo
 
+    Just (initp, (i, "(|)"))          -> pure $ TokQual QualEmptyIdiom initp i
+    Just (initp, (i, "\x2987\x2988")) -> pure $ TokQual QualEmptyIdiom initp i
+
+    Just (initp, (i, "(|"))           -> pure $ TokQual (QualOpenIdiom False) initp i
+    Just (initp, (i, "\x2987"))       -> pure $ TokQual (QualOpenIdiom True) initp i
+
+    _                                 -> pure $ TokQId parts
 
 -- | Parse a possibly qualified name.
-qualified :: (Either (Interval, String1) [(Interval, String1)] -> a) -> LexAction a
+qualified :: (Either (Interval, String1) [(Interval, String1)] -> Parser a) -> LexAction a
 qualified tok =
     token $ \s ->
     do  i <- getParseInterval
         case mkName i $ List1.wordsBy (== '.') s of
             []  -> lexError "lex error on .."
-            [x] -> return $ tok $ Left  x
-            xs  -> return $ tok $ Right xs
+            [x] -> tok $ Left  x
+            xs  -> tok $ Right xs
     where
         -- Compute the ranges for the substrings (separated by '.') of
         -- a name. Dots are included: the intervals generated for

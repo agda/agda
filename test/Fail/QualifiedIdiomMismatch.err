@@ -1,0 +1,2 @@
+QualifiedIdiomMismatch.agda:17.19-21: error: [MismatchedBrackets]
+Idiom brackets opened with '⦇' must be closed with '⦈'.

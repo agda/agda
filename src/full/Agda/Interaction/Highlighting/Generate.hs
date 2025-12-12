@@ -236,26 +236,31 @@ tokenHighlighting = convert . mconcat . map tokenToHI
   aToF a r = H.singleton (rToR r) (mempty { aspect = Just a })
 
   tokenToHI :: T.Token -> HighlightingInfoBuilder
-  tokenToHI (T.TokKeyword T.KwForall i)  = aToF Symbol (getRange i)
-  tokenToHI (T.TokKeyword T.KwREWRITE _) = mempty  -- #4361, REWRITE is not always a Keyword
-  tokenToHI (T.TokKeyword _ i)           = aToF Keyword (getRange i)
+  tokenToHI (T.TokKeyword T.KwForall i)       = aToF Symbol (getRange i)
+  tokenToHI (T.TokKeyword T.KwREWRITE _)      = mempty  -- #4361, REWRITE is not always a Keyword
+  tokenToHI (T.TokKeyword _ i)                = aToF Keyword (getRange i)
   tokenToHI (T.TokSymbol T.SymQuestionMark i) = aToF Hole (getRange i)
   tokenToHI (T.TokSymbol  _ i)                = aToF Symbol (getRange i)
-  tokenToHI (T.TokLiteral (Ranged r (L.LitNat    _))) = aToF Number r
-  tokenToHI (T.TokLiteral (Ranged r (L.LitWord64 _))) = aToF Number r
-  tokenToHI (T.TokLiteral (Ranged r (L.LitFloat  _))) = aToF Number r
-  tokenToHI (T.TokLiteral (Ranged r (L.LitString _))) = aToF String r
-  tokenToHI (T.TokLiteral (Ranged r (L.LitChar   _))) = aToF String r
-  tokenToHI (T.TokLiteral (Ranged r (L.LitQName  _))) = aToF String r
-  tokenToHI (T.TokLiteral (Ranged r (L.LitMeta _ _))) = aToF String r
-  tokenToHI (T.TokComment (i, _))            = aToF Comment (getRange i)
-  tokenToHI (T.TokTeX (i, _))                = aToF Background (getRange i)
-  tokenToHI (T.TokMarkup (i, _))             = aToF Markup (getRange i)
-  tokenToHI (T.TokId {})                     = mempty
-  tokenToHI (T.TokQId {})                    = mempty
-  tokenToHI (T.TokString (i,s))              = aToF Pragma (getRange i)
-  tokenToHI (T.TokDummy {})                  = mempty
-  tokenToHI (T.TokEOF {})                    = mempty
+  tokenToHI (T.TokComment (i, _))             = aToF Comment (getRange i)
+  tokenToHI (T.TokTeX (i, _))                 = aToF Background (getRange i)
+  tokenToHI (T.TokMarkup (i, _))              = aToF Markup (getRange i)
+  tokenToHI (T.TokId {})                      = mempty
+  tokenToHI (T.TokQId {})                     = mempty
+  tokenToHI (T.TokString (i,s))               = aToF Pragma (getRange i)
+  tokenToHI (T.TokDummy {})                   = mempty
+  tokenToHI (T.TokEOF {})                     = mempty
+  tokenToHI (T.TokQual cls _ i)         = case cls of
+    T.QualDo           -> aToF Keyword (getRange i)
+    T.QualOpenIdiom{}  -> aToF Symbol  (getRange i)
+    T.QualEmptyIdiom{} -> aToF Symbol  (getRange i)
+  tokenToHI (T.TokLiteral (Ranged r l)) = case l of
+    L.LitNat{}    -> aToF Number r
+    L.LitWord64{} -> aToF Number r
+    L.LitFloat{}  -> aToF Number r
+    L.LitString{} -> aToF String r
+    L.LitChar{}   -> aToF String r
+    L.LitQName{}  -> aToF String r
+    L.LitMeta{}   -> aToF String r
 
 -- | Builds a 'NameKinds' function.
 
@@ -531,6 +536,7 @@ warningHighlighting' b w = case tcWarning w of
     Pa.UnknownAttribute{}         -> deadcodeHighlighting w
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
+    Pa.MismatchedBrackets{}       -> errorWarningHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
   MissingTypeSignatureForOpaque{} -> errorWarningHighlighting w
   NotAffectedByOpaque{}           -> deadcodeHighlighting w

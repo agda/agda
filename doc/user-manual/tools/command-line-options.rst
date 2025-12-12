@@ -1995,6 +1995,11 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Let bindings can not be made abstract.
 
+.. option:: MismatchedBrackets
+
+     An idiom bracket opened with unicode (resp. ASCII) syntax must also
+     be closed with unicode (resp. ASCII) syntax.
+
 
 Command-line examples
 ---------------------
