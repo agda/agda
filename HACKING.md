@@ -125,7 +125,7 @@ Hint: You can set these flags as follows:
 * Cabal-install: use the `-f` argument:
 
       cabal install -fenable-cluster-counting
-  
+
 * Stack: use `--flag` and an `Agda:` prefix:
 
       stack install --flag Agda:enable-cluster-counting
