@@ -11,7 +11,7 @@ Debugging
 Verbose mode
 ------------
 
-If Agda was installed with the :option:`debug` flag (e.g. using ``cabal install
+If Agda was installed with the ``debug`` Cabal flag (e.g. using ``cabal install
 Agda -fdebug``), it can print internal information by setting the
 :option:`--verbose={N}` flag (or :option:`-v {N}`) with a verbosity tag and a
 verbosity level in form ``tag:level``. For example, running Agda with
