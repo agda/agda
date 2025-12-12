@@ -116,7 +116,7 @@ getPrimitiveLibDir = do
       (return $ AbsolutePath $ T.pack $ libdir </> "prim")
       (error $ "The lib directory " ++ libdir ++ " does not exist")
 
--- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
+-- | The @$AGDA_DIR/libraries@ file lists the libraries Agda should know about.
 --   The content of @libraries@ is a list of paths to @.agda-lib@ files.
 --
 --   Agda honors also version-specific @libraries@ files, e.g. @libraries-2.6.0@.
@@ -138,7 +138,7 @@ defaultLibraryFiles = ("libraries-" ++ version) :| "libraries" : []
 defaultsFiles :: List1 FilePath
 defaultsFiles = ("defaults-" ++ version) :| "defaults" : []
 
--- | The @~/.agda/executables@ file lists the executables Agda should know about.
+-- | The @$AGDA_DIR/executables@ file lists the executables Agda should know about.
 --   The content of @executables@ is a list of paths to executables.
 --
 --   Agda honors also version-specific @executables@ files, e.g. @executables-2.6.0@.
