@@ -102,8 +102,8 @@ postToken :: Token -> Token
 postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r
 postToken (TokId (r, "\x2026")) = TokSymbol SymEllipsis r
 postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
-postToken (TokId (r, "\x2983")) = TokSymbol SymDoubleOpenBrace r
-postToken (TokId (r, "\x2984")) = TokSymbol SymDoubleCloseBrace r
+postToken (TokId (r, "\x2983")) = TokSymbol (SymDoubleOpenBrace True) r
+postToken (TokId (r, "\x2984")) = TokSymbol (SymDoubleCloseBrace True) r
 postToken (TokId (r, "\x2987")) = TokSymbol (SymOpenIdiomBracket True) r
 postToken (TokId (r, "\x2988")) = TokSymbol (SymCloseIdiomBracket True) r
 postToken (TokId (r, "\x2987\x2988")) = TokSymbol SymEmptyIdiomBracket r
@@ -258,13 +258,15 @@ literal' read lit = withInterval' read $ \ (r, a) ->
 literal :: Read a => (a -> Literal) -> LexAction Token
 literal = literal' read
 
--- | Parse an identifier. Identifiers can be qualified (see 'Name').
+-- | Parse a potentially-qualified token. This action is responsible for
+-- lexing both identifiers (which do not always have a qualifier, in
+-- which case a 'TokId' is returned) *and* "qualified keywords", like
+-- qualified @do@.
 --
--- This action also handles the lexing of the qualified @do@ keyword. It
--- may thus modify the lexer state, and will not always return a
--- 'TokId'/'TokQId'.
+-- This action may thus modify the layout state of the parser, since
+-- qualified @do@ is a layout "keyword".
 --
--- Example: @Foo.Bar.f@, @Foo.do@.
+-- Examples: @Foo.Bar.f@, @Foo.do@.
 qualifiedToken :: LexAction Token
 qualifiedToken = qualified $ either (pure . TokId . second toList) (qid . map (second toList)) where
   qid :: [(Interval, String)] -> Parser Token
