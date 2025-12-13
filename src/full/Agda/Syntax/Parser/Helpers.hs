@@ -134,7 +134,7 @@ mkValidName constructor' r s = do
               TokQual q _ _ -> case q of
                 QualDo           -> "a qualified do-block"
                 QualOpenIdiom{}  -> "a qualified idiom bracket"
-                QualEmptyIdiom{} -> "a qualified idiom bracket"
+                QualEmptyIdiom{} -> "a qualified empty idiom bracket"
               TokKeyword{}  -> "a keyword"
               TokLiteral{}  -> "a literal"
               TokSymbol s _ -> case s of
@@ -154,8 +154,8 @@ mkValidName constructor' r s = do
                 SymOpenIdiomBracket{}  -> "an idiom bracket"
                 SymCloseIdiomBracket{} -> "an idiom bracket"
                 SymEmptyIdiomBracket   -> "an empty idiom bracket"
-                SymDoubleOpenBrace     -> "used for instance arguments"
-                SymDoubleCloseBrace    -> "used for instance arguments"
+                SymDoubleOpenBrace{}   -> "used for instance arguments"
+                SymDoubleCloseBrace{}  -> "used for instance arguments"
                 SymOpenBrace           -> "used for hidden arguments"
                 SymCloseBrace          -> "used for hidden arguments"
                 SymOpenVirtualBrace    -> __IMPOSSIBLE__
@@ -187,10 +187,6 @@ mkQName ss | Just (ss0, ss1) <- initLast ss = do
   xs1 <- mkName' True ss1
   return $ foldr Qual (QName xs1) xs0
 mkQName _ = __IMPOSSIBLE__ -- The lexer never gives us an empty list of parts
-
--- | Turn a 'QualifiedToken' into a properly qualified name, and the range of its keyword.
-qualTokenName :: QualifiedToken -> Parser (QName, KwRange)
-qualTokenName (QualifiedToken _ iss kw) = (, kwRange kw) <$> mkQName iss
 
 mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
 mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p UserBinderName $ mkBoundName_ n
@@ -776,3 +772,29 @@ applyAttributes :: Functor f
 applyAttributes attrs ai bs = do
   applyAttrs attrs ai <&> \ ai' ->
     fmap (setTacticAttr attrs . setArgInfo ai') bs
+
+------------------------------------------------------------------------
+-- * Brackets
+
+-- | Turn a 'QualifiedToken' into a properly qualified name, and the
+-- range of its keyword.
+-- If the qualified token is an opening bracket, this also calls
+-- 'openBracket'.
+unqualifyToken :: QualifiedToken -> Parser (QName, Range)
+unqualifyToken (QualifiedToken tok iss kw) = (,) <$> mkQName iss <*> case tok of
+  QualOpenIdiom tok -> openBracket $ TokSymbol (SymOpenIdiomBracket tok) kw
+  _                 -> pure (getRange kw)
+
+-- | Close a double brace from a pair of single closing braces.
+--
+-- This implements the rule described in the grammar that the braces
+-- must be adjacent, and additionally acts as 'closeBracket', generating
+-- the proper error if the opening braces were Unicode.
+closeTwoBraces :: Interval -> Interval -> Parser Range
+closeTwoBraces i1 i2 =
+  let ivl = getIntervalFile i1 <$ fuseIntervals (void i1) (void i2) in
+  if posPos (iEnd i2) - posPos (iStart i1) > 2
+    then parseErrorRange i2 "Expecting '}}', found separated '}'s."
+    -- We just call closeBracket with a fake token so as to not
+    -- duplicate the hairy code below.
+    else closeBracket (TokSymbol (SymDoubleCloseBrace False) ivl)

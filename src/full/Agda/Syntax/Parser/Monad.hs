@@ -6,6 +6,7 @@ module Agda.Syntax.Parser.Monad
     , ParseState(..)
     , ParseError(..), ParseWarning(..)
     , LexState
+    , OpenBracket(..)
     , LayoutBlock(..), LayoutContext, LayoutStatus(..)
     , Column
     , ParseFlags (..)
@@ -24,6 +25,8 @@ module Agda.Syntax.Parser.Monad
     , topBlock, popBlock, pushBlock
     , getContext, setContext, modifyContext
     , resetLayoutStatus
+      -- ** Brackets
+    , openBracket, closeBracket
       -- ** Errors
     , parseWarning, parseWarningName
     , parseError, parseErrorAt, parseError', parseErrorRange
@@ -37,16 +40,18 @@ import Control.DeepSeq
 import Control.Exception ( displayException )
 import Control.Monad.Except
 import Control.Monad.State
+import Control.Monad
 
 import Data.Maybe ( listToMaybe, fromMaybe )
-import Data.Word  ( Word32)
+import Data.Word  ( Word32 )
+import Data.List  ( uncons )
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Position
-import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
+import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ), Token(..), Symbol(..), QualifiableToken (QualOpenIdiom) )
 
 import Agda.TypeChecking.Positivity.Occurrence ( pattern Mixed )
 
@@ -70,22 +75,21 @@ newtype Parser a = P { _runP :: StateT ParseState (Either ParseError) a }
 -- | The parser state. Contains everything the parser and the lexer could ever
 --   need.
 data ParseState = PState
-    { parseSrcFile  :: !SrcFile
-    , parsePos      :: !PositionWithoutFile  -- ^ position at current input location
-    , parseLastPos  :: !PositionWithoutFile  -- ^ position of last token
-    , parseInp      :: String                -- ^ the current input
-    , parsePrevChar :: !Char                 -- ^ the character before the input
-    , parsePrevToken:: String                -- ^ the previous token
-    , parseLayout   :: LayoutContext         -- ^ the stack of layout blocks
-    , parseLayStatus:: LayoutStatus          -- ^ the status of the coming layout block
-    , parseLayKw    :: Keyword               -- ^ the keyword for the coming layout block
-    , parseLexState :: [LexState]            -- ^ the state of the lexer
+    { parseSrcFile    :: !SrcFile
+    , parsePos        :: !PositionWithoutFile  -- ^ position at current input location
+    , parseLastPos    :: !PositionWithoutFile  -- ^ position of last token
+    , parseInp        :: String                -- ^ the current input
+    , parsePrevChar   :: !Char                 -- ^ the character before the input
+    , parsePrevToken  :: String                -- ^ the previous token
+    , parseLayout     :: LayoutContext         -- ^ the stack of layout blocks
+    , parseLayStatus  :: LayoutStatus          -- ^ the status of the coming layout block
+    , parseLayKw      :: Keyword               -- ^ the keyword for the coming layout block
+    , parseLexState   :: [LexState]            -- ^ the state of the lexer
                                              --   (states can be nested so we need a stack)
-    , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
-    , parseWarnings :: ![ParseWarning]       -- ^ In reverse order.
-    , parseAttributes
-                    :: !Attributes
-      -- ^ Every encountered attribute.
+    , parseFlags      :: ParseFlags            -- ^ parametrization of the parser
+    , parseWarnings   :: ![ParseWarning]       -- ^ In reverse order.
+    , parseBrackets   :: [OpenBracket]         -- ^ stack of open unicode/ASCII brackets
+    , parseAttributes :: !Attributes         -- ^ Every encountered attribute.
     }
     deriving Show
 
@@ -128,6 +132,25 @@ data LayoutStatus
                --   and the layout column has not been superseded by
                --   a smaller column.
     deriving (Eq, Show)
+
+-- | Information about an opening unicode-able bracket necessary for
+-- correctly parsing its closing delimiter.
+data OpenBracket
+  -- | An opening idiom bracket.
+  = OpenIdiomBracket
+    { openBracketUnicode  :: Bool     -- ^ 'True' if the user wrote @⦇@.
+    , openBracketInterval :: Interval -- ^ Position of the opening bracket.
+    }
+  -- | An opening double brace.
+  | OpenDoubleBrace
+    { openBracketUnicode  :: Bool     -- ^ 'True' if the user wrote @⦃@.
+    , openBracketInterval :: Interval -- ^ Position of the opening bracket.
+    }
+  deriving (Eq, Show)
+
+instance NFData OpenBracket where
+  rnf (OpenIdiomBracket x _) = rnf x
+  rnf (OpenDoubleBrace  x _) = rnf x
 
 -- | Parser flags.
 data ParseFlags = ParseFlags
@@ -201,7 +224,9 @@ data ParseWarning
       -- ^ Unsupported attribute.
   | MultipleAttributes Range !(Maybe String)
       -- ^ Multiple attributes.
-  | MismatchedBrackets Range Bool
+  | MismatchedBrackets Range OpenBracket
+      -- ^ The closing bracket (at the 'Range') was closed with a
+      -- unicode-ness that doesn't match that of the 'OpenBracket'.
   deriving Show
 
 instance NFData ParseWarning where
@@ -312,8 +337,14 @@ instance Pretty ParseWarning where
       , "are not supported here."
       ]
 
-    MismatchedBrackets _ True  -> "Idiom brackets opened with `\x2987` must be closed with `\x2988`."
-    MismatchedBrackets _ False -> "Idiom brackets opened with `(|` must be closed with `|)`."
+    MismatchedBrackets _r brk ->
+      let
+        (nm, op, cl) = case brk of
+          OpenIdiomBracket True  _ -> ("Idiom brackets", "\x2987", "\x2988")
+          OpenIdiomBracket False _ -> ("Idiom brackets", "(|",     "|)")
+          OpenDoubleBrace  True  _ -> ("Double braces",  "\x2983", "\x2984")
+          OpenDoubleBrace  False _ -> ("Double braces",  "{{",     "}}")
+      in nm <> " opened with `" <> op <> "` must be closed with `" <> cl <> "`."
 
     MultipleAttributes _r ms -> hsep
       [ "Multiple", pretty ms, "attributes (ignored)." ]
@@ -349,6 +380,7 @@ initStatePos pos flags inp st =
                 , parseFlags        = flags
                 , parseWarnings     = []
                 , parseAttributes   = []
+                , parseBrackets     = []
                 }
   where
   pos' = pos { srcFile = () }
@@ -486,3 +518,45 @@ pushBlock l = modifyContext (l :)
 -- | When we see a layout keyword, by default we expect a 'Tentative' block.
 resetLayoutStatus :: Parser ()
 resetLayoutStatus = modify $ \ s -> s { parseLayStatus = Tentative }
+
+------------------------------------------------------------------------
+-- * Brackets
+
+-- | Push the 'OpenBracket' state corresponding to an opening token.
+openBracket :: Token -> Parser Range
+openBracket tok =
+  case tok of
+    TokSymbol (SymOpenIdiomBracket u)   r -> push r $ OpenIdiomBracket u
+    TokSymbol (SymDoubleOpenBrace  u)   r -> push r $ OpenDoubleBrace  u
+    TokQual   (QualOpenIdiom       u) _ r -> push r $ OpenIdiomBracket u
+
+    -- These are the only tokens we call this for.
+    _ -> __IMPOSSIBLE__
+  where push rng k = getRange rng <$ modify \s -> s { parseBrackets = k rng:parseBrackets s}
+
+-- | Pop an 'OpenBracket' from the parser state, and generate the
+-- 'MismatchedBrackets' warning if the given 'Token' does not match what
+-- was expected.
+closeBracket :: Token -> Parser Range
+closeBracket (TokSymbol sym ivl) = do
+  let
+    rng          = getRange ivl
+    match a b xs = rng <$ do
+      unless (openBracketUnicode a == b) $ parseWarning $ MismatchedBrackets rng a
+      modify \s -> s { parseBrackets = xs }
+
+  -- Since Happy won't call the action if the rule doesn't match, and we
+  -- call this function from the *parser*, this function is guaranteed
+  -- to only run if the parser is expecting a closing delimiter of the
+  -- right type.
+  gets parseBrackets >>= \case
+    open@OpenIdiomBracket{}:xs
+      | SymCloseIdiomBracket uC <- sym -> match open uC xs
+      | otherwise                      -> __IMPOSSIBLE__
+    open@OpenDoubleBrace{}:xs
+      | SymDoubleCloseBrace  uC <- sym -> match open uC xs
+      | otherwise                      -> __IMPOSSIBLE__
+    [] -> __IMPOSSIBLE__
+
+-- Only symbols can be closing delimiters.
+closeBracket _ = __IMPOSSIBLE__

@@ -231,7 +231,7 @@ tokens :-
 <0,code> "->"           { symbol SymArrow }
 <0,code> "\"            { symbol SymLambda } -- "
 <0,code> "@"            { symbol SymAs }
-<0,code> "{{" /[^[!\-]] { symbol SymDoubleOpenBrace }
+<0,code> "{{" /[^[!\-]] { symbol (SymDoubleOpenBrace False) }
 -- Andreas, 2019-08-08, issue #3962, don't lex '{{' if followed by '-'
 -- since this will be confused with '{-' (start of comment) by Emacs.
 
@@ -255,12 +255,12 @@ tokens :-
 <0,code> @integer       { literal' integer LitNat }
 <0,code> @float         { literal LitFloat }
 
--- Qualified idiom brackets
+-- Qualified tokens, like identifiers, qualified @do@, and qualified
+-- idiom brackets, are all handled by the same 'qualifiedToken' action.
 <0,code> @namespace "(|"  /[$white] { qualifiedToken }
 <0,code> @namespace "(|)"           { qualifiedToken }
 
--- Identifiers
-<0,code,imp_dir_> @q_ident { qualifiedToken }
+<0,code,imp_dir_> @q_ident          { qualifiedToken }
 -- Andreas, 2013-02-21, added identifiers to the 'imp_dir_' state.
 -- This is to fix issue 782: 'toz' should not be lexed as 'to'
 -- (followed by 'z' after leaving imp_dir_).

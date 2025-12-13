@@ -204,17 +204,23 @@ import Agda.Utils.Impossible
     '('                       { TokSymbol SymOpenParen $$ }
     ')'                       { TokSymbol SymCloseParen $$ }
 
-    -- a for ASCII, u for Unicode; using double quotes for the terminals
-    -- with mismatched brackets allows "matching brackets" highlighting
-    -- for Haskell to work in this file
-    "a(|"                     { TokSymbol (SymOpenIdiomBracket False) $$ }
-    "a|)"                     { TokSymbol (SymCloseIdiomBracket False) $$ }
-    "u(|"                     { TokSymbol (SymOpenIdiomBracket  True) $$ }
-    "u|)"                     { TokSymbol (SymCloseIdiomBracket True) $$ }
+    -- Handling of Unicode brackets: the actual terminals produced by
+    -- the lexer get the "i_" prefix, for internal.
+    --
+    -- These should not be used anywhere other than the Token
+    -- production!!! Other non-terminals that need these delimiters
+    -- should use the unprefixed versions, e.g. "{{". Those will
+    -- automatically handle generating the MismatchedBrackets warnings
+    -- when appropriate.
+    --
+    -- Note that the "}}" nonterminal also handles the special case for
+    -- closing a "{{" with a pair of consecutive '}' '}'.
+    "i_(|"                    { $$@(TokSymbol SymOpenIdiomBracket{}  _) }
+    "i_|)"                    { $$@(TokSymbol SymCloseIdiomBracket{} _) }
+    "i_{{"                    { $$@(TokSymbol SymDoubleOpenBrace{}   _) }
+    "i_}}"                    { $$@(TokSymbol SymDoubleCloseBrace{}  _) }
 
     "(|)"                     { TokSymbol SymEmptyIdiomBracket $$ }
-    "{{"                      { TokSymbol SymDoubleOpenBrace $$ }
-    "}}"                      { TokSymbol SymDoubleCloseBrace $$ }
     '{'                       { TokSymbol SymOpenBrace $$ }
     '}'                       { TokSymbol SymCloseBrace $$ }
 --    ':{'                      { TokSymbol SymColonBrace $$ }
@@ -228,9 +234,7 @@ import Agda.Utils.Impossible
     q_id                      { TokQId $$ }
     q_do                      { TokQual_ $$@(QualifiedToken QualDo _ _) }
 
-    -- a for ASCII, u for Unicode
-    qa_idiom                  { TokQual_ $$@(QualifiedToken (QualOpenIdiom False) _ _) }
-    qu_idiom                  { TokQual_ $$@(QualifiedToken (QualOpenIdiom True) _ _) }
+    q_idiom                   { TokQual_ $$@(QualifiedToken QualOpenIdiom{} _ _) }
     q_idiomE                  { TokQual_ $$@(QualifiedToken QualEmptyIdiom _ _) }
 
     string                    { TokString $$ }
@@ -354,13 +358,11 @@ Token
     | '|'                       { TokSymbol SymBar $1 }
     | '('                       { TokSymbol SymOpenParen $1 }
     | ')'                       { TokSymbol SymCloseParen $1 }
-    | "a(|"                     { TokSymbol (SymOpenIdiomBracket  False) $1 }
-    | "a|)"                     { TokSymbol (SymCloseIdiomBracket False) $1 }
-    | "u(|"                     { TokSymbol (SymOpenIdiomBracket  True) $1 }
-    | "u|)"                     { TokSymbol (SymCloseIdiomBracket True) $1 }
+    | "i_(|"                    { $1 }
+    | "i_|)"                    { $1 }
+    | "i_{{"                    { $1 }
+    | "i_}}"                    { $1 }
     | "(|)"                     { TokSymbol SymEmptyIdiomBracket $1 }
-    | "{{"                      { TokSymbol SymDoubleOpenBrace $1 }
-    | "}}"                      { TokSymbol SymDoubleCloseBrace $1 }
     | '{'                       { TokSymbol SymOpenBrace $1 }
     | '}'                       { TokSymbol SymCloseBrace $1 }
     | vopen                     { TokSymbol SymOpenVirtualBrace $1 }
@@ -372,8 +374,7 @@ Token
     | id                        { TokId $1 }
     | q_id                      { TokQId $1 }
     | q_do                      { TokQual_ $1 }
-    | qa_idiom                  { TokQual_ $1 }
-    | qu_idiom                  { TokQual_ $1 }
+    | q_idiom                   { TokQual_ $1 }
     | q_idiomE                  { TokQual_ $1 }
     | string                    { TokString $1 }
 
@@ -432,6 +433,30 @@ Float : literal {% forM $1 $ \case
                    }
                 }
 
+-- See "Handling of Unicode brackets" above.
+"(|" :: { Range } : "i_(|" {% openBracket  $1 }
+"|)" :: { Range } : "i_|)" {% closeBracket $1 }
+"{{" :: { Range } : "i_{{" {% openBracket  $1 }
+"}}" :: { Range }
+  : "i_}}"  {% closeBracket $1 }
+
+  -- To support closing nested records without whitespace between the
+  -- closing braces, as in
+  --
+  --    record {a = record{}}
+  --
+  -- the lexer will always turn "}" into '}' tokens, regardless of how
+  -- many there are in a row. When looking for a closing brace, we
+  -- handle the Unicode version (lexed as a single token, above), or
+  -- *two* of the ASCII closing tokens.
+  -- The closeTwoBraces helper makes sure that the closing tokens are
+  -- next to eachother in the source file.
+  | '}' '}' {% closeTwoBraces $1 $2 }
+
+-- Parse a 'QualifiedToken'-valued terminal into the qualifying module
+-- name and the range of the actual keyword/symbol.
+Q_(p) :: { (QName, Range) } : p {% unqualifyToken $1 }
+
 {--------------------------------------------------------------------------
     Names
  --------------------------------------------------------------------------}
@@ -446,22 +471,6 @@ SpaceIds :: { List1 Name }
 SpaceIds
     : Id SpaceIds { $1 <| $2 }
     | Id          { singleton $1 }
-
--- When looking for a double closed brace, we accept either a single token "}}"
--- (which is what the unicode character "RIGHT WHITE CURLY BRACKET" is
--- postprocessed into in LexActions.hs), but also two consecutive tokens '}'
--- (which a string "}}" is lexed to).  This small hack allows us to keep
--- "record { a = record { }}" working. In the second case, we check that the two
--- tokens '}' are immediately consecutive.
-DoubleCloseBrace :: { Range }
-DoubleCloseBrace
-  : "}}" { getRange $1 }
-  | '}' '}' {%
-      if posPos (fromJust (rEnd' (getRange $2))) -
-         posPos (fromJust (rStart' (getRange $1))) > 2
-      then parseErrorRange $2 "Expecting '}}', found separated '}'s."
-      else return $ getRange ($1, $2)
-    }
 
 -- A possibly dotted identifier.
 MaybeDottedId :: { Arg Name }
@@ -480,20 +489,20 @@ MaybeDottedIds
 -- be surrounded by braces or dotted.
 ArgIds :: { List1 (Arg Name) }
 ArgIds
-    : MaybeDottedId ArgIds            { $1 <| $2 }
-    | MaybeDottedId                   { singleton $1 }
-    | "{{" MaybeDottedIds DoubleCloseBrace ArgIds { fmap makeInstance $2 <> $4 }
-    | "{{" MaybeDottedIds DoubleCloseBrace        { fmap makeInstance $2 }
-    | '{' MaybeDottedIds '}' ArgIds   { fmap hide $2 <> $4 }
-    | '{' MaybeDottedIds '}'          { fmap hide $2 }
-    | '.' '{' SpaceIds '}' ArgIds     { fmap (hide . defaultIrrelevantArg $1) $3 <> $5 }
-    | '.' '{' SpaceIds '}'            { fmap (hide . defaultIrrelevantArg $1) $3 }
-    | '.' "{{" SpaceIds DoubleCloseBrace ArgIds   { fmap (makeInstance . defaultIrrelevantArg $1) $3 <> $5 }
-    | '.' "{{" SpaceIds DoubleCloseBrace          { fmap (makeInstance . defaultIrrelevantArg $1) $3 }
-    | '..' '{' SpaceIds '}' ArgIds    { fmap (hide . defaultShapeIrrelevantArg $1) $3 <> $5 }
-    | '..' '{' SpaceIds '}'           { fmap (hide . defaultShapeIrrelevantArg $1) $3 }
-    | '..' "{{" SpaceIds DoubleCloseBrace ArgIds  { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 <> $5 }
-    | '..' "{{" SpaceIds DoubleCloseBrace         { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 }
+  : MaybeDottedId ArgIds             { $1 <| $2 }
+  | MaybeDottedId                    { singleton $1 }
+  | "{{" MaybeDottedIds "}}" ArgIds  { fmap makeInstance $2 <> $4 }
+  | "{{" MaybeDottedIds "}}"         { fmap makeInstance $2 }
+  | '{' MaybeDottedIds '}' ArgIds    { fmap hide $2 <> $4 }
+  | '{' MaybeDottedIds '}'           { fmap hide $2 }
+  | '.' '{' SpaceIds '}' ArgIds      { fmap (hide . defaultIrrelevantArg $1) $3 <> $5 }
+  | '.' '{' SpaceIds '}'             { fmap (hide . defaultIrrelevantArg $1) $3 }
+  | '.' "{{" SpaceIds "}}" ArgIds    { fmap (makeInstance . defaultIrrelevantArg $1) $3 <> $5 }
+  | '.' "{{" SpaceIds "}}"           { fmap (makeInstance . defaultIrrelevantArg $1) $3 }
+  | '..' '{' SpaceIds '}' ArgIds     { fmap (hide . defaultShapeIrrelevantArg $1) $3 <> $5 }
+  | '..' '{' SpaceIds '}'            { fmap (hide . defaultShapeIrrelevantArg $1) $3 }
+  | '..' "{{" SpaceIds "}}" ArgIds   { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 <> $5 }
+  | '..' "{{" SpaceIds "}}"          { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 }
 
 -- Modalities preceeding identifiers
 
@@ -713,10 +722,8 @@ Expr2_P(recordUpdate)
     | Expr3_P(recordUpdate)        { $1 }
     | 'tactic' Application3        { Tactic (getRange ($1, $2)) (rawApp $2) }
 
-    | 'do' vopen DoStmts close            { DoBlock (kwRange $1) Nothing $3 }
-    | QualToken(q_do) vopen DoStmts close { DoBlock (snd $1) (Just (fst $1)) $3 }
-
-QualToken(p) :: { (QName, KwRange) } : p {% qualTokenName $1 }
+    | 'do' vopen DoStmts close     { DoBlock (kwRange $1)       Nothing         $3 }
+    | Q_(q_do) vopen DoStmts close { DoBlock (kwRange (snd $1)) (Just (fst $1)) $3 }
 
 LetBody :: { Maybe Expr }
 LetBody : 'in' Expr   { Just $2 }
@@ -750,10 +757,10 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr4 '}'               {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
-    | '{' '}'                     { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
-    | "{{" Expr4 DoubleCloseBrace {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
-    | "{{" DoubleCloseBrace       { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
+    : '{' Expr4 '}'   {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | '{' '}'         { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    | "{{" Expr4 "}}" {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | "{{" "}}"       { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
 Expr3NoCurly : Expr3NoCurly_P(RecordUpdate) { $1 }
@@ -781,33 +788,14 @@ Expr3NoCurly_P(recordUpdate)
     | '...'                             { Ellipsis (getRange $1) }
     | ExprOrAttr                       { $1 }
 
--- Productions which parse nothing but yield a sentinel value suitable
--- for generating the MismatchedBrackets warning
-Unicode :: { Bool } : {- empty -} { True }
-ASCII   :: { Bool } : {- empty -} { False }
-
--- Parse a closing bracket; succeed on the 'ok' rule, but "fail" on the
--- 'err' rule with a MismatchedBrackets warning. Which warning is
--- generated (Unicode/ASCII) is controlled by the first argument, using
--- one of the sentinel productions above.
-CloseBracket(k, ok, err)
-  : ok    { $1 }
-  | k err {% fmap (const $2) (parseWarning (MismatchedBrackets (getRange $2) $1)) }
-
 IdiomBrackets :: { Expr }
-  : "a(|" UnnamedWithExprs CloseBracket(ASCII,   "a|)", "u|)")
-    { IdiomBrackets (getRange ($1,$2,$3)) Nothing (List1.toList $2) }
-  | "u(|" UnnamedWithExprs CloseBracket(Unicode, "u|)", "a|)")
-    { IdiomBrackets (getRange ($1,$2,$3)) Nothing (List1.toList $2) }
+  : "(|" UnnamedWithExprs "|)" { IdiomBrackets (getRange ($1,$2,$3)) Nothing (List1.toList $2) }
+  | "(|)"                      { IdiomBrackets (getRange $1)         Nothing [] }
 
-  | QualToken(qa_idiom) UnnamedWithExprs CloseBracket(ASCII, "a|)", "u|)")
-    { IdiomBrackets (getRange ($1,$2,$3)) (Just (fst $1)) (List1.toList $2) }
-  | QualToken(qu_idiom) UnnamedWithExprs CloseBracket(Unicode, "u|)", "a|)")
-    { IdiomBrackets (getRange ($1,$2,$3)) (Just (fst $1)) (List1.toList $2) }
-
-  | "(|)"                 { IdiomBrackets (getRange $1) Nothing [] }
-  | QualToken(q_idiomE)   { IdiomBrackets (getRange $1) (Just (fst $1)) [] }
-
+  | Q_(q_idiom) UnnamedWithExprs "|)"
+    { IdiomBrackets (getRange (snd $1,$2,$3)) (Just (fst $1)) (List1.toList $2) }
+  | Q_(q_idiomE)
+    { IdiomBrackets (getRange $1) (Just (fst $1)) [] }
 
 RecordUpdate :: { Expr }
 RecordUpdate
@@ -893,52 +881,35 @@ TypedBinding :: { TypedBinding }
 TypedBinding
     : '(' Open ')'               { TLet (getRange ($1,$3)) (singleton $2) }
     | '(' 'let' Declarations ')' { TLet (getRange ($1,$4)) $3 }
+
 -- relevant
-    | '(' TBindWithHiding ')'                { setRange (getRange ($1,$2,$3)) $
-                                               $2 }
-    | '{' TBind '}'                          { setRange (getRange ($1,$2,$3)) $
-                                               hide $2 }
-    | "{{" TBind DoubleCloseBrace            { setRange (getRange ($1,$2,$3)) $
-                                               makeInstance $2 }
+    | '(' TBindWithHiding ')' { setRange (getRange ($1,$2,$3)) $ $2 }
+    | '{' TBind '}'           { setRange (getRange ($1,$2,$3)) $ hide $2 }
+    | "{{" TBind "}}"         { setRange (getRange ($1,$2,$3)) $ makeInstance $2 }
+
 -- irrelevant
-    | '.' '(' TBindWithHiding ')'            { setRange (getRange ($2,$3,$4)) $
-                                               makeIrrelevant $1 $3 }
-    | '.' '{' TBind '}'                      { setRange (getRange ($2,$3,$4)) $
-                                               hide $
-                                               makeIrrelevant $1 $3 }
-    | '.' "{{" TBind DoubleCloseBrace        { setRange (getRange ($2,$3,$4)) $
-                                               makeInstance $
-                                               makeIrrelevant $1 $3 }
+    | '.' '(' TBindWithHiding ')' { setRange (getRange ($2,$3,$4)) $ makeIrrelevant $1 $3 }
+    | '.' '{' TBind '}'           { setRange (getRange ($2,$3,$4)) $ hide $ makeIrrelevant $1 $3 }
+    | '.' "{{" TBind "}}"         { setRange (getRange ($2,$3,$4)) $ makeInstance $ makeIrrelevant $1 $3 }
+
 -- shape-irrelevant
-    | '..' '(' TBindWithHiding ')'           { setRange (getRange ($2,$3,$4)) $
-                                               makeShapeIrrelevant $1 $3 }
-    | '..' '{' TBind '}'                     { setRange (getRange ($2,$3,$4)) $
-                                               hide $
-                                               makeShapeIrrelevant $1 $3 }
-    | '..' "{{" TBind DoubleCloseBrace       { setRange (getRange ($2,$3,$4)) $
-                                               makeInstance $
-                                               makeShapeIrrelevant $1 $3 }
+    | '..' '(' TBindWithHiding ')' { setRange (getRange ($2,$3,$4)) $ makeShapeIrrelevant $1 $3 }
+    | '..' '{' TBind '}'           { setRange (getRange ($2,$3,$4)) $ hide $ makeShapeIrrelevant $1 $3 }
+    | '..' "{{" TBind "}}"         { setRange (getRange ($2,$3,$4)) $ makeInstance $ makeShapeIrrelevant $1 $3 }
+
 -- attributes, relevant
-    | '(' ModalTBindWithHiding ')'           { setRange (getRange ($1,$2,$3)) $
-                                               $2 }
-    | "{{" ModalTBind DoubleCloseBrace       { setRange (getRange ($1,$2,$3)) $
-                                               makeInstance $2 }
-    | '{' ModalTBind '}'                     { setRange (getRange ($1,$2,$3)) $
-                                               hide $2 }
+    | '(' ModalTBindWithHiding ')' { setRange (getRange ($1,$2,$3)) $ $2 }
+    | "{{" ModalTBind "}}"         { setRange (getRange ($1,$2,$3)) $ makeInstance $2 }
+    | '{' ModalTBind '}'           { setRange (getRange ($1,$2,$3)) $ hide $2 }
+
 -- attributes, irrelevant
-    | '.' '(' ModalTBindWithHiding ')'       {% setRange (getRange ($2,$3,$4)) <\$>
-                                                makeIrrelevantM $1 $3 }
-    | '.' '{' ModalTBind '}'                 {% setRange (getRange ($2,$3,$4)) . hide <\$>
-                                                makeIrrelevantM $1 $3 }
-    | '.' "{{" ModalTBind DoubleCloseBrace   {% setRange (getRange ($2,$3,$4)) . makeInstance <\$>
-                                                makeIrrelevantM $1 $3 }
+    | '.' '(' ModalTBindWithHiding ')' {% setRange (getRange ($2,$3,$4)) <\$> makeIrrelevantM $1 $3 }
+    | '.' '{' ModalTBind '}'           {% setRange (getRange ($2,$3,$4)) . hide <\$> makeIrrelevantM $1 $3 }
+    | '.' "{{" ModalTBind "}}"         {% setRange (getRange ($2,$3,$4)) . makeInstance <\$> makeIrrelevantM $1 $3 }
 -- attributes, shape-irrelevant
-    | '..' '(' ModalTBindWithHiding ')'      {% setRange (getRange ($2,$3,$4)) <\$>
-                                                makeShapeIrrelevantM $1 $3 }
-    | '..' '{' ModalTBind '}'                {% setRange (getRange ($2,$3,$4)) . hide <\$>
-                                                makeShapeIrrelevantM $1 $3 }
-    | '..' "{{" ModalTBind DoubleCloseBrace  {% setRange (getRange ($2,$3,$4)) . makeInstance <\$>
-                                                makeShapeIrrelevantM $1 $3 }
+    | '..' '(' ModalTBindWithHiding ')' {% setRange (getRange ($2,$3,$4)) <\$> makeShapeIrrelevantM $1 $3 }
+    | '..' '{' ModalTBind '}'           {% setRange (getRange ($2,$3,$4)) . hide <\$> makeShapeIrrelevantM $1 $3 }
+    | '..' "{{" ModalTBind "}}"         {% setRange (getRange ($2,$3,$4)) . makeInstance <\$> makeShapeIrrelevantM $1 $3 }
 
 
 -- x1 .. xn : A
@@ -992,26 +963,28 @@ AbsurdLamBindings
 -- absurd lambda is represented by @Left hiding@
 LamBinds :: { LamBinds }
 LamBinds
-  : DomainFreeBinding LamBinds  { fmap (map DomainFree (List1.toList $1) ++) $2 }
-  | TypedBinding LamBinds       { fmap (DomainFull $1 :) $2 }
-  | DomainFreeBinding           { mkLamBinds $ map DomainFree $ List1.toList $1 }
-  | TypedBinding                { mkLamBinds [DomainFull $1] }
-  | '(' ')'                     { mkAbsurdBinding NotHidden }
-  | '{' '}'                     { mkAbsurdBinding Hidden }
-  | "{{" DoubleCloseBrace       { mkAbsurdBinding (Instance NoOverlap) }
+  : DomainFreeBinding LamBinds { fmap (map DomainFree (List1.toList $1) ++) $2 }
+  | TypedBinding LamBinds      { fmap (DomainFull $1 :) $2 }
+  | DomainFreeBinding          { mkLamBinds $ map DomainFree $ List1.toList $1 }
+  | TypedBinding               { mkLamBinds [DomainFull $1] }
+  | '(' ')'                    { mkAbsurdBinding NotHidden }
+  | '{' '}'                    { mkAbsurdBinding Hidden }
+  | "{{" "}}"                  { mkAbsurdBinding (Instance NoOverlap) }
 
 -- Like LamBinds, but could also parse an absurd LHS of an extended lambda @{ p1 ... () }@
 LamBindsAbsurd :: { Either LamBinds (List1 Expr) }
 LamBindsAbsurd
-  : DomainFreeBinding LamBinds  { Left $ fmap (map DomainFree (List1.toList $1) ++) $2 }
-  | TypedBinding LamBinds       { Left $ fmap (DomainFull $1 :) $2 }
-  | DomainFreeBindingAbsurd     { case $1 of
-                                    Left lb -> Left $ mkLamBinds (map DomainFree $ List1.toList lb)
-                                    Right es -> Right es }
-  | TypedBinding                { Left $ mkLamBinds [DomainFull $1] }
-  | '(' ')'                     { Left $ mkAbsurdBinding NotHidden }
-  | '{' '}'                     { Left $ mkAbsurdBinding Hidden }
-  | "{{" DoubleCloseBrace       { Left $ mkAbsurdBinding (Instance NoOverlap) }
+  : DomainFreeBinding LamBinds { Left $ fmap (map DomainFree (List1.toList $1) ++) $2 }
+  | TypedBinding LamBinds      { Left $ fmap (DomainFull $1 :) $2 }
+  | TypedBinding               { Left $ mkLamBinds [DomainFull $1] }
+  | '(' ')'                    { Left $ mkAbsurdBinding NotHidden }
+  | '{' '}'                    { Left $ mkAbsurdBinding Hidden }
+  | "{{" "}}"                  { Left $ mkAbsurdBinding (Instance NoOverlap) }
+  | DomainFreeBindingAbsurd {
+    case $1 of
+      Left lb -> Left $ mkLamBinds (map DomainFree $ List1.toList lb)
+      Right es -> Right es
+    }
 
 -- FNF, 2011-05-05: No where-clauses in extended lambdas for now.
 -- Andreas, 2020-03-28: And also not in sight either nine years later.
@@ -1093,12 +1066,13 @@ DomainFreeBindingAbsurd
     : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
     | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (makeIrrelevant $1) $3 $2 }
     | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (makeShapeIrrelevant $1) $3 $2 }
+
 -- just parentheses
-    | '(' Application ')'     {% exprToPattern (rawApp $2) >>= \ p ->
-                                 pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
-    | '{' CommaBIdAndAbsurds '}'
-         { first (fmap hide) $2 }
-    | "{{" CommaBIds DoubleCloseBrace { Left $ fmap makeInstance $2 }
+    | '(' Application ')'        {% exprToPattern (rawApp $2) >>= \ p ->
+                                    pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
+    | '{' CommaBIdAndAbsurds '}' { first (fmap hide) $2 }
+    | "{{" CommaBIds "}}"        { Left $ fmap makeInstance $2 }
+
 -- additonal attributes, e.g. @tactic
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
@@ -1106,29 +1080,33 @@ DomainFreeBindingAbsurd
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
               first (fmap (hide . setTacticAttr $2 . setArgInfo ai)) $3 }
-    | "{{" Attributes1 CommaBIds DoubleCloseBrace
+    | "{{" Attributes1 CommaBIds "}}"
          {% Left <\$> applyAttributes $2 (makeInstance defaultArgInfo) $3 }
+
 -- additional irrelevance
-    | '.'  '('  CommaBIds ')'              { Left $ fmap (makeIrrelevant $1) $3 }
-    | '.'  '{'  CommaBIds '}'              { Left $ fmap (hide . makeIrrelevant $1) $3 }
-    | '.'  "{{" CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeIrrelevant $1) $3 }
+    | '.'  '('  CommaBIds ')'  { Left $ fmap (makeIrrelevant $1) $3 }
+    | '.'  '{'  CommaBIds '}'  { Left $ fmap (hide . makeIrrelevant $1) $3 }
+    | '.'  "{{" CommaBIds "}}" { Left $ fmap (makeInstance . makeIrrelevant $1) $3 }
+
 -- additional shape-irrelevance
-    | '..' '('  CommaBIds ')'              { Left $ fmap (makeShapeIrrelevant $1) $3 }
-    | '..' '{'  CommaBIds '}'              { Left $ fmap (hide . makeShapeIrrelevant $1) $3 }
-    | '..' "{{" CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeShapeIrrelevant $1) $3 }
+    | '..' '('  CommaBIds ')'  { Left $ fmap (makeShapeIrrelevant $1) $3 }
+    | '..' '{'  CommaBIds '}'  { Left $ fmap (hide . makeShapeIrrelevant $1) $3 }
+    | '..' "{{" CommaBIds "}}" { Left $ fmap (makeInstance . makeShapeIrrelevant $1) $3 }
+
 -- additional irrelevance and attributes
     | '.' '(' Attributes1 CommaBIds ')'
          {% Left <\$> applyAttributes $3 (makeIrrelevant $1 defaultArgInfo) $4 }
     | '.' '{' Attributes1 CommaBIds '}'
          {% Left <\$> applyAttributes $3 (makeIrrelevant $1 $ hide defaultArgInfo) $4 }
-    | '.' "{{" Attributes1 CommaBIds DoubleCloseBrace
+    | '.' "{{" Attributes1 CommaBIds "}}"
          {% Left <\$> applyAttributes $3 (makeIrrelevant $1 $ makeInstance defaultArgInfo) $4 }
+
 -- additional shape-irrelevance and attributes
     | '..' '(' Attributes1 CommaBIds ')'
          {% Left <\$> applyAttributes $3 (makeShapeIrrelevant $1 defaultArgInfo) $4 }
     | '..' '{' Attributes1 CommaBIds '}'
          {% Left <\$> applyAttributes $3 (makeShapeIrrelevant $1 $ hide defaultArgInfo) $4 }
-    | '..' "{{" Attributes1 CommaBIds DoubleCloseBrace
+    | '..' "{{" Attributes1 CommaBIds "}}"
          {% Left <\$> applyAttributes $3 (makeShapeIrrelevant $1 $ makeInstance defaultArgInfo) $4 }
 
 
@@ -1522,9 +1500,9 @@ HoleNames :                    { mempty }
 
 HoleName :: { NamedArg HoleName }
 HoleName
-  : SimpleTopHole { defaultNamedArg $1 }
-  | '{'  SimpleHole '}'  { hide         $ defaultNamedArg $2 }
-  | "{{" SimpleHole "}}" { makeInstance $ defaultNamedArg $2 }
+  : SimpleTopHole                     { defaultNamedArg $1 }
+  | '{'  SimpleHole '}'               { hide         $ defaultNamedArg $2 }
+  | "{{" SimpleHole "}}"              { makeInstance $ defaultNamedArg $2 }
   | '{'  SimpleId '=' SimpleHole '}'  { hide         $ defaultArg $ userNamed $2 $4 }
   | "{{" SimpleId '=' SimpleHole "}}" { makeInstance $ defaultArg $ userNamed $2 $4 }
 
@@ -1579,7 +1557,7 @@ Open
                  ]
       }
     }
-  | 'open' ModuleName "{{" '...' DoubleCloseBrace ImportDirective {
+  | 'open' ModuleName "{{" '...' "}}" ImportDirective {
     let r = getRange $2 in
       Private empty Inserted
       [ ModuleMacro r defaultErased (noName $ beginningOf r)
@@ -1592,7 +1570,7 @@ OpenArgs : {- empty -}    { [] }
          | Expr3_P(RecordUpdate) OpenArgs { $1 : $2 }
 
 ModuleApplication :: { Telescope -> Parser ModuleApplication }
-ModuleApplication : ModuleName "{{" '...' DoubleCloseBrace { (\ts ->
+ModuleApplication : ModuleName "{{" '...' "}}" { (\ts ->
                     if null ts then return $ RecordModuleInstance (getRange ($1,$2,$3,$4)) $1
                     else parseError "No bindings allowed for record module with non-canonical implicits" )
                     }

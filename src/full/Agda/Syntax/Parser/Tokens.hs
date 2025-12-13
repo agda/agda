@@ -86,8 +86,8 @@ data Symbol
   | SymOpenIdiomBracket  Bool -- ^ @(|@ or @⦇@, 'True' if unicode
   | SymCloseIdiomBracket Bool -- ^ @|)@ or @⦈@, 'True' if unicode
 
-  | SymDoubleOpenBrace        -- ^ @{{@ or @⦃@
-  | SymDoubleCloseBrace       -- ^ @{{@ or @⦄@
+  | SymDoubleOpenBrace  Bool  -- ^ @{{@ or @⦃@, 'True' if unicode
+  | SymDoubleCloseBrace Bool  -- ^ @{{@ or @⦄@, 'True' if unicode
   | SymOpenBrace              -- ^ @{@
   | SymCloseBrace             -- ^ @}@
   | SymOpenVirtualBrace       -- ^ layout-implied @{@
@@ -106,12 +106,13 @@ data QualifiableToken
   | QualOpenIdiom  Bool -- ^ qualified @(|@ or @⦇@, 'True' if unicode
   deriving (Eq, Show)
 
--- | A "qualified token".
+-- | A "qualified token", i.e. a sequence of (module) names followed by
+-- one of the allowed ('QualifiableToken') keywords/symbols.
 data QualifiedToken
   = QualifiedToken
-      QualifiableToken     -- ^ The token.
-      [(Interval, String)] -- ^ Parts for the identifier
-      Interval             -- ^ Range of the @do@ keyword.
+      QualifiableToken     -- ^ The token itself.
+      [(Interval, String)] -- ^ Parts for the qualifying identifier, together with their ranges.
+      Interval             -- ^ Range of the token being qualified.
   deriving (Eq, Show)
 
 data Token

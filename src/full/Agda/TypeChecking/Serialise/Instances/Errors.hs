@@ -289,6 +289,16 @@ instance EmbPrj WarningModeError where
     N1 2   -> valuN NoUnusedImportsAll
     _      -> malformed
 
+instance EmbPrj OpenBracket where
+  icod_ = \case
+    OpenIdiomBracket a b -> icodeN 0 OpenIdiomBracket a b
+    OpenDoubleBrace  a b -> icodeN 1 OpenDoubleBrace a b
+
+  value = vcase \case
+    N3 0 a b -> valuN OpenIdiomBracket a b
+    N3 1 a b -> valuN OpenDoubleBrace a b
+    _        -> malformed
+
 instance EmbPrj ParseWarning where
   icod_ = \case
     OverlappingTokensWarning a -> icodeN 0 OverlappingTokensWarning a
