@@ -24,21 +24,6 @@ import Text.Blaze.Internal
     StaticString (getText),
   )
 
-escapeMarkupEntities ::
-  -- | Text to escape
-  Text ->
-  -- | Resulting text builder
-  Builder
-escapeMarkupEntities = T.foldr escape mempty
-  where
-    escape :: Char -> Builder -> Builder
-    escape '<' b = B.fromText "&lt;" `mappend` b
-    escape '>' b = B.fromText "&gt;" `mappend` b
-    escape '&' b = B.fromText "&amp;" `mappend` b
-    escape '"' b = B.fromText "&quot;" `mappend` b
-    escape '\'' b = B.fromText "&#39;" `mappend` b
-    escape x b = B.singleton x `mappend` b
-
 fromChoiceString ::
   -- | Decoder for bytestrings
   (ByteString -> Text) ->
@@ -47,8 +32,8 @@ fromChoiceString ::
   -- | Resulting builder
   Builder
 fromChoiceString _ (Static s) = B.fromText $ getText s
-fromChoiceString _ (String s) = escapeMarkupEntities $ T.pack s
-fromChoiceString _ (Text s) = escapeMarkupEntities s
+fromChoiceString _ (String s) = B.fromText $ T.pack s
+fromChoiceString _ (Text s) = B.fromText s
 fromChoiceString d (ByteString s) = B.fromText $ d s
 fromChoiceString d (PreEscaped x) = case x of
   String s -> B.fromText $ T.pack s
@@ -75,6 +60,15 @@ modify_key key =
   let a = getText key
    in T.dropEnd 2 (T.strip a)
 
+-- Escape for forester lexer
+wrap_verb :: Builder -> Builder
+wrap_verb w = B.fromLazyText $ L.foldr go "" (B.toLazyText w)
+  where
+    go :: Char -> L.Text -> L.Text
+    go '[' acc = L.append "\\startverb[\\stopverb" acc
+    go ']' acc = L.append "\\startverb]\\stopverb" acc
+    go x acc = L.cons x acc
+
 renderMarkupBuilderWith ::
   (ByteString -> Text) ->
   Html ->
@@ -89,7 +83,7 @@ renderMarkupBuilderWith d = go mempty
         `mappend` attrs
         `mappend` B.fromText "{"
         `mappend` go mempty content
-        `mappend` B.singleton '}'
+        `mappend` B.fromText "}"
     go attrs (CustomParent tag content) =
       B.fromText "\\<html:"
         `mappend` fromChoiceString d tag
@@ -98,7 +92,7 @@ renderMarkupBuilderWith d = go mempty
         `mappend` B.fromText "{"
         `mappend` go mempty content
         `mappend` fromChoiceString d tag
-        `mappend` B.singleton '}'
+        `mappend` B.fromText "}"
     go attrs (Leaf _ begin end _) =
       B.fromText (modify_open begin)
         `mappend` B.fromText ">"
@@ -114,8 +108,8 @@ renderMarkupBuilderWith d = go mempty
         ( B.singleton '['
             `mappend` B.fromText (modify_key key)
             `mappend` B.fromText "]{"
-            `mappend` fromChoiceString d value
-            `mappend` B.singleton '}'
+            `mappend` wrap_verb (fromChoiceString d value)
+            `mappend` B.fromText "}"
             `mappend` attrs
         )
         h
@@ -124,12 +118,12 @@ renderMarkupBuilderWith d = go mempty
         ( B.singleton '['
             `mappend` fromChoiceString d key
             `mappend` B.fromText "]{"
-            `mappend` fromChoiceString d value
-            `mappend` B.singleton '}'
+            `mappend` wrap_verb (fromChoiceString d value)
+            `mappend` B.fromText "}"
             `mappend` attrs
         )
         h
-    go _ (Content content _) = fromChoiceString d content
+    go _ (Content content _) = wrap_verb (fromChoiceString d content)
     go _ (Comment comment _) =
       B.fromText "% "
         `mappend` fromChoiceString d comment
