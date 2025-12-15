@@ -13,11 +13,7 @@ import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Lazy qualified as L
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as B
-import Text.Blaze.Html5
-  ( Attribute,
-    Html,
-    Markup,
-  )
+import Text.Blaze.Html5 (Html)
 import Text.Blaze.Internal
   ( ChoiceString (..),
     MarkupM (..),
