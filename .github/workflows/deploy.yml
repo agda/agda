@@ -152,7 +152,7 @@ jobs:
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         if-no-files-found: error
         name: ${{ steps.vars.outputs.filename }}
