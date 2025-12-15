@@ -471,6 +471,7 @@ library
     , async                >= 2.2.4     && < 2.3
     , base                 >= 4.16.4.0  && < 4.22
     , blaze-html           >= 0.9.1.2   && < 0.10
+    , blaze-markup         >=0.8        && <0.9
     , boxes                >= 0.1.5     && < 0.2
     , bytestring           >= 0.11.4.0  && < 0.13
     , case-insensitive     >= 1.2.1.0   && < 1.3
@@ -587,6 +588,7 @@ library
       Agda.Interaction.Highlighting.HTML
       Agda.Interaction.Highlighting.HTML.Backend
       Agda.Interaction.Highlighting.HTML.Base
+      Agda.Interaction.Highlighting.HTML.Forester
       Agda.Interaction.Highlighting.JSON
       Agda.Interaction.Highlighting.LaTeX
       Agda.Interaction.Highlighting.LaTeX.Backend
