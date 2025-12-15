@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: Checkout agda sources
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: Check for whitespace violations
       uses: andreasabel/fix-whitespace-action@v1
     - name: Check encoding of Parser.y

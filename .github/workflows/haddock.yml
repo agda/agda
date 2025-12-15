@@ -16,7 +16,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
@@ -33,7 +33,7 @@ jobs:
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       id: cache
       name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
         path: |

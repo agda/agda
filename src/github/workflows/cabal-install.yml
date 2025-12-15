@@ -56,7 +56,7 @@ jobs:
       FLAGS: "-O0 -f enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - uses: haskell-actions/setup@v2
       id: setup-haskell
@@ -73,7 +73,7 @@ jobs:
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
 
     - name: Restore cached dependencies
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       id: cache
       env:
         key: cabal-install.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
@@ -96,7 +96,7 @@ jobs:
         cabal install ${FLAGS} ${{ matrix.install_flags }}
 
     - name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       if:   always() && steps.cache.outputs.cache-hit != 'true'
             # save cache even when build fails
       with:

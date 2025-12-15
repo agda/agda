@@ -80,7 +80,7 @@ jobs:
 
     # Checkout is needed before the first call to stack exec ${ARGS}
     # because it provides the stack-*.yaml file.
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - uses: haskell-actions/setup@v2
       id: haskell-setup
@@ -160,7 +160,7 @@ jobs:
         echo "ICU_VER           = ${ICU_VER}"
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       id:   cache
       env:
         key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}
@@ -222,7 +222,7 @@ jobs:
         stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
 
     - name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       if:   always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
             # save cache even when build fails
       with:

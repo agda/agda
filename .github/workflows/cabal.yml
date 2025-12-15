@@ -29,7 +29,7 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - if: runner.os == 'Linux'
       name: Switch off XDG directories for cabal (Linux)
       run: |
@@ -75,7 +75,7 @@ jobs:
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: |
@@ -107,7 +107,7 @@ jobs:
         make doc-test
     - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: |

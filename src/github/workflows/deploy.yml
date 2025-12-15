@@ -55,7 +55,7 @@ jobs:
     steps:
 
     - name: Check out the master branch
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Set up platform-dependent variables
       id: vars
@@ -205,7 +205,7 @@ jobs:
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
 
     - name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       if: ${{ runner.os != 'Linux' }}
       id: cache
       with:
@@ -257,7 +257,7 @@ jobs:
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         path: ${{ steps.vars.outputs.filename }}
         name: ${{ steps.vars.outputs.filename }}
@@ -313,7 +313,7 @@ jobs:
         echo "filename        = ${{ steps.vars.outputs.filename       }}"
         echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
 
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         name: ${{ steps.vars.outputs.filename }}
 
@@ -339,11 +339,11 @@ jobs:
     # if: ${{ success() }}
     steps:
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         sparse-checkout: .
 
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         path: artifacts
 

@@ -25,7 +25,7 @@ jobs:
       python-version: '3.13'
     steps:
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Install imagemagick (convert)
       run: |
@@ -89,7 +89,7 @@ jobs:
       run: |
         make user-manual-html
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf

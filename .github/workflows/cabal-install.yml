@@ -27,7 +27,7 @@ jobs:
     needs: auto-cancel
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
@@ -44,7 +44,7 @@ jobs:
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       id: cache
       name: Restore cached dependencies
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: ${{ steps.setup-haskell.outputs.cabal-store }}
@@ -58,7 +58,7 @@ jobs:
         cabal install ${FLAGS} ${{ matrix.install_flags }}
     - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: ${{ steps.setup-haskell.outputs.cabal-store }}

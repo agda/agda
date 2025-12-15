@@ -19,7 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - id: vars
       name: Set up platform-dependent variables
       run: |
@@ -107,7 +107,7 @@ jobs:
     - id: cache
       if: ${{ runner.os != 'Linux' }}
       name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         key: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
           }}-${{ hashFiles('**/plan.json') }}
@@ -152,7 +152,7 @@ jobs:
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         if-no-files-found: error
         name: ${{ steps.vars.outputs.filename }}
@@ -174,10 +174,10 @@ jobs:
     needs: sanity-check
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         sparse-checkout: .
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         path: artifacts
     - env:
@@ -251,7 +251,7 @@ jobs:
       run: |
         echo "filename        = ${{ steps.vars.outputs.filename       }}"
         echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         name: ${{ steps.vars.outputs.filename }}
     - name: Unpack artefacts
