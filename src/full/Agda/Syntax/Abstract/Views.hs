@@ -18,6 +18,7 @@ import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
 
 import Agda.Utils.Either
 import Agda.Utils.List1 (List1)
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 
@@ -102,19 +103,28 @@ unScope e                    = e
 deepUnscope :: ExprLike a => a -> a
 deepUnscope = mapExpr unScope
 
-deepUnscopeDecls :: [A.Declaration] -> [A.Declaration]
-deepUnscopeDecls = concatMap deepUnscopeDecl
+class DeepUnscopeDecls t where
+  deepUnscopeDecls :: t A.Declaration -> t A.Declaration
 
-deepUnscopeDecl :: A.Declaration -> [A.Declaration]
+instance DeepUnscopeDecls [] where
+  deepUnscopeDecls :: [A.Declaration] -> [A.Declaration]
+  deepUnscopeDecls = foldMap (List1.toList . deepUnscopeDecl)
+
+instance DeepUnscopeDecls List1 where
+  deepUnscopeDecls :: List1 A.Declaration -> List1 A.Declaration
+  deepUnscopeDecls = List1.concatMap1 deepUnscopeDecl
+    -- Want to use foldMap1 here, but it requires base >= 4.18 (GHC 9.6)
+
+deepUnscopeDecl :: A.Declaration -> List1 A.Declaration
 deepUnscopeDecl = \case
   A.ScopedDecl _ ds           -> deepUnscopeDecls ds
-  A.Mutual i ds               -> [A.Mutual i (deepUnscopeDecls ds)]
-  A.Section i e m tel ds      -> [A.Section i e m (deepUnscope tel)
-                                   (deepUnscopeDecls ds)]
-  A.RecDef i x uc dir bs e ds -> [ A.RecDef i x uc dir (deepUnscope bs)
+  A.Mutual i ds               -> singleton $ A.Mutual i (deepUnscopeDecls ds)
+  A.Section i e m tel ds      -> singleton $ A.Section i e m (deepUnscope tel)
+                                   (deepUnscopeDecls ds)
+  A.RecDef i x uc dir bs e ds -> singleton $ A.RecDef i x uc dir (deepUnscope bs)
                                      (deepUnscope e)
-                                     (deepUnscopeDecls ds) ]
-  d                           -> [deepUnscope d]
+                                     (deepUnscopeDecls ds)
+  d                           -> singleton $ deepUnscope d
 
 -- * Traversal
 ---------------------------------------------------------------------------

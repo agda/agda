@@ -247,7 +247,8 @@ niceDeclarations fixs ds = do
           -- we postulate the definition and substitute the axiom for the lone signature
           ps <- use loneSigs
           checkLoneSigs ps
-          let ds0 = replaceSigs ps (d : nds0) -- NB: don't forget the LoneSig the block started with!
+          let ds0 = List1.fromListSafe __IMPOSSIBLE__ $ replaceSigs ps (d : nds0)
+            -- NB: don't forget the LoneSig that the block started with!
           -- We then keep processing the rest of the block
           tc <- combineTerminationChecks (getRange d) (mutualTermination checks)
           let cc = combineCoverageChecks              (mutualCoverage checks)
@@ -439,7 +440,7 @@ niceDeclarations fixs ds = do
           breakImplicitMutualBlock r "`mutual` blocks"
           case ds' of
             [] -> justWarning $ EmptyMutual r
-            _  -> (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
+            _  -> (,ds) . maybeToList <$> (mkOldMutual r =<< nice ds')
 
         InterleavedMutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
@@ -447,7 +448,7 @@ niceDeclarations fixs ds = do
           breakImplicitMutualBlock r "`interleaved mutual` blocks"
           case ds' of
             [] -> justWarning $ EmptyMutual r
-            _  -> (,ds) <$> (singleton <$> (mkInterleavedMutual r =<< nice ds'))
+            _  -> (,ds) . maybeToList <$> (mkInterleavedMutual r =<< nice ds')
 
         Abstract r []  -> justWarning $ EmptyAbstract r
         Abstract r ds' ->
@@ -920,7 +921,7 @@ niceDeclarations fixs ds = do
     mkInterleavedMutual
       :: KwRange               -- Range of the @interleaved mutual@ keywords.
       -> [NiceDeclaration]     -- Declarations inside the block.
-      -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
+      -> Nice (Maybe NiceDeclaration)  -- Returns a 'NiceMutual' unless empty.
     mkInterleavedMutual kwr ds' = do
       (other, ISt m checks _) <- runStateT (groupByBlocks kwr ds') $ ISt empty mempty 0
       idecls <- (other ++) . concat <$> mapM (uncurry interleavedDecl) (Map.toList m)
@@ -933,7 +934,7 @@ niceDeclarations fixs ds = do
       tc <- combineTerminationChecks r (mutualTermination checks)
       let cc = combineCoverageChecks   (mutualCoverage checks)
       let pc = combinePositivityChecks (mutualPositivity checks)
-      pure $ NiceMutual kwr tc cc pc decls
+      return $ fmap (NiceMutual kwr tc cc pc) $ List1.nonEmpty decls
 
       where
 
@@ -1091,9 +1092,10 @@ niceDeclarations fixs ds = do
     -- Turn an old-style mutual block into a new style mutual block
     -- by pushing the definitions to the end.
     mkOldMutual
-      :: KwRange               -- Range of the @mutual@ keyword (if any).
-      -> [NiceDeclaration]     -- Declarations inside the block.
-      -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
+      :: KwRange                 -- Range of the @mutual@ keyword (if any).
+      -> [NiceDeclaration]       -- Declarations inside the block.
+      -> Nice (Maybe NiceDeclaration)
+           -- Returns a 'NiceMutual' unless empty.
     mkOldMutual kwr ds' = do
         -- Postulate the missing definitions
         let ps = loneSigsFromLoneNames loneNames
@@ -1231,7 +1233,7 @@ niceDeclarations fixs ds = do
         let pcs = map positivityCheckOldMutual ds
         let pc = combinePositivityChecks (pc0:pcs)
 
-        return $ NiceMutual kwr tc cc pc $ top ++ bottom
+        return $ fmap (NiceMutual kwr tc cc pc) $ List1.nonEmpty $ top ++ bottom
 
       where
         sigNames  = [ (r, x, k) | LoneSigDecl r k x <- map declKind ds' ]
@@ -1647,7 +1649,7 @@ notSoNiceDeclarations = \case
     Axiom _ _ _ i rel x e            -> inst i $ TypeSig rel empty x e
     NiceField _ _ _ i tac x argt     -> singleton $ FieldSig i tac x argt
     PrimitiveFunction _ _ _ x e      -> singleton $ Primitive empty $ singleton $ TypeSig (argInfo e) empty x (unArg e)
-    NiceMutual r _ _ _ ds            -> singleton $ Mutual r $ List1.concat $ fmap notSoNiceDeclarations ds
+    NiceMutual r _ _ _ ds            -> singleton $ Mutual r $ List1.toList $ sconcat $ fmap notSoNiceDeclarations ds
     NiceLoneConstructor r ds         -> singleton $ LoneConstructor r $ List1.concat $ fmap notSoNiceDeclarations ds
     NiceModule r _ _ e x tel ds      -> singleton $ Module r e x tel ds
     NiceModuleMacro r _ e x ma o dir

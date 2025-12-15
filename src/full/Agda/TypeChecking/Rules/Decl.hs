@@ -69,7 +69,7 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Function ( applyUnless, applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List1 ( pattern (:|) )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -145,7 +145,7 @@ checkDecl d = setCurrentRange d $ do
         -- if we're not inside a mutual block?
         none        m = m $>  Nothing           -- skip all checks
         meta        m = m $>  Just (return ())  -- do the usual checks
-        mutual i ds m = m <&> Just . uncurry (mutualChecks i d ds)
+        mutual i    m = m <&> Just . uncurry (mutualChecks i d)
         impossible  m = m $>  __IMPOSSIBLE__
                         -- We're definitely inside a mutual block.
 
@@ -154,7 +154,7 @@ checkDecl d = setCurrentRange d $ do
       A.Generalize s i info x e -> meta $ inConcreteMode $ checkGeneralize s i info x e
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
-      A.Mutual i ds            -> mutual i ds $ checkMutual i ds
+      A.Mutual i ds            -> mutual i $ checkMutual i ds
       A.Section _r er x tel ds -> meta $ checkSection er x tel ds
       A.Apply i er x mapp ci d -> meta $ checkSectionApplication i er x mapp ci d
       A.Import _ _ dir         -> none $ checkImportDirective dir
@@ -263,8 +263,8 @@ checkDecl d = setCurrentRange d $ do
 
 -- Some checks that should be run at the end of a mutual block. The
 -- set names contains the names defined in the mutual block.
-mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> MutualId -> Set QName -> TCM ()
-mutualChecks mi d ds mid names = do
+mutualChecks :: Info.MutualInfo -> A.Declaration -> MutualId -> Set QName -> TCM ()
+mutualChecks mi d mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
   let nameList = Set.toList names
   mapM_ instantiateDefinitionType nameList
@@ -859,12 +859,12 @@ checkPragma r p = do
 --
 -- All definitions which have so far been assigned to the given mutual
 -- block are returned.
-checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (MutualId, Set QName)
+checkMutual :: Info.MutualInfo -> List1 A.Declaration -> TCM (MutualId, Set QName)
 checkMutual i ds = inMutualBlock $ \ blockId -> defaultOpenLevelsToZero $ do
 
   reportSDoc "tc.decl.mutual" 20 $ vcat $
-      (("Checking mutual block" <+> text (show blockId)) <> ":") :
-      map (nest 2 . prettyA) ds
+      (("Checking mutual block" <+> text (show blockId)) <> ":") <|
+      fmap (nest 2 . prettyA) ds
 
   insertMutualBlockInfo blockId i
   localTC ( set eTerminationCheck (() <$ Info.mutualTerminationCheck i)

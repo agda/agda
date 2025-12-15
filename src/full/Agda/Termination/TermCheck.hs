@@ -105,8 +105,8 @@ termDecl' = \case
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
-    A.Mutual i ds         -> termMutual $ getNames ds
-    A.Section _ _ _ _ ds  -> termDecls ds
+    A.Mutual _ ds         -> termMutual $ getNames ds
+    A.Section _ _ _ _ ds  -> foldMap termDecl' ds
         -- section structure can be ignored as we are termination checking
         -- definitions lifted to the top-level
     A.Apply {}            -> return mempty
@@ -117,10 +117,10 @@ termDecl' = \case
     A.UnfoldingDecl{}     -> return mempty
     A.Generalize {}       -> return mempty
         -- open, pattern synonym and generalize defs are just artifacts from the concrete syntax
-    A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
+    A.ScopedDecl scope ds -> {- withScope_ scope $ -} foldMap termDecl' ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ x _ _ _ _ ds -> termMutual [x] <> termDecls ds
+    A.RecDef _ x _ _ _ _ ds -> termMutual [x] <> foldMap termDecl' ds
         -- Andreas, 2022-10-23, issue #5823
         -- Also check record types for termination.
         -- They are unfolded during construction of unique inhabitants of eta-records.
@@ -132,11 +132,10 @@ termDecl' = \case
     A.UnquoteDef{}  -> __IMPOSSIBLE__
     A.UnquoteData{} -> __IMPOSSIBLE__
   where
-    termDecls ds = concat <$> mapM termDecl' ds
-
     -- The mutual names mentioned in the abstract syntax
     -- for symbols that need to be termination-checked.
-    getNames = concatMap getName
+    getNames :: Foldable t => t A.Declaration -> [QName]
+    getNames = foldMap getName
     getName (A.FunDef i x cs)   = [x]
     getName (A.RecDef _ x _ _ _ _ ds)   = x : getNames ds
     getName (A.Mutual _ ds)             = getNames ds

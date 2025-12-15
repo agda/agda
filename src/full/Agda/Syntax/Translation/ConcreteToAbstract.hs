@@ -167,7 +167,8 @@ recordConstructorType decls =
     makeBinding d = do
       let failure = typeError $ NotValidBeforeField d
           r       = getRange d
-          mkLet d = Just . A.TLet r <$> toAbstract (LetDef RecordLetDef d)
+          mkLet :: C.NiceDeclaration -> ScopeM (Maybe A.TypedBinding)
+          mkLet d = Just . A.TLet r <$> scopeCheckLetDef RecordLetDef d
       setCurrentRange r $ case d of
 
         C.NiceField r pr ab inst tac x (Arg ai t) -> do
@@ -187,10 +188,10 @@ recordConstructorType decls =
         -- Do some rudimentary matching here to get NotValidBeforeField instead
         -- of NotAValidLetDecl.
         C.NiceMutual _ _ _ _
-          [ C.FunSig _ _ _ _ macro _ _ _ _ _
-          , C.FunDef _ _ abstract _ _ _ _
+          ( C.FunSig _ _ _ _ macro _ _ _ _ _
+          :| [ C.FunDef _ _ abstract _ _ _ _
              (C.Clause _ _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
-          ] | abstract /= AbstractDef && macro /= MacroDef -> do
+          ]) | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
         C.NiceLoneConstructor{} -> failure
@@ -849,11 +850,11 @@ scopeCheckExtendedLam r e cs = do
                         killRange (IdentP True $ C.QName cname) :| ps
             let lhs = C.LHS p [] []
             return $ C.Clause cname ca defaultArgInfo lhs rhs NoWhere []
-  scdef <- toAbstract d
+  scdef <- fromMaybe __IMPOSSIBLE__ <$> toAbstract d
 
   -- Create the abstract syntax for the extended lambda.
   case scdef of
-    A.ScopedDecl si [A.FunDef di qname' cs] -> do
+    A.ScopedDecl si (A.FunDef di qname' cs :| []) -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di e qname' cs
@@ -1507,8 +1508,8 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                          -- the initial segment on the off chance we generate a better error
                          -- message.
                          void importPrimitives
-                         void $ toAbstract (Declarations outsideDecls)
-                         void $ toAbstract (Declarations ds0)
+                         void $ scopeCheckDeclarations outsideDecls
+                         void $ scopeCheckDeclarations ds0
                          -- Fail with a crude error otherwise
                          setCurrentRange ds0 $ typeError IllegalDeclarationBeforeTopLevelModule
 
@@ -1543,9 +1544,9 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           am <- toAbstract (NewModuleQName m)
           primitiveImport <- importPrimitives
           -- Scope check the declarations outside
-          outsideDecls <- toAbstract (Declarations outsideDecls)
+          outsideDecls <- scopeCheckDeclarations outsideDecls
           (insideScope, insideDecl) <- scopeCheckModule r e m am tel $
-             toAbstract (Declarations insideDecls)
+             scopeCheckDeclarations insideDecls
           -- Andreas, 2020-05-13, issue #1804, #4647
           -- Do not eagerly remove private definitions, only when serializing
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
@@ -1584,7 +1585,7 @@ importPrimitives = do
     -- We don't want UnusedImports warnings when importing the primitives,
     -- since the open statement was not assembled by the user.
     locallyTCState stWarningSet (Set.\\ unusedImportsWarnings) do
-      toAbstract (Declarations importAgdaPrimitive)
+      scopeCheckDeclarations importAgdaPrimitive
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
@@ -1626,12 +1627,8 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
     Right ds -> ret ds
 
 -- | Wrapper to avoid instance conflict with generic list instance.
-newtype Declarations = Declarations [C.Declaration]
-
-instance ToAbstract Declarations where
-  type AbsOfCon Declarations = [A.Declaration]
-
-  toAbstract (Declarations ds) = niceDecls DoWarn ds toAbstract
+scopeCheckDeclarations :: [C.Declaration] -> ScopeM [A.Declaration]
+scopeCheckDeclarations ds = niceDecls DoWarn ds \ niceds -> catMaybes <$> toAbstract niceds
 
 -- | Where did these 'LetDef's come from?
 data LetDefOrigin
@@ -1644,14 +1641,13 @@ data LetDefOrigin
   deriving (Eq, Show)
 
 data LetDefs = LetDefs LetDefOrigin (List1 C.Declaration)
-data LetDef = LetDef LetDefOrigin NiceDeclaration
 
 instance ToAbstract LetDefs where
   type AbsOfCon LetDefs = [A.LetBinding]
 
   toAbstract :: LetDefs -> ScopeM (AbsOfCon LetDefs)
   toAbstract (LetDefs wh ds) =
-    List1.concat <$> niceDecls DoWarn (List1.toList ds) (toAbstract . map (LetDef wh))
+    List1.concat <$> niceDecls DoWarn (List1.toList ds) \ nds -> mapM (scopeCheckLetDef wh) nds
 
 -- | Raise appropriate (error-)warnings for if a declaration with
 -- illegal access, macro flag, or abstractness appear in a let
@@ -1673,11 +1669,10 @@ checkLetDefInfo wh access macro abstract = do
       | wh == ExprLetDef -> scopeWarning (UselessPrivate rng)
     _ -> pure ()
 
-instance ToAbstract LetDef where
-  type AbsOfCon LetDef = List1 A.LetBinding
-  toAbstract :: LetDef -> ScopeM (AbsOfCon LetDef)
-  toAbstract (LetDef wh d) = setCurrentRange d case d of
-    NiceMutual _ _ _ _ d@[C.FunSig _ access _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ (cl :| [])] -> do
+scopeCheckLetDef :: LetDefOrigin -> NiceDeclaration -> ScopeM (List1 A.LetBinding)
+scopeCheckLetDef wh d = setCurrentRange d do
+  case d of
+    NiceMutual _ _ _ _ d@(C.FunSig _ access _ instanc macro info _ _ x t :| [C.FunDef _ _ abstract _ _ _ _ (cl :| [])]) -> do
       checkLetDefInfo wh access macro abstract
 
       t <- toAbstract t
@@ -1749,12 +1744,12 @@ instance ToAbstract LetDef where
         Left err ->
           case definedName p0 of
             Nothing -> throwError err
-            Just x  -> toAbstract $ LetDef wh $ NiceMutual empty tc cc YesPositivityCheck
-              [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
+            Just x  -> scopeCheckLetDef wh $ NiceMutual empty tc cc YesPositivityCheck
+              (C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
                   info tc cc x (C.Underscore (getRange x) Nothing)
-              , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
+              :| [ C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
                 $ singleton $ C.Clause x (ca <> catchall) ai lhs (C.RHS rhs) NoWhere []
-              ]
+              ])
               where info = setOrigin Inserted ai
           where
             definedName (C.IdentP _ (C.QName x)) = Just x
@@ -1894,7 +1889,7 @@ checkFieldArgInfo warn =
     msg = if warn then Just "of field" else Nothing
 
 instance ToAbstract NiceDeclaration where
-  type AbsOfCon NiceDeclaration = A.Declaration
+  type AbsOfCon NiceDeclaration = Maybe A.Declaration
 
   toAbstract d = annotateDecls $
     traceS "scope.decl.trace" 50
@@ -1937,7 +1932,7 @@ instance ToAbstract NiceDeclaration where
       y <- freshAbstractQName f x
       bindName p GeneralizeName x y
       let info = (mkDefInfo x f p ConcreteDef r) { defTactic = tac }
-      return [A.Generalize s info i y t]
+      return $ singleton $ A.Generalize s info i y t
 
   -- Fields
     C.NiceField r p a i tac x (Arg ai t) -> do
@@ -1963,7 +1958,7 @@ instance ToAbstract NiceDeclaration where
       --   -- Ulf: unless you turn on --irrelevant-projections
       bindName' p FldName (instanceMetadata i) x y
       let info = (mkDefInfoInstance x f p a i NotMacroDef r) { defTactic = tac }
-      return [ A.Field info y (Arg ai t) ]
+      return $ singleton $ A.Field info y (Arg ai t)
 
   -- Primitive function
     PrimitiveFunction r p a x t -> notAffectedByOpaque $ do
@@ -1973,15 +1968,16 @@ instance ToAbstract NiceDeclaration where
       bindName p PrimName x y
       unfoldFunction y
       let di = mkDefInfo x f p a r
-      return [ A.Primitive di y t' ]
+      return $ singleton $ A.Primitive di y t'
 
   -- Definitions (possibly mutual)
     NiceMutual kwr tc cc pc ds -> do
       reportSLn "scope.mutual" 40 ("starting checking mutual definitions: " ++ prettyShow ds)
-      ds' <- toAbstract ds
+      ds' <- catMaybes <$> toAbstract (List1.toList ds)
       reportSLn "scope.mutual" 40 ("finishing checking mutual definitions")
       -- We only termination check blocks that do not have a measure.
-      return [ A.Mutual (MutualInfo tc cc pc (fuseRange kwr ds)) ds' ]
+      maybeToList <$> forM (List1.nonEmpty ds') \ ds' ->
+        return $ A.Mutual (MutualInfo tc cc pc (fuseRange kwr ds)) ds'
 
   -- Type signatures
     C.FunSig r p a i m rel _ _ x t -> do
@@ -2000,7 +1996,7 @@ instance ToAbstract NiceDeclaration where
 
         unfoldFunction x'
         di <- updateDefInfoOpacity (mkDefInfoInstance x f PublicAccess a i NotMacroDef r)
-        return [ A.FunDef di x' cs ]
+        return $ singleton $ A.FunDef di x' cs
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause _ lhs _ _ _) ->
@@ -2030,13 +2026,13 @@ instance ToAbstract NiceDeclaration where
       adecl <- traceCall (ScopeCheckDeclaration $
                           NiceModule r p a e x tel []) $ do
         scopeCheckNiceModule r p e name tel $
-          toAbstract (Declarations ds)
+          scopeCheckDeclarations ds
 
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checked NiceModule " ++ prettyShow x
         , nest 2 $ prettyA adecl
         ]
-      return [ adecl ]
+      return $ singleton adecl
 
     NiceModule _ _ _ _ m@C.Qual{} _ _ -> typeError QualifiedLocalModule
 
@@ -2052,11 +2048,11 @@ instance ToAbstract NiceDeclaration where
         [ text $ "scope checked NiceModuleMacro " ++ prettyShow x
         , nest 2 $ prettyA adecl
         ]
-      return [ adecl ]
+      return $ singleton adecl
 
     NiceOpen kwr x dir -> do
       (minfo, m, adir) <- checkOpen kwr Nothing x dir
-      return [A.Open minfo m adir]
+      return $ singleton $ A.Open minfo m adir
 
     NicePragma r p -> do
       ps <- toAbstract p  -- could result in empty list of pragmas
@@ -2147,11 +2143,10 @@ instance ToAbstract NiceDeclaration where
       let mi = MutualInfo tc cc YesPositivityCheck r
       mapM_ unfoldFunction ys
       opaque <- contextIsOpaque
-      return [ A.Mutual mi
-        [ A.UnquoteDecl mi
-            [ (mkDefInfoInstance x fx p a i NotMacroDef r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ]
+      return $ singleton $ A.Mutual mi $ singleton $
+        A.UnquoteDecl mi
+          [ (mkDefInfoInstance x fx p a i NotMacroDef r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ]
           ys e
-        ] ]
 
     NiceUnquoteDef r p a _ _ xs e -> do
       fxs <- mapM getConcreteFixity xs
@@ -2161,7 +2156,10 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (rebindName p OtherDefName noMetadata) xs ys
       mapM_ unfoldFunction ys
       opaque <- contextIsOpaque
-      return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
+      return $ singleton $
+        A.UnquoteDef
+          [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ]
+          ys e
 
     NiceUnquoteData r p a pc uc x cs e -> notAffectedByOpaque $ do
       fx <- getConcreteFixity x
@@ -2184,12 +2182,16 @@ instance ToAbstract NiceDeclaration where
 
       fcs <- mapM getConcreteFixity cs
       let mi = MutualInfo TerminationCheck YesCoverageCheck pc r
-      return
-        [ A.Mutual
-          mi [A.UnquoteData
-            [ mkDefInfo x fx p a r ] x' uc
-            [ mkDefInfo c fc p a r | (fc, c) <- zip fcs cs] cs' e ]
-        ]
+      return $ singleton $
+        A.Mutual mi $ singleton $
+          A.UnquoteData
+            [ mkDefInfo x fx p a r ]
+            x'
+            uc
+            [ mkDefInfo c fc p a r | (fc, c) <- zip fcs cs]
+            cs'
+            e
+
 
     NicePatternSyn r a n as p -> do
       reportSLn "scope.pat" 30 $ "found nice pattern syn: " ++ prettyShow n
@@ -2214,7 +2216,7 @@ instance ToAbstract NiceDeclaration where
       -- fold them back when printing (issue #2762).
       ep <- expandPatternSynonyms p
       modifyPatternSyns (Map.insert y (as, ep))
-      return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
+      return $ singleton $ A.PatternSynDef y (map (fmap BindName) as) p   -- only for highlighting, so use unexpanded version
       where
         checkPatSynParam :: WithHiding C.Name -> ScopeM (WithHiding A.Name)
         checkPatSynParam (WithHiding h x) = do
@@ -2253,7 +2255,7 @@ instance ToAbstract NiceDeclaration where
 
       -- Keep going!
       localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
-        out <- traverse toAbstract decls
+        out <- catMaybes <$> traverse toAbstract decls
         unless (any interestingOpaqueDecl out) $ setCurrentRange kwr $ warning UselessOpaque
         pure $ UnfoldingDecl r names : out
 
@@ -2438,7 +2440,7 @@ scopeCheckRecDef r o a uc x directives pars fields =
 
       -- We scope check the fields a second time, as actual fields.
       afields <- withCurrentModule m $ do
-        afields <- toAbstract (Declarations fields)
+        afields <- scopeCheckDeclarations fields
         printScope "rec" 25 "checked fields"
         return afields
 
@@ -3331,7 +3333,7 @@ whereToAbstract1 r e whname whds inner = do
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
   (scope, d) <- scopeCheckModule r e (C.QName m) am [] $
-                toAbstract $ Declarations $ List1.toList whds
+                scopeCheckDeclarations $ List1.toList whds
   setScope scope
   x <- inner
   setCurrentModule old

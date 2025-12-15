@@ -53,7 +53,7 @@ data NiceDeclaration
       --   ('Hiding' should be 'NotHidden'.)
   | NiceField Range Access IsAbstract IsInstance TacticAttribute Name (Arg Expr)
   | PrimitiveFunction Range Access IsAbstract Name (Arg Expr)
-  | NiceMutual KwRange TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
+  | NiceMutual KwRange TerminationCheck CoverageCheck PositivityCheck (List1 NiceDeclaration)
   | NiceModule Range Access IsAbstract Erased QName Telescope
       [Declaration]
   | NiceModuleMacro Range Access Erased Name ModuleApplication

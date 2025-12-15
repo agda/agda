@@ -1219,7 +1219,7 @@ instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn A.BindName p
 instance ToConcrete (Constr A.Constructor) where
   type ConOfAbs (Constr A.Constructor) = C.Declaration
 
-  toConcrete (Constr (A.ScopedDecl scope [d])) =
+  toConcrete (Constr (A.ScopedDecl scope (d :| []))) =
     withScope scope $ toConcrete (Constr d)
   toConcrete (Constr (A.Axiom _ i info Nothing x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -1266,7 +1266,7 @@ instance ToConcrete A.Declaration where
   type ConOfAbs A.Declaration = [C.Declaration]
 
   toConcrete (ScopedDecl scope ds) =
-    withScope scope (declsToConcrete ds)
+    withScope scope $ declsToConcrete $ List1.toList ds
 
   toConcrete (A.Axiom _ i info mp x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -1335,7 +1335,7 @@ instance ToConcrete A.Declaration where
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
       return [ C.RecordDef (getRange i) x' dirs (catMaybes tel') cs' ]
 
-  toConcrete (A.Mutual i ds) = pure . C.Mutual empty <$> declsToConcrete ds
+  toConcrete (A.Mutual i ds) = pure . C.Mutual empty <$> declsToConcrete (List1.toList ds)
 
   toConcrete (A.Section i erased x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x

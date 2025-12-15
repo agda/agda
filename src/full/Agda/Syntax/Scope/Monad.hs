@@ -218,11 +218,10 @@ bindVarsToBind = do
   printLocals 30 "bound variables:"
   modifyScope $ setVarsToBind []
 
-annotateDecls :: ReadTCState m => m [A.Declaration] -> m A.Declaration
+annotateDecls :: ReadTCState m => m [A.Declaration] -> m (Maybe A.Declaration)
 annotateDecls m = do
-  ds <- m
-  s  <- getScope
-  return $ A.ScopedDecl s ds
+  forMM (List1.nonEmpty <$> m) \ ds1 -> do
+    getScope <&> (`A.ScopedDecl` ds1)
 
 annotateExpr :: ReadTCState m => m A.Expr -> m A.Expr
 annotateExpr m = do

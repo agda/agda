@@ -42,12 +42,14 @@ import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Lens
 import Agda.Utils.List (headWithDefault)
+import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
+import qualified Agda.Utils.List1 as List1
 
 ---------------------------------------------------------------------------
 -- * Records
@@ -160,9 +162,10 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       etaenabled <- etaEnabled
 
       let getName :: A.Declaration -> [Dom QName]
-          getName (A.Field _ x arg)    = [x <$ domFromArg arg]
-          getName (A.ScopedDecl _ [f]) = getName f
-          getName _                    = []
+          getName = \case
+            A.Field _ x arg          -> [ x <$ domFromArg arg ]
+            A.ScopedDecl _ (f :| []) -> getName f
+            _ -> []
 
           setTactic dom f = f { domTactic = domTactic dom }
 
@@ -405,7 +408,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
     checkProjs _ _ _ [] = return ()
 
     checkProjs ftel1 ftel2 vs (A.ScopedDecl scope fs' : fs) =
-      setScope scope >> checkProjs ftel1 ftel2 vs (fs' ++ fs)
+      setScope scope >> checkProjs ftel1 ftel2 vs (List1.toList fs' ++ fs)
 
     -- Case: projection.
     checkProjs ftel1 (ExtendTel (dom@Dom{domInfo = ai,unDom = t}) ftel2) vs (A.Field info x _ : fs) =

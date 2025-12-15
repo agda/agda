@@ -191,7 +191,7 @@ data Declaration
     -- ^ The first argument is the (possibly empty) set of generalizable variables used in the type.
   | Field      DefInfo QName (Arg Type)              -- ^ record field
   | Primitive  DefInfo QName (Arg Type)              -- ^ primitive function
-  | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
+  | Mutual     MutualInfo (List1 Declaration)        -- ^ a bunch of mutually recursive definitions
   | Section    Range Erased ModuleName GeneralizeTelescope [Declaration]
   | Apply      ModuleInfo Erased ModuleName ModuleApplication
                ScopeCopyInfo ImportDirective
@@ -213,7 +213,7 @@ data Declaration
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
   | UnquoteData [DefInfo] QName UniverseCheck [DefInfo] [QName] Expr
-  | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
+  | ScopedDecl ScopeInfo (List1 Declaration)  -- ^ scope annotation
   | UnfoldingDecl Range [QName]
     -- ^ Only for highlighting the unfolded names
   deriving (Show, Generic)
@@ -957,18 +957,22 @@ instance NFData e => NFData (Pattern' e)
 -- Precondition: The declaration has to be a (scoped) 'Axiom'.
 
 axiomName :: Declaration -> QName
-axiomName (Axiom _ _ _ _ q _)  = q
-axiomName (ScopedDecl _ (d:_)) = axiomName d
-axiomName _                    = __IMPOSSIBLE__
+axiomName (Axiom _ _ _ _ q _)     = q
+axiomName (ScopedDecl _ (d :| _)) = axiomName d
+axiomName _ = __IMPOSSIBLE__
 
 -- | Are we in an abstract block?
 --
 --   In that case some definition is abstract.
 class AnyAbstract a where
   anyAbstract :: a -> Bool
-
-instance AnyAbstract a => AnyAbstract [a] where
+  default anyAbstract
+    :: (Foldable t, AnyAbstract b, t b ~ a)
+    => a -> Bool
   anyAbstract = Fold.any anyAbstract
+
+instance AnyAbstract a => AnyAbstract [a]
+instance AnyAbstract a => AnyAbstract (List1 a)
 
 instance AnyAbstract Declaration where
   anyAbstract (Axiom _ i _ _ _ _)    = defAbstract i == AbstractDef
@@ -1161,7 +1165,7 @@ data DeclarationSpine
   | GeneralizeS
   | FieldS
   | PrimitiveS
-  | MutualS [DeclarationSpine]
+  | MutualS (List1 DeclarationSpine)
   | SectionS [DeclarationSpine]
   | ApplyS
   | ImportS
@@ -1176,7 +1180,7 @@ data DeclarationSpine
   | UnquoteDeclS
   | UnquoteDefS
   | UnquoteDataS
-  | ScopedDeclS [DeclarationSpine]
+  | ScopedDeclS (List1 DeclarationSpine)
   | UnfoldingDeclS
   deriving Show
 
@@ -1207,7 +1211,7 @@ declarationSpine = \case
   Generalize _ _ _ _ _    -> GeneralizeS
   Field _ _ _             -> FieldS
   Primitive _ _ _         -> PrimitiveS
-  Mutual _ ds             -> MutualS (map declarationSpine ds)
+  Mutual _ ds             -> MutualS (fmap declarationSpine ds)
   Section _ _ _ _ ds      -> SectionS (map declarationSpine ds)
   Apply _ _ _ _ _ _       -> ApplyS
   Import _ _ _            -> ImportS
@@ -1222,7 +1226,7 @@ declarationSpine = \case
   UnquoteDecl _ _ _ _     -> UnquoteDeclS
   UnquoteDef _ _ _        -> UnquoteDefS
   UnquoteData _ _ _ _ _ _ -> UnquoteDataS
-  ScopedDecl _ ds         -> ScopedDeclS (map declarationSpine ds)
+  ScopedDecl _ ds         -> ScopedDeclS (fmap declarationSpine ds)
   UnfoldingDecl _ _       -> UnquoteDeclS
 
 -- | The clause spine corresponding to a clause.

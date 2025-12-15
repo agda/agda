@@ -51,6 +51,7 @@ import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -254,7 +255,7 @@ checkConstructor
   -> Sort          -- ^ Sort of the data type.
   -> A.Constructor -- ^ Constructor declaration (type signature).
   -> TCM IsPathCons
-checkConstructor d uc tel nofIxs s (A.ScopedDecl scope [con]) = do
+checkConstructor d uc tel nofIxs s (A.ScopedDecl scope (con :| [])) = do
   setScope scope
   checkConstructor d uc tel nofIxs s con
 checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
