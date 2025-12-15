@@ -58,7 +58,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         key: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
@@ -85,7 +85,7 @@ jobs:
         retention-days: 1
     - if: steps.cache.outputs.cache-hit != 'true'
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         key: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{

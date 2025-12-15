@@ -84,7 +84,7 @@ jobs:
           }}-icu-${{ env.ICU_VER }}
       id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         key: ${{ env.key }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
           env.GHC_VER)) }}
@@ -118,7 +118,7 @@ jobs:
         stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
     - if: always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: |

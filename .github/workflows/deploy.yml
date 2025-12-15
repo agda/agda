@@ -107,7 +107,7 @@ jobs:
     - id: cache
       if: ${{ runner.os != 'Linux' }}
       name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         key: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
           }}-${{ hashFiles('**/plan.json') }}
