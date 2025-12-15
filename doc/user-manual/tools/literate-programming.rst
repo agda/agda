@@ -207,11 +207,8 @@ Literate Forester
 Files ending in :file:`.lagda.tree` are interpreted as literate
 Forester_ files. Literate forester uses ```\agda{...}``` for code blocks.
 
-You will need the postprocessor agda-tree_ to convert ``html/*.tree`` to a valid forester tree.
-
   * ``agda --html --html-highlight=code example.lagda.tree`` will produce the file ``html/example.tree``.
-  * Run ``agda-tree build`` at where ``html/`` is located, this will produce subdirectory ``trees/`` there.
-  * Add ``trees/`` to ``forest.toml``.
+  * These produced trees ``html/*.tree`` are valid, hence add ``html/`` to ``forest.toml`` as trees.
   * Add ``html/`` to ``forest.toml`` as assets.
   * Modify ``theme/tree.xsl`` of your forester project, adding ``Agda.css`` to the linked styles.
 
