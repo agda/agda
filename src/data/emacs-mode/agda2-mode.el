@@ -1582,6 +1582,7 @@ Either only one if point is a goal, or all of them."
         (nconc agda2-last-responses (cons (cons 3 cmd) nil))))))
 
 (defun agda2-solve-action (g txt)
+  (declare (agda2-command (integer string)))
   (save-excursion
     (agda2-replace-goal g txt)
     (agda2-goto-goal g)
