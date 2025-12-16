@@ -209,10 +209,11 @@ Forester_ files. Literate forester uses ```\agda{...}``` for code blocks.
 
   * ``agda --html --html-highlight=code example.lagda.tree`` will produce the file ``html/example.tree``.
   * These produced trees ``html/*.tree`` are valid, hence add ``html/`` to ``forest.toml`` as trees.
-  * Add ``html/`` to ``forest.toml`` as assets.
   * Modify ``theme/tree.xsl`` of your forester project, adding ``Agda.css`` to the linked styles.
 
-Running ``forester build`` should now produce file ``example.xml`` with Agda syntax highlighting.
+Running ``forester build`` produce file ``example.xml``.
+
+  * Run ``cp html/Agda.css output``, now you get Agda syntax highlighting.
 
 .. code-block:: text
 
@@ -231,6 +232,9 @@ Running ``forester build`` should now produce file ``example.xml`` with Agda syn
     suc  : ℕ → ℕ
    }
 
+* Self link: when you create a ``example.lagda.tree``, you click a local definition (e.g. `example#232`) expect stay at the current tree, will find you're at ``example/example.html#232`` (and get 404). You can write a script to handle this: for each ``html/i.tree``, copy ``output/i/index.html`` to ``output/i/i.html``, then the inproper location now redirect to the right location.
+* External link: however, if you click ``Set`` (at ``example/index.xml``) and expect ``Agda.Primitive.html#388`` will surprise, the result is ``example/Agda.Primitive.html#388``. Though write a script for this still possible, but that would be a ad-hoc solution for your own case.
+
 .. _TeX: http://tug.org/
 .. _reStructuredText: http://docutils.sourceforge.io/rst.html
 .. _Markdown: https://daringfireball.net/projects/markdown/
@@ -239,6 +243,5 @@ Running ``forester build`` should now produce file ``example.xml`` with Agda syn
 .. _Forester: https://sr.ht/~jonsterling/forester/
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
-.. _agda-tree: https://github.com/dannypsnl/agda-tree
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/
 .. _Pandoc: https://pandoc.org/
