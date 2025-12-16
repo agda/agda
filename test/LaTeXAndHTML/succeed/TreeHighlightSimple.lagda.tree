@@ -2,7 +2,7 @@
 
 \p{This is test file}
 \agda{
-module Simple where
+module TreeHighlightSimple where
 
   data Bool : Set where
             true : Bool
