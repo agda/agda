@@ -232,7 +232,7 @@ Running ``forester build`` produce file ``example.xml``.
     suc  : ℕ → ℕ
    }
 
-* Self link: when you create a ``example.lagda.tree``, you click a local definition (e.g. `example#232`) expect stay at the current tree, will find you're at ``example/example.html#232`` (and get 404). You can write a script to handle this: for each ``html/i.tree``, copy ``output/i/index.html`` to ``output/i/i.html``, then the inproper location now redirect to the right location.
+* Self-link issue with Agda + Forester: When compiling ``.lagda.tree`` files, Agda generates links to local definitions using the module name (e.g., ``bool.html#232``). However, Forester outputs pages as ``output/bool/index.html``. This mismatch causes self-referential links to resolve to ``bool/bool.html#232`` instead of ``#232`` on the current page, resulting in 404s. This cannot be fixed in Agda's HTML backend—it has no awareness of Forester's output structure. A post-processing script is needed: for each generated page, copy ``output/i/index.html`` to ``output/i/i.html`` so the incorrect paths become valid redirects.
 * External link: however, if you click ``Set`` (at ``example/index.xml``) and expect ``Agda.Primitive.html#388`` will surprise, the result is ``example/Agda.Primitive.html#388``. Though write a script for this still possible, but that would be a ad-hoc solution for your own case.
 
 .. _TeX: http://tug.org/
