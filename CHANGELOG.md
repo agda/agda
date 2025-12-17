@@ -213,6 +213,11 @@ Reflection
 Library management
 ------------------
 
+* Suppport for version-specific `defaults` files: a file whose name is
+of the form `defaults-X.Y.Z` will take precedence over the standard
+`defaults` one for the `X.Y.Z` version of the compiler. This can be
+used to have default libraries that are only compatible with a given
+version of the compiler.
 
 Interaction and emacs mode
 --------------------------
