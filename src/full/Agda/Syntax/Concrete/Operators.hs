@@ -20,6 +20,8 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
+import Prelude hiding (null)
+
 import Control.Applicative ( Alternative( (<|>) ) )
 import Control.Monad.Except (throwError)
 import Control.Monad ((<$!>))
@@ -55,6 +57,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import Agda.Utils.List2 (List2, pattern List2)
+import Agda.Utils.Null
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
@@ -649,12 +652,12 @@ parseLHS' ::
        --   'Nothing' if we parse a pattern.
   -> Pattern
        -- ^ Thing to parse.
-  -> ScopeM (ParseLHS, [NotationSection])
+  -> ScopeM (ParseLHS, [NotationSection], OperatorScope)
        -- ^ The returned list contains all operators\/notations\/sections that
        --   were used to generate the grammar.
 
 parseLHS' NoDisplayLHS IsLHS (Just qn) WildP{} =
-    return (ParseLHS qn $ LHSHead qn [], [])
+    return (ParseLHS qn $ LHSHead qn [], [], empty)
 
 parseLHS' displayLhs lhsOrPatSyn top p = do
 
@@ -677,13 +680,13 @@ parseLHS' displayLhs lhsOrPatSyn top p = do
       [ "Possible parses for lhs:" ] ++ map (nest 2 . pretty . snd) results
     case results of
         -- Unique result.
-        [(_,lhs)] -> (lhs, operators patP) <$ do
+        [(_,lhs)] -> (lhs, operators patP, operatorScope patP) <$ do
                        reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
         -- No result.
-        []        -> typeError $ OperatorInformation (operators patP) $
+        []        -> typeError $ OperatorInformation (operators patP) (operatorScope patP) $
                        NoParseForLHS lhsOrPatSyn (catMaybes errs) p
         -- Ambiguous result.
-        r0:r1:rs  -> typeError $ OperatorInformation (operators patP) $
+        r0:r1:rs  -> typeError $ OperatorInformation (operators patP) (operatorScope patP) $
                        AmbiguousParseForLHS lhsOrPatSyn p $
                          fmap (fullParen . fst) $ List2 r0 r1 rs
     where
@@ -778,10 +781,10 @@ parseLHS ::
        -- ^ Full left hand side.
   -> ScopeM LHSCore
 parseLHS displayLhs top p = billToParser (IsPattern displayLhs) $ do
-  (res, ops) <- parseLHS' displayLhs IsLHS (Just top) p
+  (res, ops, opScope) <- parseLHS' displayLhs IsLHS (Just top) p
   case res of
     ParseLHS _f lhs -> return lhs
-    _ -> typeError $ OperatorInformation ops
+    _ -> typeError $ OperatorInformation ops opScope
                    $ NoParseForLHS IsLHS [] p
 
 -- | Parses a pattern.
@@ -793,10 +796,10 @@ parsePatternSyn = parsePatternOrSyn IsPatSyn
 
 parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
 parsePatternOrSyn lhsOrPatSyn p = billToParser (IsPattern NoDisplayLHS) $ do
-  (res, ops) <- parseLHS' NoDisplayLHS lhsOrPatSyn Nothing p
+  (res, ops, opScope) <- parseLHS' NoDisplayLHS lhsOrPatSyn Nothing p
   case res of
     ParsePattern p -> return p
-    _ -> typeError $ OperatorInformation ops
+    _ -> typeError $ OperatorInformation ops opScope
                    $ NoParseForLHS lhsOrPatSyn [] p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
@@ -897,9 +900,9 @@ parseApplication es  = billToParser IsExpr $ do
             reportS "scope.operators" 50 $
               "Parsed an operator application:" <+> pretty e
             return $! e
-        []    -> typeError $ OperatorInformation (operators p)
+        []    -> typeError $ OperatorInformation (operators p) (operatorScope p)
                            $ NoParseForApplication es
-        e:es' -> typeError $ OperatorInformation (operators p)
+        e:es' -> typeError $ OperatorInformation (operators p) (operatorScope p)
                            $ AmbiguousParseForApplication es
                            $ fmap fullParen (e :| es')
 
@@ -927,11 +930,11 @@ parseArguments hd = \case
         return $! map' go es
       Just p -> case argsParser p es of
         [as] -> return $! as
-        []   -> typeError $ OperatorInformation (operators p)
+        []   -> typeError $ OperatorInformation (operators p) (operatorScope p)
                           $ NoParseForApplication es2
         as : ass -> do
           let f = fullParen . foldl (App noRange) hd
-          typeError $ OperatorInformation (operators p)
+          typeError $ OperatorInformation (operators p) (operatorScope p)
                     $ AmbiguousParseForApplication es2
                     $ fmap f (as :| ass)
 

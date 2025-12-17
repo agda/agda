@@ -149,6 +149,12 @@ simpleBinaryOperator s = Name noRange InScope $ Hole :| Id s : Hole : []
 simpleHole :: Name
 simpleHole = Name noRange InScope $ singleton Hole
 
+-- | Check whether a name is a simple identifier without holes.
+isSimpleName :: Name -> Maybe RawName
+isSimpleName = \case
+  Name _ _ (Id x :| []) -> Just x
+  _ -> Nothing
+
 ------------------------------------------------------------------------
 -- * Operations on 'Name' and 'NamePart'
 ------------------------------------------------------------------------

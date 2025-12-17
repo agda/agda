@@ -380,6 +380,25 @@ data NameOrModule = NameNotModule | ModuleNotName
   deriving (Eq, Ord, Show, Enum, Bounded, Generic)
 
 ------------------------------------------------------------------------
+-- * Operator parsing
+------------------------------------------------------------------------
+
+-- | Names that are relevant to operator parsing.
+data OperatorScope = OpScope {
+    osHasOps :: !Bool                              -- ^ Are there any operators or notations in scope?
+  , osScope  :: (Map C.QName (List1 AbstractName)) -- ^ All relevant names in global scope.
+  , osLocals :: !(AssocList C.Name A.Name)         -- ^ Relevant names in local scope.
+  } deriving (Eq, Show, Generic)
+
+instance Null OperatorScope where
+  empty = OpScope empty empty empty
+
+instance Pretty OperatorScope where
+  prettyPrec x (OpScope _ scope locals) = prettyPrec x (scope, locals)
+
+instance NFData OperatorScope
+
+------------------------------------------------------------------------
 -- * Live names and copy trimming
 ------------------------------------------------------------------------
 

@@ -34,7 +34,7 @@ typeErrorName = \case
   NotAValidLetExpression  what -> NotAValidLetExpression_  what
   PatternSynonymArgumentShadows what _ _ -> PatternSynonymArgumentShadows_ what
   -- Wrappers
-  OperatorInformation _    err -> typeErrorName err
+  OperatorInformation _ _  err -> typeErrorName err
   -- Generic errors (alphabetically)
   CompilationError          {} -> CompilationError_
   CustomBackendError        {} -> CustomBackendError_

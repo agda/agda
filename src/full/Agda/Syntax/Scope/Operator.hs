@@ -40,16 +40,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.AssocList (AssocList)
 import Agda.Utils.Impossible
 
--- | Names that are relevant to operator parsing.
-data OperatorScope = OpScope {
-    osHasOps :: !Bool                            -- ^ Are there any operators or notations in scope?
-  , osScope  :: (Map QName (List1 AbstractName)) -- ^ All relevant names in global scope.
-  , osLocals :: !(AssocList Name A.Name)         -- ^ Relevant names in local scope.
-  }
-
-instance Pretty OperatorScope where
-  prettyPrec x (OpScope _ scope locals) = prettyPrec x (scope, locals)
-
 -- | Looking up all name parts of a QName.
 namePartScopeLookup :: QName -> ScopeInfo -> [Map Name (List1 AbstractName)]
 namePartScopeLookup q scope = inAllScopes ++ imports

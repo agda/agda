@@ -5509,7 +5509,7 @@ data TypeError
         | AmbiguousProjection QName (List1 QName)
             -- ^ The list contains alternative interpretations of the name.
         | AmbiguousOverloadedProjection (List1 QName) Doc
-        | OperatorInformation [NotationSection] TypeError
+        | OperatorInformation [NotationSection] OperatorScope TypeError
             -- ^ The list of notations can be empty.
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern

@@ -1,0 +1,18 @@
+Issue3677.agda:18.5-24: error: [AmbiguousParseForApplication]
+Don't know how to parse ▸ ⟨ H , t , ρ , S ⟩. Could mean any one of:
+  ▸ ((((((((⟨ H) ,) t) ,) ρ) ,) S) ⟩)
+  ▸ (⟨ H , t , ρ , S ⟩)
+  (▸ (⟨ H)) , (t , (ρ , (S ⟩)))
+  (▸ (⟨ H)) , (t , (((ρ ,) S) ⟩))
+  (▸ (⟨ H)) , (((t ,) ρ) , (S ⟩))
+  (▸ (⟨ H)) , (((((t ,) ρ) ,) S) ⟩)
+  (▸ (((⟨ H) ,) t)) , (ρ , (S ⟩))
+  (▸ (((⟨ H) ,) t)) , (((ρ ,) S) ⟩)
+  (▸ (((((⟨ H) ,) t) ,) ρ)) , (S ⟩)
+Operators used in the grammar:
+  ,         (infixr operator, level 4)  [_,_ (Issue3677.agda:7.3-6)]       
+  ▸         (prefix operator, level 20) [▸_ (Issue3677.agda:6.3-5)]        
+  ⟨_,_,_,_⟩ (closed operator)           [⟨_,_,_,_⟩ (Issue3677.agda:8.3-12)]
+Identifiers used in the grammar that overlap with the operators:
+  , ⟨ ⟩
+when scope checking ▸ ⟨ H , t , ρ , S ⟩

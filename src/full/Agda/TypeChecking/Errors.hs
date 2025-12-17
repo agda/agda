@@ -75,21 +75,22 @@ import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Interaction.Library.Base (formatLibErrors, libFile)
 
+import Agda.Utils.AssocList qualified as AssocList
 import Agda.Utils.FileName
-import Agda.Utils.Float  ( toStringWithoutDotZero )
+import Agda.Utils.Float     ( toStringWithoutDotZero )
 import Agda.Utils.Function
-import Agda.Utils.Functor( for )
-import Agda.Utils.IO     ( showIOException )
+import Agda.Utils.Functor   ( for )
+import Agda.Utils.IO        ( showIOException )
 import Agda.Utils.Lens
-import Agda.Utils.List   ( initLast, lastMaybe )
-import Agda.Utils.List1  ( List1, pattern (:|) )
-import Agda.Utils.List2  ( pattern List2 )
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.List2 as List2
+import Agda.Utils.List      ( initLast, lastMaybe, hasElem )
+import Agda.Utils.List1     ( List1, pattern (:|) )
+import Agda.Utils.List2     ( pattern List2 )
+import Agda.Utils.List1     qualified as List1
+import Agda.Utils.List2     qualified as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Set1 as Set1
+import Agda.Utils.Set1      qualified as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -1156,7 +1157,7 @@ instance PrettyTCM TypeError where
         unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP True op) xs
         unambiguousP e                    = e
 
-    OperatorInformation sects err ->
+    OperatorInformation sects (OpScope _ globals locals) err ->
       prettyTCM err
         $+$
       fsep (pwords "Operators used in the grammar:")
@@ -1172,8 +1173,25 @@ instance PrettyTCM TypeError where
                unzip3 $
                map prettySect $
                sortBy (compare `on` prettyShow . notaName . sectNotation) $
-               filter (not . closedWithoutHoles) sects))
+               properSects))
+        $$
+      if null relevantSimpleNames then empty else do
+        fsep (pwords "Identifiers used in the grammar that overlap with the operators:")
+          $$
+          nest 2 (fsep (map text relevantSimpleNames))
+
       where
+      -- Andreas, 2025-12-17, issue #3677
+      -- Prepare a list of names in scope that might clash with the operators.
+      -- For now, disregard qualified names.
+      relevantSimpleNames = List.sort $ filter (hasElem operatorParts) simpleNames
+      simpleNames =
+        mapMaybe (C.isSimpleName <=< C.isUnqualified) (Map.keys globals) ++
+        mapMaybe C.isSimpleName (AssocList.keys locals)
+      operatorParts = concatMap (stringParts . notation . sectNotation) properSects
+
+      properSects = filter (not . closedWithoutHoles) sects
+
       trimLeft  = dropWhile isAHole
       trimRight = dropWhileEnd isAHole
 
