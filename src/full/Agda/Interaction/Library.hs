@@ -128,12 +128,12 @@ defaultLibraryFiles :: List1 FilePath
 defaultLibraryFiles = ("libraries-" ++ version) :| "libraries" : []
 
 -- | The @$AGDA_DIR/defaults@ file lists the library names relevant for all
---   Agda project.
+--   Agda projects.
 --
---   Agda honors also version-specific @defaults@ files, e.g. @defaults-2.6.0@.
+--   Agda also honors version-specific @defaults@ files, e.g. @defaults-2.6.0@.
 --
 --   @defaultsFiles@ gives a list of all @defaults@ Agda should process
---   by default.  The first file in this list that exists is actually used.
+--   by default. The first file in this list that exists is actually used.
 --
 defaultsFiles :: List1 FilePath
 defaultsFiles = ("defaults-" ++ version) :| "defaults" : []
