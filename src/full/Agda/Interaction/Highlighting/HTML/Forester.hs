@@ -73,57 +73,67 @@ renderMarkupBuilderWith d = go mempty
   where
     go :: Builder -> MarkupM b -> Builder
     go attrs (Parent _ open close content) =
-      B.fromText "\\"
-        `mappend` B.fromText (modify_open open)
-        `mappend` B.fromText ">"
-        `mappend` attrs
-        `mappend` B.fromText "{"
-        `mappend` go mempty content
-        `mappend` B.fromText "}"
+      mconcat
+        [ B.fromText "\\",
+          B.fromText (modify_open open),
+          B.fromText ">",
+          attrs,
+          B.fromText "{",
+          go mempty content,
+          B.fromText "}"
+        ]
     go attrs (CustomParent tag content) =
-      B.fromText "\\<html:"
-        `mappend` fromChoiceString d tag
-        `mappend` B.fromText ">"
-        `mappend` attrs
-        `mappend` B.fromText "{"
-        `mappend` go mempty content
-        `mappend` fromChoiceString d tag
-        `mappend` B.fromText "}"
+      mconcat
+        [ B.fromText "\\<html:",
+          fromChoiceString d tag,
+          B.fromText ">",
+          attrs,
+          B.fromText "{",
+          go mempty content,
+          fromChoiceString d tag,
+          B.fromText "}"
+        ]
     go attrs (Leaf _ begin end _) =
-      B.fromText (modify_open begin)
-        `mappend` B.fromText ">"
-        `mappend` attrs
-        `mappend` B.fromText "{}"
+      mconcat
+        [ B.fromText (modify_open begin),
+          B.fromText ">",
+          attrs,
+          B.fromText "{}"
+        ]
     go attrs (CustomLeaf tag close _) =
-      B.fromText "\\<html:"
-        `mappend` fromChoiceString d tag
-        `mappend` attrs
-        `mappend` B.fromText ">{}"
+      mconcat
+        [ B.fromText "\\<html:",
+          fromChoiceString d tag,
+          attrs,
+          B.fromText ">{}"
+        ]
     go attrs (AddAttribute _ key value h) =
       go
-        ( B.singleton '['
-            `mappend` B.fromText (modify_key key)
-            `mappend` B.fromText "]{"
-            `mappend` wrap_verb (fromChoiceString d value)
-            `mappend` B.fromText "}"
-            `mappend` attrs
+        ( mconcat
+            [ B.singleton '[',
+              B.fromText (modify_key key),
+              B.fromText "]{",
+              wrap_verb (fromChoiceString d value),
+              B.fromText "}",
+              attrs
+            ]
         )
         h
     go attrs (AddCustomAttribute key value h) =
       go
-        ( B.singleton '['
-            `mappend` fromChoiceString d key
-            `mappend` B.fromText "]{"
-            `mappend` wrap_verb (fromChoiceString d value)
-            `mappend` B.fromText "}"
-            `mappend` attrs
+        ( mconcat
+            [ B.singleton '[',
+              fromChoiceString d key,
+              B.fromText "]{",
+              wrap_verb (fromChoiceString d value),
+              B.fromText "}",
+              attrs
+            ]
         )
         h
     go _ (Content content _) = wrap_verb (fromChoiceString d content)
-    go _ (Comment comment _) =
-      B.fromText "% "
-        `mappend` fromChoiceString d comment
-    go attrs (Append h1 h2) = go attrs h1 `mappend` go attrs h2
+    go _ (Comment comment _) = B.fromText "% " <> fromChoiceString d comment
+    go attrs (Append h1 h2) = go attrs h1 <> go attrs h2
     go _ (Empty _) = mempty
     {-# NOINLINE go #-}
 {-# INLINE renderMarkupBuilderWith #-}
