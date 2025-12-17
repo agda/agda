@@ -458,7 +458,7 @@ checkTermination_ d = Bench.billTo [Bench.Termination] $ do
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Info.MutualInfo -> Set QName -> TCM ()
-checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
+checkPositivity_ mi names = do
   -- Positivity checking.
   reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
   checkStrictlyPositive mi names

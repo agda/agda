@@ -22,6 +22,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Benchmark (MonadBench)
+import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Datatypes (getNumberOfParameters)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.SizedTypes
@@ -114,12 +116,8 @@ polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
 ------------------------------------------------------------------------
 
 -- | Main function of this module.
-computePolarity
-  :: ( HasOptions m, HasConstInfo m, HasBuiltins m
-     , MonadTCEnv m, MonadTCState m, MonadReduce m, MonadAddContext m, MonadTCError m
-     , MonadDebug m, MonadPretty m )
-  => [QName] -> m ()
-computePolarity xs = do
+computePolarity :: [QName] -> TCM ()
+computePolarity xs = Bench.billTo [Bench.Polarity] $ do
  reportSDoc "tc.polarity.set" 40 $ "computePolarity" <+> prettyTCM xs
 
  -- Andreas, 2017-04-26, issue #2554

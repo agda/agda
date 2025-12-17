@@ -36,8 +36,10 @@ data Phase
     -- ^ Type checking and translation to internal syntax.
   | Termination
     -- ^ Termination checking.
+  | Polarity
+    -- ^ Polarity computation.
   | Positivity
-    -- ^ Positivity checking and polarity computation.
+    -- ^ Positivity checking.
   | Injectivity
     -- ^ Injectivity checking.
   | ProjectionLikeness

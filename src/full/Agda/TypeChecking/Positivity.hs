@@ -35,6 +35,8 @@ import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
+import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Patterns.Match ( properlyMatching )
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
@@ -71,7 +73,7 @@ type Graph n e = Graph.Graph n e
 --   to the signature.
 --
 checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
-checkStrictlyPositive mi qset = do
+checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
@@ -240,9 +242,9 @@ checkStrictlyPositive mi qset = do
           , nest 2 $ prettyList $ map prettyTCM args
           ]
         -- The list args can take a long time to compute, but contains
-        -- small elements, and is stored in the interface (right?), so
+        -- small elements, and is stored in the interface, so
         -- it is computed deep-strictly.
-        modifyArgOccurrences q (mergeOccs $!! args)
+        deepseq args `seq` modifyArgOccurrences q (mergeOccs args)
 
       where
       mergeOccs :: [Occurrence] -> [Occurrence] -> [Occurrence]
