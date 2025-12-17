@@ -207,13 +207,13 @@ Literate Forester
 Files ending in :file:`.lagda.tree` are interpreted as literate
 Forester_ files. Literate forester uses ```\agda{...}``` for code blocks.
 
-  * ``agda --html --html-highlight=code example.lagda.tree`` will produce the file ``html/example.tree``.
-  * These produced trees ``html/*.tree`` are valid, hence add ``html/`` to ``forest.toml`` as trees.
-  * Modify ``theme/tree.xsl`` of your forester project, adding ``Agda.css`` to the linked styles.
+  * Run ``agda --html --html-highlight=code example.lagda.tree`` to generate ``html/example.tree``.
+  * Add ``html/`` to the ``trees`` list in ``forest.toml`` so Forester can find the generated trees.
+  * Modify ``theme/tree.xsl`` of your forester project to include ``Agda.css`` in the linked stylesheets.
 
-Running ``forester build`` produce file ``example.xml``.
+Running ``forester build`` produce file ``output/example/index.xml``.
 
-  * Run ``cp html/Agda.css output``, now you get Agda syntax highlighting.
+  * Run ``cp html/Agda.css output/``, now you get Agda syntax highlighting.
 
 .. code-block:: text
 
