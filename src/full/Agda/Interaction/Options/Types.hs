@@ -206,6 +206,8 @@ data PragmaOptions = PragmaOptions
       -- ^ Can we split on a @(\@flat x : A)@ argument?
   , _optPolarity                  :: WithDefault 'False
       -- ^ Can we use modal polarities (@++, @+, etc.)?
+  , _optOccurrence                :: WithDefault 'True
+      -- ^ Perform automated occurrence analysis for functions?
   , _optImportSorts               :: WithDefault 'True
       -- ^ Should every top-level module start with an implicit statement
       --   @open import Agda.Primitive using (Set; Prop)@?

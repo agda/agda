@@ -50,10 +50,77 @@ Pragmas and options
   The overhead to also mine dot patterns for structural descent was already
   negligible so it made sense to simplify the termination checking algorithm.
 
+* The new flag `--no-occurrence-analysis` can be used to turn off the
+  automated occurrence analysis for functions.
+
+  By default Agda analyses how functions use their arguments. For
+  instance, Agda can tell that `D` in the following code is strictly
+  positive, because `Vec` uses its `Set` argument in a strictly
+  positive way:
+  ```agda
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.Unit
+
+  data _×_ (A B : Set) : Set where
+    _,_ : A → B → A × B
+
+  Vec : Set → Nat → Set
+  Vec A zero    = ⊤
+  Vec A (suc n) = A × Vec A n
+
+  data D : Set where
+    c : ∀ n → Vec D n → D
+  ```
+  However, this analysis can be slow, especially for big mutual
+  blocks. Now it is possible to turn it off.
+
+  The analysis is also used to detect unused function arguments. The
+  following code is by default accepted, but it is rejected if the
+  occurrence analysis is turned off:
+  ```agda
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Unit
+
+  F : Bool → Set → Set
+  F true  _ = Bool
+  F false _ = ⊤
+
+  _ : {b : Bool} → F b Bool ≡ F b ⊤
+  _ = refl
+  ```
+
+  Note that an alternative to the analysis is to use polarities. The
+  following code is accepted:
+  ```agda
+  {-# OPTIONS --polarity --no-occurrence-analysis #-}
+
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.Unit
+
+  data _×_ (@++ A B : Set) : Set where
+    _,_ : A → B → A × B
+
+  Vec : @++ Set → Nat → Set
+  Vec A zero    = ⊤
+  Vec A (suc n) = A × Vec A n
+
+  data D : Set where
+    c : ∀ n → Vec D n → D
+
+  F : Bool → @unused Set → Set
+  F true  _ = Bool
+  F false _ = ⊤
+
+  _ : {b : Bool} → F b Bool ≡ F b ⊤
+  _ = refl
+  ```
+
 * Setting environment variable `NO_COLOR` now turns off coloring in the default `--color=auto` mode.
   It can be overwritten by `--color=always`.
   See also https://no-color.org/ .
-
 
 Errors
 ------
