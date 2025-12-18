@@ -1,5 +1,7 @@
 ..
   ::
+  {-# OPTIONS --polarity #-}
+
   module language.positivity-checking where
 
 .. _positivity-checking:
@@ -10,6 +12,79 @@ Positivity Checking
 
 .. note::
    This is a stub.
+
+.. _occurrence_analysis:
+
+Occurrence analysis
+-------------------
+
+..
+  ::
+  module occurrence-analysis where
+    open import Agda.Builtin.Bool
+    open import Agda.Builtin.Equality
+    open import Agda.Builtin.Nat
+    open import Agda.Builtin.Unit
+
+By default Agda analyses how functions use their arguments. For
+instance, Agda can tell that ``D`` in the following code is strictly
+positive, because ``Vec`` uses its ``Set`` argument in a strictly
+positive way:
+::
+
+    data _×_ (A B : Set) : Set where
+      _,_ : A → B → A × B
+
+    Vec : Set → Nat → Set
+    Vec A zero    = ⊤
+    Vec A (suc n) = A × Vec A n
+
+    data D : Set where
+      c : ∀ n → Vec D n → D
+
+However, this analysis can be slow, especially for big mutual blocks.
+It can be turned off with the :option:`--no-occurrence-analysis` flag.
+
+The analysis is also used to detect unused function arguments. For
+instance, Agda by default notices that the last argument of ``F`` in
+the following code is unused, and accepts the use of reflexivity:
+::
+
+    F : Bool → Set → Set
+    F true  _ = Bool
+    F false _ = ⊤
+
+    _ : {b : Bool} → F b Bool ≡ F b ⊤
+    _ = refl
+
+..
+  ::
+  module polarity-as-an-alternative-to-occurrence-analysis where
+    open import Agda.Builtin.Bool
+    open import Agda.Builtin.Equality
+    open import Agda.Builtin.Nat
+    open import Agda.Builtin.Unit
+
+An alternative to the occurrence analysis is to use :ref:`polarities
+<polarity>`:
+::
+
+    data _×_ (@++ A B : Set) : Set where
+      _,_ : A → B → A × B
+
+    Vec : @++ Set → Nat → Set
+    Vec A zero    = ⊤
+    Vec A (suc n) = A × Vec A n
+
+    data D : Set where
+      c : ∀ n → Vec D n → D
+
+    F : Bool → @unused Set → Set
+    F true  _ = Bool
+    F false _ = ⊤
+
+    _ : {b : Bool} → F b Bool ≡ F b ⊤
+    _ = refl
 
 .. _no_positivity_check-pragma:
 
