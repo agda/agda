@@ -3,7 +3,7 @@
 open import Common.Prelude
 open import Common.Path
 
-{-# BUILTIN REWRITE _≡_ #-}
+{-# BUILTIN REWRITE PathP #-}
 
 postulate is-refl : ∀ {A : Set} {x : A} → (x ≡ x) → Bool
 postulate is-refl-true : ∀ {A}{x} → is-refl {A} {x} refl ≡ true
