@@ -1,5 +1,8 @@
 {-# LANGUAGE CPP #-}
--- {-# LANGUAGE UndecidableInstances #-}  -- ghc >= 8.2, GeneralizedNewtypeDeriving MonadTransControl BlockT
+-- Turning off DeepSubsumption for
+-- SPECIALIZE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a
+-- with GHC 9.14
+{-# LANGUAGE NoDeepSubsumption #-}
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
@@ -6184,7 +6187,11 @@ newtype TCMT m a = TCM { unTCM :: Strict.IORef TCState -> TCEnv -> m a }
 -- | Type checking monad.
 type TCM = TCMT IO
 
+-- 9.14 cannot do this specialization with {-# LANGUAGE DeepSubsumption #-}
+-- https://gitlab.haskell.org/ghc/ghc/-/issues/26349
+-- #if __GLASGOW_HASKELL__ < 914
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
+-- #endif
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
 mapTCMT f (TCM m) = TCM $ \ s e -> f (m s e)
 
