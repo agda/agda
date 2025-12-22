@@ -1287,13 +1287,13 @@ Erasure
 
      .. versionadded 2.9.0
 
-     Allow typechecking to quote terms with metas in them, see :ref:`quote-metas`.
+     Allow typechecking to quote terms that contain metas, see :ref:`quote-metas`.
 
 .. option:: --no-quote-metas
 
      .. versionadded 2.9.0
 
-     Block typechecking when attempting to quote terms with metas in them.
+     Block typechecking when attempting to quote terms that contain metas.
 
      Opposite of :option:`--quote-metas`, default.
 
