@@ -903,6 +903,8 @@ For instance, to run the example above, you must add ``/bin/echo`` to this file:
 The executable can then be called by passing its basename to ``execTC``,
 subtracting the ``.exe`` on Windows.
 
+.. _quote-metas:
+
 Quote Metas
 ~~~~~~~~~~~
 
