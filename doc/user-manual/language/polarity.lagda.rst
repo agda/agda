@@ -144,3 +144,5 @@ https://doi.org/10.1016/j.tcs.2005.06.002
 
 [2] Andreas Abel, "Polarized Subtyping for Sized Types", In: Mathematical
 Structures in Computer Science, 2006, https://doi.org/10.1007/11753728_39
+
+[3] Josselin Poiret, Lucas Escot, Joris Ceulemans, Malin Altenmüller, and Andreas Nuyts. 2023. Read the Mode and Stay Positive. In 29th International Conference on Types for Proofs and Programs (TYPES), https://lirias.kuleuven.be/retrieve/720869
