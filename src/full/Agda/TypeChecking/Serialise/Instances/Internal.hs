@@ -266,8 +266,10 @@ instance EmbPrj Blocked_ where
   icod_ = icod_ . blockedToMaybe
   value = blockedFromMaybe <.> value
 
+instance EmbPrj DefSing where
+
 instance EmbPrj NLPat where
-  icod_ (PVar a b)      = icodeN 0 PVar a b
+  icod_ (PVar a b c)    = icodeN 0 PVar a b c
   icod_ (PDef a b)      = icodeN 1 PDef a b
   icod_ (PLam a b)      = icodeN 2 PLam a b
   icod_ (PPi a b)       = icodeN 3 PPi a b
@@ -276,14 +278,14 @@ instance EmbPrj NLPat where
   icod_ (PTerm a)       = icodeN 6 PTerm a
 
   value = vcase valu where
-    valu (N3 0 a b) = valuN PVar a b
-    valu (N3 1 a b) = valuN PDef a b
-    valu (N3 2 a b) = valuN PLam a b
-    valu (N3 3 a b) = valuN PPi a b
-    valu (N2 4 a)   = valuN PSort a
-    valu (N3 5 a b) = valuN PBoundVar a b
-    valu (N2 6 a)   = valuN PTerm a
-    valu _          = malformed
+    valu (N4 0 a b c) = valuN PVar a b c
+    valu (N3 1 a b)   = valuN PDef a b
+    valu (N3 2 a b)   = valuN PLam a b
+    valu (N3 3 a b)   = valuN PPi a b
+    valu (N2 4 a)     = valuN PSort a
+    valu (N3 5 a b)   = valuN PBoundVar a b
+    valu (N2 6 a)     = valuN PTerm a
+    valu _            = malformed
 
 instance EmbPrj NLPType where
   icod_ (NLPType a b) = icodeN' NLPType a b
