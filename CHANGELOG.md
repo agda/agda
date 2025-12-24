@@ -250,6 +250,8 @@ Interaction and emacs mode
 Backends
 --------
 
+* `agda --html --html-highlight=code example.lagda.tree` now produces `html/example.tree`, which Forester can consume directly - no external tools needed.
+
 * New option `--ghc-trace` for GHC Backend to instrument code
   such that the Agda name of the function is printed to `stderr`
   whenever a function is entered.

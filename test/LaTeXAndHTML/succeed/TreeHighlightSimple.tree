@@ -1,0 +1,13 @@
+\title{simple}
+
+\p{This is test file}
+\<html:pre>[class]{Agda}{
+\<html:a>[id]{46}[class]{Keyword}{module} \<html:a>[id]{53}[href]{TreeHighlightSimple.html}[class]{Module}{TreeHighlightSimple} \<html:a>[id]{73}[class]{Keyword}{where}
+
+  \<html:a>[id]{82}[class]{Keyword}{data} \<html:a>[id]{Bool}{}\<html:a>[id]{87}[href]{TreeHighlightSimple.html#87}[class]{Datatype}{Bool} \<html:a>[id]{92}[class]{Symbol}{:} \<html:a>[id]{94}[href]{Agda.Primitive.html#388}[class]{Primitive}{Set} \<html:a>[id]{98}[class]{Keyword}{where}
+            \<html:a>[id]{Bool.true}{}\<html:a>[id]{116}[href]{TreeHighlightSimple.html#116}[class]{InductiveConstructor}{true} \<html:a>[id]{121}[class]{Symbol}{:} \<html:a>[id]{123}[href]{TreeHighlightSimple.html#87}[class]{Datatype}{Bool}
+            \<html:a>[id]{Bool.false}{}\<html:a>[id]{140}[href]{TreeHighlightSimple.html#140}[class]{InductiveConstructor}{false} \<html:a>[id]{146}[class]{Symbol}{:} \<html:a>[id]{148}[href]{TreeHighlightSimple.html#87}[class]{Datatype}{Bool}
+
+  \<html:a>[id]{a}{}\<html:a>[id]{156}[href]{TreeHighlightSimple.html#156}[class]{Function}{a} \<html:a>[id]{158}[class]{Symbol}{:} \<html:a>[id]{160}[href]{TreeHighlightSimple.html#87}[class]{Datatype}{Bool}
+  \<html:a>[id]{167}[href]{TreeHighlightSimple.html#156}[class]{Function}{a} \<html:a>[id]{169}[class]{Symbol}{=} \<html:a>[id]{171}[href]{TreeHighlightSimple.html#116}[class]{InductiveConstructor}{true}
+}

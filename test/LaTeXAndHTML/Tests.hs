@@ -147,6 +147,8 @@ mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
                   then "rst"
                   else if "OrgHighlight" `List.isPrefixOf` inFileName
                   then "org"
+                  else if "TreeHighlight" `List.isPrefixOf` inFileName
+                  then "tree"
                   else "html"
 
   flags :: FilePath -> [String]

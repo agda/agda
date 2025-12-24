@@ -50,6 +50,7 @@ import Text.Blaze.Html.Renderer.Text ( renderHtml )
   -- The defined operator (!!) attaches a list of such Attributes
 
 import Agda.Interaction.Highlighting.Precise hiding (toList)
+import Agda.Interaction.Highlighting.HTML.Forester
 
 import Agda.Syntax.Common
 import Agda.Syntax.TopLevelModuleName
@@ -182,7 +183,7 @@ renderSourceFile opts = renderSourcePage
   highlightOccur = htmlOptHighlightOccurrences opts
   htmlHighlight = htmlOptHighlight opts
   renderSourcePage (HtmlInputSourceFile moduleName fileType sourceCode hinfo) =
-    page cssFile highlightOccur onlyCode moduleName pageContents
+    page cssFile highlightOccur onlyCode fileType moduleName pageContents
     where
       tokens = tokenStream sourceCode hinfo
       onlyCode = highlightOnlyCode htmlHighlight fileType
@@ -242,18 +243,24 @@ h !! as = h ! mconcat as
 page :: FilePath              -- ^ URL to the CSS file.
      -> Bool                  -- ^ Highlight occurrences
      -> Bool                  -- ^ Whether to reserve literate
+     -> FileType              -- ^ Type of file
      -> TopLevelModuleName    -- ^ Module to be highlighted.
      -> Html
      -> Text
 page css
      highlightOccurrences
      htmlHighlight
+     fileType
      modName
      pageContent =
-  renderHtml $ if htmlHighlight
-               then pageContent
-               else Html5.docTypeHtml $ hdr <> rest
+  renderF $ if htmlHighlight
+            then pageContent
+            else Html5.docTypeHtml $ hdr <> rest
   where
+
+    renderF = case fileType of
+      TreeFileType -> renderForesterHtml
+      _ -> renderHtml
 
     hdr = Html5.head $ mconcat
       [ Html5.meta !! [ Attr.charset "utf-8" ]
