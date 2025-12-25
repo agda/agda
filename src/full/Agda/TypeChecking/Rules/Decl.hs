@@ -116,6 +116,17 @@ checkDeclCached d = do
  where
    compareDecl A.Section{} A.Section{} = __IMPOSSIBLE__
    compareDecl A.ScopedDecl{} A.ScopedDecl{} = __IMPOSSIBLE__
+   -- Andreas, 2025-12-12:
+   -- We could consider all A.UnfoldingDecl as equal for the sake of caching
+   -- because it is supposed to be there only for highlighting purposes.
+   -- However, I fixed the caching problem for opaque blocks
+   -- by emitting A.UnfoldingDecl after the declaration in the opaque block,
+   -- so changes in an opaque block do not invalidate the whole block.
+   -- (See ConcreteToAbstract, case NiceOpaque.)
+   -- Thus, the following line should not offer an improvement:
+   -- compareDecl A.UnfoldingDecl{} A.UnfoldingDecl{} = True
+     -- A.UnfoldingDecl exists only for highlighting purposes,
+     -- so it should not affect the caching
    compareDecl x y = x == y
    -- changes to CS inside a RecDef or Mutual ought not happen,
    -- but they do happen, so we discard them.
