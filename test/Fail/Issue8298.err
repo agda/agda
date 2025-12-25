@@ -1,0 +1,6 @@
+Issue8298.agda:8.5-9.15: error: [NotAValidLetBinding.CopatternsNotAllowed]
+Copatterns not allowed in let bindings
+when scope checking
+let pr : Σ A (λ _ → A)
+    fst pr = x
+in pr

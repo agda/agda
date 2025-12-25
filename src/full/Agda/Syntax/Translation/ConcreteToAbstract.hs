@@ -1802,7 +1802,7 @@ scopeCheckLetDef wh d = setCurrentRange d do
           res <- setCurrentRange p $ parseLHS NoDisplayLHS (C.QName top) p
           case res of
             C.LHSHead x args -> return (x, args)
-            C.LHSProj{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just CopatternsNotAllowed
+            C.LHSProj{}      -> notAValidLetBinding $ Just CopatternsNotAllowed
             C.LHSWith{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just WithPatternsNotAllowed
             C.LHSEllipsis{}  -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just EllipsisNotAllowed
 
