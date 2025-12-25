@@ -54,8 +54,8 @@ data NotAValidLetBinding
   = MissingRHS
   | NotAValidLetPattern
   | WhereClausesNotAllowed
+  | CopatternsNotAllowed
   -- These cannot be triggered:
-  -- -- | CopatternsNotAllowed
   -- -- | EllipsisNotAllowed
   -- -- | WithPatternsNotAllowed
   deriving (Show, Generic, Enum, Bounded)
@@ -532,8 +532,8 @@ verbalizeNotAValidLetBinding = \case
   MissingRHS             -> "Missing right hand side in let binding"
   NotAValidLetPattern    -> "Not a valid let pattern"
   WhereClausesNotAllowed -> "`where` clauses not allowed in let bindings"
+  CopatternsNotAllowed   -> "Copatterns not allowed in let bindings"
   -- These cannot be triggered:
-  -- CopatternsNotAllowed   -> "Copatterns not allowed in let bindings"
   -- EllipsisNotAllowed     -> "`...` not allowed in let bindings"
   -- WithPatternsNotAllowed -> "`with` patterns not allowed in let bindings"
 
