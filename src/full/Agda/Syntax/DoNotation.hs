@@ -47,14 +47,18 @@ import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
-desugarDoNotation :: List1 DoStmt -> ScopeM Expr
-desugarDoNotation ss = do
-  let qBind = QName $ simpleBinaryOperator ">>="
-      qThen = QName $ simpleBinaryOperator ">>"
-      isBind DoBind{} = True
-      isBind _        = False
-      isThen DoThen{} = True
-      isThen _        = False
+desugarDoNotation :: Maybe QName -> List1 DoStmt -> ScopeM Expr
+desugarDoNotation mod ss = do
+  let
+    qBind = maybe QName qualify mod $ simpleBinaryOperator ">>="
+    qThen = maybe QName qualify mod $ simpleBinaryOperator ">>"
+
+    isBind DoBind{} = True
+    isBind _        = False
+
+    isThen DoThen{} = True
+    isThen _        = False
+
   -- Only check the operation we actually need. One could imagine to fall back
   -- on _>>=_ if _>>_ is not in scope, but if we are desugaring to _>>_ at all
   -- I think we should throw an error rather than silently switching to _>>=_.

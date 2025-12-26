@@ -124,6 +124,12 @@ Syntax
 
 Changes to the Agda syntax.
 
+* **Breaking:** The parser will reject ASCII opening delimiters which
+  are closed by a Unicode delimiter, and vice-versa. Concretely, this
+  means the mismatched pairs `⦃ ... }}`/`{{ ...  ⦄` and
+  `⦇ … |)`/`(| … ⦈` are now parse errors.
+
+
 * Records can now be created using module-like syntax in place of curly braces
   and semicolons.
 
@@ -152,6 +158,11 @@ Changes to the Agda syntax.
     r (.proj)
     r .(proj)
   ```
+
+* Idiom brackets and `do` notation may now appear *qualified*, as in
+  `M.do` or `M.(| f x y z |)`, in which case the functions needed for
+  desugaring these are looked up in `M` rather than in the surrounding
+  scope.
 
 Language
 --------

@@ -201,6 +201,9 @@ errorWarnings = Set.fromList
   , RewriteMissingRule_
   , TopLevelPolarity_
 
+  -- Recoverable parse errors
+  , MismatchedBrackets_
+
   -- Recoverable scope-checking errors
   , HiddenNotInArgumentPosition_
   , InstanceNotInArgumentPosition_
@@ -248,6 +251,7 @@ data WarningName
   | UnknownAttribute_
   | UnsupportedAttribute_
   | MultipleAttributes_
+  | MismatchedBrackets_
   -- Library Warnings
   | LibUnknownField_
   -- Nicifer Warnings
@@ -494,6 +498,7 @@ warningNameDescription = \case
   UnknownAttribute_                -> "Unknown attributes."
   UnsupportedAttribute_            -> "Unsupported attributes."
   MultipleAttributes_              -> "Multiple attributes."
+  MismatchedBrackets_              -> "Mismatched brackets."
   -- Library Warnings
   LibUnknownField_                 -> "Unknown fields in library files."
   -- Nicifer Warnings

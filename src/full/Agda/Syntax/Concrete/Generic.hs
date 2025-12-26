@@ -139,8 +139,8 @@ instance ExprLike Expr where
      RecUpdateWhere k r e es -> f $ RecUpdateWhere k r (mapE e) $ mapE es
      Let r ds e              -> f $ Let r       (mapE ds)       $ mapE e
      Paren r e               -> f $ Paren r                     $ mapE e
-     IdiomBrackets r es      -> f $ IdiomBrackets r             $ mapE es
-     DoBlock r ss            -> f $ DoBlock r                   $ mapE ss
+     IdiomBrackets r q es    -> f $ IdiomBrackets r q           $ mapE es
+     DoBlock r q ss          -> f $ DoBlock r q                 $ mapE ss
      Absurd{}                -> f $ e0
      As r x e                -> f $ As r x                 $ mapE e
      Dot r e                 -> f $ Dot r                  $ mapE e

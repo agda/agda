@@ -193,6 +193,7 @@ instance ExprLike Expr where
       DontCare e                 -> DontCare <$> recurse e
       PatternSyn{}               -> pure e0
       Macro{}                    -> pure e0
+      Qualified q e              -> Qualified q <$> recurse e
 
   foldExpr :: forall m. FoldExprFn m Expr
   foldExpr f e =
@@ -225,6 +226,7 @@ instance ExprLike Expr where
       QuoteTerm{}              -> m
       Unquote{}                -> m
       DontCare e               -> m `mappend` fold e
+      Qualified _ e            -> m `mappend` fold e
    where
      m = f e
      fold :: FoldExprRecFn m
@@ -264,6 +266,7 @@ instance ExprLike Expr where
       DontCare e                 -> f =<< DontCare <$> trav e
       PatternSyn{}               -> f e
       Macro{}                    -> f e
+      Qualified m e              -> f =<< Qualified m <$> trav e
 
 instance ExprLike a => ExprLike (Arg a)
 instance ExprLike a => ExprLike (Maybe a)

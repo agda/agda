@@ -183,9 +183,10 @@ data Expr
     -- ^ ex: @record e where { open M using (x); y = x + 1 }@; the 'KwRange' is for the @record@ keyword.
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
-  | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
-  | DoBlock KwRange (List1 DoStmt)             -- ^ ex: @do x <- m1; m2@
-                                               --   The 'KwRange' is for the @do@ keyword.
+  | IdiomBrackets Range (Maybe QName) [Expr]   -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
+  | DoBlock KwRange (Maybe QName) (List1 DoStmt)
+    -- ^ ex: @do x <- m1; m2@
+    --   The 'KwRange' is for the @do@ keyword.
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot KwRange Expr                           -- ^ ex: @.p@, only in patterns
@@ -975,8 +976,8 @@ instance HasRange Expr where
       Pi b e                 -> fuseRange b e
       Let r _ _              -> r
       Paren r _              -> r
-      IdiomBrackets r _      -> r
-      DoBlock r ds           -> getRange (r, ds)
+      IdiomBrackets r _ _    -> r
+      DoBlock r q ds         -> getRange (r, q, ds)
       As r _ _               -> r
       Dot r e                -> getRange (r, e)
       DoubleDot r e          -> getRange (r, e)
@@ -1259,8 +1260,8 @@ instance KillRange Expr where
   killRange (RecUpdateWhere _ _ e ne) = killRangeN (RecUpdateWhere empty noRange) e ne
   killRange (Let _ d e)               = killRangeN (Let noRange) d e
   killRange (Paren _ e)               = killRangeN (Paren noRange) e
-  killRange (IdiomBrackets _ es)      = killRangeN (IdiomBrackets noRange) es
-  killRange (DoBlock _ ss)            = killRangeN (DoBlock empty) ss
+  killRange (IdiomBrackets _ q es)    = killRangeN (IdiomBrackets noRange) q es
+  killRange (DoBlock _ q ss)          = killRangeN (DoBlock empty) q ss
   killRange (Absurd _)                = Absurd noRange
   killRange (As _ n e)                = killRangeN (As noRange) n e
   killRange (Dot _ e)                 = killRangeN (Dot empty) e
@@ -1383,8 +1384,8 @@ instance NFData Expr where
   rnf (RecUpdateWhere _ _ a b) = rnf a `seq` rnf b
   rnf (Let _ a b)              = rnf a `seq` rnf b
   rnf (Paren _ a)              = rnf a
-  rnf (IdiomBrackets _ a)      = rnf a
-  rnf (DoBlock _ a)            = rnf a
+  rnf (IdiomBrackets _ a b)    = rnf a `seq` rnf b
+  rnf (DoBlock _ a b)          = rnf a `seq` rnf b
   rnf (Absurd _)               = ()
   rnf (As _ a b)               = rnf a `seq` rnf b
   rnf (Dot _ a)                = rnf a

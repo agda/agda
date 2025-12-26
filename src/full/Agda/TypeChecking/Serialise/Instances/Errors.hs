@@ -289,6 +289,16 @@ instance EmbPrj WarningModeError where
     N1 2   -> valuN NoUnusedImportsAll
     _      -> malformed
 
+instance EmbPrj OpenBracket where
+  icod_ = \case
+    OpenIdiomBracket a b -> icodeN 0 OpenIdiomBracket a b
+    OpenDoubleBrace  a b -> icodeN 1 OpenDoubleBrace a b
+
+  value = vcase \case
+    N3 0 a b -> valuN OpenIdiomBracket a b
+    N3 1 a b -> valuN OpenDoubleBrace a b
+    _        -> malformed
+
 instance EmbPrj ParseWarning where
   icod_ = \case
     OverlappingTokensWarning a -> icodeN 0 OverlappingTokensWarning a
@@ -297,6 +307,7 @@ instance EmbPrj ParseWarning where
     UnknownAttribute a b       -> icodeN 3 UnknownAttribute a b
     UnknownPolarity a b        -> icodeN 4 UnknownPolarity a b
     MisplacedAttributes a b    -> icodeN 5 MisplacedAttributes a b
+    MismatchedBrackets a b     -> icodeN 6 MismatchedBrackets a b
 
   value = vcase $ \case
     N2 0 a   -> valuN OverlappingTokensWarning a
@@ -305,6 +316,7 @@ instance EmbPrj ParseWarning where
     N3 3 a b -> valuN UnknownAttribute a b
     N3 4 a b -> valuN UnknownPolarity a b
     N3 5 a b -> valuN MisplacedAttributes a b
+    N3 6 a b -> valuN MismatchedBrackets a b
     _        -> malformed
 
 instance EmbPrj RecordFieldWarning where

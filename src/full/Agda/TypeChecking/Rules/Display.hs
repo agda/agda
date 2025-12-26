@@ -128,6 +128,12 @@ bindVar x ret = addContext x ret
 exprToTerm :: A.Expr -> M Term
 exprToTerm e =
   case unScope e of
+    -- removed by 'unScope'
+    A.ScopedExpr{}    -> __IMPOSSIBLE__
+
+    -- preserved by 'unScope', but only matters for highlighting
+    A.Qualified _ e  -> exprToTerm e
+
     A.Var x          -> fst <$> getVarInfo x
     A.Def' f NoSuffix-> pure $ Def f []
     A.Def'{}         -> fail "suffix"
@@ -154,7 +160,6 @@ exprToTerm e =
     A.RecUpdate{}      -> fail "record update"
     A.RecWhere{}       -> fail "record where"
     A.RecUpdateWhere{} -> fail "record update"
-    A.ScopedExpr{}     -> __IMPOSSIBLE__
     A.Quote{}          -> fail "quotation"
     A.QuoteTerm{}      -> fail "quotation"
     A.Unquote{}        -> fail "unquote"

@@ -12,7 +12,7 @@ record Underlying {ℓ : Level} (T : Set ℓ) : Setω where
 
 infixr 6 Σ-syntax-und
 Σ-syntax-und
-  : ∀{ℓ ℓ' : Level}{A : Set ℓ}{{d : Underlying {ℓ} A ⦄
+  : ∀{ℓ ℓ' : Level}{A : Set ℓ}{{d : Underlying {ℓ} A }}
     (X : A) (F : Underlying.⌞_⌟⁰ {ℓ} d X → Set ℓ')
   → Set (ℓ' ⊔ Underlying.ℓ-underlying {ℓ} d)
 Σ-syntax-und {ℓ}{ℓ'}{A}{{d}} X F = Σ (Underlying.⌞_⌟⁰ {ℓ} d X) F

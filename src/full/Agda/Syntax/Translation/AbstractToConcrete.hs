@@ -1032,10 +1032,14 @@ instance ToConcrete A.Expr where
       e0 <- toConcrete e0
       C.RecUpdateWhere kwr (getRange i) e0 . concat . List1.toList <$> toConcrete es
 
+    -- Annotated 'leftovers' from the scope-checker
     toConcrete (A.ScopedExpr _ e) = toConcrete e
-    toConcrete (A.Quote i) = return $ C.Quote (getRange i)
-    toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
-    toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)
+    toConcrete (A.Qualified  _ e) = toConcrete e
+
+    -- Reflection keywords:
+    toConcrete (A.Quote i)       = return $ C.Quote (getRange i)
+    toConcrete (A.QuoteTerm i)   = return $ C.QuoteTerm (getRange i)
+    toConcrete (A.Unquote i)     = return $ C.Unquote (getRange i)
 
     -- Andreas, 2012-04-02: TODO!  print DontCare as irrAxiom
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things

@@ -1177,6 +1177,7 @@ instance BlankVars A.Expr where
     A.DontCare v             -> A.DontCare $ blank bound v
     A.PatternSyn {}          -> e
     A.Macro {}               -> e
+    A.Qualified q e          -> A.Qualified q $ blank bound e
 
 instance BlankVars A.ModuleName where
   blank bound = id

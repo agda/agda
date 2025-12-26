@@ -112,6 +112,7 @@ instance BoundAndUsed Expr where
     QuoteTerm{}               -> mempty
     Unquote{}                 -> mempty
     DontCare expr             -> boundAndUsed expr
+    Qualified _ b             -> boundAndUsed b
 
 instance BoundAndUsed lhs => BoundAndUsed (Clause' lhs) where
   -- Note: where declarations are ignored. We use this only on expressions coming from

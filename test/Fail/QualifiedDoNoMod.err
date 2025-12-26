@@ -1,0 +1,3 @@
+QualifiedDoNoMod.agda:4.5-9: error: [NoSuchModule]
+No module Foo in scope
+when scope checking Foo.do Set

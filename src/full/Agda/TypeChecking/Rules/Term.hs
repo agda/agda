@@ -1382,6 +1382,7 @@ checkLiteral lit t = do
 
 scopedExpr :: A.Expr -> TCM A.Expr
 scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
+scopedExpr (A.Qualified mod e)    = scopedExpr e
 scopedExpr e                      = return e
 
 -- | Type check an expression.

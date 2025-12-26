@@ -124,43 +124,47 @@ mkValidName constructor' r s = do
         isValidId con (Id y) = do
           let x = rawNameToString y
               err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
-          case parse defaultParseFlags [0] (lexer return) x of
+          case parse defaultParseFlags [0] (lexer return) (x <> " ") of
             ParseOk _ TokId{}  -> return ()
             ParseFailed{}      -> parseError err
             ParseOk _ TokEOF{} -> parseError err
             ParseOk _ (TokKeyword KwConstructor _) | con -> pure ()
             ParseOk _ t   -> parseError . ((err ++ " because it is ") ++) $ case t of
               TokQId{}      -> "qualified"
+              TokQual q _ _ -> case q of
+                QualDo           -> "a qualified do-block"
+                QualOpenIdiom{}  -> "a qualified idiom bracket"
+                QualEmptyIdiom{} -> "a qualified empty idiom bracket"
               TokKeyword{}  -> "a keyword"
               TokLiteral{}  -> "a literal"
               TokSymbol s _ -> case s of
-                SymDot               -> __IMPOSSIBLE__ -- "reserved"
-                SymSemi              -> "used to separate declarations"
-                SymVirtualSemi       -> __IMPOSSIBLE__
-                SymBar               -> "used for with-arguments"
-                SymColon             -> "part of declaration syntax"
-                SymArrow             -> "the function arrow"
-                SymEqual             -> "part of declaration syntax"
-                SymLambda            -> "used for lambda-abstraction"
-                SymUnderscore        -> "used for anonymous identifiers"
-                SymQuestionMark      -> "a meta variable"
-                SymAs                -> "used for as-patterns"
-                SymOpenParen         -> "used to parenthesize expressions"
-                SymCloseParen        -> "used to parenthesize expressions"
-                SymOpenIdiomBracket  -> "an idiom bracket"
-                SymCloseIdiomBracket -> "an idiom bracket"
-                SymEmptyIdiomBracket -> "an empty idiom bracket"
-                SymDoubleOpenBrace   -> "used for instance arguments"
-                SymDoubleCloseBrace  -> "used for instance arguments"
-                SymOpenBrace         -> "used for hidden arguments"
-                SymCloseBrace        -> "used for hidden arguments"
-                SymOpenVirtualBrace  -> __IMPOSSIBLE__
-                SymCloseVirtualBrace -> __IMPOSSIBLE__
-                SymOpenPragma        -> "used for pragmas"
-                SymClosePragma       -> "used for pragmas"
-                SymEllipsis          -> "used for function clauses"
-                SymDotDot            -> "a modality"
-                SymEndComment        -> "the end-of-comment brace"
+                SymDot                 -> __IMPOSSIBLE__ -- "reserved"
+                SymSemi                -> "used to separate declarations"
+                SymVirtualSemi         -> __IMPOSSIBLE__
+                SymBar                 -> "used for with-arguments"
+                SymColon               -> "part of declaration syntax"
+                SymArrow               -> "the function arrow"
+                SymEqual               -> "part of declaration syntax"
+                SymLambda              -> "used for lambda-abstraction"
+                SymUnderscore          -> "used for anonymous identifiers"
+                SymQuestionMark        -> "a meta variable"
+                SymAs                  -> "used for as-patterns"
+                SymOpenParen           -> "used to parenthesize expressions"
+                SymCloseParen          -> "used to parenthesize expressions"
+                SymOpenIdiomBracket{}  -> "an idiom bracket"
+                SymCloseIdiomBracket{} -> "an idiom bracket"
+                SymEmptyIdiomBracket   -> "an empty idiom bracket"
+                SymDoubleOpenBrace{}   -> "used for instance arguments"
+                SymDoubleCloseBrace{}  -> "used for instance arguments"
+                SymOpenBrace           -> "used for hidden arguments"
+                SymCloseBrace          -> "used for hidden arguments"
+                SymOpenVirtualBrace    -> __IMPOSSIBLE__
+                SymCloseVirtualBrace   -> __IMPOSSIBLE__
+                SymOpenPragma          -> "used for pragmas"
+                SymClosePragma         -> "used for pragmas"
+                SymEllipsis            -> "used for function clauses"
+                SymDotDot              -> "a modality"
+                SymEndComment          -> "the end-of-comment brace"
               TokString{}   -> __IMPOSSIBLE__
               TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
               TokMarkup{}   -> __IMPOSSIBLE__  -- ditto
@@ -768,3 +772,29 @@ applyAttributes :: Functor f
 applyAttributes attrs ai bs = do
   applyAttrs attrs ai <&> \ ai' ->
     fmap (setTacticAttr attrs . setArgInfo ai') bs
+
+------------------------------------------------------------------------
+-- * Brackets
+
+-- | Turn a 'QualifiedToken' into a properly qualified name, and the
+-- range of its keyword.
+-- If the qualified token is an opening bracket, this also calls
+-- 'openBracket'.
+unqualifyToken :: QualifiedToken -> Parser (QName, Range)
+unqualifyToken (QualifiedToken tok iss kw) = (,) <$> mkQName iss <*> case tok of
+  QualOpenIdiom tok -> openBracket $ TokSymbol (SymOpenIdiomBracket tok) kw
+  _                 -> pure (getRange kw)
+
+-- | Close a double brace from a pair of single closing braces.
+--
+-- This implements the rule described in the grammar that the braces
+-- must be adjacent, and additionally acts as 'closeBracket', generating
+-- the proper error if the opening braces were Unicode.
+closeTwoBraces :: Interval -> Interval -> Parser Range
+closeTwoBraces i1 i2 =
+  let ivl = getIntervalFile i1 <$ fuseIntervals (void i1) (void i2) in
+  if posPos (iEnd i2) - posPos (iStart i1) > 2
+    then parseErrorRange i2 "Expecting '}}', found separated '}'s."
+    -- We just call closeBracket with a fake token so as to not
+    -- duplicate the hairy code below.
+    else closeBracket (TokSymbol (SymDoubleCloseBrace False) ivl)
