@@ -290,7 +290,7 @@
 
 \DeclareUnicodeCharacter{29F5}{\ensuremath{\setminus}}   % Symbol ⧵
 
-\DeclareUnicodeCharacter{2A06}{\ensuremath{\bigcup}}  % Symbol ⨆
+\DeclareUnicodeCharacter{2A06}{\ensuremath{\bigsqcup}} % Symbol ⨆
 \DeclareUnicodeCharacter{2C7C}{\ensuremath{_j}}       % Symbol ⱼ
 
 \DeclareUnicodeCharacter{D7B0}{\ensuremath{\mathrm{PDF\;TODO}}} % Symbol ힰ
