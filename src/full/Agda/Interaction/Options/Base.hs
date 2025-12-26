@@ -172,6 +172,7 @@ module Agda.Interaction.Options.Base
     , optKeepCoveringClauses
     , optLargeIndices
     , optForcedArgumentRecursion
+    , optQuoteMetas
     -- * Non-boolean accessors to 'PragmaOptions'
     , optConfluenceCheck
     , optCubical
@@ -405,6 +406,7 @@ optShowIdentitySubstitutions = collapseDefault . _optShowIdentitySubstitutions
 optKeepCoveringClauses       = collapseDefault . _optKeepCoveringClauses
 optLargeIndices              = collapseDefault . _optLargeIndices
 optForcedArgumentRecursion   = collapseDefault . _optForcedArgumentRecursion
+optQuoteMetas                = collapseDefault . _optQuoteMetas
 
 -- Collapse defaults (non-Bool)
 
@@ -649,6 +651,8 @@ lensOptForcedArgumentRecursion f o = f (_optForcedArgumentRecursion o) <&> \ i -
 lensOptExperimentalLazyInstances :: Lens' PragmaOptions _
 lensOptExperimentalLazyInstances f o = f (_optExperimentalLazyInstances o) <&> \ i -> o{ _optExperimentalLazyInstances = i }
 
+lensOptQuoteMetas :: Lens' PragmaOptions _
+lensOptQuoteMetas f o = f (_optQuoteMetas o) <&> \ i -> o{ _optQuoteMetas = i }
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
@@ -1263,6 +1267,7 @@ optionGroups =
   , emb backendPragmaOptions
   , compilationOptions
   , emb debuggingPragmaOptions
+  , emb reflectionPragmaOptions
   ]
   where
     emb = second $ map $ fmap lensPragmaOptions
@@ -1414,6 +1419,7 @@ pragmaOptions = concat $ map snd
   , backendPragmaOptions
   , compilationPragmaOptions
   , debuggingPragmaOptions
+  , reflectionPragmaOptions
   ]
 
 warningPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
@@ -1722,6 +1728,13 @@ debuggingPragmaOptions = ("Debugging and profiling Agda",) $ concat
                        , ")"
                        ])
     ]
+  ]
+
+reflectionPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+reflectionPragmaOptions = ("Reflection",) $ concat
+  [ pragmaFlag "quote-metas" lensOptQuoteMetas
+               "allow unquoting to not get blocked by metas" ""
+               Nothing
   ]
 
 -- | Construct a flag of type @WithDefault _@

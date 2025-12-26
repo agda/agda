@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : (ℓ : Agda.Primitive.Level) (A : Set ℓ) → A → A _8 : (ℓ : Agda.Primitive.Level) (A : Set ℓ) → A → A [ at QuoteMetas.agda:13.7-16 ]" nil)
+((last . 1) . (agda2-goals-action '(0)))
+(agda2-status-action "")
+(agda2-info-action "*Goal type etc.*" "Goal: (ℓ : Agda.Primitive.Level) (A : Set ℓ) → A → A" nil)
