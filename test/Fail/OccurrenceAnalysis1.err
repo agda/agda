@@ -1,0 +1,5 @@
+OccurrenceAnalysis1.agda:13.1-14.24: error: [NotStrictlyPositive]
+D is not strictly positive, because it occurs
+in the first argument of Vec
+in the type of the constructor c
+in the definition of D.

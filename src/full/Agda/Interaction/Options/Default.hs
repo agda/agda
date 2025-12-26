@@ -111,6 +111,7 @@ defaultPragmaOptions = PragmaOptions
   , _optCohesion                   = Default
   , _optFlatSplit                  = Default
   , _optPolarity                   = Default
+  , _optOccurrence                 = Default
   , _optImportSorts                = Default
   , _optLoadPrimitives             = Default
   , _optAllowExec                  = Default

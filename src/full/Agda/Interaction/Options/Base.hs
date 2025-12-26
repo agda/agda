@@ -106,6 +106,7 @@ module Agda.Interaction.Options.Base
     , lensOptCohesion
     , lensOptFlatSplit
     , lensOptPolarity
+    , lensOptOccurrence
     , lensOptImportSorts
     , lensOptLoadPrimitives
     , lensOptAllowExec
@@ -164,6 +165,7 @@ module Agda.Interaction.Options.Base
     , optCohesion
     , optFlatSplit
     , optPolarity
+    , optOccurrence
     , optImportSorts
     , optLoadPrimitives
     , optAllowExec
@@ -332,6 +334,7 @@ optCallByName                :: PragmaOptions -> Bool
 optCohesion                  :: PragmaOptions -> Bool
 optFlatSplit                 :: PragmaOptions -> Bool
 optPolarity                  :: PragmaOptions -> Bool
+optOccurrence                :: PragmaOptions -> Bool
 -- | 'optImportSorts' requires 'optLoadPrimitives'.
 optImportSorts               :: PragmaOptions -> Bool
 optLoadPrimitives            :: PragmaOptions -> Bool
@@ -396,6 +399,7 @@ optCallByName                = collapseDefault . _optCallByName
 optCohesion                  = collapseDefault . _optCohesion      || optFlatSplit
 optFlatSplit                 = collapseDefault . _optFlatSplit
 optPolarity                  = collapseDefault . _optPolarity
+optOccurrence                = collapseDefault . _optOccurrence
 -- --no-load-primitives implies --no-import-sorts
 optImportSorts               = collapseDefault . _optImportSorts   && optLoadPrimitives
 optLoadPrimitives            = collapseDefault . _optLoadPrimitives
@@ -621,6 +625,10 @@ lensOptFlatSplit f o = f (_optFlatSplit o) <&> \ i -> o{ _optFlatSplit = i }
 
 lensOptPolarity :: Lens' PragmaOptions _
 lensOptPolarity f o = f (_optPolarity o) <&> \ i -> o{ _optPolarity = i}
+
+lensOptOccurrence :: Lens' PragmaOptions _
+lensOptOccurrence f o =
+  f (_optOccurrence o) <&> \ i -> o{ _optOccurrence = i}
 
 lensOptImportSorts :: Lens' PragmaOptions _
 lensOptImportSorts f o = f (_optImportSorts o) <&> \ i -> o{ _optImportSorts = i }
@@ -1525,6 +1533,10 @@ modalityPragmaOptions = ("Modalities",) $ concat
                     $ Just "disable @lock/@tick attributes"
   , pragmaFlag      "polarity" lensOptPolarity
                     "enable the polarity modalities (@++, @mixed, etc.) and their integration in the positivity checker" ""
+                    Nothing
+  , pragmaFlag      "occurrence-analysis" lensOptOccurrence
+                    "enable automated occurrence analysis for functions"
+                    "(can be slow)"
                     Nothing
   , pragmaFlag      "irrelevant-projections" lensOptIrrelevantProjections
                     "enable projection of irrelevant record fields and similar irrelevant definitions" "(inconsistent)"

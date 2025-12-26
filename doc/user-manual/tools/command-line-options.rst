@@ -863,6 +863,15 @@ Pattern matching and equality
 
      Default: :option:`--no-polarity`.
 
+.. option:: --occurrence-analysis, --no-occurrence-analysis
+
+     .. versionadded:: 2.9.0
+
+     Turns on or off automated occurrence analysis for functions. See
+     :ref:`occurrence_analysis`.
+
+     Default: :option:`--occurrence-analysis`.
+
 .. option:: --no-pattern-matching
 
      .. versionadded:: 2.4.0

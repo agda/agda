@@ -26,7 +26,7 @@ import Data.Strict.These
 
 import Debug.Trace
 
-import Agda.Interaction.Options.Base ( optPolarity )
+import Agda.Interaction.Options.Base (optOccurrence)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
@@ -546,8 +546,19 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
     Function{funClauses = cs} -> do
       cs <- mapM etaExpandClause =<< instantiateFull cs
-      Concat . zipWith (OccursAs . InClause) [0..] <$>
-        mapM (getOccurrences []) cs
+      -- Perform automated occurrence analysis for functions?
+      performAnalysis <- optOccurrence <$> pragmaOptions
+      if performAnalysis then
+        Concat . zipWith (OccursAs . InClause) [0..] <$>
+          mapM (getOccurrences []) cs
+       else
+        return $ case cs of
+          []     -> __IMPOSSIBLE__
+          cl : _ ->
+            Concat
+              [ OccursAs Matched (OccursHere (AnArg i []))
+              | (i, _) <- zip [0..] (namedClausePats cl)
+              ]
 
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> do
