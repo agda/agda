@@ -116,7 +116,7 @@ getPrimitiveLibDir = do
       (return $ AbsolutePath $ T.pack $ libdir </> "prim")
       (error $ "The lib directory " ++ libdir ++ " does not exist")
 
--- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
+-- | The @$AGDA_DIR/libraries@ file lists the libraries Agda should know about.
 --   The content of @libraries@ is a list of paths to @.agda-lib@ files.
 --
 --   Agda honors also version-specific @libraries@ files, e.g. @libraries-2.6.0@.
@@ -127,12 +127,18 @@ getPrimitiveLibDir = do
 defaultLibraryFiles :: List1 FilePath
 defaultLibraryFiles = ("libraries-" ++ version) :| "libraries" : []
 
--- | The @defaultsFile@ contains a list of library names relevant for each Agda project.
+-- | The @$AGDA_DIR/defaults@ file lists the library names relevant for all
+--   Agda projects.
 --
-defaultsFile :: FilePath
-defaultsFile = "defaults"
+--   Agda also honors version-specific @defaults@ files, e.g. @defaults-2.6.0@.
+--
+--   @defaultsFiles@ gives a list of all @defaults@ Agda should process
+--   by default. The first file in this list that exists is actually used.
+--
+defaultsFiles :: List1 FilePath
+defaultsFiles = ("defaults-" ++ version) :| "defaults" : []
 
--- | The @~/.agda/executables@ file lists the executables Agda should know about.
+-- | The @$AGDA_DIR/executables@ file lists the executables Agda should know about.
 --   The content of @executables@ is a list of paths to executables.
 --
 --   Agda honors also version-specific @executables@ files, e.g. @executables-2.6.0@.
@@ -345,10 +351,13 @@ getDefaultLibraries root optDefaultLibs = do
 readDefaultsFile :: LibErrorIO [LibName]
 readDefaultsFile = do
     agdaDir <- liftIO getAgdaAppDir
-    let file = agdaDir </> defaultsFile
-    ifNotM (liftIO $ doesFileExist file) (return []) $ {-else-} do
-      ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
-      return $ map parseLibName $ concatMap splitCommas ls
+    let defaults = List1.map (agdaDir </>) defaultsFiles -- NB: very short list
+    files <- liftIO $ filterM doesFileExist (List1.toList defaults)
+    case files of
+      []       -> return []
+      file : _ -> do
+        ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
+        return $ map parseLibName $ concatMap splitCommas ls
   `catchIO` \ e -> do
     raiseErrors' [ ReadError e "Failed to read defaults file." ]
     return []

@@ -190,8 +190,16 @@ There are three ways a library gets used:
 Default libraries
 -----------------
 
-If you want to usually use a variety of libraries, it is simplest to list them
-all in the ``AGDA_DIR/defaults`` file.
+If you want to usually use a variety of libraries, it is simplest
+to list them all in a ``defaults`` file
+
+- ``AGDA_DIR/defaults-VERSION``, or if that does not exist
+- ``AGDA_DIR/defaults``
+
+where ``VERSION`` is the Agda version (for instance ``2.5.1``).
+``default-VERSION`` has the benefit that you only need to have
+installed the mentioned library for the one ``VERSION`` of the
+compiler you target.
 
 Each line of the defaults file shall be the name of a library resolvable
 using the paths listed in the libraries file.  For example,
