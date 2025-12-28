@@ -25,6 +25,7 @@
 .cabal-sandbox/
 .direnv
 .DS_Store
+.envrc
 .ghc.environment.*
 .python-sphinx-virtualenv/
 .stack-work-*/
