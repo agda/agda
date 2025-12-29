@@ -93,6 +93,7 @@ import Agda.Utils.Null
 import Agda.Utils.Set1      qualified as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.String    ( rtrim )
 
 import Agda.Utils.Impossible
 
@@ -1170,7 +1171,7 @@ instance PrettyTCM TypeError where
         $$
       nest 2
         (if null sects then "None" else
-         vcat (map text $
+         vcat (map (text . rtrim) $
                lines $
                Boxes.render $
                (\(col1, col2, col3) ->
