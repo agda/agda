@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Some functions, generators and instances suitable for writing
 -- QuickCheck properties.
 
@@ -263,9 +265,11 @@ smaller k g = sized $ \ n -> resize (1 + div n k) g
 instance Fail.MonadFail Gen where
   fail = error
 
+#if !MIN_VERSION_QuickCheck(2,17,0)
 instance Arbitrary a => Arbitrary (List1 a) where
   arbitrary = List1.fromListSafe __IMPOSSIBLE__ . getNonEmpty <$> arbitrary
   shrink = map (List1.fromListSafe __IMPOSSIBLE__ . getNonEmpty) . shrink . (NonEmpty . List1.toList)
+#endif
 
 instance CoArbitrary a => CoArbitrary (List1 a) where
   coarbitrary (x :| xs) = coarbitrary (x, xs)
