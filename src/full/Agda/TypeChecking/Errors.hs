@@ -106,16 +106,22 @@ renderError = fmap show . prettyError
 
 {-# SPECIALIZE prettyError :: TCErr -> TCM Doc #-}
 prettyError :: MonadTCM tcm => TCErr -> tcm Doc
-prettyError = liftTCM . flip renderError' [] where
-  renderError' :: TCErr -> [TCErr] -> TCM Doc
-  renderError' err errs
-    | length errs > 3 = fsep (
-        pwords "total panic: error when printing error from printing error from printing error." ++
-        pwords "I give up! Approximations of errors (original error last):" )
-        $$ vcat (map (text . tcErrString) errs)
-    | otherwise = applyUnless (null errs) ("panic: error when printing error!" $$) $ do
-        (prettyTCM err $$ vcat (map (text . ("when printing error " ++) . tcErrString) errs))
-        `catchError` \ err' -> renderError' err' (err:errs)
+prettyError = liftTCM . go []
+  where
+  go :: [TCErr] -> TCErr -> TCM Doc
+  go errs err
+    | length errs > 3 = vcat $
+        fwords ("total panic: error when printing error from printing error from printing error." ++
+               "I give up! Approximations of errors (original error last):")
+        : map (text . tcErrString) errs
+    | otherwise =
+        applyUnless (null errs)
+          (\ d -> vcat $
+            "panic: error when printing error!"
+            : d
+            : map (text . ("when printing error " ++) . tcErrString) errs)
+          (prettyTCM err)
+        `catchError` go (err:errs)
 
 ---------------------------------------------------------------------------
 -- * Helpers
