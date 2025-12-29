@@ -738,7 +738,7 @@ install-agda-bisect :
 
 ## Lines of Code #############################################################
 
-agdalocfiles=$(shell find . \( \( -name '*.agda' -o -name '*.in' \) ! -name '.*' \) )
+agdalocfiles=$(shell find test \( \( -name '*.agda' -o -name '*.lagda*' -o -name '*.in' \) ! -name '.*' \) )
 
 agda-loc : ## Agda files (tests) in this project
 	@wc $(agdalocfiles)
