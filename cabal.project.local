@@ -1,0 +1,49 @@
+allow-newer: assoc:base
+allow-newer: async:base
+allow-newer: data-fix:base
+allow-newer: generic-data:base
+allow-newer: generically:base
+allow-newer: hashable:base
+allow-newer: indexed-traversable:base
+allow-newer: indexed-traversable-instances:base
+allow-newer: integer-conversion:base
+allow-newer: integer-logarithms:base
+allow-newer: nonempty-vector:base
+allow-newer: parallel:base
+allow-newer: pqueue:base
+allow-newer: scientific:base
+allow-newer: semialign:base
+allow-newer: splitmix:base
+allow-newer: text-short:base
+allow-newer: these:base
+allow-newer: time-compat:base
+allow-newer: OneTuple:base
+
+allow-newer: aeson:containers
+allow-newer: enummapset:containers
+allow-newer: hashable:containers
+allow-newer: indexed-traversable:containers
+allow-newer: semialign:containers
+allow-newer: scientific:containers
+allow-newer: witherable:containers
+
+allow-newer: hashable:ghc-bignum
+allow-newer: integer-logarithms:ghc-bignum
+
+allow-newer: aeson:template-haskell
+allow-newer: bifunctors:template-haskell
+allow-newer: generic-deriving:template-haskell
+allow-newer: scientific:template-haskell
+allow-newer: tagged:template-haskell
+allow-newer: text-short:template-haskell
+allow-newer: th-abstraction:template-haskell
+allow-newer: th-compat:template-haskell
+allow-newer: unordered-containers:template-haskell
+allow-newer: uuid-types:template-haskell
+
+allow-newer: aeson:time
+allow-newer: text-icu:time
+allow-newer: text-iso8601:time
+allow-newer: time-compat:time
+
+allow-newer: aeson:QuickCheck

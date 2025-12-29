@@ -1,5 +1,11 @@
 packages: Agda.cabal
 
+package Agda
+  flags: +Werror +debug +debug-parsing +enable-cluster-counting -optimise-heavily
+  -- +use-xdg-data-home
+  -- +dev
+  documentation: False
+
 if arch(wasm32)
   -- See https://github.com/haskellari/splitmix/pull/73. This is only required
   -- for tests.
