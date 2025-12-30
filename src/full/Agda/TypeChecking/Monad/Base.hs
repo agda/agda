@@ -5463,7 +5463,9 @@ data TypeError
         | RepeatedVariablesInPattern (List1 C.Name)
         | CannotGeneralizeEtaExpandable A.QName Type
         | GeneralizationFailed Doc
-        | GeneralizationPrepruneError Doc
+        | GeneralizationPrepruneErrorRefinedContext (Closure MetaId)
+        | GeneralizationPrepruneErrorCyclicDependencies (Closure MetaId)
+        | GeneralizationPrepruneErrorFailedToInstantiate (Closure MetaId)
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))

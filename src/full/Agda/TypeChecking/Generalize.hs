@@ -513,27 +513,6 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
     sub = unpackSub genRecCon $ map getArgInfo $ telToList genTel
 
-    prepruneErrorRefinedContext = prepruneError $
-      "Failed to generalize because some of the generalized variables depend on an " ++
-      "unsolved meta created in a refined context (not a simple extension of the context where " ++
-      "generalization happens)."
-
-    prepruneErrorCyclicDependencies = prepruneError $
-      "Failed to generalize due to circular dependencies between the generalized " ++
-      "variables and an unsolved meta."
-
-    prepruneErrorFailedToInstantiate = prepruneError $
-      "Failed to generalize because the generalized variables depend on an unsolved meta " ++
-      "that could not be lifted outside the generalization."
-
-    prepruneError :: String -> MetaId -> TCM a
-    prepruneError msg x = do
-      r <- getMetaRange x
-      typeError . GeneralizationPrepruneError =<<
-        (fwords (msg ++ " The problematic unsolved meta is") $$
-                 nest 2 (prettyTCM (MetaV x []) <+> "at" <+> pretty r)
-        )
-
     -- If one of the fields depend on this meta, we have to make sure that this meta doesn't depend
     -- on any variables introduced after the genRec. See test/Fail/Issue3672b.agda for a test case.
     prePrune :: MetaId -> TCM MetaId
@@ -548,7 +527,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         case δ of
           Wk n IdS -> return (n, _A)
           IdS      -> return (0, _A)
-          _        -> prepruneErrorRefinedContext x
+          _        -> typeError . GeneralizationPrepruneErrorRefinedContext =<< buildClosure x
       if i == 0 then return x else do
         reportSDoc "tc.generalize.prune.pre" 40 $ vcat
           [ "prepruning"
@@ -562,7 +541,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
         -- We can only do this if A does not depend on Δ, so check this first.
         case VarSet.minView (allFreeVars _A) of
-          Just (j, _) | j < i -> prepruneErrorCyclicDependencies x
+          Just (j, _) | j < i -> typeError . GeneralizationPrepruneErrorCyclicDependencies =<< buildClosure x
           _                   -> return ()
 
         -- If it doesn't we can strengthen it to the current context (this is done by
@@ -585,7 +564,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           v <- case _A of
                  Nothing -> Sort . MetaS x . map Apply <$> getMetaContextArgs mv
                  Just{}  -> MetaV x . map Apply <$> getMetaContextArgs mv
-          noConstraints (doPrune x mv _A v uρ') `catchError` \ _ -> prepruneErrorFailedToInstantiate x
+          noConstraints (doPrune x mv _A v uρ') `catchError` \ _ ->
+            typeError . GeneralizationPrepruneErrorFailedToInstantiate =<< buildClosure x
           setInteractionPoint x y
           return y
 
