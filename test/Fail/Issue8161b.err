@@ -1,0 +1,7 @@
+Issue8161b.agda:16.9-43: error: [GeneralizationPrepruneErrorCyclicDependencies]
+Failed to generalize due to circular dependencies between the
+generalized variables and an unsolved meta. The problematic
+unsolved meta is
+  _x_25 at Issue8161b.agda:16.27-31
+when checking that the expression
+primTransp (λ i → refl i) i0 x ≡ x is a type

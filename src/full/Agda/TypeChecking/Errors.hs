@@ -222,7 +222,7 @@ prepruneErrorRefinedContext = prepruneError empty $
   "generalization happens)."
 
 prepruneErrorCyclicDependencies :: forall m. MonadPretty m => Closure MetaId -> m Doc
-prepruneErrorCyclicDependencies = prepruneError prepruneErrorBounty $
+prepruneErrorCyclicDependencies = prepruneError empty $
   "Failed to generalize due to circular dependencies between the generalized " ++
   "variables and an unsolved meta."
 

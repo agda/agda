@@ -66,8 +66,13 @@ Errors
 * Errors `GenericError` and `GenericDocError` have been replaced by more specific errors.
   (Issue [#7225](https://github.com/agda/agda/issues/7225).)
 
-* Reproducer for `GeneralizationPrepruneErrorRefinedContext` contributed by Amélia Lao
-  (see Issue [#8161](https://github.com/agda/agda/issues/8161#issuecomment-3696949816)).
+* Generalisation failures due to unresolvable dependencies between a
+  generalized variable and unsolved metavariables have new, specific
+  errors.
+  * `GeneralizationPrepruneErrorRefinedContext`, reproduced by Amélia Liao
+    (see Issue [#8161](https://github.com/agda/agda/issues/8161#issuecomment-3696949816)).
+  * `GeneralizationPrepruneErrorCyclicDependencies`, reproduced by Nils Anders Danielsson
+    (see Issue [#3672](https://github.com/agda/agda/issues/3672#issuecomment-482715807)).
 
 Warnings
 --------
