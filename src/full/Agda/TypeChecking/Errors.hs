@@ -215,6 +215,39 @@ prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBind
 prettyDisambCons :: MonadPretty m => QName -> m Doc
 prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 
+prepruneErrorRefinedContext :: forall m. MonadPretty m => Closure MetaId -> m Doc
+prepruneErrorRefinedContext = prepruneError empty $
+  "Failed to generalize because some of the generalized variables depend on an " ++
+  "unsolved meta created in a refined context (not a simple extension of the context where " ++
+  "generalization happens)."
+
+prepruneErrorCyclicDependencies :: forall m. MonadPretty m => Closure MetaId -> m Doc
+prepruneErrorCyclicDependencies = prepruneError prepruneErrorBounty $
+  "Failed to generalize due to circular dependencies between the generalized " ++
+  "variables and an unsolved meta."
+
+prepruneErrorFailedToInstantiate :: forall m. MonadPretty m => Closure MetaId -> m Doc
+prepruneErrorFailedToInstantiate = prepruneError prepruneErrorBounty $
+  "Failed to generalize because the generalized variables depend on an unsolved meta " ++
+  "that could not be lifted outside the generalization."
+
+prepruneErrorBounty :: Doc
+prepruneErrorBounty = P.fsep $ concat
+  [ P.pwords "Congratulations, you have hit a so far unreproduced error in generalization!"
+  , P.pwords "Please submit your self-contained reproducer (max 50 lines) at"
+  , [ P.url "https://github.com/agda/agda/issues/8161" ]
+  , P.pwords "to earn a honorable mention in the next Agda release."
+  ]
+
+prepruneError :: forall m. MonadPretty m => Doc -> String -> Closure MetaId -> m Doc
+prepruneError bounty msg x = enterClosure x \ x -> do
+  r <- getMetaRange x
+  vcat
+    [ pure bounty
+    , fwords $ msg ++ " The problematic unsolved meta is"
+    , nest 2 $ prettyTCM (MetaV x []) <+> "at" <+> pretty r
+    ]
+
 instance PrettyTCM TypeError where
   prettyTCM :: forall m. MonadPretty m => TypeError -> m Doc
   prettyTCM err = case err of
@@ -230,15 +263,14 @@ instance PrettyTCM TypeError where
 
     GeneralizationFailed d -> return d
 
-    GeneralizationPrepruneError d -> vcat
-      [ fsep $ concat
-        [ pwords "Congratulations, you have hit a so far unreproduced error in generalization!"
-        , pwords "Please submit your self-contained reproducer (max 50 lines) at"
-        , [ url "https://github.com/agda/agda/issues/8161" ]
-        , pwords "to earn a honorable mention in the next Agda release."
-        ]
-      , pure d
-      ]
+    GeneralizationPrepruneErrorRefinedContext x ->
+      prepruneErrorRefinedContext x
+
+    GeneralizationPrepruneErrorCyclicDependencies x ->
+      prepruneErrorCyclicDependencies x
+
+    GeneralizationPrepruneErrorFailedToInstantiate x ->
+      prepruneErrorFailedToInstantiate x
 
     ExecError err -> prettyTCM err
 

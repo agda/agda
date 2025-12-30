@@ -160,7 +160,9 @@ data ErrorName
   | ForcedConstructorNotInstantiated_
   | FunctionTypeInSizeUniv_
   | GeneralizationFailed_
-  | GeneralizationPrepruneError_
+  | GeneralizationPrepruneErrorRefinedContext_
+  | GeneralizationPrepruneErrorCyclicDependencies_
+  | GeneralizationPrepruneErrorFailedToInstantiate_
   | GeneralizeCyclicDependency_
   | GeneralizeNotSupportedHere_
   | GeneralizedVarInLetOpenedModule_

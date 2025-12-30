@@ -66,6 +66,9 @@ Errors
 * Errors `GenericError` and `GenericDocError` have been replaced by more specific errors.
   (Issue [#7225](https://github.com/agda/agda/issues/7225).)
 
+* Reproducer for `GeneralizationPrepruneErrorRefinedContext` contributed by Amélia Lao
+  (see Issue [#8161](https://github.com/agda/agda/issues/8161#issuecomment-3696949816)).
+
 Warnings
 --------
 
