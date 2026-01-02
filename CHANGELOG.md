@@ -14,7 +14,8 @@ Pragmas and options
 * New option `--print-options` to print a simple list of all options.
   This list can e.g. be used to implement bash completion.
 
-* Consolidated Cubical-related flags to
+* The flavor of Cubical Agda can now be chosen by an argument to the `--cubical` option:
+
   | Old                    | New                                               |
   | ---------------------- | ------------------------------------------------- |
   | `--cubical`            | `--cubical`, or `--cubical=full`                  |
