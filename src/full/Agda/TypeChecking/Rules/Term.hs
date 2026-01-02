@@ -7,6 +7,7 @@ import Prelude hiding ( null )
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Maybe
+import qualified Data.DList as DL
 import Data.Either (partitionEithers, lefts)
 import qualified Data.List as List
 import qualified Data.IntMap as IntMap
@@ -1377,6 +1378,30 @@ checkLiteral lit t = do
 -- * Terms
 ---------------------------------------------------------------------------
 
+-- | Same as 'Agda.Syntax.Abstract.Views.appView',
+--   but produces correct 'Hiding' when constructing the 'AppView'
+--   from a postfix projection.
+appViewM :: A.Expr -> TCM AppView
+appViewM e = do
+  (f, es) <- go e
+  return $ f $ DL.toList es
+  where
+  go :: A.Expr -> TCM (A.Args -> AppView, DL.DList (NamedArg A.Expr))
+  go = \case
+    A.ScopedExpr _ e -> go e
+    A.App _ e1 e2
+      | A.Dot _ e2' <- unScope $ namedArg e2
+      , Just (f0, hd) <- maybeProjTurnPostfix e2'
+      -> do
+       ai <- case f0 of
+         A.AmbQ (f :| []) -> isProjection f >>= \case
+           Just p | isProperProjection_ p -> pure $ projArgInfo p
+           _ -> pure defaultArgInfo
+         _ -> pure defaultArgInfo
+       return (Application hd, singleton (unnamedArg ai e1))
+    A.App _ e1 arg -> second (`DL.snoc` arg) <$> go e1
+    e -> return (Application e, mempty)
+
 -- | Remove top layers of scope info of expression and set the scope accordingly
 --   in the 'TCState'.
 
@@ -1501,7 +1526,9 @@ checkExpr' cmp e t =
         A.Dot{} -> typeError InvalidDottedExpression
 
         -- Application
-        _   | Application hd args <- appView e -> checkApplication cmp hd args e t
+        e -> do
+          Application hd args <- appViewM e
+          checkApplication cmp hd args e t
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.
@@ -1795,7 +1822,7 @@ inferExpr = inferExpr' DontExpandLast
 
 inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
 inferExpr' exh e = traceCall (InferExpr e) $ do
-  let Application hd args = appView e
+  Application hd args <- appViewM e
   reportSDoc "tc.infer" 30 $ vcat
     [ "inferExpr': appView of " <+> prettyA e
     , "  hd   = " <+> prettyA hd
@@ -1816,11 +1843,12 @@ defOrVar _     = False
 -- | Used to check aliases @f = e@.
 --   Switches off 'ExpandLast' for the checking of top-level application.
 checkDontExpandLast :: Comparison -> A.Expr -> Type -> TCM Term
-checkDontExpandLast cmp e t = case e of
-  _ | Application hd args <- appView e,  defOrVar hd ->
+checkDontExpandLast cmp e t = do
+  Application hd args <- appViewM e
+  if defOrVar hd then
     traceCall (CheckExprCall cmp e t) $ localScope $ dontExpandLast $ do
       checkApplication cmp hd args e t
-  _ -> checkExpr' cmp e t -- note that checkExpr always sets ExpandLast
+  else checkExpr' cmp e t -- note that checkExpr always sets ExpandLast
 
 -- | Check whether a de Bruijn index is bound by a module telescope.
 isModuleFreeVar :: Int -> TCM Bool

@@ -1518,8 +1518,13 @@ isInlineFun = (^. funInline)
 --   i.e., not a projection-like function nor a record field value
 --   (projection applied to argument).
 isProperProjection :: Defn -> Bool
-isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
-  (projIndex isP > 0) && isJust (projProper isP)
+isProperProjection = maybe False isProperProjection_ . isProjection_
+
+-- | Returns @True@ if we are dealing with a proper projection,
+--   i.e., not a projection-like function nor a record field value
+--   (projection applied to argument).
+isProperProjection_ :: Projection -> Bool
+isProperProjection_ isP = projIndex isP > 0 && isJust (projProper isP)
 
 -- | Number of dropped initial arguments of a projection(-like) function.
 projectionArgs :: Definition -> Int
