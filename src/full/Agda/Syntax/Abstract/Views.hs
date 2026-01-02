@@ -6,8 +6,9 @@ import Prelude hiding (null)
 import Control.Applicative ( Const(Const), getConst )
 import Control.Monad.Identity
 
+import Data.Bifunctor (second)
 import Data.Foldable (foldMap)
-import qualified Data.DList as DL
+import Data.DList qualified as DL
 import Data.Void
 
 import Agda.Syntax.Common
@@ -24,7 +25,7 @@ import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
-
+-- | An 'Expr' viewed as application.
 data AppView' arg = Application Expr [NamedArg arg]
   deriving (Functor)
 
@@ -32,31 +33,39 @@ type AppView = AppView' Expr
 
 -- | Gather applications to expose head and spine.
 --
---   Note: everything is an application, possibly of itself to 0 arguments
+--   Note:
+--
+--   1. Everything is an application, possibly of itself to 0 arguments.
+--
+--   2. If the returned head is a projection originating from a post-fix
+--      projection, the 'ArgInfo' of the first argument might be incorrect.
+--      (See issue #8300.)
+--      For instance @x .f@ is valid postfix syntax for @f {{x}}@,
+--      but 'appView' turns the former into @f x@.
+--      The correct @f {{x}}@ is produced by 'Agda.TypeChecking.Rules.Term.appViewM'.
 appView :: Expr -> AppView
 appView = fmap snd . appView'
 
 appView' :: Expr -> AppView' (AppInfo, Expr)
 appView' e = f (DL.toList es)
   where
-  (f, es) = appView'' e
-
-  appView'' = \case
+  (f, es) = go e
+  go = \case
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
-      , Just f <- maybeProjTurnPostfix e2'
+      , Just (_, f) <- maybeProjTurnPostfix e2'
       , getHiding e2 == NotHidden -- Jesper, 2018-12-13: postfix projections shouldn't be hidden
       -> (Application f, singleton (defaultNamedArg (i, e1)))
-    App i e1 arg | (f, es) <- appView'' e1 ->
+    App i e1 arg | (f, es) <- go e1 ->
       (f, es `DL.snoc` (fmap . fmap) (i,) arg)
-    ScopedExpr _ e -> appView'' e
-    e              -> (Application e, mempty)
+    ScopedExpr _ e -> go e
+    e -> (Application e, mempty)
 
-maybeProjTurnPostfix :: Expr -> Maybe Expr
+maybeProjTurnPostfix :: Expr -> Maybe (AmbiguousQName, Expr)
 maybeProjTurnPostfix e =
   case e of
-    ScopedExpr i e' -> ScopedExpr i <$> maybeProjTurnPostfix e'
-    Proj _ x        -> return $ Proj ProjPostfix x
+    ScopedExpr i e' -> second (ScopedExpr i) <$> maybeProjTurnPostfix e'
+    Proj _ x        -> return (x, Proj ProjPostfix x)
     _               -> Nothing
 
 unAppView :: AppView -> Expr
