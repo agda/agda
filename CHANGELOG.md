@@ -49,6 +49,11 @@ Pragmas and options
   The overhead to also mine dot patterns for structural descent was already
   negligible so it made sense to simplify the termination checking algorithm.
 
+* Setting environment variable `NO_COLOR` now turns off coloring in the default `--color=auto` mode.
+  It can be overwritten by `--color=always`.
+  See also https://no-color.org/ .
+
+
 Errors
 ------
 
