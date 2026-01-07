@@ -327,6 +327,14 @@ mergeInterface i = do
       (iOpaqueBlocks i)
       (iOpaqueNames i)
 
+    -- #8273: We need to ensure the module we are importing is considered
+    -- imported when checking confluence
+
+    -- I think ideally we would @addImport@s earlier so the imported modules
+    -- would stay consistent with i, but this seems very
+    -- fiddly to do correctly.
+    addImport $ iTopLevelModuleName i
+
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -415,7 +423,8 @@ scopeCheckFileImport top = do
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
 
     -- #8273: We need to ensure the imported module is added to
-    -- stImportedModules and stImportedModulesTransitive before checking it
+    -- stImportedModules and stImportedModulesTransitive before actually
+    -- importing it.
     addImport top
     -- Since scopeCheckFileImport is called from the scope checker,
     -- we need to reimburse her account.
@@ -634,7 +643,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       reportSLn "import.iface" 15 $ "  Check for cycle"
       checkForImportCycle
 
-      mi <- Bench.billTo [Bench.Import] (getStoredInterface x file msrc)
+      mi <- Bench.billTo [Bench.Import] (getStoredInterface x isMain file msrc)
         `catchExceptT` \ reason -> do
 
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
@@ -737,11 +746,12 @@ getOptionsCompatibilityWarnings _ True _ _ = return Nothing
 getStoredInterface :: HasCallStack
   => TopLevelModuleName
      -- ^ Module name of file we process.
+  -> MainInterface
   -> SourceFile
      -- ^ File we process.
   -> Maybe Source
   -> ExceptT String TCM ModuleInfo
-getStoredInterface x file@(SourceFile fi) msrc = do
+getStoredInterface x isMain file@(SourceFile fi) msrc = do
 
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
@@ -912,8 +922,6 @@ loadDecodedModule sf@(SourceFile fi) mi = do
   -- If any of the imports are newer we need to re-typecheck.
   badHashMessages <- fmap lefts $ forM imports \ (impName, impHash) -> runExceptT do
     reportSLn "import.iface" 30 $ concat ["Checking that module hash of import ", prettyShow impName, " matches ", prettyShow impHash ]
-    -- TODO: Is this the right place?? (It fixes the error but...)
-    lift $ lift $ addImport impName
     latestImpHash <- lift $ lift $ setCurrentRange impName $ moduleHash impName
     reportSLn "import.iface" 30 $ concat ["Done checking module hash of import ", prettyShow impName]
     when (impHash /= latestImpHash) $

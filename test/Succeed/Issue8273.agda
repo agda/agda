@@ -1,3 +1,3 @@
 {-# OPTIONS --rewriting --local-confluence-check #-}
 
-import Issue8274Rewrite
+import Issue8273Rewrite
