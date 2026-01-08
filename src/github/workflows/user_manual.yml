@@ -55,7 +55,7 @@ jobs:
           capt-of
           cmap
           colortbl
-          dvipng
+          dvisvgm
           ellipse
           etoolbox
           fancyvrb
@@ -66,6 +66,7 @@ jobs:
           keystroke
           latexmk
           mathtools
+          mlmodern
           needspace
           parskip
           pict2e
