@@ -123,6 +123,14 @@
                 py3pkgs.sphinx
                 py3pkgs.sphinx-rtd-theme
               ]))
+              (pkgs.texliveBasic.withPackages (texpkgs: with texpkgs; [
+                collection-fontsrecommended
+                collection-mathscience
+                collection-latexextra
+                collection-fontsextra
+                collection-binextra
+              ]))
+
               # Tools for running the agda test-suite
               pkgs.nodejs_22
             ];
