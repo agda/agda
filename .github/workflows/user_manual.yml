@@ -32,9 +32,9 @@ jobs:
       uses: TeX-Live/setup-texlive-action@v3
       with:
         packages: scheme-basic anyfontsize bbm bbm-macros booktabs capt-of cmap colortbl
-          dvipng ellipse etoolbox fancyvrb float fncychap fontawesome5 framed keystroke
-          latexmk mathtools needspace parskip pict2e psnfss stmaryrd tabulary tex-gyre
-          titlesec upquote varwidth wrapfig xcolor zapfchan
+          dvisvgm ellipse etoolbox fancyvrb float fncychap fontawesome5 framed keystroke
+          latexmk mathtools mlmodern needspace parskip pict2e psnfss stmaryrd tabulary
+          tex-gyre titlesec upquote varwidth wrapfig xcolor zapfchan
     - name: Build User Manual in PDF
       run: |
         make user-manual-pdf
