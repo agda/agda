@@ -177,7 +177,16 @@
       #     * `agda-tests -p 641`
       test-results-for = target: pkgs.stdenv.mkDerivation {
         name = "${target}.txt";
-        src = ./.;  # Some tests scan all files in the repo work tree
+        src = fs.toSource {
+          root = ./.;
+          fileset = fs.difference
+            ./. # Some tests scan all files in the repo work tree
+            (fs.unions [
+              ./flake.nix
+              ./flake.lock
+            ])
+          ;
+        };
         buildInputs =
         [
           pkgs.which            # For Makefile
