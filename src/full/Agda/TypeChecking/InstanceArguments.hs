@@ -595,7 +595,7 @@ insidePi t ret = reduce (unEl t) >>= \case
     Level{}    -> __IMPOSSIBLE__
     MetaV{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
-    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
 -- | Apply the computation to every argument in turn by resetting the state every
 --   time. Return the list of the arguments giving the result True.
@@ -1091,7 +1091,7 @@ getOutputTypeName t = ignoreAbstractMode $ do
       Level{}  -> __IMPOSSIBLE__
       MetaV{}  -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
-      Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _ -> __IMPOSSIBLE_VERBOSE__ (show s)
 
 
 -- | Register the definition with the given type as an instance.

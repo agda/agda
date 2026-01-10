@@ -515,13 +515,14 @@ instance EmbPrj Lock where
   value _ = malformed
 
 instance EmbPrj Origin where
-  icod_ UserWritten = return 0
-  icod_ Inserted    = return 1
-  icod_ Reflected   = return 2
-  icod_ CaseSplit   = return 3
-  icod_ Substitution = return 4
-  icod_ ExpandedPun = return 5
+  icod_ UserWritten    = return 0
+  icod_ Inserted       = return 1
+  icod_ Reflected      = return 2
+  icod_ CaseSplit      = return 3
+  icod_ Substitution   = return 4
+  icod_ ExpandedPun    = return 5
   icod_ Generalization = return 6
+  icod_ ConversionFail = return 7
 
   value 0 = return UserWritten
   value 1 = return Inserted
@@ -530,6 +531,7 @@ instance EmbPrj Origin where
   value 4 = return Substitution
   value 5 = return ExpandedPun
   value 6 = return Generalization
+  value 7 = return ConversionFail
   value _ = malformed
 
 instance EmbPrj a => EmbPrj (WithOrigin a) where
@@ -547,11 +549,11 @@ instance EmbPrj FreeVariables where
     valu _      = malformed
 
 instance EmbPrj ConOrigin where
-  icod_ ConOSystem   = return 0
-  icod_ ConOCon      = return 1
-  icod_ ConORec      = return 2
-  icod_ ConOSplit    = return 3
-  icod_ ConORecWhere = return 4
+  icod_ ConOSystem       = return 0
+  icod_ ConOCon          = return 1
+  icod_ ConORec          = return 2
+  icod_ ConOSplit        = return 3
+  icod_ ConORecWhere     = return 4
 
   value 0 = return ConOSystem
   value 1 = return ConOCon

@@ -155,6 +155,7 @@ instance ExprLike Expr where
      Generalized e           -> f $ Generalized            $ mapE e
      KnownIdent{}            -> f $ e0
      KnownOpApp nk r q ns es -> f $ KnownOpApp nk r q ns   $ mapE es
+     Highlighted r e         -> f $ Highlighted r          $ mapE e
    where
      mapE :: ExprLike e => e -> e
      mapE = mapExpr f

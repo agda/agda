@@ -833,6 +833,7 @@ instance ToConcrete A.Expr where
     toConcrete (Proj _          p) = C.Dot empty . knownIdent Asp.Field p  <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = knownIdent Asp.Macro (qnameName x)    <$> toConcrete x
     toConcrete (A.PatternSyn n)    = knownIdent (Asp.Constructor Inductive) n <$> toConcrete (headAmbQ n)
+    toConcrete (A.Highlighted a b) = C.Highlighted a <$> toConcrete b
 
     toConcrete e@(Con c) = tryToRecoverPatternSyn e $
       knownIdent (Asp.Constructor Inductive) c <$> toConcrete (headAmbQ c)

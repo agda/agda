@@ -323,9 +323,7 @@ lookupDT' localsRigid term tree = match True [term] tree where
         -- matching con, we need to make sure that the spine has the
         -- right number of arguments, otherwise the (sp0, t:sp1) pattern
         -- for a Case will fail.
-        let
-          dummy n = Dummy ("_pad" <> show n) []
-          args' = take (keyArity key) (args ++ [ dummy n | n <- [0..] ])
+        let args' = take (keyArity key) $ args ++ [ __DUMMY_TERM_WITH__ ("_pad" <> show n) | n <- [0..] ]
 
         reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
           [ "explore" <+> prettyTCM key <+> pretty (keyArity key) <+> pretty (length args)

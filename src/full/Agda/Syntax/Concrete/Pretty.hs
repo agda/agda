@@ -196,6 +196,7 @@ instance Pretty Expr where
             Equal _ a b -> pretty a <+> equals <+> pretty b
             Ellipsis _  -> hlSymbol "..."
             Generalized e -> pretty e
+            Highlighted a e -> annotate a (pretty e)
         where
           absurd NotHidden  = parens mempty
           absurd Instance{} = dbraces mempty

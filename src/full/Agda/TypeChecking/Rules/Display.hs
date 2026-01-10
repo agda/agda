@@ -132,7 +132,8 @@ exprToTerm e =
     A.ScopedExpr{}    -> __IMPOSSIBLE__
 
     -- preserved by 'unScope', but only matters for highlighting
-    A.Qualified _ e  -> exprToTerm e
+    A.Qualified   _ e -> exprToTerm e
+    A.Highlighted _ e -> exprToTerm e
 
     A.Var x          -> fst <$> getVarInfo x
     A.Def' f NoSuffix-> pure $ Def f []

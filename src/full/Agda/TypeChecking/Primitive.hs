@@ -630,7 +630,7 @@ genPrimForce b ret = do
                     _          -> False
                 Var{}      -> return False
                 MetaV{}    -> __IMPOSSIBLE__
-                Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+                Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))
             (return $ NoReduction $ map notReduced [a, b, s, t] ++ [reduced u, notReduced f])

@@ -102,7 +102,7 @@ instance Apply Term where
   applyE = applyTermE absurd
 
 instance Apply BraveTerm where
-  applyE = applyTermE (\ _ t es ->  Dummy "applyE" (Apply (defaultArg t) : es))
+  applyE = applyTermE (\ _ t es ->  Dummy (DummyBrave t) es)
 
 -- | If @v@ is a record or constructed value, @canProject f v@
 --   returns its field @f@.

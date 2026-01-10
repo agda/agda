@@ -2353,6 +2353,13 @@ data Origin
   | Substitution    -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
   | ExpandedPun     -- ^ An expanded hidden argument pun.
   | Generalization  -- ^ Inserted by the generalization process
+  | ConversionFail
+    -- ^ Inserted by the conversion checker in an argument spine at the
+    -- position where they differ.
+    --
+    -- Indicates that the argument at this position should always be
+    -- reified, even if the visibility/modality would be skipped with
+    -- the current flags.
   deriving (Show, Eq, Ord)
 
 instance HasRange Origin where
@@ -2362,13 +2369,14 @@ instance KillRange Origin where
   killRange = id
 
 instance NFData Origin where
-  rnf UserWritten = ()
-  rnf Inserted = ()
-  rnf Reflected = ()
-  rnf CaseSplit = ()
-  rnf Substitution = ()
-  rnf ExpandedPun = ()
+  rnf UserWritten    = ()
+  rnf Inserted       = ()
+  rnf Reflected      = ()
+  rnf CaseSplit      = ()
+  rnf Substitution   = ()
+  rnf ExpandedPun    = ()
   rnf Generalization = ()
+  rnf ConversionFail = ()
 
 -- | Decorating something with 'Origin' information.
 data WithOrigin a = WithOrigin
