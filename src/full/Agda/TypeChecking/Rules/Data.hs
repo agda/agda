@@ -1908,4 +1908,4 @@ isCoinductive t = do
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
     DontCare{} -> __IMPOSSIBLE__
-    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)

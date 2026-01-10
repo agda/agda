@@ -1695,7 +1695,7 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
     Con{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
-    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
   -- neutral type: fail softly
   StuckOn{}     -> \ _a -> softTypeError =<< notData

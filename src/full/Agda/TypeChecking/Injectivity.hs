@@ -128,7 +128,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Level{} -> return Nothing
     MetaV{} -> return Nothing
     DontCare{} -> return Nothing
-    Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _ -> __IMPOSSIBLE_VERBOSE__ (show s)
 
 -- | Is this a matchable definition, or constructor, which reduces based
 -- on interval substitutions?
@@ -177,7 +177,7 @@ headSymbol' v = do
       Level{}    -> return Nothing
       DontCare{} -> return Nothing
       MetaV{}    -> __IMPOSSIBLE__
-      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so
 --   which one (index from the left).

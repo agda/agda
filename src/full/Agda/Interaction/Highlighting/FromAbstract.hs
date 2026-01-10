@@ -273,6 +273,7 @@ instance Hilite A.Expr where
       A.Unquote _r                  -> mempty
       A.DontCare e                  -> hl e
       A.Qualified m e               -> hl m <> hl e
+      A.Highlighted m e             -> pure (H.singleton (rToR $ getRange e) m) <> hl e
     where
     hl a = hilite a
 

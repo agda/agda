@@ -535,7 +535,7 @@ instance Free Term where
     -- we cannot prove their absence (as Set is not inductive).
     -- Also, this is incompatible with univalence (HoTT).
     Pi a b       -> freeVars' (a,b)
-    Sort s       -> freeVars' s
+    Sort s       -> underRelevance shapeIrrelevant $ freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> underModality (Modality irrelevant unitQuantity unitCohesion unitPolarity) $ freeVars' mt

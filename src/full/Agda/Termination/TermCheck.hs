@@ -660,7 +660,7 @@ instance TermToPattern Term DeBruijnPattern where
           _        -> fallback
         _ -> fallback
       Lit l       -> return $ litP l
-      Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _   -> __IMPOSSIBLE_VERBOSE__ (show s)
       _           -> fallback
 
 

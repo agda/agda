@@ -23,6 +23,7 @@ module Agda.Syntax.Translation.InternalToAbstract
 
 import Prelude hiding (null)
 
+import Control.Monad.Trans.Maybe
 import Control.Applicative ( liftA2 )
 import Control.Monad       ( filterM, forM )
 
@@ -37,6 +38,7 @@ import Data.Traversable (mapM)
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Common.Aspect as Asp
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..), TacticAttribute'(..))
 import Agda.Syntax.Info as Info
@@ -60,6 +62,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SyntacticEquality
 import Agda.TypeChecking.Telescope
+import {-# SOURCE #-} Agda.TypeChecking.Records
 
 import Agda.Interaction.Options
 
@@ -110,8 +113,13 @@ nelims e (I.IApply x y r : es) =
 nelims e (I.Apply arg : es) = do
   arg <- reify arg  -- This replaces the arg by _ if irrelevant
   dontShowImp <- not <$> showImplicitArguments
-  let hd | notVisible arg && dontShowImp = e
-         | otherwise                     = A.App defaultAppInfo_ e arg
+  let
+    drop
+      | ConversionFail <- argInfoOrigin (argInfo arg) = False
+      | notVisible arg                                = dontShowImp
+      | otherwise                                     = False
+    hd | drop      = e
+       | otherwise = A.App defaultAppInfo_ e arg
   nelims hd es
 nelims e (I.Proj ProjPrefix d : es)             = nelimsProjPrefix e d es
 nelims e (I.Proj o          d : es) | isSelf e  = nelims (A.Proj ProjPrefix $ unambiguous d) es
@@ -467,7 +475,7 @@ tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings) fallba
 
 {-# SPECIALIZE reifyTerm :: Bool -> Term -> TCM Expr #-}
 reifyTerm ::
-      MonadReify m
+      forall m. MonadReify m
    => Bool           -- ^ Try to expand away anonymous definitions?
    -> Term
    -> m Expr
@@ -534,27 +542,26 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         recordExpression mrdef = do
           (r, def) <- maybe (fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x) pure mrdef
           showImp <- showImplicitArguments
-          let keep (a, v) = showImp || visible a
+          let keep (a, v) = showImp || ConversionFail == argInfoOrigin (argInfo v) || visible a
           A.Rec empty noExprInfo
-            . map (Left . uncurry FieldAssignment . first unDom)
+            . map (Left . uncurry FieldAssignment . first unDom . second unArg)
             . filter keep
             . zip (recordFieldNames def)
-            . map unArg
             <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
 
         recordWhereExpr = do
           (r, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x
           showImp <- showImplicitArguments
           let
-            keep (a, _)    = showImp || visible a
-            fake (nm, exp) = do
+            keep (a, v) = showImp || ConversionFail == argInfoOrigin (argInfo v) || visible a
+            fake (nm, Arg _ exp) = do
               qn <- freshName_ (unDom nm)
               let decl = A.LetBind (LetRange noRange) (domInfo nm) (A.BindName qn) (A.Underscore emptyMetaInfo) exp
               pure (decl, FieldAssignment (unDom nm) (A.Var qn))
 
           -- The list of fake FieldAssignments tells AbstractToConcrete
           -- to not pick disambiguators for the names we just invented.
-          fields <- filter keep . zip (recordFieldNames def) . map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+          fields <- filter keep . zip (recordFieldNames def) <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
           (decl, assign) <- unzip <$> traverse fake fields
 
           pure $ A.RecWhere empty noExprInfo decl assign
@@ -705,17 +712,17 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       showIrr <- optShowIrrelevant <$> pragmaOptions
       if | showIrr   -> reifyTerm expandAnonDefs v
          | otherwise -> return underscore
-    I.Dummy s [] -> return $ A.Lit empty $ LitString (T.pack s)
-    I.Dummy "applyE" es | I.Apply (Arg _ h) : es' <- es -> do
-                            h <- reify h
-                            es' <- reify es'
-                            elims h es'
-                        | otherwise -> __IMPOSSIBLE__
-    I.Dummy s es -> do
-      s <- reify (I.Dummy s [])
-      es <- reify es
-      elims s es
+
+    I.Dummy s es -> reifyDummy s es
   where
+    reifyDummy kind es =
+      case kind of
+        I.DummyBrave h -> elims' (reify h)
+        I.DummyNamed s -> elims (A.Lit empty $ LitString (T.pack s)) =<< reify es
+      where
+        elims' a = do { h <- a ; es <- reify es ; elims h es }
+        asp o = empty { Asp.otherAspects = Set.singleton o }
+
     -- Andreas, 2012-10-20  expand a copy if not in scope
     -- to improve error messages.
     -- Don't do this if we have just expanded into a display form,
@@ -741,6 +748,13 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           reifyDef' x es
     reifyDef _ x es = reifyDef' x es
 
+    discontiguous :: I.Elims -> Bool
+    discontiguous []              = False
+    discontiguous (I.IApply{}:es) = discontiguous es
+    discontiguous (I.Proj{}:es)   = discontiguous es
+    discontiguous (I.Apply (Arg info _):es) =
+      (notVisible info && ConversionFail == argInfoOrigin info) || discontiguous es
+
     reifyDef' :: MonadReify m => QName -> I.Elims -> m Expr
     reifyDef' x es = do
       reportSLn "reify.def" 60 $ "reifying call to " ++ prettyShow x
@@ -749,6 +763,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       reportSLn "reify.def" 70 $ "freeVars for " ++ prettyShow x ++ " = " ++ show n
       -- If the definition is not (yet) in the signature,
       -- we just do the obvious.
+      showImp <- showImplicitArguments
       let fallback _ = elims (A.Def x) =<< reify (drop n es)
       caseEitherM (getConstInfo' x) fallback $ \ defn -> do
       let def = theDef defn
@@ -868,7 +883,15 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
                 then (padVis           , map (fmap unnamed) es')
                 else (padVis ++ padSame, nameFirstIfHidden dom es')
 
-            -- If it is not a projection(-like) function, we need no padding.
+            -- If the conversion checker asked us to show an implicit
+            -- argument that would otherwise be hidden, it might need to
+            -- be named.
+            _ | not showImp && discontiguous es ->
+              runMaybeT (nameElims False (I.Def x []) (defType defn) (drop n es)) >>= \case
+                Just xs -> pure ([], xs)
+                Nothing -> pure ([], map (fmap unnamed) $ drop n es)
+
+            -- Otherwise, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
 
            reportS "reify.def" 100 $ vcat
@@ -879,6 +902,22 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
                    | otherwise = A.Def x
            let hd = List.foldl' (A.App defaultAppInfo_) hd0 pad
            nelims hd =<< reify nes
+
+    -- Name any 'ConversionFail' arguments that are in the wrong position in the spine.
+    nameElims :: Bool -> I.Term -> I.Type -> I.Elims -> MaybeT m [Elim' (Named_ Term)]
+    nameElims _       _   _  []                   = pure []
+    nameElims skipped acc ty (I.IApply _ _ tm:as) = nameElims skipped acc ty (I.Apply (defaultArg tm):as)
+    nameElims skipped acc ty (elim@(I.Apply (Arg info tm)):as) =
+      ifNotPiOrPathType ty (\_ -> mzero) \dom cod ->
+        let
+          name = notVisible info && ConversionFail == argInfoOrigin info && skipped
+          arg = I.Apply if name
+            then Arg info (Named (Just $ WithOrigin Inserted $ unranged $ absName cod) tm)
+            else Arg info (unnamed tm)
+        in (arg:) <$> nameElims (notVisible info || name) (acc `applyE` [elim]) (cod `lazyAbsApp` tm) as
+    nameElims _ tm ty (I.Proj o n:as) = projectTyped tm ty o n >>= \case
+      Nothing          -> mzero
+      Just (_, tm, ty) -> (I.Proj o n:) <$> nameElims False tm ty as
 
     -- Andreas, 2016-07-06 Issue #2047
 
@@ -950,9 +989,11 @@ instance Reify i => Reify (Named n i) where
 instance Reify i => Reify (Arg i) where
   type ReifiesTo (Arg i) = Arg (ReifiesTo i)
 
-  reify (Arg info i) = Arg info <$> (flip reifyWhen i =<< condition)
-    where condition = (return (argInfoHiding info /= Hidden) `or2M` showImplicitArguments)
-              `and2M` (return (not $ isIrrelevant info) `or2M` showIrrelevantArguments)
+  reify (Arg info i) = Arg info <$> (flip reifyWhen i =<< condition) where
+    condition
+      | ConversionFail <- argInfoOrigin info = pure True
+      | otherwise = (return (argInfoHiding info /= Hidden) `or2M` showImplicitArguments)
+            `and2M` (return (not $ isIrrelevant info) `or2M` showIrrelevantArguments)
   reifyWhen b i = traverse (reifyWhen b) i
 {-# SPECIALIZE reify :: Reify i => Arg i -> TCM (ReifiesTo (Arg i)) #-}
 
@@ -1177,6 +1218,7 @@ instance BlankVars A.Expr where
     A.DontCare v             -> A.DontCare $ blank bound v
     A.PatternSyn {}          -> e
     A.Macro {}               -> e
+    A.Highlighted q e        -> A.Highlighted q $ blank bound e
     A.Qualified q e          -> A.Qualified q $ blank bound e
 
 instance BlankVars A.ModuleName where

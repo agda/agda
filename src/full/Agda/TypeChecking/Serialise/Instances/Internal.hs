@@ -96,6 +96,15 @@ instance EmbPrj a => EmbPrj (I.Abs a) where
     valu (N3 0 a b) = valuN NoAbs a b
     valu _          = malformed
 
+instance EmbPrj I.DummyTermKind where
+  icod_ (DummyNamed a)        = icodeN' DummyNamed a
+  icod_ (DummyBrave a)        = icodeN 0 DummyBrave a
+
+  value = vcase valu where
+    valu (N1 a)   = valuN DummyNamed a
+    valu (N2 0 a) = valuN DummyBrave a
+    valu _        = malformed
+
 instance EmbPrj I.Term where
   icod_ (Var     a []) = case cacheVar a of
                            Just a  -> pure a

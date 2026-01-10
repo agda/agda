@@ -1061,8 +1061,9 @@ instance ToAbstract C.Expr where
 
       C.Tactic r e -> syntaxError "'tactic' can only appear in attributes"
 
-  -- DontCare
-      C.DontCare e -> A.DontCare <$> toAbstract e
+  -- 'Flagged' expressions from internal syntax
+      C.DontCare      e -> A.DontCare      <$> toAbstract e
+      C.Highlighted m a -> A.Highlighted m <$> toAbstract a
 
   -- forall-generalize
       C.Generalized e -> do

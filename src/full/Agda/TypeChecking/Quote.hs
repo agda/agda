@@ -309,7 +309,7 @@ quotingKit = do
                               @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare u -> quoteTerm u
-          Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+          Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
       defParameters :: Definition -> Bool -> [ReduceM Term]
       defParameters def True  = []

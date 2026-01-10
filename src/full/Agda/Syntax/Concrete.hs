@@ -205,6 +205,9 @@ data Expr
     -- ^ An operator application coming from abstract syntax, for which
     -- we know a precise syntactic highlighting class (used in
     -- printing).
+  | Highlighted Aspects Expr
+    -- ^ An arbitrary expression bundled with highlighting information
+    -- from abstract (or internal) syntax
   | Generalized Expr
   deriving Eq
 
@@ -998,6 +1001,7 @@ instance HasRange Expr where
       Generalized e          -> getRange e
       KnownIdent _ q         -> getRange q
       KnownOpApp _ r _ _ _   -> r
+      Highlighted _ e        -> getRange e
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -1276,6 +1280,7 @@ instance KillRange Expr where
   killRange (Generalized e)           = killRangeN Generalized e
   killRange (KnownIdent a b)          = killRangeN (KnownIdent a) b
   killRange (KnownOpApp a b c d e)    = killRangeN (KnownOpApp a) b c d e
+  killRange (Highlighted a b)         = killRangeN (Highlighted a) b
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRangeN DomainFree b
@@ -1400,6 +1405,7 @@ instance NFData Expr where
   rnf (Generalized e)          = rnf e
   rnf (KnownIdent a b)         = rnf b
   rnf (KnownOpApp a b c d e)   = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf c
+  rnf (Highlighted a b)        = rnf a `seq` rnf b
 
 -- | Ranges are not forced.
 

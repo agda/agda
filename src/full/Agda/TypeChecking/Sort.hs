@@ -208,7 +208,7 @@ sortOf t = do
       Lit{}      -> __IMPOSSIBLE__
       Level{}    -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
-      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
     sortOfE :: Type -> (Elims -> Term) -> Elims -> m Sort
     sortOfE a hd []     = ifIsSort a return __IMPOSSIBLE__

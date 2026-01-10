@@ -1742,7 +1742,7 @@ inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
       Sort{}     -> neutralArg
       Level{}    -> neutralArg
       DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
-      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
   -- managing an assoc list where duplicate indizes cannot be irrelevant vars
   append :: Res -> Res -> Res

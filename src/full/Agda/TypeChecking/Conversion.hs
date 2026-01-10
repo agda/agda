@@ -1043,8 +1043,6 @@ compareElims pols0 fors0 a v els01 els02 =
                    -- Apparently, it is believed that checking free vars is cheaper.
                    -- Andreas, 2013-05-15
 
--- NEW, Andreas, 2013-05-15
-
           -- compare arg1 and arg2
           pid <- newProblem_ $ applyModalityToContext info $
               if isForced for then

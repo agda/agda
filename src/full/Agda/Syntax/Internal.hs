@@ -16,6 +16,7 @@ import Control.Monad.Identity
 import Control.DeepSeq
 
 import qualified Data.List as List
+import Data.String
 import Data.Maybe
 import Data.Semigroup ( Sum(..) )
 import System.IO.Unsafe (unsafePerformIO)
@@ -193,6 +194,21 @@ instance LensConName ConHead where
   setConName c con = con { conName = c }
 
 
+-- | Terms used for internal purposes
+data DummyTermKind
+  = DummyNamed      String
+  -- ^ Generic dummy term, the 'String' generally describes where the
+  -- term was generated (as well as giving a disambiguator).
+  --
+  -- Should not be used to convey actual information.
+
+  | DummyBrave Term
+  -- ^ Collects applications to a 'BraveTerm'.
+  deriving Show
+
+instance IsString DummyTermKind where
+  fromString = DummyNamed
+
 -- | Raw values.
 --
 --   @Def@ is used for both defined and undefined constants.
@@ -216,16 +232,21 @@ data Term = Var' {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
-          | Dummy String Elims
+          | Dummy DummyTermKind Elims
             -- ^ A (part of a) term or type which is only used for internal purposes.
-            --   Replaces the @Sort Prop@ hack.
-            --   The @String@ typically describes the location where we create this dummy,
-            --   but can contain other information as well.
-            --   The second field accumulates eliminations in case we
-            --   apply a dummy term to more of them. Dummy terms should never be used in places
-            --   where they can affect type checking, so syntactic checks are free to ignore the
-            --   eliminators, which are only there to ease debugging when a dummy term incorrectly
-            --   leaks into a relevant position.
+            --
+            -- The 'DummyTermKind' describes why this dummy was created;
+            -- typically, it is a string describing the source location
+            -- that created it, but dummy terms are also used when
+            -- *leaving* the type checker (through reification) to
+            -- convey out-of-band information.
+            --
+            -- The second field accumulates eliminations in case we
+            -- apply a dummy term to more of them. Dummy terms should
+            -- never be used in places where they can affect type
+            -- checking, so syntactic checks are free to ignore the
+            -- eliminators, which are only there to ease debugging when
+            -- a dummy term incorrectly leaks into a relevant position.
   deriving Show
 
 -- Caching small variables
@@ -846,17 +867,15 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
-type DummyTermKind = String
-
 -- | Construct a string representing the call-site that created the dummy thing.
 dummyLocName :: CallStack -> String
 dummyLocName cs = maybe __IMPOSSIBLE__ prettyCallSite (headCallSite cs)
 
 -- | Aux: A dummy term to constitute a dummy term/level/sort/type.
-dummyTermWith :: DummyTermKind -> CallStack -> Term
-dummyTermWith kind cs = flip Dummy [] $ concat [kind, ": ", dummyLocName cs]
+dummyTermWith :: String -> CallStack -> Term
+dummyTermWith kind cs = flip Dummy [] . DummyNamed $ concat [kind, ": ", dummyLocName cs]
 
-__DUMMY_TERM_WITH__ :: HasCallStack => DummyTermKind -> Term
+__DUMMY_TERM_WITH__ :: HasCallStack => String -> Term
 __DUMMY_TERM_WITH__ = withCallerCallStack . dummyTermWith
 
 -- | A dummy term created at location.
@@ -933,7 +952,7 @@ mkSSet :: Integer -> Sort
 mkSSet n = SSet $ ClosedLevel n
 
 impossibleTerm :: CallStack -> Term
-impossibleTerm = flip Dummy [] . show . Impossible
+impossibleTerm = flip Dummy [] . DummyNamed . show . Impossible
 
 ---------------------------------------------------------------------------
 -- * Sorts.
@@ -1392,7 +1411,10 @@ instance Pretty Term where
       Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
-      Dummy s es  -> parens (text s) `pApp` es
+
+      Dummy kind es -> case kind of
+        DummyNamed s  -> parens (text s) `pApp` es
+        DummyBrave        hd -> pretty hd `pApp` es
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]

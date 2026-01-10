@@ -191,7 +191,7 @@ instance PatternFrom Term NLPat where
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , DontCare{}) -> __IMPOSSIBLE__
       (_ , MetaV m _)  -> __IMPOSSIBLE__
-      (_ , Dummy s _)  -> __IMPOSSIBLE_VERBOSE__ s
+      (_ , Dummy s _)  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
 -- | Convert from a non-linear pattern to a term.
 

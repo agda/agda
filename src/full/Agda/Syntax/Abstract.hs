@@ -33,6 +33,7 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Aspect (Aspects)
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Info
 import Agda.Syntax.Literal
@@ -132,7 +133,8 @@ data Expr
   | Qualified ModuleName Expr          -- ^ For remembering the module name of a qualified @do@ block.
 
   -- Wrappers for internal syntax:
-  | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
+  | Highlighted Aspects Expr           -- ^ For printing annotated terms produced by the type checker.
+  | DontCare Expr                      -- ^ For printing @DontCare@ from @Agda.Syntax.Internal@.
   deriving (Show, Generic)
 
 -- | Pattern synonym for regular 'Def'.
@@ -711,6 +713,7 @@ instance HasRange Expr where
     getRange (PatternSyn x)             = getRange x
     getRange (Macro x)                  = getRange x
     getRange (Qualified _ e)            = getRange e
+    getRange (Highlighted _ e)          = getRange e
 
 instance HasRange Declaration where
     getRange (Axiom    _ i _ _ _ _  )  = getRange i
@@ -847,6 +850,7 @@ instance KillRange Expr where
   killRange (PatternSyn x)               = killRangeN PatternSyn x
   killRange (Macro x)                    = killRangeN Macro x
   killRange (Qualified a b)              = killRangeN Qualified a b
+  killRange (Highlighted a b)            = killRangeN (Highlighted a) b
 
 instance KillRange Suffix where
   killRange = id
@@ -1125,6 +1129,7 @@ instance SubstExpr Expr where
     Unquote{}        -> __IMPOSSIBLE__
     DontCare{}       -> __IMPOSSIBLE__
     Macro{}          -> __IMPOSSIBLE__
+    Highlighted{}    -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs :: forall a. HasRange a
