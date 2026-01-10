@@ -1,3 +1,7 @@
-Issue3188.agda:4.5-8: error: [UnequalSorts]
-Set₁ != Set
+Issue3188.agda:4.5-8: error: [UnequalTypes]
+The types
+  Set₁
+and
+  Set
+are not equal
 when checking that the expression Set has type Set

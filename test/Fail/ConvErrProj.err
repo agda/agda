@@ -1,0 +1,7 @@
+ConvErrProj.agda:13.14-18: error: [UnequalTerms]
+The terms
+  x + y
+and
+  x * y
+are not equal at type carrier
+when checking that the expression refl has type (x + y) ≡ (x * y)

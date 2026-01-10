@@ -1,3 +1,6 @@
-CoinductiveBuiltinList.agda:11.18-22: error: [UnequalTerms]
-List A !=< ∞ (List A)
+CoinductiveBuiltinList.agda:11.18-22: error: [UnequalTypes]
+The type
+  List A
+is not a subtype of
+  ∞ (List A)
 when checking that the expression _∷_ has type A → List A → List A

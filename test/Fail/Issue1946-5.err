@@ -1,3 +1,7 @@
-Issue1946-5.agda:16.16-23: error: [UnequalSorts]
-SizeUniv != Set
+Issue1946-5.agda:16.16-23: error: [UnequalTypes]
+The types
+  SizeUniv
+and
+  Set
+are not equal
 when checking that the expression Size< i has type Set

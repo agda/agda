@@ -1,3 +1,7 @@
 Issue3136a.agda:19.18-22: error: [UnequalTerms]
-x != λ { .R.w → λ { → false } } of type R
+The terms
+  x
+and
+  λ { .R.w → λ { → false } }
+are not equal at type R
 when checking that the expression refl has type x ≡ f

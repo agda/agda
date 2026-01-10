@@ -39,6 +39,7 @@ EOF
 #
 cat >> $ERRORS <<EOF
 NeedOptionRewriting
+MismatchedProjectionsError
 EOF
 
 # Errors which became impossible for ordinary data definitions

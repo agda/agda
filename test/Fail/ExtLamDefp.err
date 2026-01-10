@@ -1,3 +1,7 @@
 ExtLamDefp.agda:12.5-9: error: [UnequalTerms]
-(λ { refl → refl }) x != x of type 0 ≡ 0
+The terms
+  (λ { refl → refl }) x
+and
+  x
+are not equal at type 0 ≡ 0
 when checking that the expression refl has type f ≡ (λ x → x)

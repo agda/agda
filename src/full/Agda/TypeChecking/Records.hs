@@ -327,7 +327,7 @@ getDefType f t = do
                 | otherwise = n - 1
       reportSLn "tc.deftype" 20 $ "projIndex    = " ++ show n
       -- we get the parameters from type @t@
-      case unEl t of
+      instantiate (unEl t) >>= \case
         Def d es -> do
           -- Andreas, 2013-10-22
           -- we need to check this @Def@ is fully reduced.

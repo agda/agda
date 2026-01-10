@@ -1,5 +1,8 @@
-Issue964.agda:18.14-18: error: [UnequalLevel]
-Common.Issue964.UnsolvedMetas.unsolved#meta.1 something !=
-lsuc (lsuc lzero)
+Issue964.agda:18.14-18: error: [UnequalTerms]
+The terms
+  Common.Issue964.UnsolvedMetas.unsolved#meta.1 something
+and
+  lsuc (lsuc lzero)
+are not equal at type Level
 when checking that the expression refl has type
 meta ≡ lsuc (lsuc lzero)

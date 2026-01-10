@@ -1,5 +1,8 @@
-QualifiedDoOpen.agda:24.3-30: error: [UnequalTerms]
-M _B_32 !=< N A
+QualifiedDoOpen.agda:24.3-30: error: [UnequalTypes]
+The type
+  M _B_32
+is not a subtype of
+  N A
 when checking that the inferred type of an application
   M _B_32
 matches the expected type

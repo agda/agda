@@ -1,3 +1,7 @@
 OpaqueUnfoldType.agda:52.50-51: error: [UnequalTerms]
-n != (zero + n) of type Nat
+The terms
+  n
+and
+  zero + n
+are not equal at type Nat
 when checking that the expression x has type Vec A (zero + n)

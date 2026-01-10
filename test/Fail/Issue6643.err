@@ -3,5 +3,9 @@ Rewrite rule from function  p  cannot be added before the definition of mutually
 when checking the pragma REWRITE p
 
 Issue6643.agda:14.5-9: error: [UnequalTerms]
-true != false of type Bool
+The terms
+  true
+and
+  false
+are not equal at type Bool
 when checking that the expression refl has type true ≡ false

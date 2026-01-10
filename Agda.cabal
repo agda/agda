@@ -716,6 +716,7 @@ library
       Agda.TypeChecking.CompiledClause.Match
       Agda.TypeChecking.Constraints
       Agda.TypeChecking.Conversion
+      Agda.TypeChecking.Conversion.Errors
       Agda.TypeChecking.Conversion.Pure
       Agda.TypeChecking.Coverage
       Agda.TypeChecking.Coverage.Cubical

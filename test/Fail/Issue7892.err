@@ -1,3 +1,7 @@
 Issue7892.agda:23.19-20: error: [UnequalTerms]
-"bar" !=< "foo" of type String
+The terms
+  "bar"
+and
+  "foo"
+are not equal at type String
 when checking that the expression r has type R "foo"

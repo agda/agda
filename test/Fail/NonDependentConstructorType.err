@@ -1,3 +1,6 @@
-NonDependentConstructorType.agda:8.7-11: error: [UnequalTerms]
-Set → Wrap !=< Set
+NonDependentConstructorType.agda:8.7-11: error: [UnequalTypes]
+The type
+  Set → Wrap
+is not a subtype of
+  Set
 when checking that the expression wrap has type Set

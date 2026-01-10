@@ -280,15 +280,8 @@ data ErrorName
   | TriedToCopyConstrainedPrim_
   | InvalidInstanceHeadType_
   | UnboundVariablesInPatternSynonym_
-  | UnequalCohesion_
-  | UnequalFiniteness_
-  | UnequalHiding_
-  | UnequalLevel_
-  | UnequalQuantity_
-  | UnequalRelevance_
-  | UnequalPolarity_
-  | UnequalSorts_
   | UnequalTerms_
+  | UnequalTypes_
   | UnexpectedModalityAnnotationInParameter_
   | UnexpectedParameter_
   | UnexpectedTypeSignatureForParameter_

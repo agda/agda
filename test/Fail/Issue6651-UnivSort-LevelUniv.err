@@ -1,4 +1,8 @@
-Issue6651-UnivSort-LevelUniv.agda:14.5-6: error: [UnequalSorts]
-univSort _8 != LevelUniv
+Issue6651-UnivSort-LevelUniv.agda:14.5-6: error: [UnequalTypes]
+The types
+  univSort _8
+and
+  LevelUniv
+are not equal
 when checking that the solution _8 of metavariable _6 has the
 expected type LevelUniv

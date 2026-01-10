@@ -1,3 +1,6 @@
-Issue721trim.agda:14.12-13: error: [UnequalTerms]
-Bool !=< _*_ x ≡ (λ x₁ → x₁)
+Issue721trim.agda:14.12-13: error: [UnequalTypes]
+The type
+  Bool
+is not a subtype of
+  _*_ x ≡ (λ x₁ → x₁)
 when checking that the expression x has type _*_ x ≡ (λ x₁ → x₁)

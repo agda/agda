@@ -1,3 +1,7 @@
 OpaqueSibling.agda:23.16-20: error: [UnequalTerms]
-h != 3 of type Nat
+The terms
+  h
+and
+  3
+are not equal at type Nat
 when checking that the expression refl has type k ≡ 6

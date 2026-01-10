@@ -1,3 +1,7 @@
 Issue829.agda:22.21-24: error: [UnequalTerms]
-x != f (c x tt) of type ⊥
+The terms
+  x
+and
+  f (c x tt)
+are not equal at type ⊥
 when checking that the expression g x has type P (f (c x tt))

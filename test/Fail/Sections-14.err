@@ -1,3 +1,7 @@
-Sections-14.agda:5.7-12: error: [UnequalSorts]
-Set₁ != Set
+Sections-14.agda:5.7-12: error: [UnequalTypes]
+The types
+  Set₁
+and
+  Set
+are not equal
 when checking that the expression ∙ Set has type Set

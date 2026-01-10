@@ -1,3 +1,6 @@
-RecordUpdatePreservesType.agda:18.14-17: error: [UnequalTerms]
-R !=< Q
+RecordUpdatePreservesType.agda:18.14-17: error: [UnequalTypes]
+The type
+  R
+is not a subtype of
+  Q
 when checking that the expression old has type Q

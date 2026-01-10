@@ -1,3 +1,7 @@
 Issue8126.agda:17.35-36: error: [UnequalTerms]
-b != a
+The terms
+  b
+and
+  a
+are not equal at type A
 when checking that the expression y has type P a

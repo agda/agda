@@ -1,3 +1,7 @@
-Issue998d.agda:7.9-10: error: [UnequalSorts]
-Set ℓ != Set Issue998d.ℓ
+Issue998d.agda:7.9-10: error: [UnequalTypes]
+The types
+  Set ℓ
+and
+  Set Issue998d.ℓ
+are not equal
 when checking that the expression A has type Set ℓ

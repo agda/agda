@@ -906,15 +906,17 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     -- Name any 'ConversionFail' arguments that are in the wrong position in the spine.
     nameElims :: Bool -> I.Term -> I.Type -> I.Elims -> MaybeT m [Elim' (Named_ Term)]
     nameElims _       _   _  []                   = pure []
-    nameElims skipped acc ty (I.IApply _ _ tm:as) = nameElims skipped acc ty (I.Apply (defaultArg tm):as)
-    nameElims skipped acc ty (elim@(I.Apply (Arg info tm)):as) =
-      ifNotPiOrPathType ty (\_ -> mzero) \dom cod ->
+    nameElims needs acc ty (I.IApply _ _ tm:as) = nameElims needs acc ty (I.Apply (defaultArg tm):as)
+    nameElims needs acc ty (elim@(I.Apply (Arg info tm)):as) =
+      ifNotPiOrPathType ty (\_ -> mzero) \dom cod -> do
         let
-          name = notVisible info && ConversionFail == argInfoOrigin info && skipped
-          arg = I.Apply if name
+          forced = notVisible info && (ConversionFail == argInfoOrigin info)
+          arg = I.Apply if forced && needs
             then Arg info (Named (Just $ WithOrigin Inserted $ unranged $ absName cod) tm)
             else Arg info (unnamed tm)
-        in (arg:) <$> nameElims (notVisible info || name) (acc `applyE` [elim]) (cod `lazyAbsApp` tm) as
+        (arg:) <$> nameElims
+          (if visible info then False else not forced)
+          (acc `applyE` [elim]) (cod `lazyAbsApp` tm) as
     nameElims _ tm ty (I.Proj o n:as) = projectTyped tm ty o n >>= \case
       Nothing          -> mzero
       Just (_, tm, ty) -> (I.Proj o n:) <$> nameElims False tm ty as

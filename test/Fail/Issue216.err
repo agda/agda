@@ -1,3 +1,7 @@
-Issue216.agda:8.11-26: error: [UnequalSorts]
-Set (lsuc i) != Set i
+Issue216.agda:8.11-26: error: [UnequalTypes]
+The types
+  Set (lsuc i)
+and
+  Set i
+are not equal
 when checking that the expression (R : Set i) → R has type Set i

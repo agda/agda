@@ -1414,7 +1414,7 @@ instance Pretty Term where
 
       Dummy kind es -> case kind of
         DummyNamed s  -> parens (text s) `pApp` es
-        DummyBrave        hd -> pretty hd `pApp` es
+        DummyBrave hd -> pretty hd `pApp` es
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]

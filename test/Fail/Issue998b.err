@@ -1,3 +1,7 @@
 Issue998b.agda:8.7-10: error: [UnequalTerms]
-A != Issue998b.A of type Set
+The terms
+  A
+and
+  Issue998b.A
+are not equal at type Set
 when checking that the expression d A has type D A

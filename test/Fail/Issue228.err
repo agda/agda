@@ -1,3 +1,7 @@
-Issue228.agda:19.5-18: error: [UnequalSorts]
-Set (lsuc lzero ⊔ ∞) != Set
+Issue228.agda:19.5-18: error: [UnequalTypes]
+The types
+  Set (lsuc lzero ⊔ ∞)
+and
+  Set
+are not equal
 when checking that the expression Large × Small has type Set

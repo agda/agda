@@ -1,3 +1,7 @@
 PathWithBoundary.agda:20.1-12: error: [UnequalTerms]
-suc (q + m) != m of type Nat
+The terms
+  suc (q + m)
+and
+  m
+are not equal at type Nat
 when checking the definition of PathWithBoundary.with-18

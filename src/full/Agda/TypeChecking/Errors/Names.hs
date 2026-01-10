@@ -4,6 +4,7 @@ module Agda.TypeChecking.Errors.Names where
 
 import Agda.Syntax.Concrete.Definitions.Errors as N (DeclarationException'(..))
 import Agda.TypeChecking.Monad.Base            as MB
+import Agda.TypeChecking.Conversion.Errors
 import Agda.Interaction.Options.Errors
 
 -- | Print the name of a 'TypeError'.
@@ -35,6 +36,9 @@ typeErrorName = \case
   PatternSynonymArgumentShadows what _ _ -> PatternSynonymArgumentShadows_ what
   -- Wrappers
   OperatorInformation _ _  err -> typeErrorName err
+  ConversionError_ ConversionError{convErrTys = cmp} -> case cmp of
+    FailAsTypes{}   -> UnequalTypes_
+    FailAsTermsOf{} -> UnequalTerms_
   -- Generic errors (alphabetically)
   CompilationError          {} -> CompilationError_
   CustomBackendError        {} -> CustomBackendError_
@@ -229,15 +233,6 @@ typeErrorName = \case
   TriedToCopyConstrainedPrim                                 {} -> TriedToCopyConstrainedPrim_
   InvalidInstanceHeadType                                    {} -> InvalidInstanceHeadType_
   UnboundVariablesInPatternSynonym                           {} -> UnboundVariablesInPatternSynonym_
-  UnequalCohesion                                            {} -> UnequalCohesion_
-  UnequalFiniteness                                          {} -> UnequalFiniteness_
-  UnequalHiding                                              {} -> UnequalHiding_
-  UnequalLevel                                               {} -> UnequalLevel_
-  UnequalQuantity                                            {} -> UnequalQuantity_
-  UnequalRelevance                                           {} -> UnequalRelevance_
-  UnequalPolarity                                            {} -> UnequalPolarity_
-  UnequalSorts                                               {} -> UnequalSorts_
-  UnequalTerms                                               {} -> UnequalTerms_
   UnexpectedModalityAnnotationInParameter                    {} -> UnexpectedModalityAnnotationInParameter_
   UnexpectedParameter                                        {} -> UnexpectedParameter_
   UnexpectedTypeSignatureForParameter                        {} -> UnexpectedTypeSignatureForParameter_

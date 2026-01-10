@@ -57,6 +57,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
@@ -383,8 +384,15 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
                                     -- We can't invert in this case, since we can't
                                     -- tell the difference between a solution that makes
                                     -- the blocked term neutral and one that makes progress.
-          Just hd -> invertFunction cmp blk inv hd fallback err success
-            where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
+          Just hd -> invertFunction cmp blk inv hd fallback err success where
+            err = do
+              ty' <- case ty of
+                AsTypes     -> pure (FailAsTypes Nothing)
+                AsSizes     -> do
+                  sz <- sizeType
+                  pure $ FailAsTermsOf sz sz
+                AsTermsOf t -> pure $ FailAsTermsOf t t
+              typeError $ app (\ u v -> ConversionError_ (ConversionError cmp ty' u v (Just ConvStop))) blk neu
   where
     fallback     = addConstraint blocker $ app (ValueCmp cmp ty) blk neu
     success blk' = app (compareAs cmp ty) blk' neu

@@ -1,5 +1,9 @@
 Issue2480false.agda:23.16-61: error: [UnequalTerms]
-tt != ff of type Bool
+The terms
+  tt
+and
+  ff
+are not equal at type Bool
 when checking that the expression
 refl {x = ap {A = Bool→cBool} (λ f → f tt) p} has type
 ap (λ f → f tt) p ≡ ap (λ f → f ff) p

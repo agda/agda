@@ -1,3 +1,6 @@
-InferredLambdaOfNoFunctionType.agda:19.11-18: error: [UnequalTerms]
-(z : _10) → A !=< spec n ≡ impl n
+InferredLambdaOfNoFunctionType.agda:19.11-18: error: [UnequalTypes]
+The type
+  (z : _10) → A
+is not a subtype of
+  spec n ≡ impl n
 when checking that the expression λ _ → n has type spec n ≡ impl n

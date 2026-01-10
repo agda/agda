@@ -1,3 +1,6 @@
-Issue2868.agda:18.10-14: error: [UnequalTerms]
-a ≡ a !=< A
+Issue2868.agda:18.10-14: error: [UnequalTypes]
+The type
+  a ≡ a
+is not a subtype of
+  A
 when checking that the expression same has type A

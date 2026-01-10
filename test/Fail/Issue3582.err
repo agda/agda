@@ -1,3 +1,7 @@
-Issue3582.agda:8.7-8: error: [UnequalSorts]
-Prop₁ != Prop
+Issue3582.agda:8.7-8: error: [UnequalTypes]
+The types
+  Prop₁
+and
+  Prop
+are not equal
 when checking that the expression P has type Prop

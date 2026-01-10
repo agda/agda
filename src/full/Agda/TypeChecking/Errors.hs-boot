@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Errors where
 
-import Agda.Syntax.Common (Cohesion, PolarityModality, Relevance)
+import Agda.Syntax.Common (Cohesion, PolarityModality, Relevance, Hiding, Quantity)
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
@@ -23,4 +23,9 @@ class Verbalize a where
 
 instance Verbalize Relevance
 instance Verbalize Cohesion
+instance Verbalize Hiding
+instance Verbalize Quantity
 instance Verbalize PolarityModality
+
+newtype Indefinite a = Indefinite a
+instance Verbalize a => Verbalize (Indefinite a)

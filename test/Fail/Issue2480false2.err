@@ -1,3 +1,7 @@
 Issue2480false2.agda:19.18-22: error: [UnequalTerms]
-x != y of type Bool
+The terms
+  x
+and
+  y
+are not equal at type Bool
 when checking that the expression refl has type f x ≡ f y

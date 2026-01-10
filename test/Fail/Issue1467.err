@@ -1,3 +1,7 @@
 Issue1467.agda:25.14-19: error: [UnequalTerms]
-(D → D) × D != D → D of type Set
+The terms
+  (D → D) × D
+and
+  D → D
+are not equal at type Set
 when checking that the expression bar H has type P (foo H)

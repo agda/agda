@@ -1,3 +1,6 @@
-Issue783b.agda:3.11-14: error: [UnequalTerms]
-Set₁ !=< Agda.Primitive.Level
+Issue783b.agda:3.11-14: error: [UnequalTypes]
+The type
+  Set₁
+is not a subtype of
+  Agda.Primitive.Level
 when checking that the expression Set has type Agda.Primitive.Level

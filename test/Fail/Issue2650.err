@@ -1,3 +1,7 @@
 Issue2650.agda:16.14-18: error: [UnequalTerms]
-a != b of type A
+The terms
+  a
+and
+  b
+are not equal at type A
 when checking that the expression refl has type _10 i ≡ b

@@ -1,3 +1,6 @@
-Issue644.agda:28.13-14: error: [UnequalTerms]
-R !=< ((x : A) → P x)
+Issue644.agda:28.13-14: error: [UnequalTypes]
+The type
+  R
+is not a subtype of
+  (x : A) → P x
 when checking that the expression r has type (x : A) → P x

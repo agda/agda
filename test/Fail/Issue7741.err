@@ -1,4 +1,7 @@
-Issue7741.agda:11.5-10: error: [UnequalTerms]
-(section : List ⊤) → List ⊤ !=< List ⊤
+Issue7741.agda:11.5-10: error: [UnequalTypes]
+The type
+  (section : List ⊤) → List ⊤
+is not a subtype of
+  List ⊤
 when checking that the expression λ section → tt ∷ section has type
 List ⊤

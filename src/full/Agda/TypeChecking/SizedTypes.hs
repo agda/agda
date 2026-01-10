@@ -30,6 +30,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (MonadCheckInternal, infer)
 import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Conversion.Errors
 
 import Agda.Utils.Functor
 import Agda.Utils.List as List
@@ -239,8 +240,8 @@ trySizeUniv
   => Comparison -> CompareAs -> Term -> Term
   -> QName -> Elims -> QName -> Elims -> m ()
 trySizeUniv cmp t m n x els1 y els2 = do
-  let failure :: forall m a. MonadTCError m => m a
-      failure = typeError $ UnequalTerms cmp m n t
+  let failure :: forall m a. (MonadTCError m, HasBuiltins m) => m a
+      failure = failConversion cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   -- Get the SIZE built-ins.
   (size, sizelt) <- maybe failure pure =<< runMaybeT do
@@ -368,7 +369,7 @@ compareSizeViews cmp s1' s2' = do
         u <- unDeepSizeView s1
         v <- unDeepSizeView s2
         cont u v
-      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v AsSizes
+      failure = withUnView $ \ u v -> failConversion cmp u v AsSizes
       continue cmp = withUnView $ compareAtom cmp AsSizes
   case (cmp, s1, s2) of
     (CmpLeq, _,            DSizeInf)   -> return ()
@@ -402,7 +403,7 @@ giveUp cmp size u v =
       -- TODO: compute proper blocker
       unblock <- unblockOnAnyMetaIn <$> instantiateFull [u, v]
       addConstraint unblock $ ValueCmp CmpLeq AsSizes u v)
-    {-else-} (typeError $ UnequalTerms cmp u v AsSizes)
+    {-else-} (failConversion cmp u v AsSizes)
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: (MonadConversion m) => Term -> Term -> m Bool

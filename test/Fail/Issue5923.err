@@ -1,3 +1,7 @@
 Issue5923.agda:16.8-12: error: [UnequalTerms]
-f tt != a of type A
+The terms
+  f tt
+and
+  a
+are not equal at type A
 when checking that the expression refl has type f tt ≡ a

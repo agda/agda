@@ -1,3 +1,7 @@
-FunSort-X-SSet-SetOmega.agda:6.13-18: error: [UnequalSorts]
-Setω != funSort _3 SSet
+FunSort-X-SSet-SetOmega.agda:6.13-18: error: [UnequalTypes]
+The types
+  Setω
+and
+  funSort _3 SSet
+are not equal
 when checking that the expression A → B has type Setω

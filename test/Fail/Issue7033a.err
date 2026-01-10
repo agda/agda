@@ -1,5 +1,8 @@
-Issue7033a.agda:20.12-86: error: [UnequalTerms]
-hcomp (λ i → isOneEmpty) (transp (λ i → Set) i0 (onS¹ base)) !=< ⊥
+Issue7033a.agda:20.12-86: error: [UnequalTypes]
+The type
+  hcomp (λ i → isOneEmpty) (transp (λ i → Set) i0 (onS¹ base))
+is not a subtype of
+  ⊥
 when checking that the expression
 transp
 (λ i₁ → onS¹ (hcomp {φ = ~ i₁} (λ { j (i₁ = i0) → base }) base)) i0

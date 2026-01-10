@@ -1,4 +1,8 @@
 UninstantiatedDotPattern.agda:5.4-5: error: [UnequalTerms]
-X != x of type Set
+The terms
+  X
+and
+  x
+are not equal at type Set
 when checking that the given dot pattern X matches the inferred
 value x

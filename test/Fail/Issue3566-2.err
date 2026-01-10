@@ -1,3 +1,6 @@
-Issue3566-2.agda:12.8-9: error: [UnequalTerms]
-(r : R) → A !=< A
+Issue3566-2.agda:12.8-9: error: [UnequalTypes]
+The type
+  (r : R) → A
+is not a subtype of
+  A
 when checking that the expression b has type A

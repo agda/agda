@@ -47,6 +47,7 @@ import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
+import Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( getAllWarnings, Verbalize(..) )
@@ -267,7 +268,7 @@ refine force ii e = do
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = interactionError $ CannotRefine $ case err of
-           Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
+           Just (TypeError _ _ cl) | ConversionError_ (ConversionError _ _ I.Pi{} _ _) <- clValue cl ->
              "functions with 10 or more arguments"
            _ -> ""
         try n _ e = give force ii e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e

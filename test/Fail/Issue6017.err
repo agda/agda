@@ -1,5 +1,10 @@
 Issue6017.agda:24.1-13: error: [UnequalTerms]
-(~ j ∨ j) ∨ ~ i ∨ i != ~ j ∨ j of type I
+The terms
+  hcomp {φ = (~ j ∨ j) ∨ ~ i ∨ i} _ _
+and
+  hcomp {φ = ~ j ∨ j} (λ { i₁ (j = i0) → p i0 ; i₁ (j = i1) → p i₁ })
+  (p j)
+are not equal at type T
 when checking that a clause of f has the correct boundary.
 
 Specifically, the terms

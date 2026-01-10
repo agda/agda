@@ -1,5 +1,9 @@
 Issue1258-2.agda:38.9-13: error: [UnequalTerms]
-Foo _28 != Bool of type Set
+The terms
+  Foo _28
+and
+  Bool
+are not equal at type Set
 when checking that the expression refl has type
 f (Bool × Wrap Nat) (true , wrap zero) ==
 f (Stuck × Stuck) (Beta , Beta)
