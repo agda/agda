@@ -3,5 +3,9 @@ rew  is not a legal rewrite rule, since the following parameters are bound more 
 when checking the pragma REWRITE rew
 
 Issue4755a.agda:26.8-12: error: [UnequalTerms]
-c (box Bool) r != dr of type D Bool
+The terms
+  c (box Bool) r
+and
+  dr
+are not equal at type D Bool
 when checking that the expression refl has type c (box Bool) r ≡ dr

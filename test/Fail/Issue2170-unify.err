@@ -1,5 +1,8 @@
-Issue2170-unify.agda:19.39-45: error: [UnequalRelevance]
-(.(unsquash₁ : _A_14) → Squash _A_14) !=< (A → Squash A) because
-one is a relevant function type and the other is an irrelevant
-function type
+Issue2170-unify.agda:19.39-45: error: [UnequalTypes]
+The function type
+  .(unsquash₁ : _A_14) → Squash _A_14
+is not a subtype of
+  A → Squash A
+because:
+  one has irrelevant domain, while the other is relevant.
 when checking that the expression squash has type A → Squash A

@@ -24,14 +24,16 @@ boundary constraints:
   Issue6725.agda:56.11-12
 
 Issue6725.agda:53.3-12: error: [UnequalTerms]
-se (λ { .Φ _ → Set }) i !=
-se
-(λ { .Φ _ → Set
-   ; .ze → ?2 (i = Agda.Primitive.Cubical.i0)
-   ; .on → ?3 (i = Agda.Primitive.Cubical.i0)
-   })
-i
-of type Set
+The terms
+  se (λ { .Φ _ → Set }) i
+and
+  se
+  (λ { .Φ _ → Set
+     ; .ze → ?2 (i = Agda.Primitive.Cubical.i0)
+     ; .on → ?3 (i = Agda.Primitive.Cubical.i0)
+     })
+  i
+are not equal at type Set
 when checking that a clause of alg has the correct boundary.
 
 Specifically, the terms

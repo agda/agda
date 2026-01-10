@@ -1,3 +1,6 @@
-BuiltinFlatBadType.agda:10.22-23: error: [UnequalTerms]
-A → ⊥ !=< A
+BuiltinFlatBadType.agda:10.22-23: error: [UnequalTypes]
+The type
+  A → ⊥
+is not a subtype of
+  A
 when checking that the expression ♭ has type ∞ A → A

@@ -3,5 +3,9 @@ ok  is not a legal rewrite rule, since the following variables are not bound by 
 when checking the pragma REWRITE ok
 
 Issue4371.agda:22.11-15: error: [UnequalTerms]
-n + n != zero of type Nat
+The terms
+  n + n
+and
+  zero
+are not equal at type Nat
 when checking that the expression refl has type n + n ≡ 0

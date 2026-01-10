@@ -1,3 +1,7 @@
 Issue1975.agda:34.7-10: error: [UnequalTerms]
-true != false of type Bool
+The terms
+  true
+and
+  false
+are not equal at type Bool
 when checking that the pattern c x has type M.D false

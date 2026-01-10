@@ -4,7 +4,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals, Errors*" "?0 : Nat ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Failed to solve the following constraints: ?0 (x = n) = n : Nat (blocked on _11)" nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "———— Error ————————————————————————————————————————————————— Issue2286.agda:18.8-12: error: [UnequalTerms] f n != n of type Nat when checking that the expression refl has type f n == n ———— Warnings —————————————————————————————————————————————— Issue2286.agda:15.7-10: error: [TerminationIssue] Termination checking failed for the following functions: f Problematic calls: f x (at Issue2286.agda:15.7-8) when checking that the expression f x has type Nat" nil)
+(agda2-info-action "*Error*" "———— Error ————————————————————————————————————————————————— Issue2286.agda:18.8-12: error: [UnequalTerms] The terms f n and n are not equal at type Nat when checking that the expression refl has type f n == n ———— Warnings —————————————————————————————————————————————— Issue2286.agda:15.7-10: error: [TerminationIssue] Termination checking failed for the following functions: f Problematic calls: f x (at Issue2286.agda:15.7-8) when checking that the expression f x has type Nat" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2286.agda" . 431)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

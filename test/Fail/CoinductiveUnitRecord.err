@@ -13,5 +13,9 @@ Problematic calls:
     (at CoinductiveUnitRecord.agda:24.14-18)
 
 CoinductiveUnitRecord.agda:28.8-12: error: [UnequalTerms]
-bad != bad' of type Unit
+The terms
+  bad
+and
+  bad'
+are not equal at type Unit
 when checking that the expression refl has type bad ≡ bad'

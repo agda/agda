@@ -7,6 +7,10 @@ when checking that the expression ⦃ A : Set ⦄ ⦃ r : Wrap A ⦄ → A is
 a type
 
 Issue2348.agda:28.8-9: error: [UnequalTerms]
-b != Wrap.out w of type B
+The terms
+  b
+and
+  Wrap.out w
+are not equal at type B
 when checking that the expression p has type
 P (proj-like ⦃ r = w ⦄)

@@ -1,0 +1,7 @@
+ConvErrCtxLam.agda:15.13-14: error: [UnequalTerms]
+The terms
+  X {λ x → (λ { _ refl → refl }) Z x}
+and
+  X {λ x → x}
+are not equal at type Set
+when checking that the expression y has type X

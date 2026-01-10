@@ -2,19 +2,32 @@ LocalRewritingNotConfluent.agda:25.13-22: error: [RewriteNonConfluent]
 Local confluence check failed: max (max (suc m) (suc n)) m₁
 reduces to both max (suc m) (max (suc n) m₁) and
 max (suc (max m n)) m₁ which are not equal because
-m != max m n of type Nat
+The terms
+  m
+and
+  max m n
+are not equal at type Nat
 when checking confluence of the rewrite rule max-assoc with max-ss
 
 LocalRewritingNotConfluent.agda:25.13-22: error: [RewriteNonConfluent]
 Local confluence check failed: max (max k k) m reduces to both
 max k (max k m) and max k m which are not equal because
-max k m != m of type Nat
+The terms
+  max k m
+and
+  m
+are not equal at type Nat
 when checking confluence of the rewrite rule max-assoc with
 max-diag
 
 LocalRewritingNotConfluent.agda:25.13-22: error: [RewriteNonConfluent]
 Local confluence check failed: max (max k l) (max k l)
 reduces to both max k (max l (max k l)) and max k l
-which are not equal because max l (max k l) != l of type Nat
+which are not equal because
+The terms
+  max l (max k l)
+and
+  l
+are not equal at type Nat
 when checking confluence of the rewrite rule max-assoc with
 max-diag

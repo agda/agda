@@ -1,3 +1,7 @@
 Issue5048.agda:12.8-12: error: [UnequalTerms]
-quote Agda.Builtin.Nat.Nat != quote Name of type Name
+The terms
+  quote Agda.Builtin.Nat.Nat
+and
+  quote Name
+are not equal at type Name
 when checking that the expression refl has type M.a ≡ quote Name

@@ -1,0 +1,7 @@
+ConvErrCtx1.agda:17.15-16: error: [UnequalTerms]
+The terms
+  Structure {ℓ'} B : Set ℓ'
+and
+  Structure {ℓ} A : Set ℓ
+are not equal
+when checking that the expression b has type Structure A

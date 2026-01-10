@@ -1,5 +1,8 @@
 SubjectReduction.agda:26.44-46: error: [UnequalTerms]
-SubjectReduction.♯-1 != (SubjectReduction.♯-3 eq P Px s) of type
-(∞ Stream)
+The terms
+  SubjectReduction.♯-1
+and
+  SubjectReduction.♯-3 eq P Px s
+are not equal at type (∞ Stream)
 when checking that the expression Px has type
 P (tick (SubjectReduction.♯-3 eq P Px s))

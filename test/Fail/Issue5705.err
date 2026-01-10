@@ -1,4 +1,8 @@
-Issue5705.agda:5.15-37: error: [UnequalSorts]
-Set₉₂₂₃₃₇₂₀₃₆₈₅₄₇₇₅₈₀₉ != Set₁
+Issue5705.agda:5.15-37: error: [UnequalTypes]
+The types
+  Set₉₂₂₃₃₇₂₀₃₆₈₅₄₇₇₅₈₀₉
+and
+  Set₁
+are not equal
 when checking that the expression Set₉₂₂₃₃₇₂₀₃₆₈₅₄₇₇₅₈₀₈ has type
 Set₁

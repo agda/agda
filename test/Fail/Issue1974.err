@@ -1,4 +1,8 @@
 Issue1974.agda:39.12-27: error: [UnequalTerms]
-R₃ A != R₄ of type Set
+The terms
+  R₃ A
+and
+  R₄
+are not equal at type Set
 when checking that the expression refl {x = f₁ a} has type
 c a ≡ mkR₃

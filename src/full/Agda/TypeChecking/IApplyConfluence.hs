@@ -28,6 +28,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 
@@ -120,7 +121,7 @@ checkIApplyConfluence f cl = case cl of
                   -- But if the conversion checking failed really early, we drop the extra
                   -- information. In that case, it's just noise.
                   maybeDropCall e@(TypeError loc s err)
-                    | UnequalTerms _ u' v' _ <- clValue err =
+                    | ConversionError_ (ConversionError _ _ u' v' _) <- clValue err =
                       -- Issue #6725: restore the TC state from the
                       -- error before dealing with the stored terms.
                       withTCState (const s) $ enterClosure err $ \e' -> do

@@ -3,6 +3,9 @@ The pattern variable x has the same name as the constructor A.x
 when checking the clause left hand side
 f (c x)
 
-PatternShadowsConstructor.agda:14.11-12: error: [UnequalTerms]
-A.B !=< C
+PatternShadowsConstructor.agda:14.11-12: error: [UnequalTypes]
+The type
+  A.B
+is not a subtype of
+  C
 when checking that the expression x has type C

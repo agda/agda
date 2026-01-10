@@ -1,3 +1,7 @@
 PrimSeq.agda:16.11-15: error: [UnequalTerms]
-primForce b not != not b of type Bool
+The terms
+  primForce b not
+and
+  not b
+are not equal at type Bool
 when checking that the expression refl has type force b not ≡ not b

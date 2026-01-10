@@ -6,5 +6,9 @@ Problematic calls:
     (at Issue6108.agda:23.26-27)
 
 Issue6108.agda:27.1-8: error: [UnequalTerms]
-x != r i0 .R.force of type D
+The terms
+  x
+and
+  r i0 .R.force
+are not equal at type D
 when checking the definition of loops

@@ -13,5 +13,9 @@ when scope checking the declaration
   {-# REWRITE plusSucp #-}
 
 NeedOptionRewriting.agda:29.9-13: error: [UnequalTerms]
-x + zero != x of type Nat
+The terms
+  x + zero
+and
+  x
+are not equal at type Nat
 when checking that the expression refl has type (x + zero) ≡ x

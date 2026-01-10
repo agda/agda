@@ -1,3 +1,6 @@
-Abstract.agda:28.13-17: error: [UnequalTerms]
-Bool !=< Answer
+Abstract.agda:28.13-17: error: [UnequalTypes]
+The type
+  Bool
+is not a subtype of
+  Answer
 when checking that the expression true has type Answer

@@ -4,6 +4,9 @@ Incomplete pattern matching for _==_. Missing cases:
   suc x == zero
 when checking the definition of _==_
 
-IncompletePatternMatching.agda:18.7-9: error: [UnequalTerms]
-True !=< zero == suc zero
+IncompletePatternMatching.agda:18.7-9: error: [UnequalTypes]
+The type
+  True
+is not a subtype of
+  zero == suc zero
 when checking that the expression tt has type zero == suc zero

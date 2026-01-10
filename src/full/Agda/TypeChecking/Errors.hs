@@ -20,7 +20,7 @@ module Agda.TypeChecking.Errors
   , dropTopLevelModule
   , topLevelModuleDropper
   , explainWhyInScope
-  , Verbalize(verbalize)
+  , Verbalize(verbalize), Indefinite(..)
   ) where
 
 import Prelude hiding ( null, foldl )
@@ -96,6 +96,9 @@ import Agda.Utils.Size
 import Agda.Utils.String    ( rtrim )
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Conversion.Errors
+import Agda.TypeChecking.Conversion.Pure (pureEqualType)
+import Agda.Syntax.Fixity (Precedence(TopCtx))
 
 ---------------------------------------------------------------------------
 -- * Top level function
@@ -567,61 +570,66 @@ instance PrettyTCM TypeError where
       ]
 
     VariableIsOfUnusablePolarity x c -> fsep $
-      ["Variable", prettyTCM (nameConcrete x), "is bound with", text (verbalize p)] ++  pwords "polarity, so it cannot be used here at" ++
+      ["Variable", prettyTCM (nameConcrete x), "is bound with", text (verbalize p)] ++ pwords "polarity, so it cannot be used here at" ++
       [text (verbalize (Indefinite l)), "position"]
       where
         PolarityModality _ p l = c
 
-    UnequalTerms cmp s t a -> case (s,t) of
-      (Sort s1      , Sort s2      )
-        | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
-        | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
-      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ t
-      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ s
-      (Sort DefS{}  , t            ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ t
-      (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ s
-      (_            , _            ) -> do
-        (d1, d2, d) <- prettyInEqual s t
-        fsep $ concat $
-          [ [return d1, notCmp cmp, return d2]
-          , case a of
-                AsTermsOf t -> pwords "of type" ++ [prettyTCM t]
-                AsSizes     -> pwords "of type" ++ [prettyTCM =<< sizeType]
-                AsTypes     -> []
-          , [return d]
+    ConversionError_ err -> flattenConversionError err \(ConversionError cmp tys lhs rhs _) -> do
+      (d1, d2, disamb) <- prettyInEqual lhs rhs
+      reportSDoc "tc.conv.ctx" 30 $ vcat
+        [ "ctx:" <+> (prettyTCM =<< getContextTelescope)
+        , "tys:" <+> pretty tys
+        , "lhs:" <+> prettyTCM lhs
+        , "rhs:" <+> prettyTCM rhs
+        ]
+      let
+        because :: Applicative m => Maybe x -> m Doc
+        because Just{}  = comma <+> "because:"
+        because Nothing = pure mempty
+
+      case tys of
+        FailAsTermsOf lhs_t rhs_t -> runBlocked (pureEqualType lhs_t rhs_t) >>= \case
+          Right True -> vcat
+            [ "The terms", nest 2 (pure d1)
+            , "and",       nest 2 (pure d2)
+            , "are not equal at type " <> prettyTCM lhs_t <> because disamb
+            , nest 2 $ vcat
+              [ maybe empty pure disamb
+              ]
+            ]
+          _ -> vcat
+            [ "The terms", nest 2 (pure d1 <+> colon <+> prettyTCM lhs_t)
+            , "and",       nest 2 (pure d2 <+> colon <+> prettyTCM rhs_t)
+            , "are not equal"
+            , nest 2 $ vcat
+              [ maybe empty pure disamb
+              ]
+            ]
+        FailAsTypes what | CmpEq <- cmp -> vcat
+          [ "The" <+> case what of
+              Just UnequalDomain{} -> "function types"
+              Just UnequalHiding{} -> "function types"
+              _ -> "types"
+          , nest 2 (pure d1), "and", nest 2 (pure d2)
+          , "are not equal" <> because what
+          , nest 2 $ vcat
+            [ prettyTCM what
+            , maybe empty pure disamb
+            ]
           ]
-
-    UnequalLevel cmp s t -> fsep $
-      [prettyTCM s, notCmp cmp, prettyTCM t]
-
-    UnequalRelevance cmp a b -> fsep $
-      [prettyTCM a, notCmp cmp, prettyTCM b] ++
-      pwords "because one is a relevant function type and the other is an irrelevant function type"
-
-    UnequalQuantity cmp a b -> fsep $
-      [prettyTCM a, notCmp cmp, prettyTCM b] ++
-      pwords "because one is a non-erased function type and the other is an erased function type"
-
-    UnequalCohesion cmp a b -> fsep $
-      [prettyTCM a, notCmp cmp, prettyTCM b] ++
-      pwords "because one is a non-flat function type and the other is a flat function type"
-      -- FUTURE Cohesion: update message if/when introducing sharp.
-
-    UnequalPolarity cmp a b -> fsep $
-      [prettyTCM a, notCmp cmp, prettyTCM b] ++
-      pwords "because they do not have the same polarity annotations"
-
-    UnequalFiniteness cmp a b -> fsep $
-      [prettyTCM a, notCmp cmp, prettyTCM b] ++
-      pwords "because one is a type of partial elements and the other is a function type"
-      -- FUTURE Cohesion: update message if/when introducing sharp.
-
-    UnequalHiding a b -> fsep $
-      [prettyTCM a, "!=", prettyTCM b] ++
-      pwords "because one is an implicit function type and the other is an explicit function type"
-
-    UnequalSorts s1 s2 -> fsep $
-      [prettyTCM s1, "!=", prettyTCM s2]
+        FailAsTypes what | CmpLeq <- cmp -> vcat
+          [ "The" <+> case what of
+              Just UnequalDomain{} -> "function type"
+              Just UnequalHiding{} -> "function type"
+              _ -> "type"
+          , nest 2 (pure d1), "is not a subtype of", nest 2 (pure d2)
+          , maybe empty (const "because:") what
+          , nest 2 $ vcat
+            [ prettyTCM what
+            , maybe empty pure disamb
+            ]
+          ]
 
     NotLeqSort s1 s2 -> fsep $
       [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
@@ -2070,15 +2078,15 @@ notCmp cmp = "!" <> prettyTCM cmp
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation
 --   why they are different nevertheless.
-prettyInEqual :: MonadPretty m => Term -> Term -> m (Doc, Doc, Doc)
+prettyInEqual :: MonadPretty m => Term -> Term -> m (Doc, Doc, Maybe Doc)
 prettyInEqual t1 t2 = do
-  d1 <- prettyTCM t1
-  d2 <- prettyTCM t2
+  d1 <- prettyTCMCtx TopCtx t1
+  d2 <- prettyTCMCtx TopCtx t2
   (d1, d2,) <$> do
      -- if printed differently, no extra explanation needed
-    if P.render d1 /= P.render d2 then empty else do
+    if P.render d1 /= P.render d2 then pure Nothing else do
       (v1, v2) <- instantiate (t1, t2)
-      case (v1, v2) of
+      Just <$> case (v1, v2) of
         (I.Var i1 _, I.Var i2 _)
           | i1 == i2  -> generic -- possible, see issue 1826
           | otherwise -> varVar i1 i2
@@ -2093,34 +2101,23 @@ prettyInEqual t1 t2 = do
         _                  -> empty
   where
     varDef, varCon, generic :: MonadPretty m => m Doc
-    varDef = parens $ fwords "because one is a variable and one a defined identifier"
-    varCon = parens $ fwords "because one is a variable and one a constructor"
+    varDef = parens $ fwords "one is a variable, and the other a defined identifier"
+    varCon = parens $ fwords "one is a variable, and the other a constructor"
     generic = parens $ fwords $ "although these terms are looking the same, " ++
       "they contain different but identically rendered identifiers somewhere"
     varVar :: MonadPretty m => Int -> Int -> m Doc
     varVar i j = parens $ fwords $
-                   "because one has de Bruijn index " ++ show i
+                   "one has de Bruijn index " ++ show i
                    ++ " and the other " ++ show j
 
     extLamExtLam :: MonadPretty m => QName -> QName -> m Doc
     extLamExtLam a b = vcat
-      [ fwords "Because they are distinct extended lambdas: one is defined at"
+      [ fwords "they refer to distinct extended lambdas: one is defined at"
       , "  " <+> pretty (nameBindingSite (qnameName a))
       , fwords "and the other at"
       , "  " <+> (pretty (nameBindingSite (qnameName b)) <> ",")
       , fwords "so they have different internal representations."
       ]
-
-class PrettyUnequal a where
-  prettyUnequal :: MonadPretty m => a -> m Doc -> a -> m Doc
-
-instance PrettyUnequal Term where
-  prettyUnequal t1 ncmp t2 = do
-    (d1, d2, d) <- prettyInEqual t1 t2
-    fsep $ return d1 : ncmp : return d2 : return d : []
-
-instance PrettyUnequal I.Type where
-  prettyUnequal t1 ncmp t2 = prettyUnequal (unEl t1) ncmp (unEl t2)
 
 instance PrettyTCM SplitError where
   prettyTCM :: forall m. MonadPretty m => SplitError -> m Doc
@@ -2364,7 +2361,7 @@ instance Verbalize Modality where
     [ verbalize pol | pol /= defaultPolarity , pol /= modPolarity defaultCheckModality ]
 
 -- | Indefinite article.
-data Indefinite a = Indefinite a
+newtype Indefinite a = Indefinite a
 
 instance Verbalize a => Verbalize (Indefinite a) where
   verbalize (Indefinite a) =

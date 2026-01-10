@@ -2,6 +2,10 @@ Issue3846.agda:14.13-16: warning: -W[no]RewriteHeadSymbolIsTypeConstructor
 rew  is not a legal rewrite rule, since the head symbol Nat is a type constructor.
 when checking the pragma REWRITE rew
 
-Issue3846.agda:17.6-7: error: [UnequalTerms]
-Nat != Bool
+Issue3846.agda:17.6-7: error: [UnequalTypes]
+The types
+  Nat
+and
+  Bool
+are not equal
 when checking that the expression 0 has type Bool

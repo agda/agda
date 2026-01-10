@@ -3,7 +3,11 @@
 
 {-# OPTIONS_GHC -fmax-pmcheck-models=390 #-} -- Andreas, 2023-05-12, limit determined by binary search
 
-module Agda.TypeChecking.Conversion where
+module Agda.TypeChecking.Conversion
+  ( module Agda.TypeChecking.Conversion
+  , failConversion
+  )
+  where
 
 import Control.Monad.Except ( MonadError(..) )
 
@@ -43,6 +47,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Warnings (MonadWarning)
+import Agda.TypeChecking.Conversion.Errors
 import Agda.Interaction.Options
 
 import Agda.Utils.Functor
@@ -423,13 +428,16 @@ compareTerm' cmp a m n =
                        compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
 
                  | otherwise -> do
-                     whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"
-                     (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
-                     (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
-                     -- No subtyping on record terms
-                     c <- getRecordConstructor r
-                     -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                     compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (Con c ConOSystem []) m' n'
+                    whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"
+                    (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
+                    (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
+                    -- No subtyping on record terms
+                    c <- getRecordConstructor r
+                    -- Record constructors are covariant (see test/succeed/CovariantConstructors).
+                    compareArgs (repeat $ polFromCmp cmp) []
+                      (telePi_ tel (raise (size tel) a'))
+                      (Con c ConOSystem [])
+                      m' n'
 
             else (do pathview <- pathView a'
                      equalPath pathview a' m n)
@@ -446,86 +454,88 @@ compareTerm' cmp a m n =
           _                  -> equalFun s (unEl asFn) m n
 
     equalFun _ (Pi dom@Dom{domInfo = info} b) m n = do
-        whenProfile Profile.Conversion $ tick "compare at function type"
-        let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
-        addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
-      where
-        (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
+      whenProfile Profile.Conversion $ tick "compare at function type"
+      let
+        (m', n') = raise 1 (m,n) `apply` [Arg info $ var 0]
+        name     = suggests [ Suggestion b , Suggestion m , Suggestion n ]
+      addConversionContext (ConvLam dom b name) $ addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
 
     equalFun _ _ _ _ = __IMPOSSIBLE__
 
     equalPath :: (MonadConversion m) => PathView -> Type -> Term -> Term -> m ()
     equalPath (PathType s _ l a x y) _ m n = do
-        whenProfile Profile.Conversion $ tick "compare at path type"
-        let name = "i" :: String
-        interval <- el primInterval
-        let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
-        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ raise 1 (unArg a) `apply` [argN $ var 0]) m' n'
+      whenProfile Profile.Conversion $ tick "compare at path type"
+      interval <- el primInterval
+      let
+        (m', n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
+        name     = "i" :: String
+      addContext (name, defaultDom interval) $ cutConversionErrors $
+        compareTerm cmp (El (raise 1 s) $ raise 1 (unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
 
     cmpDef a'@(El s ty) m n = do
-       mI     <- getBuiltinName'   builtinInterval
-       mIsOne <- getBuiltinName'   builtinIsOne
-       mGlue  <- getPrimitiveName' builtinGlue
-       mHComp <- getPrimitiveName' builtinHComp
-       mSub   <- getBuiltinName' builtinSub
-       mUnglueU <- getPrimitiveTerm' builtin_unglueU
-       mSubIn   <- getBuiltin' builtinSubIn
-       case ty of
-         Def q es | Just q == mIsOne -> return ()
-         Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
-              aty <- el' (pure $ unArg l) (pure $ unArg a)
-              unglue <- prim_unglue
-              let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
-              reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
+      mI     <- getBuiltinName'   builtinInterval
+      mIsOne <- getBuiltinName'   builtinIsOne
+      mGlue  <- getPrimitiveName' builtinGlue
+      mHComp <- getPrimitiveName' builtinHComp
+      mSub   <- getBuiltinName' builtinSub
+      mUnglueU <- getPrimitiveTerm' builtin_unglueU
+      mSubIn   <- getBuiltin' builtinSubIn
+      case ty of
+        Def q es | Just q == mIsOne -> return ()
+        Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
+            aty <- el' (pure $ unArg l) (pure $ unArg a)
+            unglue <- prim_unglue
+            let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
+            reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
 
-              -- Amy, 2023-01-04: Here and in hcompu below we *used to*
-              -- also compare whatever the glued terms would evaluate to
-              -- on φ. This is very loopy (consider φ = f i or φ = i0:
-              -- both generate empty substitutions so get us back to
-              -- exactly the same conversion problem)!
-              --
-              -- But is there a reason to do this comparison? The
-              -- answer, it turns out, is no!
-              --
-              -- Suppose you had
-              --    Γ ⊢ x = glue [φ → t] xb : Glue T S
-              --    Γ ⊢ y = glue [φ → s] yb : Glue T S
-              --    Γ ⊢ xb = yb : T
-              -- Is there a need to check whether Γ φ ⊢ t = s : S? No!
-              -- That's because the typing rule for glue is something like
-              --   glue φ : (s : PartialP φ S) (t : T [ φ → s ]) → Glue T S
-              -- where the bracket notation stands for an "implicit
-              -- Sub"-type, i.e. Γ, φ ⊢ t = s (definitionally)
-              --
-              -- So if we have a glued element, and we have xb = yb, we
-              -- can be sure that
-              --   Γ , φ ⊢ t = xb = yb = s
-              --
-              -- But what about the general case, where we're not
-              -- looking at a literal glue? Well, eta for Glue
-              -- means x = glue [φ → x] (unglue x), so the logic above
-              -- still applies. On φ, for the reducts to agree, it's
-              -- enough for the bases to agree.
+            -- Amy, 2023-01-04: Here and in hcompu below we *used to*
+            -- also compare whatever the glued terms would evaluate to
+            -- on φ. This is very loopy (consider φ = f i or φ = i0:
+            -- both generate empty substitutions so get us back to
+            -- exactly the same conversion problem)!
+            --
+            -- But is there a reason to do this comparison? The
+            -- answer, it turns out, is no!
+            --
+            -- Suppose you had
+            --    Γ ⊢ x = glue [φ → t] xb : Glue T S
+            --    Γ ⊢ y = glue [φ → s] yb : Glue T S
+            --    Γ ⊢ xb = yb : T
+            -- Is there a need to check whether Γ φ ⊢ t = s : S? No!
+            -- That's because the typing rule for glue is something like
+            --   glue φ : (s : PartialP φ S) (t : T [ φ → s ]) → Glue T S
+            -- where the bracket notation stands for an "implicit
+            -- Sub"-type, i.e. Γ, φ ⊢ t = s (definitionally)
+            --
+            -- So if we have a glued element, and we have xb = yb, we
+            -- can be sure that
+            --   Γ , φ ⊢ t = xb = yb = s
+            --
+            -- But what about the general case, where we're not
+            -- looking at a literal glue? Well, eta for Glue
+            -- means x = glue [φ → x] (unglue x), so the logic above
+            -- still applies. On φ, for the reducts to agree, it's
+            -- enough for the bases to agree.
 
-              compareTerm cmp aty (mkUnglue m) (mkUnglue n)
-         Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
-                  , Sort (Type lvl) <- unArg s
-                  , Just unglueU <- mUnglueU, Just subIn <- mSubIn
-                  -> do
-              let l = Level lvl
-              ty <- el' (pure $ l) (pure $ unArg u0)
-              let bA = subIn `apply` [sl,s,phi,u0]
-              let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
-              reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
-              compareTerm cmp ty (mkUnglue m) (mkUnglue n)
-         Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
-              ty <- el' (pure $ unArg l) (pure $ unArg a)
-              out <- primSubOut
-              let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
-              compareTerm cmp ty (mkOut m) (mkOut n)
-         Def q [] | Just q == mI -> compareInterval cmp a' m n
-         _ -> compareAtom cmp (AsTermsOf a') m n
+            compareTerm cmp aty (mkUnglue m) (mkUnglue n)
+        Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
+                , Sort (Type lvl) <- unArg s
+                , Just unglueU <- mUnglueU, Just subIn <- mSubIn
+                -> do
+            let l = Level lvl
+            ty <- el' (pure $ l) (pure $ unArg u0)
+            let bA = subIn `apply` [sl,s,phi,u0]
+            let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
+            reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
+            compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+        Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
+            ty <- el' (pure $ unArg l) (pure $ unArg a)
+            out <- primSubOut
+            let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
+            compareTerm cmp ty (mkOut m) (mkOut n)
+        Def q [] | Just q == mI -> compareInterval cmp a' m n
+        _ -> compareAtom cmp (AsTermsOf a') m n
 
 compareAtomDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
@@ -579,7 +589,7 @@ compareAtom cmp t m n =
 
         checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) notEqual
 
-        notEqual = typeError $ UnequalTerms cmp m n t
+        notEqual = failConversion cmp m n t
 
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
@@ -678,10 +688,10 @@ compareAtom cmp t m n =
           munglueU <- getPrimitiveName' builtin_unglueU
           msubout <- getPrimitiveName' builtinSubOut
           case () of
-            _ | Just q == munglue -> compareUnglueApp q es es'
+            _ | Just q == munglue  -> compareUnglueApp q es es'
             _ | Just q == munglueU -> compareUnglueUApp q es es'
-            _ | Just q == msubout -> compareSubApp q es es'
-            _                     -> return False
+            _ | Just q == msubout  -> compareSubApp q es es'
+            _                      -> return False
         compareSubApp q es es' = do
           let (as,bs) = splitAt 5 es; (as',bs') = splitAt 5 es'
           case (allApplyElims as, allApplyElims as') of
@@ -761,15 +771,8 @@ compareAtom cmp t m n =
                 [ "t1 =" <+> prettyTCM t1
                 , "t2 =" <+> prettyTCM t2
                 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC errP errF $
+              compareDom cmp dom2 dom1 b1 b2 (failConversion cmp t1 t2 AsTypes) $
                 compareType cmp (absBody b1) (absBody b2)
-            where
-            errH = typeError $ UnequalHiding t1 t2
-            errR = typeError $ UnequalRelevance cmp t1 t2
-            errQ = typeError $ UnequalQuantity  cmp t1 t2
-            errC = typeError $ UnequalCohesion cmp t1 t2
-            errP = typeError $ UnequalPolarity cmp t1 t2
-            errF = typeError $ UnequalFiniteness cmp t1 t2
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @x xArgs `cmp` y yArgs@
@@ -821,42 +824,37 @@ compareMetas cmp t x xArgs y yArgs = do
   catchPatternErr (`addOrUnblocker` solve2) solve1
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
-compareDom :: (MonadConversion m , Free c)
+compareDom :: MonadConversion m
   => Comparison -- ^ @cmp@ The comparison direction
   -> Dom Type   -- ^ @a1@  The smaller domain.
   -> Dom Type   -- ^ @a2@  The other domain.
-  -> Abs b      -- ^ @b1@  The smaller codomain.
-  -> Abs c      -- ^ @b2@  The bigger codomain.
-  -> m ()     -- ^ Continuation if mismatch in 'Hiding'.
-  -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
-  -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
-  -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
-  -> m ()     -- ^ Continuation if mismatch in 'Polarity'.
-  -> m ()     -- ^ Continuation if mismatch in 'annFinite'.
-  -> m ()     -- ^ Continuation if comparison is successful.
+  -> Abs Type   -- ^ @b1@  The smaller codomain.
+  -> Abs Type   -- ^ @b2@  The bigger codomain.
+  -> m ()       -- ^ Error continuation
+  -> m ()       -- ^ Success continuation
   -> m ()
 compareDom cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
-  b1 b2 errH errR errQ errC errP errF cont = do
-  if | not $ sameHiding dom1 dom2 -> errH
-     | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
-     | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
-     | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
-     | not $ samePolarity (getModalPolarity dom1) (getModalPolarity dom2) -> errP
-     | not $ domIsFinite dom1 == domIsFinite dom2 -> errF
+  b1 b2 err cont = do
+  if | not $ sameHiding dom1 dom2 -> err
+     | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> err
+     | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> err
+     | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> err
+     | not $ samePolarity (getModalPolarity dom1) (getModalPolarity dom2) -> err
+     | not $ domIsFinite dom1 == domIsFinite dom2 -> err
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
           dependent = not (isIrrelevant r) && isBinderUsed b2
-      pid <- newProblem_ $ compareType cmp0 a1 a2
+      pid <- addConversionContext (\r -> ConvDom (r <$ dom1) b2 b1) $ newProblem_ $ compareType cmp0 a1 a2
       dom <- if dependent
              then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
              else return dom1
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
-      addContext (name, dom) $ cont
+      addConversionContext (ConvCod dom name) $ addContext (name, dom) $ cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.
@@ -958,8 +956,7 @@ compareElims pols0 fors0 a v els01 els02 =
   let v1 = applyE v els01
       v2 = applyE v els02
       -- Andreas, issue #8126, hack: use 'AsTypes' to suppress type in error message.
-      failureNoType = typeError $ UnequalTerms CmpEq v1 v2 AsTypes
-      failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
+      failure = failConversion CmpEq v1 v2 (AsTermsOf a)
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
   unless (null els01) $ do
@@ -1044,16 +1041,17 @@ compareElims pols0 fors0 a v els01 els02 =
                    -- Andreas, 2013-05-15
 
           -- compare arg1 and arg2
-          pid <- newProblem_ $ applyModalityToContext info $
-              if isForced for then
-                reportSLn "tc.conv.elim" 40 $ "argument is forced"
-              else if isIrrelevant info then do
-                reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
-                compareIrrelevant b (unArg arg1) (unArg arg2)
-              else do
-                reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
-                compareWithPol pol (flip compareTerm b)
-                  (unArg arg1) (unArg arg2)
+          pid <- addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
+            newProblem_ $ applyModalityToContext info
+            if isForced for then
+              reportSLn "tc.conv.elim" 40 $ "argument is forced"
+            else if isIrrelevant info then do
+              reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
+              compareIrrelevant b (unArg arg1) (unArg arg2)
+            else do
+              reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
+              compareWithPol pol (flip compareTerm b) (unArg arg1) (unArg arg2)
+
           -- if comparison got stuck and function type is dependent, block arg
           solved <- isProblemSolved pid
           reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
@@ -1102,9 +1100,11 @@ compareElims pols0 fors0 a v els01 els02 =
           reportSDoc "tc.error.mismatchedProjections" 40 $ "type:" <+> pretty a
           reportSDoc "tc.error.mismatchedProjections" 30 $ "f = " <+> prettyTCM f
           reportSDoc "tc.error.mismatchedProjections" 40 $ "f = " <+> pretty f
-          case (getGeneralizedFieldName f, getGeneralizedFieldName f') of
-            (Nothing, Nothing) -> typeError $ MismatchedProjectionsError f f'
-            _ -> failureNoType -- do not print the type "GeneralizeTel"
+          t1 <- projectTyped v a o f
+          t2 <- projectTyped v a o f'
+          case (,) <$> t1 <*> t2 of
+            Just ((_, lhs, t1), (_, rhs, t2)) -> mismatchedProjections t1 lhs els1 t2 rhs els2
+            Nothing -> typeError $ MismatchedProjectionsError f f'
         | otherwise -> do
         a   <- abortIfBlocked a
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
@@ -1212,7 +1212,7 @@ leqType = compareType CmpLeq
 --   currently it only tries to fix problems with hidden function types.
 --
 coerce :: (MonadConversion m, MonadTCM m) => Comparison -> Term -> Type -> Type -> m Term
-coerce cmp v t1 t2 = blockTerm t2 $ do
+coerce cmp v t1 t2 = cutConversionErrors $ blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
     (a1,a2) <- reify (t1,t2)
     let dbglvl = 30
@@ -1585,6 +1585,7 @@ equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
   whenProfile Profile.Conversion $ tick "compare levels"
+  lvl <- levelType'
   -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
   -- THAT's actually UNSOUND when metas are instantiated, because
   --     max a b == max a c  does not imply  b == c
@@ -1617,7 +1618,7 @@ equalLevel a b = do
   reportSDoc "tc.conv.level" 60 "checkSyntacticEquality returns False"
 
   let notok    = unlessM typeInType notOk
-      notOk    = typeError $ UnequalLevel CmpEq a' b'
+      notOk    = failConversion CmpEq (Level a') (Level b') (AsTermsOf lvl)
       postpone = do
         reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a' <+> "==") 0 (pretty b')
         blocker <- unblockOnAnyMetaIn <$> instantiateFull (a', b')
@@ -1682,7 +1683,6 @@ equalLevel a b = do
           | MetaV x as' <- ignoreBlocking a
           , MetaV y bs' <- ignoreBlocking b
           , k == l -> do
-              lvl <- levelType'
               compareMetas CmpEq (AsTermsOf lvl) x as' y bs'
         (SinglePlus (Plus k a) :| [] , _)
           | MetaV x as' <- ignoreBlocking a
@@ -1779,7 +1779,7 @@ equalSort s1 s2 = do
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
 
     let postponeIfBlocked = catchPatternErr $ \blocker -> do
-          if | blocker == neverUnblock -> typeError $ UnequalSorts s1 s2
+          if | blocker == neverUnblock -> failConversion CmpEq (Sort s1) (Sort s2) AsTypes
              | otherwise -> do
                  reportSDoc "tc.conv.sort" 30 $ vcat
                    [ "Postponing constraint"
@@ -1979,7 +1979,7 @@ equalSort s1 s2 = do
         levelUnivEnabled <- optLevelUniverse <$> pragmaOptions
         let postpone = patternViolation blocker
             err :: m ()
-            err = typeError $ UnequalSorts s0 (FunSort s1 s2)
+            err = failConversion CmpEq (Sort s0) (Sort (FunSort s1 s2)) AsTypes
         case s0 of
           -- If @Setωᵢ == funSort s1 s2@, then either @s1@ or @s2@ must
           -- be @Setωᵢ@.
@@ -2194,7 +2194,7 @@ compareInterval cmp i t u = do
       y <- leqInterval iu it
       let final = isCanonical it && isCanonical iu
       if x && y then reportSDoc "tc.conv.interval" 15 $ "Ok! }" else
-        if final then typeError $ UnequalTerms cmp t u (AsTermsOf i)
+        if final then failConversion cmp t u (AsTermsOf i)
                  else do
                    reportSDoc "tc.conv.interval" 15 $ "Giving up! }"
                    patternViolation (unblockOnAnyMetaIn (t, u))
@@ -2254,7 +2254,7 @@ compareTermOnFace' k cmp phi ty u v = do
   whenProfile Profile.Conversion $ tick "compare at face type"
 
   phi <- reduce phi
-  _ <- forallFaceMaps phi postponed $ \ faces alpha ->
+  _ <- forallFaceMaps phi postponed $ \ faces alpha -> cutConversionErrors $
       k alpha cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
   return ()
  where

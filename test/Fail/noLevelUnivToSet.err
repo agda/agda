@@ -1,3 +1,7 @@
-noLevelUnivToSet.agda:7.5-9: error: [UnequalSorts]
-LevelUniv != Set
+noLevelUnivToSet.agda:7.5-9: error: [UnequalTypes]
+The types
+  LevelUniv
+and
+  Set
+are not equal
 when checking that the expression refl has type LevelUniv ≡ Set

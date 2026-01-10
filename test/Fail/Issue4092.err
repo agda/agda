@@ -1,3 +1,7 @@
-Issue4092.agda:6.8-12: error: [UnequalLevel]
-lzero != lsuc lzero
+Issue4092.agda:6.8-12: error: [UnequalTerms]
+The terms
+  lzero
+and
+  lsuc lzero
+are not equal at type Level
 when checking that the expression refl has type lzero ≡ lsuc lzero

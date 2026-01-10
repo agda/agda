@@ -93,6 +93,7 @@ import Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning, UselessPublicRe
 import Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
 
 import Agda.TypeChecking.CompiledClause
+import {-# SOURCE #-} Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
@@ -5270,21 +5271,7 @@ data TypeError
         | RecordIsErased
         | InvalidModalTelescopeUse Term Modality Modality Definition
         | VariableIsOfUnusablePolarity Name PolarityModality
-        | UnequalLevel Comparison Level Level
-        | UnequalTerms Comparison Term Term CompareAs
-        | UnequalRelevance Comparison Term Term
-            -- ^ The two function types have different relevance.
-        | UnequalQuantity Comparison Term Term
-            -- ^ The two function types have different relevance.
-        | UnequalCohesion Comparison Term Term
-            -- ^ The two function types have different cohesion.
-        | UnequalPolarity Comparison Term Term
-            -- ^ The two function types have different polarity.
-        | UnequalFiniteness Comparison Term Term
-            -- ^ One of the function types has a finite domain (i.e. is a @Partia@l@) and the other isonot.
-        | UnequalHiding Term Term
-            -- ^ The two function types have different hiding.
-        | UnequalSorts Sort Sort
+        | ConversionError_ ConversionError
         | NotLeqSort Sort Sort
         | MetaCannotDependOn MetaId Term Nat
             -- ^ The arguments are the meta variable, the proposed solution,

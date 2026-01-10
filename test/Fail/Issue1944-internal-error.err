@@ -1,3 +1,6 @@
-Issue1944-internal-error.agda:26.10-15: error: [UnequalTerms]
-Set₁ !=< R
+Issue1944-internal-error.agda:26.10-15: error: [UnequalTypes]
+The type
+  Set₁
+is not a subtype of
+  R
 when checking that the expression out x has type R

@@ -7,6 +7,10 @@ seq  is not a legal rewrite rule, since the following variables are not bound by
 when checking the pragma REWRITE seq
 
 Issue1994.agda:49.9-36: error: [UnequalTerms]
-pth p at (I─ O) != y of type A
+The terms
+  pth p at (I─ O)
+and
+  y
+are not equal at type A
 when checking that the expression fun2path (λ i → p ′ (I─ i)) has
 type Path A y x

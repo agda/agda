@@ -1,3 +1,7 @@
 Issue2902.agda:13.9-13: error: [UnequalTerms]
-i != fsuc fzero of type Fin 2
+The terms
+  i
+and
+  fsuc fzero
+are not equal at type Fin 2
 when checking that the expression refl has type i ≡ fsuc fzero

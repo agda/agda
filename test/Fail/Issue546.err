@@ -1,3 +1,6 @@
-Issue546.agda:16.7-9: error: [UnequalTerms]
-⊤ !=< (P i)
+Issue546.agda:16.7-9: error: [UnequalTypes]
+The type
+  ⊤
+is not a subtype of
+  P i
 when checking that the expression tt has type P i

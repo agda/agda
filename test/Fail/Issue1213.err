@@ -1,3 +1,6 @@
-Issue1213.agda:23.8-10: error: [UnequalTerms]
-⊤ !=< ⊥
+Issue1213.agda:23.8-10: error: [UnequalTypes]
+The type
+  ⊤
+is not a subtype of
+  ⊥
 when checking that the expression tt has type IsZero (suc _15)

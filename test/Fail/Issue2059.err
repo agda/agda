@@ -3,5 +3,9 @@ obvious  is not a legal rewrite rule, since the following variables are not boun
 when checking the pragma REWRITE obvious
 
 Issue2059.agda:35.10-14: error: [UnequalTerms]
-b ∧ b != false of type Bool
+The terms
+  b ∧ b
+and
+  false
+are not equal at type Bool
 when checking that the expression refl has type (b ∧ b) ≡ false

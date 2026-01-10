@@ -1,4 +1,8 @@
 Issue2964.agda:13.15-19: error: [UnequalTerms]
-test .fun Bool false x refl != false of type Bool
+The terms
+  test .fun Bool false x refl
+and
+  false
+are not equal at type Bool
 when checking that the expression refl has type
 test .fun Bool false x refl ≡ false

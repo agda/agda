@@ -1,3 +1,6 @@
-Issue2309.agda:16.23-24: error: [UnequalTerms]
-A !=< Test A a .Fst x
+Issue2309.agda:16.23-24: error: [UnequalTypes]
+The type
+  A
+is not a subtype of
+  Test A a .Fst x
 when checking that the expression a has type Test A a .Fst x

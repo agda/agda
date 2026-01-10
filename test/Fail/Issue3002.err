@@ -1,4 +1,8 @@
 Issue3002.agda:19.9-13: error: [UnequalTerms]
-(λ ()) x != f x of type ⊥
+The terms
+  (λ ()) x
+and
+  f x
+are not equal at type ⊥
 when checking that the expression refl has type
 (suc zero ≤? zero) ≡ f

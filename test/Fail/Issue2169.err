@@ -1,3 +1,7 @@
 Issue2169.agda:17.7-11: error: [UnequalTerms]
-0 != -0 of type Float
+The terms
+  0
+and
+  -0
+are not equal at type Float
 when checking that the expression refl has type 0 ≡ -0

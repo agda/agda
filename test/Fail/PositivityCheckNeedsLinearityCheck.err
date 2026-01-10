@@ -1,3 +1,7 @@
-PositivityCheckNeedsLinearityCheck.agda:17.13-16: error: [UnequalSorts]
-Set₁ != Set₂
+PositivityCheckNeedsLinearityCheck.agda:17.13-16: error: [UnequalTypes]
+The types
+  Set₁
+and
+  Set₂
+are not equal
 when checking that the expression Set has type Set₂

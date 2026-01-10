@@ -1,3 +1,7 @@
 ShouldBeAppliedToTheDatatypeParameters.agda:15.5-25: error: [UnequalTerms]
-Nat != A of type Set
+The terms
+  Nat
+and
+  A
+are not equal at type Set
 when checking the constructor fooI1 in the declaration of Foo

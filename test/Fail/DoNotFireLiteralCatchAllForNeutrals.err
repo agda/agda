@@ -1,3 +1,6 @@
-DoNotFireLiteralCatchAllForNeutrals.agda:17.13-20: error: [UnequalTerms]
-⊤ !=< NotNull s
+DoNotFireLiteralCatchAllForNeutrals.agda:17.13-20: error: [UnequalTypes]
+The type
+  ⊤
+is not a subtype of
+  NotNull s
 when checking that the expression trivial has type NotNull s

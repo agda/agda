@@ -1,3 +1,6 @@
-Issue998c.agda:5.9-10: error: [UnequalTerms]
-A !=< Issue998c.A
+Issue998c.agda:5.9-10: error: [UnequalTypes]
+The type
+  A
+is not a subtype of
+  Issue998c.A
 when checking that the expression a has type A

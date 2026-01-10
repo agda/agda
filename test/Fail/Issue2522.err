@@ -1,3 +1,7 @@
 Issue2522.agda:17.44-45: error: [UnequalTerms]
-x₁ != ∞ of type Size
+The terms
+  x₁
+and
+  ∞
+are not equal at type Size
 when checking that the expression y has type D (λ _ → A ∞) ∞

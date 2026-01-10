@@ -1,5 +1,9 @@
 Issue530.agda:20.1-10: error: [UnequalTerms]
-k a != w of type Unit
+The terms
+  k a
+and
+  w
+are not equal at type Unit
 when checking that the type (w : Unit) → F w p of the generated
 with function is well-formed
 (https://agda.readthedocs.io/en/v2.9.0/language/with-abstraction.html#ill-typed-with-abstractions)

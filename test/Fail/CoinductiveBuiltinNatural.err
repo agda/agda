@@ -1,3 +1,6 @@
-CoinductiveBuiltinNatural.agda:11.21-22: error: [UnequalTerms]
-ℕ !=< ∞ ℕ
+CoinductiveBuiltinNatural.agda:11.21-22: error: [UnequalTypes]
+The type
+  ℕ
+is not a subtype of
+  ∞ ℕ
 when checking that the expression suc has type ℕ → ℕ

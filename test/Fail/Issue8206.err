@@ -8,7 +8,11 @@ Issue8206.agda:17.20-23: warning: -W[no]InvalidDataOrRecDefParameter
 Ignoring parameter type in data definition (note: parameters may
 not repeat information from signature)
 
-Issue8206.agda:18.14-15: error: [UnequalSorts]
-Set₁ != Set
+Issue8206.agda:18.14-15: error: [UnequalTypes]
+The types
+  Set₁
+and
+  Set
+are not equal
 when checking that the solution Set of metavariable _A_11 has the
 expected type Set

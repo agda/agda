@@ -4,5 +4,9 @@ Incomplete pattern matching for partial. Missing cases:
 when checking the definition of partial
 
 Issue3012.agda:17.13-17: error: [UnequalTerms]
-partial x .snd != x of type A
+The terms
+  partial x .snd
+and
+  x
+are not equal at type A
 when checking that the expression refl has type partial x .snd ≡ x

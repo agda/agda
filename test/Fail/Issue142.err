@@ -1,4 +1,8 @@
 Issue142.agda:13.7-12: error: [UnequalTerms]
-n + n != n of type Nat
+The terms
+  n + n
+and
+  n
+are not equal at type Nat
 when checking that the given dot pattern n + n matches the inferred
 value n

@@ -1,5 +1,10 @@
-Issue6015.agda:13.7-12: error: [UnequalFiniteness]
-.(@finite p : IsOne i1) → Set != .(IsOne i1) → Set because one is a
-type of partial elements and the other is a function type
+Issue6015.agda:13.7-12: error: [UnequalTypes]
+The types
+  .(@finite p : IsOne i1) → Set
+and
+  .(IsOne i1) → Set
+are not equal, because:
+  one is a type of partial elements, while the other is a function
+  type.
 when checking that the expression reflₛ has type
 Idₛ SSet₁ (Partial i1 Set) (.(IsOne i1) → Set)

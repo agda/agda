@@ -1,4 +1,8 @@
-UnequalPolarity.agda:9.5-6: error: [UnequalPolarity]
-@++ Set → Set !=< Set → Set because they do not have the same
-polarity annotations
+UnequalPolarity.agda:9.5-6: error: [UnequalTypes]
+The function type
+  @++ Set → Set
+is not a subtype of
+  Set → Set
+because:
+  one has strictly positive domain, while the other is mixed.
 when checking that the expression f has type Set → Set

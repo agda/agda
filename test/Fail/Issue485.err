@@ -1,4 +1,8 @@
-Issue485.agda:6.12-13: error: [UnequalSorts]
-Set₁ != Set
+Issue485.agda:6.12-13: error: [UnequalTypes]
+The types
+  Set₁
+and
+  Set
+are not equal
 when checking that the solution Set of metavariable _A_2 has the
 expected type Set

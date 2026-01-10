@@ -1,4 +1,8 @@
 PatternSynonymsErrorLocationRHS.agda:68.34-36: error: [UnequalTerms]
-A != C of type Sigma TyTag PatternSynonymsErrorLocationRHS.T
+The terms
+  A
+and
+  C
+are not equal at type Sigma TyTag PatternSynonymsErrorLocationRHS.T
 when checking that the expression refl has type
 PatternSynonymsErrorLocationRHS.T A Gamma C zero

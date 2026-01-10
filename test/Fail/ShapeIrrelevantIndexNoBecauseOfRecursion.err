@@ -1,3 +1,7 @@
 ShapeIrrelevantIndexNoBecauseOfRecursion.agda:26.14-15: error: [UnequalTerms]
-a != b of type Bool
+The terms
+  a
+and
+  b
+are not equal at type Bool
 when checking that the expression x has type D b

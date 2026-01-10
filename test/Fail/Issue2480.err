@@ -1,4 +1,8 @@
 Issue2480.agda:71.13-32: error: [UnequalTerms]
-a0 != a of type A
+The terms
+  a0
+and
+  a
+are not equal at type A
 when checking that the expression (to (from p) ∙ a) □ has type
 (ap const (ap (λ F → F a) p) ∙ a) ≡ (to (from p) ∙ a)

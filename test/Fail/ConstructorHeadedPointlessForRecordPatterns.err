@@ -1,6 +1,10 @@
 checkFunDef': checking injectivity...
 Injectivity of ConstructorHeadedPointlessForRecordPatterns.swap would be pointless.
 Injectivity of ConstructorHeadedPointlessForRecordPatterns.swap would be pointless.
-ConstructorHeadedPointlessForRecordPatterns.agda:27.9-12: error: [UnequalSorts]
-Set₁ != Set
+ConstructorHeadedPointlessForRecordPatterns.agda:27.9-12: error: [UnequalTypes]
+The types
+  Set₁
+and
+  Set
+are not equal
 when checking that the expression Set has type Set

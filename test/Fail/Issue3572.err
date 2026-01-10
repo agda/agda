@@ -6,5 +6,9 @@ Problematic calls:
     (at Issue3572.agda:20.12-14)
 
 Issue3572.agda:18.1-10: error: [UnequalTerms]
-id (sq i0) != left of type Interval
+The terms
+  id (sq i0)
+and
+  left
+are not equal at type Interval
 when checking the definition of id

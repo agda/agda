@@ -7,6 +7,10 @@ Problematic calls:
     (at Issue3604.agda:19.27-28)
 
 Issue3604.agda:27.8-15: error: [UnequalTerms]
-nothing != prd∞ (f inf∞) of type Maybe ℕ∞
+The terms
+  nothing
+and
+  prd∞ (f inf∞)
+are not equal at type Maybe ℕ∞
 when checking that the expression nothing has type
 Is-nothing (prd∞ (f inf∞))

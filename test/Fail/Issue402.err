@@ -1,3 +1,7 @@
 Issue402.agda:13.12-16: error: [UnequalTerms]
-x != y of type Unit
+The terms
+  x
+and
+  y
+are not equal at type Unit
 when checking that the expression refl has type x == y
