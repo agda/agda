@@ -623,22 +623,35 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     I.Lit l        -> reify l
     I.Level l      -> reify l
     I.Pi a b       -> case b of
-        NoAbs _ b'
-          | visible a, not (domIsFinite a) -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
-            -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
-            -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
-            -- and (b) the name of the binder might matter.
-            -- See issue 951 (a) and 952 (b).
-            --
-            -- Amy, 2022-09-05: Can't be finite either, since otherwise
-            -- we say ".(IsOne φ) → A ≠ .(IsOne φ) → A" with no
-            -- indication of which is finite and which isn't
-          | otherwise   -> mkPi b =<< reify a
-        b               -> mkPi b =<< do
-          ifM (domainFree a (absBody b))
-            {- then -} (pure $ Arg (domInfo a) underscore)
-            {- else -} (reify a)
+      _ | isIrrelevant a, domIsFinite a -> mkPartial (unEl (unDom a)) b $ mkPi b =<< reify a
+      NoAbs _ b'
+        | visible a -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
+          -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
+          -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
+          -- and (b) the name of the binder might matter.
+          -- See issue 951 (a) and 952 (b).
+        | otherwise   -> mkPi b =<< reify a
+      b               -> mkPi b =<< do
+        ifM (domainFree a (absBody b))
+          {- then -} (pure $ Arg (domInfo a) underscore)
+          {- else -} (reify a)
       where
+        mkPartial :: Term -> Abs I.Type -> m Expr -> m Expr
+        mkPartial (I.Def io [I.Apply fm]) body cont = do
+          ion <- getBuiltinName' builtinIsOne
+          case reAbs body of
+            _ | Just io /= ion -> cont
+            NoAbs _ b' -> do
+              pn <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinPartial
+              hd <- reify (I.Def pn [])
+              apps hd =<< traverse reify [ fm, defaultArg (unEl b') ]
+            Abs nm b' -> do
+              pn <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinPartialP
+              hd <- reify (I.Def pn [])
+              apps hd =<< traverse reify
+                [ fm, defaultArg (I.Lam (setRelevance irrelevant defaultArgInfo) (Abs nm (unEl b'))) ]
+        mkPartial _ _ fallback = fallback
+
         mkPi b (Arg info a') = ifM (skipGeneralizedParameter info) (snd <$> reify b) $ do
           tac <- TacticAttribute <$> do traverse (Ranged noRange <.> reify) $ domTactic a
           (x, b) <- reify b

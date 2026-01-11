@@ -1,0 +1,7 @@
+ConvErrCtxLevels.agda:21.15-16: error: [UnequalTerms]
+The terms
+  Structure {lsuc lzero ⊔ ℓ} A : Set (lsuc lzero ⊔ ℓ)
+and
+  Structure {lsuc lzero ⊔ ℓ'} B : Set (lsuc lzero ⊔ ℓ')
+are not equal
+when checking that the expression b has type Structure B
