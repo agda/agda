@@ -9,4 +9,4 @@
 packages: .
 
 package Agda
-  ghc-options: -fno-code -fwrite-interface
+  ghc-options: -fno-code -fwrite-interface -fwrite-ide-info -haddock
