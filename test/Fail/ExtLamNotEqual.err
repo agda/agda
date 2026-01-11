@@ -4,7 +4,8 @@ The terms
 and
   (λ { zero → zero ; (suc n) → suc n }) x
 are not equal at type Nat, because:
-  they refer to distinct extended lambdas: one is defined at
+  they are distinct extended lambdas;
+  one is defined at
      ExtLamNotEqual.agda:7.5-40
   and the other at
      ExtLamNotEqual.agda:8.5-40,

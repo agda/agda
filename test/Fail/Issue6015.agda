@@ -12,6 +12,4 @@ module _ (i : I) where
   _ : Idₛ (SSet _) (Partial i1 (Set lzero)) (.(IsOne i1) → (Set lzero))
   _ = reflₛ
 
--- Should fail with "one is a type of partial elements, one is a
--- function type", since Partial and erased-IsOne-pis behave differently
--- when used as the domain of comparison for terms
+-- Should not display a hint: the normal form of Partial now reifies as Partial.

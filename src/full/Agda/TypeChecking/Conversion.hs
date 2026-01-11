@@ -315,7 +315,8 @@ compareTerm' cmp a m n =
         a | Just a == mlvl -> do
           a <- levelView m
           b <- levelView n
-          equalLevel a b
+          nowConversionChecking cmp (Level a) (Level b) (AsTermsOf a') $
+            equalLevel a b
         a@Pi{}    -> equalFun s a m n
         Lam _ _   -> do
           reportSDoc "tc.conv.term.sort" 10 $ fsep
@@ -458,7 +459,9 @@ compareTerm' cmp a m n =
       let
         (m', n') = raise 1 (m,n) `apply` [Arg info $ var 0]
         name     = suggests [ Suggestion b , Suggestion m , Suggestion n ]
-      addConversionContext (ConvLam dom b name) $ addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
+      addConversionContext (ConvLam dom (void b) name)
+        $ addContext (name, dom)
+        $ compareTerm cmp (absBody b) m' n'
 
     equalFun _ _ _ _ = __IMPOSSIBLE__
 
@@ -484,56 +487,59 @@ compareTerm' cmp a m n =
       case ty of
         Def q es | Just q == mIsOne -> return ()
         Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
-            aty <- el' (pure $ unArg l) (pure $ unArg a)
-            unglue <- prim_unglue
-            let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
-            reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
+          aty <- el' (pure $ unArg l) (pure $ unArg a)
+          unglue <- prim_unglue
+          let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
+          reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
 
-            -- Amy, 2023-01-04: Here and in hcompu below we *used to*
-            -- also compare whatever the glued terms would evaluate to
-            -- on φ. This is very loopy (consider φ = f i or φ = i0:
-            -- both generate empty substitutions so get us back to
-            -- exactly the same conversion problem)!
-            --
-            -- But is there a reason to do this comparison? The
-            -- answer, it turns out, is no!
-            --
-            -- Suppose you had
-            --    Γ ⊢ x = glue [φ → t] xb : Glue T S
-            --    Γ ⊢ y = glue [φ → s] yb : Glue T S
-            --    Γ ⊢ xb = yb : T
-            -- Is there a need to check whether Γ φ ⊢ t = s : S? No!
-            -- That's because the typing rule for glue is something like
-            --   glue φ : (s : PartialP φ S) (t : T [ φ → s ]) → Glue T S
-            -- where the bracket notation stands for an "implicit
-            -- Sub"-type, i.e. Γ, φ ⊢ t = s (definitionally)
-            --
-            -- So if we have a glued element, and we have xb = yb, we
-            -- can be sure that
-            --   Γ , φ ⊢ t = xb = yb = s
-            --
-            -- But what about the general case, where we're not
-            -- looking at a literal glue? Well, eta for Glue
-            -- means x = glue [φ → x] (unglue x), so the logic above
-            -- still applies. On φ, for the reducts to agree, it's
-            -- enough for the bases to agree.
+          -- Amy, 2023-01-04: Here and in hcompu below we *used to*
+          -- also compare whatever the glued terms would evaluate to
+          -- on φ. This is very loopy (consider φ = f i or φ = i0:
+          -- both generate empty substitutions so get us back to
+          -- exactly the same conversion problem)!
+          --
+          -- But is there a reason to do this comparison? The
+          -- answer, it turns out, is no!
+          --
+          -- Suppose you had
+          --    Γ ⊢ x = glue [φ → t] xb : Glue T S
+          --    Γ ⊢ y = glue [φ → s] yb : Glue T S
+          --    Γ ⊢ xb = yb : T
+          -- Is there a need to check whether Γ φ ⊢ t = s : S? No!
+          -- That's because the typing rule for glue is something like
+          --   glue φ : (s : PartialP φ S) (t : T [ φ → s ]) → Glue T S
+          -- where the bracket notation stands for an "implicit
+          -- Sub"-type, i.e. Γ, φ ⊢ t = s (definitionally)
+          --
+          -- So if we have a glued element, and we have xb = yb, we
+          -- can be sure that
+          --   Γ , φ ⊢ t = xb = yb = s
+          --
+          -- But what about the general case, where we're not
+          -- looking at a literal glue? Well, eta for Glue
+          -- means x = glue [φ → x] (unglue x), so the logic above
+          -- still applies. On φ, for the reducts to agree, it's
+          -- enough for the bases to agree.
 
-            compareTerm cmp aty (mkUnglue m) (mkUnglue n)
-        Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
-                , Sort (Type lvl) <- unArg s
-                , Just unglueU <- mUnglueU, Just subIn <- mSubIn
-                -> do
-            let l = Level lvl
-            ty <- el' (pure $ l) (pure $ unArg u0)
-            let bA = subIn `apply` [sl,s,phi,u0]
-            let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
-            reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
-            compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+          compareTerm cmp aty (mkUnglue m) (mkUnglue n)
+
+        Def q es
+          | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
+          , Sort (Type lvl) <- unArg s
+          , Just unglueU <- mUnglueU, Just subIn <- mSubIn -> do
+          let l = Level lvl
+          ty <- el' (pure $ l) (pure $ unArg u0)
+          let bA = subIn `apply` [sl,s,phi,u0]
+          let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
+          reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
+          compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+
         Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
-            ty <- el' (pure $ unArg l) (pure $ unArg a)
-            out <- primSubOut
-            let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
-            compareTerm cmp ty (mkOut m) (mkOut n)
+          ty <- el' (pure $ unArg l) (pure $ unArg a)
+          out <- primSubOut
+          let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
+          compareTerm cmp ty (mkOut m) (mkOut n)
+
         Def q [] | Just q == mI -> compareInterval cmp a' m n
         _ -> compareAtom cmp (AsTermsOf a') m n
 
@@ -2133,7 +2139,7 @@ forallFaceMaps t kb k = do
           , prettyTCM m
           , prettyTCM sub
           ]
-        k ms sigma
+        cutConversionErrors $ k ms sigma
   where
     -- TODO Andrea: inefficient because we try to reduce the ts which we know are in whnf
     ifBlockeds ts blocked unblocked = do
@@ -2254,8 +2260,8 @@ compareTermOnFace' k cmp phi ty u v = do
   whenProfile Profile.Conversion $ tick "compare at face type"
 
   phi <- reduce phi
-  _ <- forallFaceMaps phi postponed $ \ faces alpha -> cutConversionErrors $
-      k alpha cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
+  _ <- forallFaceMaps phi postponed $ \ faces alpha ->
+    k alpha cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
   return ()
  where
   postponed ms blocker psi = do

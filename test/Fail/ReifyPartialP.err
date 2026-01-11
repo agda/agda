@@ -1,0 +1,6 @@
+ReifyPartialP.agda:12.13-14: error: [UnequalTypes]
+The type
+  PartialP φ (λ .p → (λ { (φ = i1) → B (a _) }) p)
+is not a subtype of
+  Set
+when checking that the expression x has type Set

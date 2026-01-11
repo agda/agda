@@ -1,10 +1,8 @@
 Issue6015.agda:13.7-12: error: [UnequalTypes]
 The types
-  .(@finite p : IsOne i1) → Set
+  Partial i1 Set
 and
   .(IsOne i1) → Set
-are not equal, because:
-  one is a type of partial elements, while the other is a function
-  type.
+are not equal
 when checking that the expression reflₛ has type
 Idₛ SSet₁ (Partial i1 Set) (.(IsOne i1) → Set)
