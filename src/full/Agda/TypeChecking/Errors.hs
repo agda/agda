@@ -20,7 +20,7 @@ module Agda.TypeChecking.Errors
   , dropTopLevelModule
   , topLevelModuleDropper
   , explainWhyInScope
-  , Verbalize(verbalize), Indefinite(..)
+  , Verbalize(verbalize), Indefinite(..), Ordinal(..)
   ) where
 
 import Prelude hiding ( null, foldl )
@@ -98,7 +98,6 @@ import Agda.Utils.String    ( rtrim )
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Conversion.Pure (pureEqualType)
-import Agda.Syntax.Fixity (Precedence(TopCtx))
 
 ---------------------------------------------------------------------------
 -- * Top level function
@@ -575,61 +574,7 @@ instance PrettyTCM TypeError where
       where
         PolarityModality _ p l = c
 
-    ConversionError_ err -> flattenConversionError err \(ConversionError cmp tys lhs rhs _) -> do
-      (d1, d2, disamb) <- prettyInEqual lhs rhs
-      reportSDoc "tc.conv.ctx" 30 $ vcat
-        [ "ctx:" <+> (prettyTCM =<< getContextTelescope)
-        , "tys:" <+> pretty tys
-        , "lhs:" <+> prettyTCM lhs
-        , "rhs:" <+> prettyTCM rhs
-        ]
-      let
-        because :: Applicative m => Maybe x -> m Doc
-        because Just{}  = comma <+> "because:"
-        because Nothing = pure mempty
-
-      case tys of
-        FailAsTermsOf lhs_t rhs_t -> runBlocked (pureEqualType lhs_t rhs_t) >>= \case
-          Right True -> vcat
-            [ "The terms", nest 2 (pure d1)
-            , "and",       nest 2 (pure d2)
-            , "are not equal at type " <> prettyTCM lhs_t <> because disamb
-            , nest 2 $ vcat
-              [ maybe empty pure disamb
-              ]
-            ]
-          _ -> vcat
-            [ "The terms", nest 2 (pure d1 <+> colon <+> prettyTCM lhs_t)
-            , "and",       nest 2 (pure d2 <+> colon <+> prettyTCM rhs_t)
-            , "are not equal"
-            , nest 2 $ vcat
-              [ maybe empty pure disamb
-              ]
-            ]
-        FailAsTypes what | CmpEq <- cmp -> vcat
-          [ "The" <+> case what of
-              Just UnequalDomain{} -> "function types"
-              Just UnequalHiding{} -> "function types"
-              _ -> "types"
-          , nest 2 (pure d1), "and", nest 2 (pure d2)
-          , "are not equal" <> because what
-          , nest 2 $ vcat
-            [ prettyTCM what
-            , maybe empty pure disamb
-            ]
-          ]
-        FailAsTypes what | CmpLeq <- cmp -> vcat
-          [ "The" <+> case what of
-              Just UnequalDomain{} -> "function type"
-              Just UnequalHiding{} -> "function type"
-              _ -> "type"
-          , nest 2 (pure d1), "is not a subtype of", nest 2 (pure d2)
-          , maybe empty (const "because:") what
-          , nest 2 $ vcat
-            [ prettyTCM what
-            , maybe empty pure disamb
-            ]
-          ]
+    ConversionError_ err -> prettyTCM err
 
     NotLeqSort s1 s2 -> fsep $
       [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
@@ -2075,49 +2020,6 @@ instance PrettyTCM MissingTypeSignatureInfo where
 notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp
 
--- | Print two terms that are supposedly unequal.
---   If they print to the same identifier, add some explanation
---   why they are different nevertheless.
-prettyInEqual :: MonadPretty m => Term -> Term -> m (Doc, Doc, Maybe Doc)
-prettyInEqual t1 t2 = do
-  d1 <- prettyTCMCtx TopCtx t1
-  d2 <- prettyTCMCtx TopCtx t2
-  (d1, d2,) <$> do
-     -- if printed differently, no extra explanation needed
-    if P.render d1 /= P.render d2 then pure Nothing else do
-      (v1, v2) <- instantiate (t1, t2)
-      Just <$> case (v1, v2) of
-        (I.Var i1 _, I.Var i2 _)
-          | i1 == i2  -> generic -- possible, see issue 1826
-          | otherwise -> varVar i1 i2
-        (I.Def{}, I.Con{}) -> __IMPOSSIBLE__  -- ambiguous identifiers
-        (I.Con{}, I.Def{}) -> __IMPOSSIBLE__
-        (I.Var{}, I.Def{}) -> varDef
-        (I.Def{}, I.Var{}) -> varDef
-        (I.Var{}, I.Con{}) -> varCon
-        (I.Con{}, I.Var{}) -> varCon
-        (I.Def x _, I.Def y _)
-          | isExtendedLambdaName x, isExtendedLambdaName y -> extLamExtLam x y
-        _                  -> empty
-  where
-    varDef, varCon, generic :: MonadPretty m => m Doc
-    varDef = parens $ fwords "one is a variable, and the other a defined identifier"
-    varCon = parens $ fwords "one is a variable, and the other a constructor"
-    generic = parens $ fwords $ "although these terms are looking the same, " ++
-      "they contain different but identically rendered identifiers somewhere"
-    varVar :: MonadPretty m => Int -> Int -> m Doc
-    varVar i j = parens $ fwords $
-                   "one has de Bruijn index " ++ show i
-                   ++ " and the other " ++ show j
-
-    extLamExtLam :: MonadPretty m => QName -> QName -> m Doc
-    extLamExtLam a b = vcat
-      [ fwords "they refer to distinct extended lambdas: one is defined at"
-      , "  " <+> pretty (nameBindingSite (qnameName a))
-      , fwords "and the other at"
-      , "  " <+> (pretty (nameBindingSite (qnameName b)) <> ",")
-      , fwords "so they have different internal representations."
-      ]
 
 instance PrettyTCM SplitError where
   prettyTCM :: forall m. MonadPretty m => SplitError -> m Doc
@@ -2370,3 +2272,12 @@ instance Verbalize a => Verbalize (Indefinite a) where
       w@(c:cs) | c `elem` ['a','e','i','o'] -> "an " ++ w
                | otherwise                  -> "a " ++ w
       -- Aarne Ranta would whip me if he saw this.
+
+-- | Number rendered as an ordinal (@1st@, @2nd@, etc)
+newtype Ordinal = Ordinal Int
+instance Verbalize Ordinal where
+  verbalize (Ordinal n) = case n `mod` 10 of
+    1 -> show n <> "st"
+    2 -> show n <> "nd"
+    3 -> show n <> "rd"
+    _ -> show n <> "th"

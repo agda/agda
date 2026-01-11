@@ -29,3 +29,6 @@ instance Verbalize PolarityModality
 
 newtype Indefinite a = Indefinite a
 instance Verbalize a => Verbalize (Indefinite a)
+
+newtype Ordinal = Ordinal Int
+instance Verbalize Ordinal

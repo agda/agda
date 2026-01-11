@@ -196,6 +196,18 @@ hlRecord        = fmap P.hlRecord
 hlArgument      = fmap P.hlArgument
 hlMacro         = fmap P.hlMacro
 
+hlComment, hlSymbol, hlKeyword, hlString, hlNumber, hlHole, hlPrimitiveType, hlPragma
+  :: Functor m => m Doc -> m Doc
+
+hlComment       = fmap P.hlComment
+hlSymbol        = fmap P.hlSymbol
+hlKeyword       = fmap P.hlKeyword
+hlString        = fmap P.hlString
+hlNumber        = fmap P.hlNumber
+hlHole          = fmap P.hlHole
+hlPrimitiveType = fmap P.hlPrimitiveType
+hlPragma        = fmap P.hlPragma
+
 hlConstructor :: Functor m => Induction -> m Doc -> m Doc
 hlConstructor = fmap . P.hlConstructor
 

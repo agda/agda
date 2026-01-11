@@ -16,6 +16,8 @@ import Control.Monad.Trans.Maybe
 
 import Data.Maybe
 
+import qualified Agda.Utils.Null as Null
+
 -- * Conversion.
 
 -- | Retain object when tag is 'True'.
@@ -25,6 +27,11 @@ boolToMaybe b x = if b then Just x else Nothing
 -- | Retain object when it passes the given test.
 predicateToMaybe :: (a -> Bool) -> a -> Maybe a
 predicateToMaybe f x = boolToMaybe (f x) x
+
+-- | Unwrap a 'Maybe' value, returning 'Null.empty' for 'Nothing'.
+orEmpty :: Null.Null a => Maybe a -> a
+orEmpty Nothing  = Null.empty
+orEmpty (Just x) = x
 
 -- * Collection operations.
 
