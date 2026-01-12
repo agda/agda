@@ -1678,6 +1678,10 @@ instance InstantiateFull RewriteRule where
       <*> pure c
       <*> pure top
 
+instance InstantiateFull LocalRewriteHead where
+  instantiateFull' (LocHead a) = LocHead <$> instantiateFull' a
+  instantiateFull' (DefHead a) = DefHead <$> instantiateFull' a
+
 instance InstantiateFull LocalRewriteRule where
   instantiateFull' (LocalRewriteRule a b c d e) =
     LocalRewriteRule
