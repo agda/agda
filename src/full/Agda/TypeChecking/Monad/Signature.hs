@@ -468,34 +468,61 @@ applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd 
         rename (m, x)
           | x `Map.member` rd          = pure mempty
           | otherwise =
-              -- Ulf, 2024-06-24 (#7329):
-              --   Here we used to generate an unqualified name, but this breaks things if the new
-              --   module shows up in a module application later on. This is because we use the
-              --   module name to figure out which arguments from the application are relevant for
-              --   the current symbol (see argsToUse in applySection' below).
-              --
-              --   Instead we use the target module name of the thing that required x to be copied.
-              --   For instance, if we are copying a data type A.B.D to X.Y.Z.D and its constructor
-              --   mkD is not in the renaming, we add `A.B.mkD -> X.Y.Z.mkD` (instead of `A.B.mkD ->
-              --   mkD` which we did before).
-              Map.singleton x . pure . qualify m <$> freshName_ (prettyShow $ qnameName x)
+            -- Ulf, 2024-06-24 (#7329):
+            --   Here we used to generate an unqualified name, but this breaks things if the new
+            --   module shows up in a module application later on. This is because we use the
+            --   module name to figure out which arguments from the application are relevant for
+            --   the current symbol (see argsToUse in applySection' below).
+            --
+            --   Instead we use the target module name of the thing that required x to be copied.
+            --   For instance, if we are copying a data type A.B.D to X.Y.Z.D and its constructor
+            --   mkD is not in the renaming, we add `A.B.mkD -> X.Y.Z.mkD` (instead of `A.B.mkD ->
+            --   mkD` which we did before).
+            Map.singleton x . pure . qualify m <$> freshName_ (prettyShow $ qnameName x)
 
         childToParent :: (QName, List1 QName) -> TCM (Maybe (ModuleName, QName))
-        childToParent (x, y :| _) = do  -- All new names share the same module, so we can safely grab the first one
+        childToParent (x, y :| _) = do
           theDef <$> getConstInfo x <&> \case
-            Constructor{ conData = d }
-              -> Just (qnameModule y, d)
+            -- the constructors and the data type live in the same
+            -- module, so it suffices to use the same module name that
+            -- the constructor ended up in for the data type
+            Constructor{ conData = d } -> Just (qnameModule y, d)
+
             -- If a proper projection is being copied, its record needs to be
             -- copied too (#8037).
-            def | Just Projection{ projProper = Just r } <- isProjection_ def
-              -> Just (qnameModule y, r)
+            --
+            -- #8242: copying a proper projection M.R.proj → N.R.proj does not
+            -- mean we should copy the record type M.R to N.R.R!
+            def | Just Projection{ projProper = Just r } <- isProjection_ def ->
+              let
+                -- putting the record in the parent of where the
+                -- projection ended up seems robust. i don't think it's
+                -- possible for a copied proper projection to end up
+                -- nested relative to the correct place to put the
+                -- record.
+                parent = case initLast (mnameToList (qnameModule y)) of
+                  Just (mod, _) -> mnameFromList mod
+                  Nothing       -> __IMPOSSIBLE__
+              in Just (mnameFromList (init (mnameToList (qnameModule y))), r)
+
             _ -> Nothing
 
         parentToChild :: (QName, List1 QName) -> TCM [(ModuleName, QName)]
         parentToChild (x, y :| _) = do
           (theDef <$> getConstInfo x) <&> \case
             Datatype{ dataCons = cs } -> map (qnameModule y,) cs
+
+            -- note about the module here: the record constructor lives
+            -- outside the record module, in the same module as the
+            -- record.
+            --
+            -- in debugging output, if the record being copied has a
+            -- generated constructor name, it's going to look like we
+            -- accidentally lost a layer of quantification, but that's
+            -- because record constructors get generated with a concrete
+            -- name that *looks* qualified
             Record{ recConHead = h }  -> [(qnameModule y, conName h)]
+
             _                         -> []
 
 applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo -> TCM ()
@@ -586,7 +613,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
         copyDef' ts np d = do
           reportSDoc "tc.mod.apply" 60 $ "making new def for" <+> pretty y <+> "from" <+> pretty x <+> "with" <+> text (show np) <+> "args" <+> text (show $ defAbstract d)
           reportSDoc "tc.mod.apply" 80 $ vcat
-            [ "args = " <+> text (show ts')
+            [ "args = " <+> pretty ts
             , "old type = " <+> pretty (defType d) ]
           reportSDoc "tc.mod.apply" 80 $
             "new type = " <+> pretty t
