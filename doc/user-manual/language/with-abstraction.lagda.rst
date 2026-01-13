@@ -1030,6 +1030,22 @@ Below are some examples of with-abstractions and their translations.
     f-aux₄ : (x y : A) (t : T (x + y)) (w₁ : A) (w₂ : T w₁) → T w₁
     f-aux₄ x y t w₁ w₂ = {!!}
 
+    -- With-abstraction equality
+    g : (x : A) → T x
+    g x with mkT x in eq
+    g x | w = {!!}
+
+    g-aux : (x : A) (w : T x) → mkT x ≡ w → T x
+    g-aux x w eq = {!!}
+
+    -- The equality argument is generalised over by further with-abstractions
+    g₁ : (x : A) → P x (g x)
+    g₁ x with mkT x in eq
+    g₁ x | w = {!!}
+
+    g-aux₁ : (x : A) (w : T x) (eq : mkT x ≡ w) → P x (g-aux x w eq)
+    g-aux₁ x w eq = {!!}
+
 ..
   ::
   module ill-typed where

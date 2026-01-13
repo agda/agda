@@ -271,6 +271,11 @@ Changes to type checker and other components defining the Agda language.
   With that change `--erasure` gets more akin to Cubical Agda that categorically
   refuses to infer lambdas (since they could construct either functions or paths).
 
+* Functions defined using with-abstraction equality (`with … in eq`) can now be
+  reasoned about using the same with-abstraction equality: the equality proof
+  is correctly generalised over. This should make most (if not all) uses of the
+  old-style `inspect` idioms for the built-in equality type unnecessary.
+
 
 Reflection
 ----------
@@ -358,6 +363,6 @@ For 2.9.0, the following issues were
 [closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.9.0+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-### Issues for closed for milestone 2.9.0
+### Issues closed for milestone 2.9.0
 
-### PRs for closed for milestone 2.9.0
+### PRs closed for milestone 2.9.0
