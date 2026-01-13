@@ -490,22 +490,27 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
   return $ def { theDef = fun { funTerminates = terminates }}
 useTerPragma def = return def
 
--- | Modify all the LHSCore of the given RHS.
+-- | Modify all the @LHSCore@s of the given piece of syntax.
 -- (Used to insert patterns for @rewrite@ or the inspect idiom)
-mapLHSCores :: (A.LHSCore -> A.LHSCore) -> (A.RHS -> A.RHS)
-mapLHSCores f = \case
-  A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
-    \ (A.Clause (A.LHS info core)     spats rhs                 ds catchall) ->
-       A.Clause (A.LHS info (f core)) spats (mapLHSCores f rhs) ds catchall
-  A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (mapLHSCores f rhs) wh
-  rhs@A.AbsurdRHS -> rhs
-  rhs@A.RHS{}     -> rhs
+class HasLHSCores a where
+  mapLHSCores :: (A.LHSCore -> A.LHSCore) -> (a -> a)
+
+instance HasLHSCores A.RHS where
+  mapLHSCores f = \case
+    A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $ mapLHSCores f
+    A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (mapLHSCores f rhs) wh
+    rhs@A.AbsurdRHS -> rhs
+    rhs@A.RHS{}     -> rhs
+
+instance HasLHSCores A.LHS where
+  mapLHSCores f (A.LHS info core) = A.LHS info (f core)
+
+instance HasLHSCores A.Clause where
+  mapLHSCores f (A.Clause lhs spats rhs ds catchall) =
+    A.Clause (mapLHSCores f lhs) spats (mapLHSCores f rhs) ds catchall
 
 -- | Insert some names into the with-clauses LHS of the given RHS.
 -- (Used for the inspect idiom)
-insertNames :: List1 (Arg (Maybe A.BindName)) -> A.RHS -> A.RHS
-insertNames = mapLHSCores . insertInspects
-
 insertInspects :: List1 (Arg (Maybe A.BindName)) -> A.LHSCore -> A.LHSCore
 insertInspects ps = \case
   A.LHSWith core wps [] ->
@@ -890,10 +895,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
                 Just{}  -> IdiomType ty
 
     let names = fmap (\ (Named nm e) -> nm <$ e) es
-    cs <- forM cs $ \ c@(A.Clause (A.LHS i core) eqs rhs wh b) -> do
-      let rhs'  = insertNames    names rhs
-      let core' = insertInspects names core
-      pure $ A.Clause (A.LHS i core') eqs rhs' wh b
+    cs <- pure $ for cs $ mapLHSCores (insertInspects names)
 
     -- Andreas, 2016-01-23, Issue #1796
     -- Run the size constraint solver to improve with-abstraction
