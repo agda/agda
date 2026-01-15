@@ -64,7 +64,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty hiding (Mode)
 import Agda.Syntax.Parser
-import Agda.Syntax.Position
+import Agda.Syntax.Position as P
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.UnusedImports (warnUnusedImports)
 import Agda.Syntax.TopLevelModuleName
@@ -94,6 +94,7 @@ import Agda.TheTypeChecker
 import Agda.Interaction.BasicOps ( getGoals, prettyGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
+import Agda.Interaction.Highlighting.Range (rangeToRange)
 import qualified Agda.Interaction.Highlighting.Precise as Highlighting ( convert )
 import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
@@ -1461,6 +1462,7 @@ buildInterface src topLevel = do
           , iPartialDefs          = partialDefs
           , iOpaqueBlocks         = opaqueBlocks
           , iOpaqueNames          = opaqueIds
+          , iTopLevelDecls        = concatMap declToCodeNodes (topLevelDecls topLevel)
           }
     !i <-
       ifM (optSaveMetas <$> pragmaOptions)
@@ -1474,6 +1476,20 @@ buildInterface src topLevel = do
     where
       primName (PrimitiveName x) b = (x, primFunName b)
       primName (BuiltinName x)   b = __IMPOSSIBLE__
+
+      declToCodeNode :: A.Declaration -> SourceNodes
+      declToCodeNode xx =
+           case P.rangeToInterval (getRange xx) of
+             Nothing -> []
+             Just (P.Interval _ s e) ->
+                [((fromIntegral $ P.posPos s,fromIntegral $ P.posPos e),
+                   [("ast-wrapper","true"),("abstract-type","decl"),("abstract-ctr",A.declarationConstrName xx)])]
+      declToCodeNodes :: A.Declaration -> SourceNodes
+      declToCodeNodes xx@(A.ScopedDecl _ xs) = concatMap declToCodeNodes xs
+      declToCodeNodes xx@(A.RecDef _ _ _ _ _ _ xs) = declToCodeNode xx  <> concatMap declToCodeNodes xs
+      declToCodeNodes xx@(A.Mutual _ xs) = declToCodeNode xx <> concatMap declToCodeNodes xs
+      declToCodeNodes xx@(A.Section _ _ _ _ xs) = declToCodeNode xx <> concatMap declToCodeNodes xs
+      declToCodeNodes xx = declToCodeNode xx
 
 -- | Returns (iSourceHash, iFullHash)
 --   We do not need to check that the file exist because we only

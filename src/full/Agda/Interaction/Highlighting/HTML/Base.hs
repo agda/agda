@@ -6,6 +6,7 @@
 module Agda.Interaction.Highlighting.HTML.Base
   ( HtmlOptions(..)
   , HtmlHighlight(..)
+  , HtmlDef(..)
   , prepareCommonDestinationAssets
   , srcFileOfInterface
   , defaultPageGen
@@ -43,6 +44,8 @@ import Text.Blaze.Html5
     , (!)
     , Attribute
     )
+
+
 import qualified Text.Blaze.Html5 as Html5
 import qualified Text.Blaze.Html5.Attributes as Attr
 import Text.Blaze.Html.Renderer.Text ( renderHtml )
@@ -55,7 +58,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.TopLevelModuleName
 
 import qualified Agda.TypeChecking.Monad as TCM
-  ( Interface(..)
+  ( Interface(..) , SourceNodes
   )
 
 import Agda.Setup ( getDataFileName )
@@ -148,6 +151,7 @@ data HtmlInputSourceFile = HtmlInputSourceFile
   , _srcFileText :: Text
   -- ^ Source text
   , _srcFileHighlightInfo :: HighlightingInfo
+  , _srcDeclarations      :: TCM.SourceNodes
   -- ^ Highlighting info
   }
 
@@ -155,7 +159,8 @@ data HtmlInputSourceFile = HtmlInputSourceFile
 
 srcFileOfInterface ::
   TopLevelModuleName -> TCM.Interface -> HtmlInputSourceFile
-srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i) (TCM.iHighlighting i)
+srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i)
+   (TCM.iHighlighting i) (TCM.iTopLevelDecls i)
 
 -- | Logging during HTML generation
 
@@ -167,6 +172,8 @@ class MonadLogHtml m where
 
 type LogHtmlT m = ReaderT (HtmlLogAction m) m
 
+data HtmlDef = HtmlDef
+
 instance Monad m => MonadLogHtml (LogHtmlT m) where
   logHtml message = do
     doLog <- ask
@@ -175,27 +182,27 @@ instance Monad m => MonadLogHtml (LogHtmlT m) where
 runLogHtmlWith :: Monad m => HtmlLogAction m -> LogHtmlT m a -> m a
 runLogHtmlWith = flip runReaderT
 
-renderSourceFile :: HtmlOptions -> HtmlInputSourceFile -> Text
-renderSourceFile opts = renderSourcePage
+renderSourceFile :: HtmlOptions -> TCM.SourceNodes  -> HtmlInputSourceFile -> Text
+renderSourceFile opts srcNodes = renderSourcePage
   where
   cssFile = fromMaybe defaultCSSFile (htmlOptCssFile opts)
   highlightOccur = htmlOptHighlightOccurrences opts
   htmlHighlight = htmlOptHighlight opts
-  renderSourcePage (HtmlInputSourceFile moduleName fileType sourceCode hinfo) =
+  renderSourcePage (HtmlInputSourceFile moduleName fileType sourceCode hinfo declrs) =
     page cssFile highlightOccur onlyCode moduleName pageContents
     where
       tokens = tokenStream sourceCode hinfo
       onlyCode = highlightOnlyCode htmlHighlight fileType
-      pageContents = code onlyCode fileType tokens
+      pageContents = code onlyCode fileType (tokenTreeFromSourceNodes tokens srcNodes)
 
-defaultPageGen :: (MonadIO m, MonadLogHtml m) => HtmlOptions -> HtmlInputSourceFile -> m ()
-defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
+defaultPageGen :: (MonadIO m, MonadLogHtml m) => [HtmlDef] -> HtmlOptions -> HtmlInputSourceFile -> m ()
+defaultPageGen defs opts srcFile@(HtmlInputSourceFile moduleName ft _ _ srcNodes) = do
   logHtml $ render $ "Generating HTML for"  <+> pretty moduleName <+> ((parens (pretty target)) <> ".")
   writeRenderedHtml html target
   where
     ext = highlightedFileExt (htmlOptHighlight opts) ft
     target = (htmlOptDir opts) </> modToFile moduleName ext
-    html = renderSourceFile opts srcFile
+    html = renderSourceFile opts srcNodes srcFile
 
 prepareCommonDestinationAssets :: MonadIO m => HtmlOptions -> m ()
 prepareCommonDestinationAssets options = liftIO $ do
@@ -279,6 +286,15 @@ type TokenInfo =
   , Aspects
   )
 
+data TokenTree =
+    Node [Attribute] [TokenTree]
+  | Leaf TokenInfo
+
+flattenTokenTree :: TokenTree -> [TokenInfo]
+flattenTokenTree = \case
+   Node _ xs -> concatMap flattenTokenTree xs
+   Leaf x -> [x]
+
 -- | Constructs token stream ready to print.
 
 tokenStream
@@ -297,27 +313,31 @@ tokenStream contents info =
 
 code :: Bool     -- ^ Whether to generate non-code contents as-is
      -> FileType -- ^ Source file type
-     -> [TokenInfo]
+     -> TokenTree
      -> Html
-code onlyCode fileType = mconcat . if onlyCode
+code onlyCode fileType = if onlyCode
   then case fileType of
          -- Explicitly written all cases, so people
          -- get compile error when adding new file types
          -- when they forget to modify the code here
-         RstFileType   -> map mkRst . splitByMarkup
-         MdFileType    -> map mkMd . splitByMarkup
-         AgdaFileType  -> map mkHtml
-         OrgFileType   -> map mkOrg . splitByMarkup
-         TreeFileType  -> map mkMd . splitByMarkup
+         RstFileType   -> mconcat . map mkRst . splitByMarkup . flattenTokenTree
+         MdFileType    -> mconcat . map mkMd . splitByMarkup . flattenTokenTree
+         AgdaFileType  -> mkTreeHtml -- map mkHtml . flattenTokenTree
+         OrgFileType   -> mconcat . map mkOrg . splitByMarkup . flattenTokenTree
+         TreeFileType  -> mconcat . map mkMd . splitByMarkup . flattenTokenTree
          -- Two useless cases, probably will never used by anyone
-         TexFileType   -> map mkMd . splitByMarkup
-         TypstFileType -> map mkMd . splitByMarkup
-  else map mkHtml
+         TexFileType   -> mconcat . map mkMd . splitByMarkup . flattenTokenTree
+         TypstFileType -> mconcat . map mkMd . splitByMarkup . flattenTokenTree
+  else mkTreeHtml -- map mkHtml . flattenTokenTree
   where
   trd (_, _, a) = a
 
   splitByMarkup :: [TokenInfo] -> [[TokenInfo]]
   splitByMarkup = splitWhen $ (== Just Markup) . aspect . trd
+
+  mkTreeHtml :: TokenTree -> Html
+  mkTreeHtml (Node attrs xs) = Html5.div (mconcat (map mkTreeHtml xs)) !! attrs
+  mkTreeHtml (Leaf x) = mkHtml x
 
   mkHtml :: TokenInfo -> Html
   mkHtml (pos, s, mi) =
@@ -427,3 +447,92 @@ code onlyCode fileType = mconcat . if onlyCode
          Network.URI.Encode.encode (show defPos))
          -- Network.URI.Encode.encode (fromMaybe (show defPos) aName)) -- Named links disabled
         (Network.URI.Encode.encode $ modToFile m "html")
+
+
+
+-- Wrapping ranges of tokens in new Nodes
+
+
+treeSpan :: TokenTree -> Maybe (Int, Int)
+treeSpan (Leaf (p, _, _)) = Just (p, p)
+treeSpan (Node _ cs) =
+  case mapMaybe treeSpan cs of
+    [] -> Nothing
+    spans ->
+      let mins = map fst spans
+          maxs = map snd spans
+      in Just (minimum mins, maximum maxs)
+
+
+splitForestBefore :: Int -> [TokenTree] -> ([TokenTree], [TokenTree])
+splitForestBefore p = go []
+  where
+    go acc [] = (reverse acc, [])
+    go acc (t : ts) =
+      case treeSpan t of
+        Nothing ->
+          -- No leaves; just keep it on the left.
+          go (t : acc) ts
+
+        Just (lo, hi)
+          | hi < p    -> go (t : acc) ts              -- entirely before p
+          | lo >= p   -> (reverse acc, t : ts)        -- entirely after p
+          | otherwise ->
+              -- t straddles p, so we need to split inside it.
+              let (ml, mr) = splitTreeBefore p t
+              in ( reverse acc ++ maybeToList ml
+                 , maybeToList mr ++ ts
+                 )
+
+
+splitTreeBefore :: Int -> TokenTree -> (Maybe TokenTree, Maybe TokenTree)
+splitTreeBefore p leaf@(Leaf (pos, _, _))
+  | pos < p   = (Just leaf, Nothing)
+  | otherwise = (Nothing, Just leaf)
+
+splitTreeBefore p (Node attrs cs) =
+  let (ls, rs) = splitForestBefore p cs
+      left  = case ls of
+                [] -> Nothing
+                _  -> Just (Node attrs ls)
+      right = case rs of
+                [] -> Nothing
+                _  -> Just (Node attrs rs)
+  in (left, right)
+
+
+wrapTokenRange :: (Int, Int) -> [Attribute] -> TokenTree -> TokenTree
+wrapTokenRange (startPos, endPos) newAttrs tree
+  | startPos > endPos = tree
+  | otherwise =
+      case tree of
+        Leaf _ -> tree
+        Node rootAttrs children ->
+          let (beforeStart, rest) = splitForestBefore startPos children
+
+              (insideRange, afterEnd) = splitForestBefore (endPos + 1) rest
+
+              wrappedInside =
+                case insideRange of
+                  [] -> []
+                  xs -> [Node newAttrs xs]
+          in Node rootAttrs (beforeStart ++ wrappedInside ++ afterEnd)
+
+-- | Build a TokenTree from a flat token stream and a list of ranges
+--   annotated with HTML attributes.
+tokenTreeFromSourceNodes :: [TokenInfo] -> TCM.SourceNodes -> TokenTree
+tokenTreeFromSourceNodes tokens nodes =
+  foldl addNode baseTree nodes
+  where
+
+    baseTree :: TokenTree
+    baseTree = Node [] (map Leaf tokens)
+
+    addNode :: TokenTree -> ((Int, Int), [(String, String)]) -> TokenTree
+    addNode tree (range, rawAttrs) =
+      wrapTokenRange range (map mkAttr rawAttrs) tree
+
+
+    mkAttr :: (String, String) -> Attribute
+    mkAttr (name, val) =
+      Html5.customAttribute (Html5.stringTag name) (stringValue val)

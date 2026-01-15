@@ -713,7 +713,7 @@ instance HasRange Expr where
     getRange (Qualified _ e)            = getRange e
 
 instance HasRange Declaration where
-    getRange (Axiom    _ i _ _ _ _  )  = getRange i
+    getRange (Axiom    _ i _ _ _ t)    = getRange (i,t)
     getRange (Generalize _ i _ _ _)    = getRange i
     getRange (Field      i _ _      )  = getRange i
     getRange (Mutual     i _        )  = getRange i
@@ -1264,3 +1264,27 @@ rhsSpine = \case
 whereDeclarationsSpine :: WhereDeclarations -> WhereDeclarationsSpine
 whereDeclarationsSpine (WhereDecls _ _ md) =
   WhereDeclsS (fmap declarationSpine md)
+
+declarationConstrName :: Declaration -> String
+declarationConstrName d = case d of
+  Axiom _ _ _ _ _ _          -> "Axiom"
+  Generalize _ _ _ _ _       -> "Generalize"
+  Field _ _ _                -> "Field"
+  Primitive _ _ _            -> "Primitive"
+  Mutual _ _                 -> "Mutual"
+  Section _ _ _ _ _          -> "Section"
+  Apply _ _ _ _ _ _          -> "Apply"
+  Import _ _ _               -> "Import"
+  Pragma _ _                 -> "Pragma"
+  Open _ _ _                 -> "Open"
+  FunDef _ _ _               -> "FunDef"
+  DataSig _ _ _ _ _          -> "DataSig"
+  DataDef _ _ _ _ _          -> "DataDef"
+  RecSig _ _ _ _ _           -> "RecSig"
+  RecDef _ _ _ _ _ _ _       -> "RecDef"
+  PatternSynDef _ _ _        -> "PatternSynDef"
+  UnquoteDecl _ _ _ _        -> "UnquoteDecl"
+  UnquoteDef _ _ _           -> "UnquoteDef"
+  UnquoteData _ _ _ _ _ _    -> "UnquoteData"
+  ScopedDecl _ _             -> "ScopedDecl"
+  UnfoldingDecl _ _          -> "UnfoldingDecl"

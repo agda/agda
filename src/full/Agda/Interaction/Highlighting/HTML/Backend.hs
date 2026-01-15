@@ -57,7 +57,7 @@ data HtmlModuleEnv = HtmlModuleEnv
   }
 
 data HtmlModule = HtmlModule
-data HtmlDef = HtmlDef
+
 
 htmlBackend :: Backend
 htmlBackend = Backend htmlBackend'
@@ -190,7 +190,7 @@ postModuleHtml
   -> [HtmlDef]
   -> m HtmlModule
 postModuleHtml _env menv _isMain _modName _defs = do
-  let generatePage = defaultPageGen . htmlCompileEnvOpts . htmlModEnvCompileEnv $ menv
+  let generatePage = defaultPageGen _defs . htmlCompileEnvOpts . htmlModEnvCompileEnv $ menv
   htmlSrc <- srcFileOfInterface (htmlModEnvName menv) <$> curIF
   runLogHtmlWithMonadDebug $ generatePage htmlSrc
   return HtmlModule
