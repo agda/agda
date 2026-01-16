@@ -78,19 +78,7 @@
   ("oi"  "open import "))
   "Abbreviations defined by default in the Agda mode.")
 
-(defvar agda2-mode-abbrevs-use-defaults)
 (defvar agda2-mode-abbrev-table nil "Agda mode abbrev table.")
-
-(defun agda2-mode-abbrevs-use-defaults ()
-  "Load or disable Agda abbrevs."
-  (define-abbrev-table
-    'agda2-mode-abbrev-table
-    (and agda2-mode-abbrevs-use-defaults
-         (mapcar (lambda (abbrev)
-                   (append abbrev
-                           (make-list (- 4 (length abbrev)) nil)
-                           '((:system t))))
-                 agda2-abbrevs-defaults))))
 
 (defcustom agda2-mode-abbrevs-use-defaults nil
   "If non-nil include the default Agda mode abbrevs in `agda2-mode-abbrev-table'.
@@ -103,7 +91,13 @@ effect, if you adjust the value using the Customize UI or a macro like
   :group 'agda2
   :set (lambda (sym val)
          (custom-set-default sym val)
-         (agda2-mode-abbrevs-use-defaults))
+         (define-abbrev-table
+           'agda2-mode-abbrev-table
+           (and val (mapcar (lambda (abbrev)
+                              (append abbrev
+                                      (make-list (- 4 (length abbrev)) nil)
+                                      '((:system t))))
+                            agda2-abbrevs-defaults))))
   :type 'boolean)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
