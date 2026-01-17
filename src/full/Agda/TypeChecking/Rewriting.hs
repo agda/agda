@@ -176,6 +176,43 @@ rewriteRelationDom rel = do
         addContext delta $ prettyTCM a
   return (delta, a)
 
+getEquation :: RewriteAnn -> Type -> TCM (Maybe LocalEquation)
+getEquation IsRewrite t
+  = runMaybeT do
+    (g, b, l, r) <- checkIsRewriteRelation LocalRewrite t
+    pure (LocalEquation g l r b)
+getEquation IsNotRewrite t = pure Nothing
+
+checkIsRewriteRelation
+  :: RewriteSource -> Type -> MaybeT TCM (Tele (Dom Type), Type, Term, Term)
+checkIsRewriteRelation q t = do
+  rels <- lift getBuiltinRewriteRelations
+  reportSDoc "rewriting.relations" 40 $ vcat
+    [ "Rewrite relations:"
+    , prettyList $ map prettyTCM $ toList rels
+    ]
+  TelV gamma1 core <- telView $ t
+  reportSDoc "rewriting" 30 $ vcat
+    [ "attempting to add rewrite rule of type "
+    , prettyTCM gamma1
+    , " |- " <+> do addContext gamma1 $ prettyTCM core
+    ]
+  case unEl core of
+    Def rel es@(_:_:_) | rel `elem` rels -> do
+        (delta, a) <- lift $ rewriteRelationDom rel
+        -- Because of the type of rel (Γ → sort), all es are applications.
+        let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        -- The last two arguments are lhs and rhs.
+            n  = size vs
+            (us, [lhs, rhs]) = splitAt (n - 2) vs
+        unless (size delta == size us) __IMPOSSIBLE__
+        lhs <- instantiateFull lhs
+        rhs <- instantiateFull rhs
+        b   <- instantiateFull $ applySubst (parallelS $ reverse us) a
+        gamma1 <- instantiateFull gamma1
+        pure (gamma1, unDom b, lhs, rhs)
+    _ -> illegalRule q DoesNotTargetRewriteRelation
+
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
 --       Γ ⊢ lhs ↦ rhs : B
@@ -196,161 +233,128 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
-    illegalRule BeforeFunctionDefinition
+    illegalRule (GlobalRewrite q) BeforeFunctionDefinition
   -- Issue 6643: Also check that there are no mutual definitions
   -- that are not yet defined.
   whenJustM (asksTC envMutualBlock) \ mb -> do
     qs <- mutualNames <$> lookupMutualBlock mb
     when (Set.member q qs) $ forM_ qs $ \r -> do
       whenM (isEmptyFunction . theDef <$> getConstInfo r) $
-        illegalRule $ BeforeMutualFunctionDefinition r
+        illegalRule (GlobalRewrite q) $ BeforeMutualFunctionDefinition r
 
-
-  -- Get rewrite rule (type of q).
-  TelV gamma1 core <- telView $ defType def
-  reportSDoc "rewriting" 30 $ vcat
-    [ "attempting to add rewrite rule of type "
-    , prettyTCM gamma1
-    , " |- " <+> do addContext gamma1 $ prettyTCM core
-    ]
   let failureBlocked :: Blocker -> MaybeT TCM a
       failureBlocked b
-        | Set1.IsNonEmpty ms <- allBlockingMetas    b = illegalRule $ ContainsUnsolvedMetaVariables ms
-        | Set1.IsNonEmpty ps <- allBlockingProblems b = illegalRule $ BlockedOnProblems ps
-        | Set1.IsNonEmpty qs <- allBlockingDefs     b = illegalRule $ RequiresDefinitions qs
+        | Set1.IsNonEmpty ms <- allBlockingMetas    b = illegalRule (GlobalRewrite q) $ ContainsUnsolvedMetaVariables ms
+        | Set1.IsNonEmpty ps <- allBlockingProblems b = illegalRule (GlobalRewrite q) $ BlockedOnProblems ps
+        | Set1.IsNonEmpty qs <- allBlockingDefs     b = illegalRule (GlobalRewrite q) $ RequiresDefinitions qs
         | otherwise = __IMPOSSIBLE__
   let failureFreeVars :: VarSet -> MaybeT TCM a
-      failureFreeVars xs = illegalRule $ VariablesNotBoundByLHS xs
+      failureFreeVars xs = illegalRule (GlobalRewrite q) $ VariablesNotBoundByLHS xs
   let warnUnsafeVars :: VarSet -> MaybeT TCM ()
-      warnUnsafeVars xs = unsafeRule $ VariablesBoundInSingleton xs
+      warnUnsafeVars xs = unsafeRule (GlobalRewrite q) $ VariablesBoundInSingleton xs
   let failureNonLinearPars :: VarSet -> MaybeT TCM a
-      failureNonLinearPars xs = illegalRule $ VariablesBoundMoreThanOnce xs
+      failureNonLinearPars xs = illegalRule (GlobalRewrite q) $ VariablesBoundMoreThanOnce xs
 
-  -- Check that type of q targets rel.
-  case unEl core of
-    Def rel es@(_:_:_) | rel `elem` rels -> do
-      (delta, a) <- lift $ rewriteRelationDom rel
-      -- Because of the type of rel (Γ → sort), all es are applications.
-      let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      -- The last two arguments are lhs and rhs.
-          n  = size vs
-          (us, [lhs, rhs]) = splitAt (n - 2) vs
-      unless (size delta == size us) __IMPOSSIBLE__
-      lhs <- instantiateFull lhs
-      rhs <- instantiateFull rhs
-      b   <- instantiateFull $ applySubst (parallelS $ reverse us) a
+  (gamma1, b, lhs, rhs) <- checkIsRewriteRelation (GlobalRewrite q) (defType def)
+  gamma0 <- getContextTelescope
+  let gamma = gamma0 `abstract` gamma1
 
-      gamma0 <- getContextTelescope
-      gamma1 <- instantiateFull gamma1
-      let gamma = gamma0 `abstract` gamma1
+  -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
+  -- This is necessary to replace copies created by imports by their
+  -- original definition.
+  lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ reduce lhs
 
-      -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
-      -- This is necessary to replace copies created by imports by their
-      -- original definition.
-      lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ reduce lhs
+  -- Find head symbol f of the lhs, its type, its parameters (in case of a constructor), and its arguments.
+  (f , hd , t , pars , es) <- case lhs of
+    Def f es -> do
+      def <- getConstInfo f
+      checkAxFunOrCon f def
+      return (f , Def f , defType def , [] , es)
+    Con c ci vs -> do
+      let hd = Con c ci
+      ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c b
+      pars <- addContext gamma1 $ checkParametersAreGeneral c pars
+      return (conName c , hd , t , pars , vs)
+    _ -> do
+      reportSDoc "rewriting.rule.check" 30 $ hsep
+        [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
+      illegalRule (GlobalRewrite q) LHSNotDefinitionOrConstructor
 
-      -- Find head symbol f of the lhs, its type, its parameters (in case of a constructor), and its arguments.
-      (f , hd , t , pars , es) <- case lhs of
-        Def f es -> do
-          def <- getConstInfo f
-          checkAxFunOrCon f def
-          return (f , Def f , defType def , [] , es)
-        Con c ci vs -> do
-          let hd = Con c ci
-          ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
-          pars <- addContext gamma1 $ checkParametersAreGeneral c pars
-          return (conName c , hd , t , pars , vs)
-        _ -> do
-          reportSDoc "rewriting.rule.check" 30 $ hsep
-            [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
-          illegalRule LHSNotDefinitionOrConstructor
+  ifNotAlreadyAdded f $ do
 
-      ifNotAlreadyAdded f $ do
+  addContext gamma1 $ do
 
-      addContext gamma1 $ do
+    checkNoLhsReduction f hd es
 
-        checkNoLhsReduction f hd es
+    ps <- fromRightM failureBlocked $ lift $
+      catchPatternErr (pure . Left) $
+        Right <$> patternFrom NeverSing NeverSing 0 (t , Def f) es
 
-        ps <- fromRightM failureBlocked $ lift $
-          catchPatternErr (pure . Left) $
-            Right <$> patternFrom NeverSing NeverSing 0 (t , Def f) es
+    reportSDoc "rewriting" 30 $
+      "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
-        reportSDoc "rewriting" 30 $
-          "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
+    -- We need to check two properties on the variables used in the rewrite rule
+    -- 1. For actually being able to apply the rewrite rule, we need
+    --    that all variables that occur in the rule (on the left or the right)
+    --    are bound in a pattern position on the left.
+    -- 2. To preserve soundness, we need that all the variables that are used
+    --    in the *proof* of the rewrite rule are bound in the lhs.
+    --    For rewrite rules on constructors, we consider parameters to be bound
+    --    even though they don't appear in the lhs, since they can be reconstructed.
+    --    For postulated or abstract rewrite rules, we consider all arguments
+    --    as 'used' (see #5238).
+    let PatVars neverSingPatVars maybeSingPatVars = nlPatVars ps
+        boundVars   = neverSingPatVars <> maybeSingPatVars
+        freeVarsLhs = freeVarSet lhs
+        freeVarsRhs = freeVarSet rhs
+        freeVars    = freeVarsLhs <> freeVarsRhs
+        allVars     = VarSet.full $ size gamma
+        usedVars    = case theDef def of
+          Function{}         -> usedArgs def
+          Axiom{}            -> allVars
+          AbstractDefn{}     -> allVars
+          Constructor{}      -> allVars
+          Primitive{}        -> allVars
+          DataOrRecSig{}     -> __IMPOSSIBLE__
+          GeneralizableVar{} -> __IMPOSSIBLE__
+          Datatype{}         -> __IMPOSSIBLE__
+          Record{}           -> __IMPOSSIBLE__
+          PrimitiveSort{}    -> __IMPOSSIBLE__
 
-        -- We need to check two properties on the variables used in the rewrite rule
-        -- 1. For actually being able to apply the rewrite rule, we need
-        --    that all variables that occur in the rule (on the left or the right)
-        --    are bound in a pattern position on the left.
-        -- 2. To preserve soundness, we need that all the variables that are used
-        --    in the *proof* of the rewrite rule are bound in the lhs.
-        --    For rewrite rules on constructors, we consider parameters to be bound
-        --    even though they don't appear in the lhs, since they can be reconstructed.
-        --    For postulated or abstract rewrite rules, we consider all arguments
-        --    as 'used' (see #5238).
-        let PatVars neverSingPatVars maybeSingPatVars = nlPatVars ps
-            boundVars   = neverSingPatVars <> maybeSingPatVars
-            freeVarsLhs = freeVarSet lhs
-            freeVarsRhs = freeVarSet rhs
-            freeVars    = freeVarsLhs <> freeVarsRhs
-            allVars     = VarSet.full $ size gamma
-            usedVars    = case theDef def of
-              Function{}         -> usedArgs def
-              Axiom{}            -> allVars
-              AbstractDefn{}     -> allVars
-              Constructor{}      -> allVars
-              Primitive{}        -> allVars
-              DataOrRecSig{}     -> __IMPOSSIBLE__
-              GeneralizableVar{} -> __IMPOSSIBLE__
-              Datatype{}         -> __IMPOSSIBLE__
-              Record{}           -> __IMPOSSIBLE__
-              PrimitiveSort{}    -> __IMPOSSIBLE__
-        reportSDoc "rewriting" 70 $
-          "variables bound by the pattern: " <+> text (show boundVars)
-        reportSDoc "rewriting" 70 $
-          "variables free in the rhs: " <+> text (show freeVarsRhs)
-        reportSDoc "rewriting" 70 $
-          "variables used by the rewrite rule: " <+> text (show usedVars)
+    reportSDoc "rewriting" 70 $
+      "variables bound by the pattern: " <+> text (show boundVars)
+    reportSDoc "rewriting" 70 $
+      "variables free in the rhs: " <+> text (show freeVarsRhs)
+    reportSDoc "rewriting" 70 $
+      "variables used by the rewrite rule: " <+> text (show usedVars)
 
-        -- All variables occurring in the rewrite must be bound somewhere
-        -- (otherwise the rewrite will simply never fire)
-        unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
-        -- #5238: All variables used in the proof of the rewrite must be
-        -- present in the context for the rewrite to fire safely.
-        -- Searching the context is not feasible though, so we instead use the
-        -- tighter criteria that the variables must occur somewhere on the LHS.
-        unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
+    -- All variables occurring in the rewrite must be bound somewhere
+    -- (otherwise the rewrite will simply never fire)
+    unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
+    -- #5238: All variables used in the proof of the rewrite must be
+    -- present in the context for the rewrite to fire safely.
+    -- Searching the context is not feasible though, so we instead use the
+    -- tighter criteria that the variables must occur somewhere on the LHS.
+    unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
+    reportSDoc "rewriting" 70 $
+      "variables bound in (erased) parameter position: " <+> text (show pars)
+    unlessNull (boundVars `VarSet.intersection` VarSet.fromList pars) failureNonLinearPars
 
-        reportSDoc "rewriting" 70 $
-          "variables bound in (erased) parameter position: " <+> text (show pars)
-        unlessNull (boundVars `VarSet.intersection` VarSet.fromList pars) failureNonLinearPars
+    -- #5929: All variables occurring on the rhs should be bound in
+    -- contexts that will never become definitionally singular (even after
+    -- a substitution), otherwise we can lose subject reduction.
+    unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
 
-        -- #5929: All variables occurring on the rhs should be bound in
-        -- contexts that will never become definitionally singular (even after
-        -- a substitution), otherwise we can lose subject reduction.
-        unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
+    top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+    let rew = RewriteRule q gamma f ps rhs b False top
 
-        top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-        let rew = RewriteRule q gamma f ps rhs (unDom b) False top
+    reportSDoc "rewriting" 10 $ vcat
+      [ "checked rewrite rule" , prettyTCM rew ]
+    reportSDoc "rewriting" 90 $ vcat
+      [ "checked rewrite rule" , text (show rew) ]
 
-        reportSDoc "rewriting" 10 $ vcat
-          [ "checked rewrite rule" , prettyTCM rew ]
-        reportSDoc "rewriting" 90 $ vcat
-          [ "checked rewrite rule" , text (show rew) ]
-
-        return rew
-
-    _ -> illegalRule DoesNotTargetRewriteRelation
-
+    return rew
   where
-    unsafeRule :: IllegalRewriteRuleReason -> MaybeT TCM ()
-    unsafeRule reason = lift $ warning $ IllegalRewriteRule q reason
-
-    illegalRule :: IllegalRewriteRuleReason -> MaybeT TCM a
-    illegalRule reason = do
-      unsafeRule reason
-      mzero
-
     checkNoLhsReduction :: QName -> (Elims -> Term) -> Elims -> MaybeT TCM ()
     checkNoLhsReduction f hd es = do
       -- Skip this check when global confluence check is enabled, as
@@ -362,7 +366,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
           fail = do
             reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
-            illegalRule $ LHSReduces v v'
+            illegalRule (GlobalRewrite q) $ LHSReduces v v'
       es' <- case v' of
         Def f' es'   | f == f'         -> return es'
         Con c' _ es' | f == conName c' -> return es'
@@ -379,7 +383,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
       Axiom{}        -> return ()
       def@Function{} -> do
         whenJust (maybeRight (funProjection def)) $ \proj -> case projProper proj of
-          Nothing -> illegalRule $ HeadSymbolIsProjectionLikeFunction f
+          Nothing -> illegalRule (GlobalRewrite q) $ HeadSymbolIsProjectionLikeFunction f
           Just{} -> __IMPOSSIBLE__
             -- Andreas, 2024-08-20
             -- A projection ought to be impossible in the head, since they are represented
@@ -389,7 +393,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
           let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
           cls <- instantiateFull $ map simpleClause $ funClauses def
-          unless (noMetas cls) $ illegalRule $ HeadSymbolContainsMetas f
+          unless (noMetas cls) $ illegalRule (GlobalRewrite q) $ HeadSymbolContainsMetas f
 
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
@@ -403,14 +407,14 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
       GeneralizableVar{} -> __IMPOSSIBLE__
 
       where
-      illegalHead = illegalRule $ HeadSymbolIsTypeConstructor f
+      illegalHead = illegalRule (GlobalRewrite q) $ HeadSymbolIsTypeConstructor f
 
     ifNotAlreadyAdded :: QName -> MaybeT TCM RewriteRule -> MaybeT TCM RewriteRule
     ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
       case List.find ((q ==) . rewName) rews of
-        Just rew -> illegalRule DuplicateRewriteRule
+        Just rew -> illegalRule (GlobalRewrite q) DuplicateRewriteRule
         Nothing -> cont
 
     usedArgs :: Definition -> VarSet
@@ -435,7 +439,15 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
         errorNotGeneral :: MaybeT TCM a
         errorNotGeneral =
-          illegalRule $ ConstructorParametersNotGeneral c $ fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
+          illegalRule (GlobalRewrite q) $ ConstructorParametersNotGeneral c $
+          fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
+
+checkRewApp :: LocalEquation -> Type -> Term -> TCM ()
+checkRewApp
+  (LocalEquation {lEqContext = g, lEqLHS = l, lEqRHS = r, lEqType = t}) _ _ = do
+  -- TODO: Should we also check that the given term is `refl`?
+  -- (I actually don't think this is necessary...)
+  addContext g $ equalTerm t l r
 
 checkLocalRewriteRule :: Dom Type -> TCM (Maybe LocalRewriteRule)
 checkLocalRewriteRule adom = do

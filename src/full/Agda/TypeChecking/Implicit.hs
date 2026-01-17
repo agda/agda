@@ -111,7 +111,7 @@ noHeadConstraint (CheckedArg _ range Just{} ) = do
 --   and @expand@ holds on the hiding and name info of its domain.
 
 implicitCheckedArgs :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
-  => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
+  => Int                          -- ^ @n@, the maximum number of implicits to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
   -> m ([Named_ CheckedArg], Type)-- ^ The eliminating arguments and the remaining type.
@@ -134,7 +134,7 @@ implicitCheckedArgs n expand t0 = do
             return InstanceMeta
           (_, v) <- newMetaArg kind info x CmpLeq a
           whenJust mtac \ tac -> liftTCM do
-            applyModalityToContext info $ unquoteTactic tac v a
+            applyDomToContext dom $ unquoteTactic tac v a
           let name = Just $ WithOrigin Inserted $ unranged x
           mc <- liftTCM $ makeLockConstraint t0' v
           let carg = CheckedArg{ caElim = Apply (Arg info v), caRange = empty, caConstraint = mc }
@@ -142,7 +142,7 @@ implicitCheckedArgs n expand t0 = do
       _ -> return ([], t0')
 
 -- | @makeLockConstraint u funType@(El _ (Pi (Dom{ domInfo=info, unDom=a }) _))@
---   creates a @CheckLockedVars@ constaint for lock @u : a@
+--   creates a @CheckLockedVars@ constraint for lock @u : a@
 --   if @getLock info == IsLock _@.
 --
 --   Precondition: 'Type' is reduced.
@@ -167,7 +167,7 @@ makeLockConstraint funType u =
 newMetaArg
   :: (PureTCM m, MonadMetaSolver m)
   => MetaKind   -- ^ Kind of meta.
-  -> ArgInfo    -- ^ Rrelevance of meta.
+  -> ArgInfo    -- ^ Relevance of meta.
   -> ArgName    -- ^ Name suggestion for meta.
   -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
   -> Type       -- ^ Type of meta.

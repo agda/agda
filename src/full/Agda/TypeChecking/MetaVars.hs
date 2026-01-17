@@ -355,12 +355,12 @@ newArgsMetaCtx'' pref frozen condition (El s tm) tel perm ctx = do
                  map (mod `inverseApplyModalityButNotQuantity`) $
                  telToList tel
           ctx' = map (mod `inverseApplyModalityButNotQuantity`) ctx
-      (m, u) <- applyModalityToContext info $
+      (m, u) <- applyDomToContext dom $
                  newValueMetaCtx frozen RunMetaOccursCheck CmpLeq a tel' perm ctx'
       -- Jesper, 2021-05-05: When creating a metavariable from a
       -- generalizable variable, we must set the modality at which it
       -- will be generalized.  Don't do this for other metavariables,
-      -- as they should keep the defaul modality (see #5363).
+      -- as they should keep the default modality (see #5363).
       whenM ((== YesGeneralizeVar) <$> viewTC eGeneralizeMetas) $
         setMetaGeneralizableArgInfo m $ hideOrKeepInstance info
       setMetaNameSuggestion m (suffixNameSuggestion pref (absName codom))

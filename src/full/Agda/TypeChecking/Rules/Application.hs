@@ -765,11 +765,11 @@ checkArgumentsE'
         -- sFunType <- lift $ forcePi (getHiding info)
         --                  (maybe "_" rangedThing $ nameOf e) sFunType
         case unEl sFunType of
-          Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
+          Pi dom@(Dom{domInfo = info', domName = dname, unDom = a}) b
             | let name = bareNameWithDefault "_" dname,
               sameHiding info info'
               && (visible info || maybe True (name ==) mx) -> do
-                u <- lift $ applyModalityToContext info' $ do
+                u <- lift $ applyDomToContext dom $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
                  -- from ascribed type into extended-lambdas.  Would solve issue 1159.

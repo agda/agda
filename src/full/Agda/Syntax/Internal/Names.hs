@@ -318,6 +318,9 @@ instance NamesIn RewriteRule where
     RewriteRule a b c d e f _ _ ->
       namesAndMetasIn' sg (a, b, c, d, e, f)
 
+instance NamesIn LocalEquation where
+  namesAndMetasIn' sg (LocalEquation a b c d) = namesAndMetasIn' sg (a, b, c, d)
+
 instance NamesIn LocalRewriteHead where
   namesAndMetasIn' sg (LocHead a) = namesAndMetasIn' sg a
   namesAndMetasIn' sg (DefHead a) = namesAndMetasIn' sg a

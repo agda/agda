@@ -88,6 +88,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
+import Agda.TypeChecking.Rewriting (checkRewApp, getEquation)
 
 ---------------------------------------------------------------------------
 -- * Types
@@ -117,7 +118,7 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
+      a <- uncurry (defaultArgDomEq info) <$> checkPiDomain (info :| []) t
       b <- isType_ b
       s <- inferFunSort a b
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -313,15 +314,23 @@ checkTelescope' lamOrPi (b : tel) ret =
 
 -- | Check the domain of a function type.
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
-checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
+checkDomain :: (LensLock a, LensModality a, LensRewriteAnn a)
+            => LamOrPi -> List1 a -> A.Expr -> TCM (Maybe LocalEquation, Type)
 checkDomain lamOrPi xs e = do
-    -- Get cohesion and quantity of arguments, which should all be equal because
+    -- Get cohesion and quantity of arguments, as well as if they are local
+    -- rewrite rules. All of these properties should all be equal because
     -- they come from the same annotated Π-type.
     let (c :| cs) = fmap (getCohesion . getModality) xs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
     let (q :| qs) = fmap (getQuantity . getModality) xs
     unless (all (q ==) qs) $ __IMPOSSIBLE__
+
+    let (r :| rs) = fmap (getRewriteAnn) xs
+    unless (all (r ==) rs) $ __IMPOSSIBLE__
+
+    -- Also get whether the domain is a local rewrite rule. If it is, and there
+    -- are multiple arguments, we warn that this is unnecessary
 
     t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
@@ -335,9 +344,9 @@ checkDomain lamOrPi xs e = do
 
         equalSort (getSort t) LockUniv
 
-    -- TODO: check that @rew arguments actually have identity type
+    eq <- getEquation r t
 
-    return t
+    return (eq, t)
   where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -346,7 +355,8 @@ checkDomain lamOrPi xs e = do
         modEnv (LamNotPi _) = workOnTypes
         modEnv PiNotLam     = id
 
-checkPiDomain :: (LensLock a, LensModality a) => List1 a -> A.Expr -> TCM Type
+checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a)
+              => List1 a -> A.Expr -> TCM (Maybe LocalEquation, Type)
 checkPiDomain = checkDomain PiNotLam
 
 -- | Check a typed binding and extends the context with the bound variables.
@@ -366,7 +376,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    t <- checkDomain lamOrPi xps e
+    (eq, t) <- checkDomain lamOrPi xps e
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -381,15 +391,16 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         NoOutputTypeName -> setCurrentRange e $
           warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let setTac tac dom = dom { domTactic = tac }
-        setTacTel tac EmptyTel            = EmptyTel
-        setTacTel tac (ExtendTel dom tel) =
-          ExtendTel (setTac tac dom) $ setTacTel (raise 1 tac) <$> tel
+    let setTacEq tac eq dom = dom { domTactic = tac, domEq = eq }
+        setTacEqTel tac eq EmptyTel            = EmptyTel
+        setTacEqTel tac eq (ExtendTel dom tel) =
+          ExtendTel (setTacEq tac eq dom) $
+          setTacEqTel (raise 1 tac) (raise 1 eq) <$> tel
         -- We need to convert to Dom and set the domTactic field here in order
         -- to not drop @tactic annotations
-        xs' = setTac tac . domNameFromNamedArgName . modMod lamOrPi experimental
+        xs' = setTacEq tac eq . domNameFromNamedArgName . modMod lamOrPi experimental
               <$> xs
-    let tel = setTacTel tac $ namedBindsToTel1 xs t
+    let tel = setTacEqTel tac eq $ namedBindsToTel1 xs t
 
     addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
@@ -625,6 +636,8 @@ checkLambda' cmp r tac xps typ body target = do
           unless (namedSame dom x) $
             setCurrentRange x $ typeError $ WrongHidingInLHS
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
+
+        -- TODO: deal with @rew annotations here
         info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523
         -- Ensure we are not stepping under a possibly non-existing size.
@@ -1551,7 +1564,15 @@ checkExpr' cmp e t =
         -- Application
         e -> do
           Application hd args <- appViewM e
-          checkApplication cmp hd args e t
+          e' <- checkApplication cmp hd args e t
+
+          -- If we are checking against a convertibility constraint
+          -- "@rew x = y", we need to ensure it is satisfied
+          eq <- viewTC eLocalEquation
+          case eq of
+            Just eq -> checkRewApp eq t e'
+            Nothing -> pure ()
+          pure e'
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.

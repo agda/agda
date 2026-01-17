@@ -531,6 +531,9 @@ prettyWarning = \case
           , pwords "has already been added"
           ]
 
+        LetBoundLocalRewrite ->
+          "Let-binding local rewrite rules is not possible"
+
     ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)
       [ pwords "Confluence checking incomplete because the definition of"
       , [ prettyTCM f ]
@@ -792,6 +795,12 @@ instance PrettyTCM DataOrRecord_ where
   prettyTCM = \case
     IsData{}   -> "data"
     IsRecord{} -> "record"
+
+instance PrettyTCM RewriteSource where
+  prettyTCM = \case
+    -- TODO: Put more info in 'Local' so we can give a better error message.
+    LocalRewrite    -> "a local rewrite"
+    GlobalRewrite q -> prettyTCM q
 
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}

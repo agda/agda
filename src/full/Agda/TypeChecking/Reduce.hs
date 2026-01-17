@@ -340,14 +340,13 @@ instance Instantiate EqualityView where
     <*> instantiate' a
     <*> instantiate' b
 
-instance Instantiate LocalRewriteRule where
-  instantiate' (LocalRewriteRule a b c d e) =
-    LocalRewriteRule
+instance Instantiate LocalEquation where
+  instantiate' (LocalEquation a b c d) =
+    LocalEquation
       <$> instantiate' a
-      <*> pure b
-      <*> pure c
+      <*> instantiate' b
+      <*> instantiate' c
       <*> instantiate' d
-      <*> instantiate' e
 
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
@@ -1678,18 +1677,13 @@ instance InstantiateFull RewriteRule where
       <*> pure c
       <*> pure top
 
-instance InstantiateFull LocalRewriteHead where
-  instantiateFull' (LocHead a) = LocHead <$> instantiateFull' a
-  instantiateFull' (DefHead a) = DefHead <$> instantiateFull' a
-
-instance InstantiateFull LocalRewriteRule where
-  instantiateFull' (LocalRewriteRule a b c d e) =
-    LocalRewriteRule
+instance InstantiateFull LocalEquation where
+  instantiateFull' (LocalEquation a b c d) =
+    LocalEquation
       <$> instantiateFull' a
       <*> instantiateFull' b
       <*> instantiateFull' c
       <*> instantiateFull' d
-      <*> instantiateFull' e
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)

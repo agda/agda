@@ -48,6 +48,8 @@ import Agda.Utils.Tuple
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Warnings (warning, MonadWarning)
+import Agda.Utils.Monad (mzero, void)
 
 -- * Modifying the context
 
@@ -566,15 +568,37 @@ defaultAddLetBinding' isAxiom o x v t ret = do
     vt <- makeOpen $ LetBinding isAxiom o v t
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
+unsafeRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m ()
+unsafeRule s reason = lift $ warning $ IllegalRewriteRule s reason
+
+illegalRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m a
+illegalRule s reason = do
+  unsafeRule s reason
+  mzero
+
+warnIfRew :: (MonadWarning m) => RewriteAnn -> m ()
+warnIfRew IsRewrite
+  = void $ runMaybeT $ illegalRule LocalRewrite LetBoundLocalRewrite
+warnIfRew IsNotRewrite = pure ()
+
 -- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetBinding info o x v t0 ret = addLetBinding' NoAxiom o x v (defaultArgDom info t0) ret
+addLetBinding :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
+addLetBinding info o x v t0 ret = do
+  -- For now, we disallow @rew in let bindings.
+  -- I think one could justify some implementation where @rew merely
+  -- constrains the type of the let (i.e. the equation must already hold
+  -- definitionally in the context we create the let binding) but this is not
+  -- really useful.
+  warnIfRew $ getRewriteAnn info
+  addLetBinding' NoAxiom o x v (defaultArgDom info t0) ret
 
 -- | Add a let bound variable without a definition.
 {-# SPECIALIZE addLetAxiom :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetAxiom :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetAxiom info o x v t0 ret = addLetBinding' YesAxiom o x v (defaultArgDom info t0) ret
+addLetAxiom :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
+addLetAxiom info o x v t0 ret = do
+  warnIfRew $ getRewriteAnn info
+  addLetBinding' YesAxiom o x v (defaultArgDom info t0) ret
 
 {-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable.

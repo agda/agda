@@ -1873,6 +1873,16 @@ class LensLock a where
   mapLock :: (Lock -> Lock) -> a -> a
   mapLock f a = setLock (f $ getLock a) a
 
+class LensRew a where
+
+  getRew :: a -> RewriteAnn
+
+  setRew :: RewriteAnn -> a -> a
+  setRew = mapRew . const
+
+  mapRew :: (RewriteAnn -> RewriteAnn) -> a -> a
+  mapRew f a = setRew (f $ getRew a) a
+
 instance LensLock Lock where
   getLock = id
   setLock = const

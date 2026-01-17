@@ -325,19 +325,10 @@ instance EmbPrj RewriteRule where
 
   value = valueN RewriteRule
 
-instance EmbPrj LocalRewriteHead where
-  icod_ (DefHead a) = icodeN 0 DefHead a
-  icod_ (LocHead a) = icodeN 1 LocHead a
+instance EmbPrj LocalEquation where
+  icod_ (LocalEquation a b c d) = icodeN' LocalEquation a b c d
 
-  value = vcase valu where
-    valu (N2 0 a) = valuN DefHead a
-    valu (N2 1 a) = valuN LocHead a
-    valu _        = malformed
-
-instance EmbPrj LocalRewriteRule where
-  icod_ (LocalRewriteRule a b c d e) = icodeN' LocalRewriteRule a b c d e
-
-  value = valueN LocalRewriteRule
+  value = valueN LocalEquation
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icodeN' Projection a b c d e

@@ -233,6 +233,16 @@ instance EmbPrj Warning where
 
 instance EmbPrj UselessPublicReason
 
+instance EmbPrj RewriteSource where
+  icod_ = \case
+    LocalRewrite    -> icodeN 0 LocalRewrite
+    GlobalRewrite a -> icodeN 1 GlobalRewrite a
+
+  value = vcase $ \case
+    N1 0   -> valuN LocalRewrite
+    N2 1 a -> valuN GlobalRewrite a
+    _      -> malformed
+
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
     LHSNotDefinitionOrConstructor               -> icodeN 0 LHSNotDefinitionOrConstructor
@@ -251,6 +261,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     BeforeFunctionDefinition                    -> icodeN 13 BeforeFunctionDefinition
     BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
+    LetBoundLocalRewrite                        -> icodeN 16 LetBoundLocalRewrite
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor
@@ -269,6 +280,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 13    -> valuN BeforeFunctionDefinition
     N2 14 a  -> valuN BeforeMutualFunctionDefinition a
     N1 15    -> valuN DuplicateRewriteRule
+    N1 16    -> valuN LetBoundLocalRewrite
     _        -> malformed
 
 instance EmbPrj OptionWarning where

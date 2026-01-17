@@ -2372,7 +2372,9 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
-type LocalRewriteRules = [Open LocalRewriteRule]
+-- TODO: This used to be `[Open LocalRewriteRule]`. I am not really sure why
+-- `Open` was used here
+type LocalRewriteRules = [LocalRewriteRule]
 
 -- | Information about an @instance@ definition.
 data InstanceInfo = InstanceInfo
@@ -4181,6 +4183,10 @@ data TCEnv =
                 -- (to associate definitions to blocks), and by the type
                 -- checker (for unfolding control).
           , envLocalRewriteRules :: LocalRewriteRules
+                -- ^ Local rewrite rules
+          , envLocalEquation :: Maybe LocalEquation
+                -- ^ Are we checking in an @rew context?
+                -- If so, the equation better hold definitionally
           }
     deriving (Generic)
 
@@ -4248,6 +4254,7 @@ initEnv = TCEnv { envContext             = CxEmpty
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
                 , envLocalRewriteRules      = []
+                , envLocalEquation          = Nothing
                 }
 
 class LensTCEnv a where
@@ -4443,6 +4450,9 @@ eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurr
 
 eLocalRewriteRules :: Lens' TCEnv LocalRewriteRules
 eLocalRewriteRules f e = f (envLocalRewriteRules e) <&> \ x -> e { envLocalRewriteRules = x }
+
+eLocalEquation :: Lens' TCEnv (Maybe LocalEquation)
+eLocalEquation f e = f (envLocalEquation e) <&> \x -> e { envLocalEquation = x }
 
 {-# SPECIALISE currentModality :: TCM Modality #-}
 -- | The current modality.
@@ -4743,7 +4753,7 @@ data Warning
     -- ^ Confluence checking with @--cubical@ might be incomplete.
   | NotARewriteRule C.QName IsAmbiguous
     -- ^ 'IllegalRewriteRule' detected during scope checking.
-  | IllegalRewriteRule QName IllegalRewriteRuleReason
+  | IllegalRewriteRule RewriteSource IllegalRewriteRuleReason
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -5009,6 +5019,7 @@ illegalRewriteWarningName = \case
   BeforeFunctionDefinition             -> RewriteBeforeFunctionDefinition_
   BeforeMutualFunctionDefinition{}     -> RewriteBeforeMutualFunctionDefinition_
   DuplicateRewriteRule                 -> DuplicateRewriteRule_
+  LetBoundLocalRewrite                 -> LetBoundLocalRewrite_
 
 -- | Should warnings of that type be serialized?
 --
@@ -5624,6 +5635,12 @@ data InductionAndEta = InductionAndEta
   , recordEtaEquality :: EtaEquality
   } deriving (Show, Generic)
 
+-- Source of the rewrite rule
+-- TODO: Attach some info to 'Local' so we can give more descriptive error
+-- messages
+data RewriteSource = GlobalRewrite QName | LocalRewrite
+  deriving (Show, Generic)
+
 -- Reason, why rewrite rule is invalid
 data IllegalRewriteRuleReason
   = LHSNotDefinitionOrConstructor
@@ -5642,6 +5659,7 @@ data IllegalRewriteRuleReason
   | BeforeFunctionDefinition
   | BeforeMutualFunctionDefinition QName
   | DuplicateRewriteRule
+  | LetBoundLocalRewrite
     deriving (Show, Generic)
 
 -- | Boolean flag whether a name is ambiguous.
@@ -6869,6 +6887,7 @@ instance NFData ClashingName
 instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
 instance NFData InductionAndEta
+instance NFData RewriteSource
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
 instance NFData GHCBackendError
