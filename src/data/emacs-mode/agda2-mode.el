@@ -1087,7 +1087,9 @@ The buffer is returned.")
       ;; This allows us to create Agda-style highlighting from aspects
       ;; also in the Agda information buffer.
       (agda2-highlight-setup)
-      ))
+
+      ;; Use Xref
+      (add-hook 'xref-backend-functions #'agda2-xref-backend -90 t)))
 
   ,buffer))
 
