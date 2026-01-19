@@ -1873,15 +1873,7 @@ class LensLock a where
   mapLock :: (Lock -> Lock) -> a -> a
   mapLock f a = setLock (f $ getLock a) a
 
-class LensRew a where
-
-  getRew :: a -> RewriteAnn
-
-  setRew :: RewriteAnn -> a -> a
-  setRew = mapRew . const
-
-  mapRew :: (RewriteAnn -> RewriteAnn) -> a -> a
-  mapRew f a = setRew (f $ getRew a) a
+  {-# MINIMAL getLock , (setLock | mapLock) #-}
 
 instance LensLock Lock where
   getLock = id
@@ -1938,6 +1930,8 @@ class LensRewriteAnn a where
 
   mapRewriteAnn :: (RewriteAnn -> RewriteAnn) -> a -> a
   mapRewriteAnn f a = setRewriteAnn (f $ getRewriteAnn a) a
+
+  {-# MINIMAL getRewriteAnn , (setRewriteAnn | mapRewriteAnn) #-}
 
 instance LensRewriteAnn RewriteAnn where
   getRewriteAnn = id

@@ -89,6 +89,7 @@ import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
 import Agda.TypeChecking.Rewriting (checkRewApp, getEquation)
+import Control.Monad.Trans.Maybe (runMaybeT)
 
 ---------------------------------------------------------------------------
 -- * Types
@@ -678,9 +679,19 @@ userOmittedModalities xs = do
 -- | Check that modality info in lambda is compatible with modality
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
-lambdaModalityCheck :: (LensAnnotation dom, LensModality dom) => dom -> ArgInfo -> TCM ArgInfo
-lambdaModalityCheck dom = lambdaAnnotationCheck (getAnnotation dom) <=< lambdaPolarityCheck m <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+lambdaModalityCheck :: (LensAnnotation dom, LensModality dom, LensLocalEquation dom) => dom -> ArgInfo -> TCM ArgInfo
+lambdaModalityCheck dom =
+  lambdaAnnotationCheck (getAnnotation dom) <=< lambdaPolarityCheck m <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m <=< lambdaRewCheck dom
   where m = getModality dom
+
+-- | Check that lambda domain is not a local rewrite rule
+-- Lambdas do not block, so this endangers subject reduction
+lambdaRewCheck :: LensLocalEquation dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaRewCheck dom ai = do
+  case getLocalEq dom of
+    Just _  -> void $ runMaybeT $ illegalRule LocalRewrite LambdaBoundLocalRewrite
+    Nothing -> pure ()
+  pure ai
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
 --   coming from the function type.

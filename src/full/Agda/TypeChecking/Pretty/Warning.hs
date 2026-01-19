@@ -534,6 +534,9 @@ prettyWarning = \case
         LetBoundLocalRewrite ->
           "Let-binding local rewrite rules is not possible"
 
+        LambdaBoundLocalRewrite ->
+          "Local rewrite rules cannot be bound in lambdas"
+
     ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)
       [ pwords "Confluence checking incomplete because the definition of"
       , [ prettyTCM f ]

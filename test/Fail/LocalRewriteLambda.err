@@ -1,0 +1,3 @@
+LocalRewriteLambda.agda:10.9-16: error: [LambdaBoundLocalRewrite]
+Local rewrite rules cannot be bound in lambdas
+when checking that the expression λ p → 0 has type 0 ≡ x → Nat

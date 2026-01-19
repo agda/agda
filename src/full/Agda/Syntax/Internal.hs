@@ -117,6 +117,11 @@ instance LensRewriteAnn (Dom' t e) where
   getRewriteAnn = getRewriteAnn . getArgInfo
   setRewriteAnn = mapRewriteAnn . setRewriteAnn
 
+instance LensLocalEquation (Dom' t e) where
+  getLocalEq        = domEq
+  setLocalEq eq dom = dom { domEq = eq }
+  mapLocalEq f  dom = dom { domEq = f $ domEq dom }
+
 -- The other lenses are defined through LensArgInfo
 
 instance LensHiding        (Dom' t e) where
@@ -1305,8 +1310,8 @@ data LocalEquation = LocalEquation
   }
   deriving (Show, Generic)
 
--- | Local rewrites are used for actual rewriting (extending the notion of
--- convertibility). They do not admit arbitrary substitution.
+-- | Local rewrites are used for actual rewriting (applied during conversion
+-- checking). They do not admit arbitrary substitution.
 data LocalRewriteRule = LocalRewriteRule
   { lrewContext :: Telescope
   , lrewHead    :: LocalRewriteHead
@@ -1315,6 +1320,17 @@ data LocalRewriteRule = LocalRewriteRule
   , lrewType    :: Type
   }
   deriving (Show, Generic)
+
+class LensLocalEquation a where
+  getLocalEq :: a -> Maybe LocalEquation
+
+  setLocalEq :: Maybe LocalEquation -> a -> a
+  setLocalEq = mapLocalEq . const
+
+  mapLocalEq :: (Maybe LocalEquation -> Maybe LocalEquation) -> a -> a
+  mapLocalEq f a = setLocalEq (f $ getLocalEq a) a
+
+  {-# MINIMAL getLocalEq , (setLocalEq | mapLocalEq) #-}
 
 ---------------------------------------------------------------------------
 -- * Null instances.

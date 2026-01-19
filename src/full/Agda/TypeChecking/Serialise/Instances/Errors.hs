@@ -262,6 +262,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
     LetBoundLocalRewrite                        -> icodeN 16 LetBoundLocalRewrite
+    LambdaBoundLocalRewrite                     -> icodeN 17 LambdaBoundLocalRewrite
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor
@@ -281,6 +282,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     N2 14 a  -> valuN BeforeMutualFunctionDefinition a
     N1 15    -> valuN DuplicateRewriteRule
     N1 16    -> valuN LetBoundLocalRewrite
+    N1 17    -> valuN LambdaBoundLocalRewrite
     _        -> malformed
 
 instance EmbPrj OptionWarning where

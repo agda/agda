@@ -6,7 +6,5 @@ open import Agda.Builtin.Equality.Rewrite
 
 module _ where
 
-bar : (x : Nat) → 0 ≡ x → Nat
-bar x p = let @rew q : 0 ≡ x
-              q = p
-           in x
+bar : (x : Nat) → @rew 0 ≡ x → Nat
+bar x = λ p → x
