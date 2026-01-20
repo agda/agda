@@ -263,6 +263,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
     LetBoundLocalRewrite                        -> icodeN 16 LetBoundLocalRewrite
     LambdaBoundLocalRewrite                     -> icodeN 17 LambdaBoundLocalRewrite
+    LocalRewriteOutsideTelescope                -> icodeN 18 LocalRewriteOutsideTelescope
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor
@@ -283,6 +284,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 15    -> valuN DuplicateRewriteRule
     N1 16    -> valuN LetBoundLocalRewrite
     N1 17    -> valuN LambdaBoundLocalRewrite
+    N1 18    -> valuN LocalRewriteOutsideTelescope
     _        -> malformed
 
 instance EmbPrj OptionWarning where

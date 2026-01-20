@@ -330,6 +330,15 @@ checkDomain lamOrPi xs e = do
     let (r :| rs) = fmap (getRewriteAnn) xs
     unless (all (r ==) rs) $ __IMPOSSIBLE__
 
+  -- For now, we disallow '@rew' domains on pi types
+  -- In the future, this should be allowed only when the pi type is not in
+  -- higher-order position (checked syntactically)
+    case (lamOrPi, r) of
+      (PiNotLam, IsRewrite)
+        -> void $ runMaybeT
+                $ illegalRule LocalRewrite LocalRewriteOutsideTelescope
+      _ -> pure ()
+
     -- Also get whether the domain is a local rewrite rule. If it is, and there
     -- are multiple arguments, we warn that this is unnecessary
 
