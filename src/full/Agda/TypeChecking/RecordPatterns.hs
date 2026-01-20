@@ -53,21 +53,20 @@ import Agda.Utils.Impossible
 -- * Record pattern translation for let bindings
 ---------------------------------------------------------------------------
 
--- | Take a record pattern @p@ and yield a list of projections
+-- | Take a record pattern and yield a list of projections
 --   corresponding to the pattern variables, from left to right.
 --
 --   E.g. for @(x , (y , z))@ we return @[ fst, fst . snd, snd . snd ]@.
 --
---   If it is not a record pattern, error 'ShouldBeRecordPattern' is raised.
+--   If it is not a record pattern, error @'ShouldBeRecordPattern'@ is raised.
 recordPatternToProjections :: DeBruijnPattern -> TCM [Term -> Term]
-recordPatternToProjections p =
-  case p of
-    VarP{}       -> return [ id ]
-    LitP{}       -> typeError $ ShouldBeRecordPattern p
-    DotP{}       -> typeError $ ShouldBeRecordPattern p
-    ConP c ci ps -> do
+recordPatternToProjections = \case
+    VarP{}           -> return [ id ]
+    LitP{}           -> failure
+    DotP{}           -> failure
+    p@(ConP c ci ps) -> do
       unless (conPRecord ci) $
-        typeError $ ShouldBeRecordPattern p
+        failure
       let t = unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
         [ "recordPatternToProjections: "
@@ -76,10 +75,11 @@ recordPatternToProjections p =
       reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
       fields <- getRecordTypeFields t
       concat <$> zipWithM comb (map proj fields) (map namedArg ps)
-    ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
-    IApplyP{}    -> typeError $ ShouldBeRecordPattern p
-    DefP{}       -> typeError $ ShouldBeRecordPattern p
+    ProjP{}          -> __IMPOSSIBLE__ -- copattern cannot appear here
+    IApplyP{}        -> failure
+    DefP{}           -> failure
   where
+    failure = typeError ShouldBeRecordPattern
     proj p = (`applyE` [Proj ProjSystem $ unDom p])
     comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p

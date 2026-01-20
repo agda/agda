@@ -299,8 +299,8 @@ instance PrettyTCM TypeError where
     ShouldBeRecordType t -> fsep $
       pwords "Expected non-abstract record type, found " ++ [prettyTCM t]
 
-    ShouldBeRecordPattern p -> fsep $
-      pwords "Expected record pattern" -- ", found " ++ [prettyTCM p]
+    ShouldBeRecordPattern -> fsep $
+      pwords "Expected record pattern"
 
     WrongHidingInLHS -> fwords "Unexpected implicit argument"
 

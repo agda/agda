@@ -1031,11 +1031,20 @@ checkLHS mf = updateModality checkLHS_ where
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
       p <- expandLitPattern p
+
+      -- Andreas, 2026-01-20, issue #8327
+      -- Exit early when we are checking a let-pattern and encounter a non-record pattern.
+      -- This is mainly to serve the correct error message to the user.
+      let notRecPat cont = case mf of
+            -- We are checking a let-pattern which only admits record constructors
+            Nothing -> typeError ShouldBeRecordPattern
+            -- We are checking a clause which allows any kind of pattern.
+            Just{} -> cont
       let splitOnPat = \case
-            (A.LitP _ l)      -> splitLit delta1 dom adelta2 l
+            (A.LitP _ l)      -> notRecPat $ splitLit delta1 dom adelta2 l
             p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
             p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
-            p@(A.EqualP _ ts) -> splitPartial delta1 dom adelta2 ts
+            p@(A.EqualP _ ts) -> notRecPat $ splitPartial delta1 dom adelta2 ts
             A.AsP _ _ p       -> splitOnPat p
 
             A.VarP{}        -> __IMPOSSIBLE__
@@ -1342,7 +1351,7 @@ checkLHS mf = updateModality checkLHS_ where
             IsData{}   -> False
             IsRecord{} -> True
 
-      checkMatchingAllowed d dr  -- No splitting on coinductive constructors.
+      checkMatchingAllowed mf d dr  -- No splitting on e.g. coinductive constructors.
 
       -- Issue #7503: use principal sort for checking if split is ok
       let a' = set lensSort s a
@@ -1574,15 +1583,21 @@ checkLHS mf = updateModality checkLHS_ where
 -- | Ensures that we are not performing pattern matching on coinductive constructors.
 
 checkMatchingAllowed :: (MonadTCError m)
-  => QName         -- ^ The name of the data or record type the constructor belongs to.
+  => Maybe QName   -- ^ Are we checking a clause lhs or a let-pattern?
+  -> QName         -- ^ The name of the data or record type the constructor belongs to.
   -> DataOrRecord  -- ^ Information about data or (co)inductive (no-)eta-equality record.
   -> m ()
-checkMatchingAllowed d = \case
+checkMatchingAllowed mf d = \case
   IsRecord InductionAndEta { recordInduction=ind, recordEtaEquality=eta }
     | Just CoInductive <- ind -> typeError SplitOnCoinductive
     | not $ patternMatchingAllowed eta -> typeError $ SplitOnNonEtaRecord d
     | otherwise -> return ()
-  IsData -> return ()
+  IsData -> case mf of
+    -- Andreas, 2026-01-20, issue #8327
+    -- Exit early when we are checking a let-pattern and encounter a non-record pattern.
+    -- This is mainly to serve the correct error message to the user.
+    Nothing -> typeError ShouldBeRecordPattern
+    Just{}  -> return ()
 
 -- | When working with a monad @m@ implementing @MonadTCM@ and @MonadError TCErr@,
 --   @suspendErrors f@ performs the TCM action @f@ but catches any errors and throws

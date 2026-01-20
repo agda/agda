@@ -1,4 +1,3 @@
-Issue4775.agda:16.8-31: error: [ShouldBeRecordPattern]
+Issue4775.agda:16.16-24: error: [ShouldBeRecordPattern]
 Expected record pattern
-when checking that the expression λ (y1 , isSuc y2) → Nat has type
-Σ Nat IsSuc → Set
+when checking that the pattern isSuc y2 has type IsSuc y1
