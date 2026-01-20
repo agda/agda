@@ -5243,7 +5243,7 @@ data TypeError
             -- ^ The given type should have been a pi.
         | ShouldBePath Type
         | ShouldBeRecordType Type
-        | ShouldBeRecordPattern DeBruijnPattern
+        | ShouldBeRecordPattern
         | CannotApply A.Expr Type
             -- ^ The given expression is used as a function
             --   but its type is not a function type.
