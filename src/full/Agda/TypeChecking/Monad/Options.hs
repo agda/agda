@@ -1,7 +1,7 @@
 
 module Agda.TypeChecking.Monad.Options where
 
-import Prelude hiding (null)
+import Prelude hiding (null, (||), not)
 
 import Control.Monad          ( unless, when )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -36,12 +36,14 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Base (LibCache(LibCache), libAbove, libFile, runLibM)
 
+import Agda.Utils.Boolean
 import Agda.Utils.FileName
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Maybe (isJust)
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
@@ -415,7 +417,7 @@ isLevelUniverseEnabled :: HasOptions m => m Bool
 isLevelUniverseEnabled = optLevelUniverse <$> pragmaOptions
 
 isTwoLevelEnabled :: HasOptions m => m Bool
-isTwoLevelEnabled = optTwoLevel <$> pragmaOptions
+isTwoLevelEnabled = (optTwoLevel || (isJust . optCubical)) <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
@@ -425,7 +427,7 @@ showImplicitArguments :: HasOptions m => m Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 
 showGeneralizedArguments :: HasOptions m => m Bool
-showGeneralizedArguments = (\opt -> optShowGeneralized opt) <$> pragmaOptions
+showGeneralizedArguments = optShowGeneralized <$> pragmaOptions
 
 showIrrelevantArguments :: HasOptions m => m Bool
 showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions

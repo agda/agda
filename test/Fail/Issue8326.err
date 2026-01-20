@@ -1,0 +1,6 @@
+Issue8326.agda:6.1-33: error: [InfectiveImport]
+Importing module Agda.Builtin.Cubical.Glue using the
+--cubical[={full,erased,no-glue}] flag from a module which does
+not.
+when scope checking the declaration
+  import Agda.Builtin.Cubical.Glue

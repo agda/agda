@@ -1146,7 +1146,9 @@ cubicalFlag variant o =
   { _optCubical                 = Just variant
   , _optCubicalCompatible       = setDefault True  $ _optCubicalCompatible o
   , _optWithoutK                = setDefault True  $ _optWithoutK o
-  , _optTwoLevel                = setDefault True  $ _optTwoLevel o
+  -- Andreas, 2026-01-20, issue #8326
+  -- Do not set optTwoLevel here, but have been implied by optCubical
+  -- , _optTwoLevel                = setDefault True  $ _optTwoLevel o
   , _optFlatSplit               = setDefault False $ _optFlatSplit o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
   }
