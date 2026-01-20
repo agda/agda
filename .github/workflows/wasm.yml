@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - if: github.ref != 'refs/heads/master'
-      uses: styfle/cancel-workflow-action@0.12.1
+      uses: styfle/cancel-workflow-action@0.13.0
       with:
         access_token: ${{ github.token }}
     - uses: easimon/maximize-build-space@v10
