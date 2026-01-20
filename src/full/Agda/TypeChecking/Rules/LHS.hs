@@ -7,6 +7,7 @@ module Agda.TypeChecking.Rules.LHS
   , IsFlexiblePattern(..)
   , DataOrRecord
   , checkSortOfSplitVar
+  , LetOrClause(LetLHS, ClauseLHS)
   ) where
 
 import Prelude hiding ( null )
@@ -93,6 +94,13 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Free (freeIn)
+
+-- | Are we checking the LHS of a let-pattern binding or a function clause?
+data LetOrClause
+  = LetLHS
+      -- ^ Checking a pattern bound by a let.
+  | ClauseLHS QName
+      -- ^ Checking the LHS of a clause of the function with the given 'QName'.
 
 -- | Extra read-only state for the LHS checker.
 --
@@ -640,8 +648,8 @@ checkLeftHandSide :: forall a.
      -- ^ Trace, e.g. 'CheckLHS' or 'CheckPattern'.
   -> Range
      -- ^ 'Range' of the entire left hand side, for error reporting.
-  -> Maybe QName
-     -- ^ The name of the definition we are checking.
+  -> LetOrClause
+     -- ^ Are we checking a let-pattern or a function clause?
   -> [NamedArg A.Pattern]
      -- ^ The patterns.
   -> Type
@@ -960,7 +968,7 @@ splitStrategy = filter shouldSplit
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader LHSContext tcm)
-  => Maybe QName      -- ^ The name of the definition we are checking.
+  => LetOrClause      -- ^ Are we checking a let-pattern or a function clause?
   -> LHSState a       -- ^ The current state.
   -> tcm a
 checkLHS mf = updateModality checkLHS_ where
@@ -1037,9 +1045,9 @@ checkLHS mf = updateModality checkLHS_ where
       -- This is mainly to serve the correct error message to the user.
       let notRecPat cont = case mf of
             -- We are checking a let-pattern which only admits record constructors
-            Nothing -> typeError ShouldBeRecordPattern
+            LetLHS -> typeError ShouldBeRecordPattern
             -- We are checking a clause which allows any kind of pattern.
-            Just{} -> cont
+            ClauseLHS{} -> cont
       let splitOnPat = \case
             (A.LitP _ l)      -> notRecPat $ splitLit delta1 dom adelta2 l
             p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
@@ -1085,7 +1093,9 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
-      let f = fromMaybe __IMPOSSIBLE__ mf
+      let f = case mf of
+            LetLHS -> __IMPOSSIBLE__
+            ClauseLHS x -> x
       let self = Def f $ patternsToElims ip
       target' <- traverse (`piApplyM` self) projType
 
@@ -1583,7 +1593,7 @@ checkLHS mf = updateModality checkLHS_ where
 -- | Ensures that we are not performing pattern matching on coinductive constructors.
 
 checkMatchingAllowed :: (MonadTCError m)
-  => Maybe QName   -- ^ Are we checking a clause lhs or a let-pattern?
+  => LetOrClause   -- ^ Are we checking a clause lhs or a let-pattern?
   -> QName         -- ^ The name of the data or record type the constructor belongs to.
   -> DataOrRecord  -- ^ Information about data or (co)inductive (no-)eta-equality record.
   -> m ()
@@ -1596,8 +1606,8 @@ checkMatchingAllowed mf d = \case
     -- Andreas, 2026-01-20, issue #8327
     -- Exit early when we are checking a let-pattern and encounter a non-record pattern.
     -- This is mainly to serve the correct error message to the user.
-    Nothing -> typeError ShouldBeRecordPattern
-    Just{}  -> return ()
+    LetLHS -> typeError ShouldBeRecordPattern
+    ClauseLHS{} -> return ()
 
 -- | When working with a monad @m@ implementing @MonadTCM@ and @MonadError TCErr@,
 --   @suspendErrors f@ performs the TCM action @f@ but catches any errors and throws
