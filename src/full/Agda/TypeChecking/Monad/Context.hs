@@ -656,7 +656,7 @@ nameOfBV n = ctxEntryName <$> lookupBV n
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: (MonadDebug m, MonadTCEnv m) => Name -> m (Term, Dom Type)
+getVarInfo :: (MonadDebug m, MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContextVars'
         def <- asksTC envLetBindings
@@ -669,8 +669,13 @@ getVarInfo x =
                     Just vt -> do
                       LetBinding _ v t <- getOpen vt
                       return (v, t)
-                    _ -> __IMPOSSIBLE_VERBOSE__ $ unwords
+                    _ -> fail $ unwords
                       [ "unbound variable"
                       , prettyShow $ nameConcrete x
                       , "(id: " ++ prettyShow (nameId x) ++ ")"
                       ]
+                      -- Andreas, 2026-01-20, issue #8325
+                      -- This 'fail' is apparently not impossible;
+                      -- it is apparently caught during a "refine".
+                      -- TODO: It would be worthwhile investigating who wants to access
+                      -- an out-of-scope variable.
