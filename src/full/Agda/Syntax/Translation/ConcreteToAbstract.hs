@@ -69,6 +69,7 @@ import Agda.Syntax.TopLevelModuleName
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Options (isTwoLevelEnabled, isPropEnabled)
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State hiding (topLevelModuleName)
 import qualified Agda.TypeChecking.Monad.State as S (topLevelModuleName)
@@ -1583,8 +1584,8 @@ instance ToAbstract (TopLevel [C.Declaration]) where
 importPrimitives :: ScopeM [A.Declaration]
 importPrimitives = do
   ifNotM (optImportSorts <$> pragmaOptions) (return []) {- else -} do
-    prop     <- optProp     <$> pragmaOptions
-    twoLevel <- optTwoLevel <$> pragmaOptions
+    prop     <- isPropEnabled
+    twoLevel <- isTwoLevelEnabled
     -- Add implicit `open import Agda.Primitive using (Prop; Set; SSet)`
     let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
         usingDirective      = map (ImportedName . C.simpleName) $ concat
