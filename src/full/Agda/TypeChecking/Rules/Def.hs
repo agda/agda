@@ -59,7 +59,7 @@ import Agda.TypeChecking.RecordPatterns ( recordRHSToCopatterns )
 import Agda.TypeChecking.Sort
 
 import Agda.TypeChecking.Rules.Term
-import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
+import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns, LetOrClause(ClauseLHS) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
 import Agda.Utils.Function ( applyWhen, applyWhenM )
@@ -702,7 +702,7 @@ checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats _rhs0
       unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
-      checkLeftHandSide (CheckLHS lhs) (getRange lhs) (Just x) aps t withSub strippedPats ret
+      checkLeftHandSide (CheckLHS lhs) (getRange lhs) (ClauseLHS x) aps t withSub strippedPats ret
 
 -- | Type check a function clause.
 
