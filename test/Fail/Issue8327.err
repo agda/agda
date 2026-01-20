@@ -1,0 +1,3 @@
+Issue8327.agda:22.9-13: error: [ShouldBeRecordPattern]
+Expected record pattern
+when checking that the pattern refl has type a ≡ a
