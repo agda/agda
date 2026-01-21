@@ -287,6 +287,9 @@ Changes to type checker and other components defining the Agda language.
   With that change `--erasure` gets more akin to Cubical Agda that categorically
   refuses to infer lambdas (since they could construct either functions or paths).
 
+* **Possibly breaking:** The level arguments of `Set`, `Prop` and
+  `SSet` are now erased if `--erasure` is enabled.
+
 * Functions defined using with-abstraction equality (`with … in eq`) can now be
   reasoned about using the same with-abstraction equality: the equality proof
   is correctly generalised over. This should make most (if not all) uses of the
