@@ -96,6 +96,8 @@ data CommandLineOptions = Options
       -- ^ Configure colour output.
   , optMdOnlyAgdaBlocks      :: Bool
       -- ^ In literate Markdown/Typst, only treat @```agda@ blocks as code.
+  , optParallelChecking      :: Bool
+      -- ^ Should imports be type-checked in parallel?
   }
   deriving (Show, Generic)
 

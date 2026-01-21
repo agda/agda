@@ -30,13 +30,15 @@ module Agda.Interaction.Imports
 
 import Prelude hiding (null)
 
+import qualified Control.Exception as E
 import Control.Monad.Except        ( MonadError(..), ExceptT, runExceptT, withExceptT )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State         ( MonadState(..), execStateT )
 import Control.Monad.Trans.Maybe
-import qualified Control.Exception as E
+import Control.Concurrent
 
 import Data.Either
+import Data.Monoid
 import Data.List (intercalate)
 import qualified Data.List as List
 import Data.Maybe
@@ -57,9 +59,11 @@ import System.IO.Error (isUserError, isFullError)
 
 import Agda.Benchmarking
 
+import qualified Agda.Syntax.Concrete.Definitions as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
+import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty hiding (Mode)
@@ -82,6 +86,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules, sortRulesOfSymbol )
 import Agda.TypeChecking.Rewriting.NonLinPattern (getMatchables)
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
+import Agda.TypeChecking.Monad.State as S
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise (decode, encodeFile, decodeInterface, deserializeHashes)
 import Agda.TypeChecking.Primitive
@@ -117,8 +122,8 @@ import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
-
 import Agda.Utils.Impossible
+import Agda.Utils.IORef.Strict
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -460,6 +465,164 @@ pattern CheckResult { crInterface, crWarnings, crMode, crSource } <- CheckResult
     , crSource' = crSource
     }
 
+-- | Structure necessary for synchronising parallel type-checking workers.
+data TCWorkers = Workers
+  { workerThreads    :: !(MVar (HMap.HashMap TopLevelModuleName (MVar (Maybe TCErr))))
+    -- ^ Synchronized map containing synchronisation points for each
+    -- worker to signal completion (or failure).
+  , workerModules    :: !(IORef DecodedModules)
+    -- ^ The shared 'DecodedModules' where workers can put their results.
+  , workerMainModule :: !TopLevelModuleName
+    -- ^ The name of the main module we are loading for.
+  , workerMainMode   :: Mode
+    -- ^ Whether we are type or scope checking the main module.
+  }
+
+-- | If the user has asked for it, prepare the type checker for loading
+-- in parallel, and return a computation that will load the given module
+-- (as the 'MainInterface'!).
+--
+-- The given module name, when encountered, will be treated as the
+-- 'MainInterface'.
+wantsParallelChecking :: TopLevelModuleName -> Mode -> TCM (Maybe (TCM ModuleInfo))
+wantsParallelChecking mod mode = runMaybeT do
+  guard . optParallelChecking =<< commandLineOptions
+
+  -- If we're doing parallel type-checking, we have to synchronise the
+  -- interaction callback to make sure we don't end up with mangled logs
+  -- (or, worse, mangled Lisp!).
+  out <- liftIO $ newMVar ()
+  cb <- getInteractionOutputCallback
+  lift $ setInteractionOutputCallback \r -> do
+    () <- liftIO $ takeMVar out
+    cb r *> liftIO (putMVar out ())
+
+  threads <- liftIO $ newMVar mempty
+  results <- liftIO . newIORef =<< lift getDecodedModules
+  let
+    workers = Workers
+      { workerThreads    = threads
+      , workerModules    = results
+      , workerMainModule = mod
+      , workerMainMode   = mode
+      }
+  pure $ join (chaseModule workers mod)
+
+-- | Type-check the imports of the given module in parallel. The module
+-- does not need to be the main module.
+--
+-- Returns an action which *waits* for completion of type-checking of
+-- the given module. Note that the given action updates the
+-- 'DecodedModules' in the TC state where it is called to the current
+-- results of parallel type-checking. The resulting state is guaranteed
+-- to contain the requested module, and its dependencies.
+--
+-- Type-checking is started immediately.
+chaseModule :: TCWorkers -> TopLevelModuleName -> TCM (TCM ModuleInfo)
+chaseModule workers mod = do
+  let
+    -- This is the generic action for waiting on the result of checking
+    -- a module. The MVar is used just for signaling.
+    use var = liftIO (readMVar var) >>= \case
+      Just exc -> throwError exc
+      Nothing -> do
+        setDecodedModules =<< liftIO (readIORef (workerModules workers))
+        getDecodedModule mod >>= \case
+          Just mi -> pure mi
+          Nothing -> __IMPOSSIBLE_VERBOSE__ $
+            "internal error: parallel loading had thread responsible for "
+            <> show (Agda.Syntax.Common.Pretty.pretty mod)
+            <> " marked as ready, but it has not been decoded"
+
+    has = modifyMVar (workerThreads workers) \wmap -> case HMap.lookup mod wmap of
+      Just var -> pure (wmap, Left var)
+      Nothing  -> do
+        var <- newEmptyMVar
+        let nmap = HMap.insert mod var wmap
+        nmap `seq` pure (nmap, Right var)
+
+  -- In the critical section that holds workerThreads, we just decide
+  -- whether to spawn a new thread or not.
+  -- If the module already had an entry (Left), we can immediately
+  -- return the waiting thunk.
+  liftIO has >>= \case
+    Left var -> use var <$ reportSDoc "import.parallel" 15 ("reusing " <> P.pretty mod)
+
+    -- Otherwise, we have to handle spawning the new thread to do
+    -- type-checking.
+    Right var -> use var <$ do
+      stack <- viewTC eImportStack
+      reportSDoc "import.parallel" 15 $ "spawning " <> P.pretty mod
+
+      let
+        -- If this is the call corresponding to checking the main
+        -- module, we don't start a new thread.
+        -- This is because we want to be in the state from checking the
+        -- main module, e.g. for interactive checking.
+        --
+        -- If we *are* starting a new thread, we must install an
+        -- exception handler to catch any TCErrs that make it to the top
+        -- level, so that they can propagate back to the main thread
+        -- eventually.
+        detach
+          | mod == workerMainModule workers = id
+          | otherwise = forkTCM . flip catchError (liftIO . putMVar var . Just)
+
+      detach do
+        -- Parse the module and recursively chase any imports that
+        -- appear at top-level. This will spawn threads for all of them
+        -- and block the current thread on their completion.
+        src <- parseSource =<< findFile mod
+
+        -- Now we traverse through all the top-level imports and collect
+        -- the "promises" for waiting on them. This will spawn the
+        -- threads to check them.
+        imports <- flip foldDecl (srcModule src) \case
+          C.Import opn r x as is -> do
+            let dec = C.NiceImport opn r x as is
+            traceCall (ScopeCheckDeclaration dec) do
+
+            tl  <- S.topLevelModuleName (rawTopLevelModuleNameForQName x)
+
+            -- This is a bit fiddly. 'getInterface' below will push mod
+            -- onto the import stack, so if we push it around the entire
+            -- thread, we get a spurious cyclic import error.
+            --
+            -- However, we can't also push tl, because *its* worker
+            -- thread would end up pushing it, so *it* would be on the
+            -- stack twice, too!
+            --
+            -- We have to check for import cycles here because GHC does
+            -- not seem to always generate the proper "thread blocked
+            -- indefinitely on MVar operation".
+            act <- locallyTC eImportStack (mod:) do
+              locallyTC eImportStack (tl:) checkForImportCycle
+              chaseModule workers tl
+
+            pure $ Endo (act:)
+
+          _ -> pure mempty
+
+        -- Now we wait for all the dependencies and, when that's done,
+        -- we can just type-check the module as usual.
+        -- Waiting for the dependencies will have moved us to a TC state
+        -- where they have been placed in the DecodedModules map, so the
+        -- normal type-checking code will just reuse them when we get
+        -- around to actually scope checking the import.
+        sequence_ (appEndo imports [])
+
+        let
+          ismain
+            | mod == workerMainModule workers = MainInterface (workerMainMode workers)
+            | otherwise                       = NotMainInterface
+        mi <- getInterface mod ismain (Just src)
+
+        -- After we're done, update the shared DecodedModules map and
+        -- signal our completion.
+        liftIO do
+          atomicModifyIORef (workerModules workers) \v -> (Map.insert mod mi v, ())
+          putMVar var Nothing
+
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
 --   or the file passed on the command line.
@@ -493,7 +656,9 @@ typeCheckMain mode src = do
   -- Now do the type checking via getInterface.
   checkModuleName' (srcModuleName src) (srcOrigin src)
 
-  mi <- getInterface (srcModuleName src) (MainInterface mode) (Just src)
+  mi <- wantsParallelChecking (srcModuleName src) mode >>= \case
+    Just go -> go
+    Nothing -> getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
   stCurrentModule `setTCLens'`
     Just ( iModuleName (miInterface mi)

@@ -135,6 +135,12 @@ General options
 
      For use with the Emacs mode (no need to invoke yourself).
 
+.. option:: --parallel, -j
+
+     Type check in parallel. Can result in a significant speedup
+     depending on the shape of your dependency graph, at the cost of
+     increased (sometimes doubled!) maximum memory usage.
+
 .. option:: --interaction-json
 
      .. versionadded:: 2.6.1
