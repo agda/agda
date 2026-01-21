@@ -1,0 +1,2 @@
+[forest]
+trees = ["trees", "html"]                   # The directories in which your trees are stored
