@@ -157,8 +157,15 @@ isType_ e = traceCall (IsType_ e) $ do
       unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
       -- allow ShapeIrrelevant variables when checking level
       --   Set : (ShapeIrrelevant) Level -> Set\omega
-      applyRelevanceToContext shapeIrrelevant $
-        sort . Univ u <$> checkLevel arg
+      applyRelevanceToContext shapeIrrelevant $ do
+        -- If --erasure has been turned on, then the argument of
+        -- Set/Prop/SSet is erased.
+        erasureEnabled <- optErasure <$> pragmaOptions
+        sort . Univ u <$>
+          (if erasureEnabled
+           then applyQuantityToJudgement zeroQuantity
+           else id)
+          (checkLevel arg)
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do

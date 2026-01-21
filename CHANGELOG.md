@@ -283,6 +283,9 @@ Changes to type checker and other components defining the Agda language.
   With that change `--erasure` gets more akin to Cubical Agda that categorically
   refuses to infer lambdas (since they could construct either functions or paths).
 
+* **Possibly breaking:** The level arguments of `Set`, `Prop` and
+  `SSet` are now erased if `--erasure` is enabled.
+
 * (**BREAKING**): Instance search will no longer eta-expand non-instance
   (visible and hidden) variables of record type in the context to find
   instance fields ([PR #8367](https://github.com/agda/agda/pull/8367)).

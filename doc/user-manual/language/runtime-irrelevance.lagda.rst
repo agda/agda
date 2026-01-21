@@ -298,7 +298,9 @@ The type checker enters compile-time mode when
   position) on a constructor that was originally defined as erased (it
   does not suffice for the constructor to be currently treated as
   erased),
-- checking the domain of an erased Π type, or
+- checking the domain of an erased Π type,
+- checking the level argument of ``Set``, ``Prop`` or ``SSet`` (if
+  :option:`--erasure` is active), or
 - checking a type, i.e. when moving to the right of a ``:``, with some
   exceptions:
 
