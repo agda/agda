@@ -25,6 +25,7 @@ import qualified Data.IntSet   as IntSet
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
+import Agda.Interaction.Options.Base
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern (patternToExpr)
@@ -1593,7 +1594,14 @@ inferLeveledSort u q suffix = \case
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
     List1.unlessNull args $ warning . TooManyArgumentsToSort q
-    l <- applyRelevanceToContext shapeIrrelevant $ checkLevel arg
+    -- If --erasure has been turned on, then the argument of
+    -- Set/Prop/SSet is erased.
+    erasureEnabled <- optErasure <$> pragmaOptions
+    l <- applyRelevanceToContext shapeIrrelevant $
+         (if erasureEnabled
+          then applyQuantityToJudgement zeroQuantity
+          else id)
+         (checkLevel arg)
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
 
 inferUnivOmega ::
