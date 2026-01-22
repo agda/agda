@@ -135,7 +135,7 @@ General options
 
      For use with the Emacs mode (no need to invoke yourself).
 
-.. option:: --parallel, -j[=N]
+.. option:: --parallel[=N], -j[N]
 
      Type check in parallel. If given, N controls the number of threads
      to use for checking; ``-j0`` is equivalent to ``-j``, and means
