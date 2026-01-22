@@ -19,6 +19,8 @@ import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
+import GHC.Conc (getNumProcessors)
+
 import System.Environment ( getArgs, getProgName )
 import System.Exit ( exitSuccess, ExitCode )
 import System.FilePath ( takeFileName )
@@ -312,18 +314,20 @@ runAgdaWithOptions interactor progName opts = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
 
-      -- The GHC runtime is funky and may cause us to run out of heap, even
-      -- in sequential mode, if there are many capabilities; in the Cabal
-      -- file, we ask for the RTS to set the number of capabilities to the
-      -- number of CPUs, but if we're not going to be checking in parallel,
-      -- having a single capability works better.
+      -- The GHC runtime has some funky behaviour if we ask it to set
+      -- the number of capabilities on startup.
       --
-      -- Despite this, some of the tests with a ridiculously low heap
-      -- limit (less than (approx.) the nursery size times the number of
-      -- cores) *fail to even start* with the automatic number of
-      -- capabilities. These need to have -N1 added to their flags.
+      -- a) The minimum heap size seems to shoot up to approx. the GC
+      -- allocation area times the number of processors, which means the
+      -- performance regression tests with very low memory usage limit
+      -- simply fail to start;
+      --
+      -- b) Even if we set the number of capabilities back down to 1,
+      -- the parallel GC seems to be used unconditionally if we have
+      -- more capabilities on startup, which adds a noticeable amount of
+      -- overhead.
       liftIO case optParallelChecking opts of
-        Parallel Nothing  -> pure ()
+        Parallel Nothing  -> setNumCapabilities =<< getNumProcessors
         Parallel (Just i) -> setNumCapabilities i
         Sequential        -> setNumCapabilities 1
 
