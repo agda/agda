@@ -96,7 +96,7 @@ data CommandLineOptions = Options
       -- ^ Configure colour output.
   , optMdOnlyAgdaBlocks      :: Bool
       -- ^ In literate Markdown/Typst, only treat @```agda@ blocks as code.
-  , optParallelChecking      :: Bool
+  , optParallelChecking      :: Parallelism
       -- ^ Should imports be type-checked in parallel?
   }
   deriving (Show, Generic)
@@ -250,6 +250,11 @@ data DiagnosticsColours
   | AutoColour
   deriving (Show, Generic)
 
+data Parallelism
+  = Sequential
+  | Parallel (Maybe Int)
+  deriving (Show, Generic)
+
 -- | If several @--emacs-mode@ commands are given,
 --   they are executed in the order as given in this datatype.
 data EmacsModeCommand
@@ -309,6 +314,7 @@ instance NFData CommandLineOptions
 instance NFData PragmaOptions
 
 instance NFData ConfluenceCheck
+instance NFData Parallelism
 instance NFData DiagnosticsColours
 instance NFData EmacsModeCommand
 instance NFData InfectiveCoinfective

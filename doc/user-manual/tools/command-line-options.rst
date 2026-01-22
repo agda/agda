@@ -135,11 +135,18 @@ General options
 
      For use with the Emacs mode (no need to invoke yourself).
 
-.. option:: --parallel, -j
+.. option:: --parallel, -j[=N]
 
-     Type check in parallel. Can result in a significant speedup
-     depending on the shape of your dependency graph, at the cost of
-     increased (sometimes doubled!) maximum memory usage.
+     Type check in parallel. If given, N controls the number of threads
+     to use for checking; ``-j0`` is equivalent to ``-j``, and means
+     "use as many threads as the processor has CPUs". The default,
+     ``-j1``, means "check sequentially".
+
+     Using the appropriate number of cores can result in a significant
+     speedup, depending on the shape of your dependency graph. However,
+     using too many threads can *degrade* performance, particularly
+     total memory usage.
+     A reasonable number to start with is ``-j8``.
 
 .. option:: --interaction-json
 

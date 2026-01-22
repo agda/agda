@@ -10,6 +10,7 @@ import qualified Control.Exception as E
 import Control.Monad          ( void )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Concurrent     (setNumCapabilities)
 
 import qualified Data.List as List
 import Data.Function          ( (&) )
@@ -310,6 +311,21 @@ runAgdaWithOptions interactor progName opts = do
     initialSetup = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
+
+      -- The GHC runtime is funky and may cause us to run out of heap, even
+      -- in sequential mode, if there are many capabilities; in the Cabal
+      -- file, we ask for the RTS to set the number of capabilities to the
+      -- number of CPUs, but if we're not going to be checking in parallel,
+      -- having a single capability works better.
+      --
+      -- Despite this, some of the tests with a ridiculously low heap
+      -- limit (less than (approx.) the nursery size times the number of
+      -- cores) *fail to even start* with the automatic number of
+      -- capabilities. These need to have -N1 added to their flags.
+      liftIO case optParallelChecking opts of
+        Parallel Nothing  -> pure ()
+        Parallel (Just i) -> setNumCapabilities i
+        Sequential        -> setNumCapabilities 1
 
     checkFile :: AbsolutePath -> TCM CheckResult
     checkFile inputFile = do

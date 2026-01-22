@@ -485,28 +485,28 @@ data TCWorkers = Workers
 -- The given module name, when encountered, will be treated as the
 -- 'MainInterface'.
 wantsParallelChecking :: TopLevelModuleName -> Mode -> TCM (Maybe (TCM ModuleInfo))
-wantsParallelChecking mod mode = runMaybeT do
-  guard . optParallelChecking =<< commandLineOptions
+wantsParallelChecking mod mode = fmap optParallelChecking commandLineOptions >>= \case
+  Sequential -> pure Nothing
+  Parallel{} -> Just <$> do
+    -- If we're doing parallel type-checking, we have to synchronise the
+    -- interaction callback to make sure we don't end up with mangled logs
+    -- (or, worse, mangled Lisp!).
+    out <- liftIO $ newMVar ()
+    cb <- getInteractionOutputCallback
+    setInteractionOutputCallback \r -> do
+      () <- liftIO $ takeMVar out
+      cb r *> liftIO (putMVar out ())
 
-  -- If we're doing parallel type-checking, we have to synchronise the
-  -- interaction callback to make sure we don't end up with mangled logs
-  -- (or, worse, mangled Lisp!).
-  out <- liftIO $ newMVar ()
-  cb <- getInteractionOutputCallback
-  lift $ setInteractionOutputCallback \r -> do
-    () <- liftIO $ takeMVar out
-    cb r *> liftIO (putMVar out ())
-
-  threads <- liftIO $ newMVar mempty
-  results <- liftIO . newIORef =<< lift getDecodedModules
-  let
-    workers = Workers
-      { workerThreads    = threads
-      , workerModules    = results
-      , workerMainModule = mod
-      , workerMainMode   = mode
-      }
-  pure $ join (chaseModule workers mod)
+    threads <- liftIO $ newMVar mempty
+    results <- liftIO . newIORef =<< getDecodedModules
+    let
+      workers = Workers
+        { workerThreads    = threads
+        , workerModules    = results
+        , workerMainModule = mod
+        , workerMainMode   = mode
+        }
+    pure $ join (chaseModule workers mod)
 
 -- | Type-check the imports of the given module in parallel. The module
 -- does not need to be the main module.

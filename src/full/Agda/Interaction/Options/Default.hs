@@ -45,7 +45,7 @@ defaultOptions = Options
   , optTransliterate         = False
   , optDiagnosticsColour     = AutoColour
   , optMdOnlyAgdaBlocks      = False
-  , optParallelChecking      = False
+  , optParallelChecking      = Sequential
   }
 
 defaultPragmaOptions :: PragmaOptions
