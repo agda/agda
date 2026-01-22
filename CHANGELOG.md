@@ -122,6 +122,8 @@ Pragmas and options
   It can be overwritten by `--color=always`.
   See also https://no-color.org/ .
 
+* New option `--quote-metas` to allow for `quoteTerm` constraints to be solved even when the quoted term contains unsolved metas. This allows for elaborating macro applications with quoted arguments that still have interactive holes in them. See the [quote metas documentation](https://agda.readthedocs.io/en/v2.9.0/language/reflection.html#quote-metas).
+
 Errors
 ------
 

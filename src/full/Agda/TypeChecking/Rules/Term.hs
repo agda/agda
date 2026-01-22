@@ -1614,12 +1614,14 @@ checkExpr' cmp e t =
 doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
 doQuoteTerm cmp et t = do
   et'       <- etaContract =<< instantiateFull et
-  case allMetasList et' of
-    []  -> do
-      q  <- quoteTerm et'
-      ty <- el primAgdaTerm
-      coerce cmp q ty t
-    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ unblockOnAllMetas $ Set.fromList metas
+  quoteMetas <- optQuoteMetas <$> pragmaOptions
+  let metas = allMetasList et'
+  if quoteMetas || null metas then do
+    q  <- quoteTerm et'
+    ty <- el primAgdaTerm
+    coerce cmp q ty t
+  else
+    postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ unblockOnAllMetas $ Set.fromList metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()

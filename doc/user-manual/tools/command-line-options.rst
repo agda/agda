@@ -1283,6 +1283,20 @@ Erasure
 
      Enable lossy unification, see :ref:`lossy-unification`.
 
+.. option:: --quote-metas
+
+     .. versionadded 2.9.0
+
+     Allow typechecking to quote terms that contain metas, see :ref:`quote-metas`.
+
+.. option:: --no-quote-metas
+
+     .. versionadded 2.9.0
+
+     Block typechecking when attempting to quote terms that contain metas.
+
+     Opposite of :option:`--quote-metas`, default.
+
 .. _warnings:
 
 Warnings
@@ -2072,12 +2086,12 @@ A *coinfective* option is an option that if used in one module, must
 be used in all modules that this module depends on. The following
 options are coinfective:
 
+* :option:`--level-universe`
+* :option:`--no-guardedness`
+* :option:`--no-sized-types`
+* :option:`--no-universe-polymorphism`
 * :option:`--safe`
 * :option:`--without-K`
-* :option:`--no-universe-polymorphism`
-* :option:`--no-sized-types`
-* :option:`--no-guardedness`
-* :option:`--level-universe`
 
 Furthermore the option :option:`--cubical=compatible` is mostly
 coinfective. If a module uses :option:`--cubical=compatible` then all
@@ -2097,16 +2111,17 @@ again, the source file is re-typechecked instead:
 * :option:`--allow-exec`
 * :option:`--allow-incomplete-matches`
 * :option:`--allow-unsolved-metas`
+* :option:`--backtracking-instance-search`
 * :option:`--call-by-name`
 * :option:`--cohesion`
 * :option:`--confluence-check`
 * :option:`--copatterns`
-* :option:`--cubical=compatible`
 * :option:`--cubical`
+* :option:`--cubical=compatible`
+* :option:`--cubical=erased`
 * :option:`--cumulativity`
 * :option:`--double-check`
 * :option:`--erase-record-parameters`
-* :option:`--cubical=erased`
 * :option:`--erased-matches`
 * :option:`--erasure`
 * :option:`--exact-split`
@@ -2137,10 +2152,10 @@ again, the source file is re-typechecked instead:
 * :option:`--no-unicode`
 * :option:`--no-universe-polymorphism`
 * :option:`--omega-in-omega`
-* :option:`--backtracking-instance-search`
 * :option:`--polarity`
 * :option:`--prop`
 * :option:`--qualified-instances`
+* :option:`--quote-metas`
 * :option:`--rewriting`
 * :option:`--safe`
 * :option:`--save-metas`
@@ -2150,7 +2165,6 @@ again, the source file is re-typechecked instead:
 * :option:`--type-in-type`
 * :option:`--warning`
 * :option:`--without-K`
-
 
 .. _Vim: https://www.vim.org/
 .. _Dot: http://www.graphviz.org/content/dot-language
