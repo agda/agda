@@ -406,7 +406,7 @@ checkTacticAttribute :: LamOrPi -> Ranged A.Expr -> TCM Term
 checkTacticAttribute LamNotPi (Ranged r e) = setCurrentRange r $
   typeError $ TacticAttributeNotAllowed
 checkTacticAttribute PiNotLam (Ranged r e) = do
-  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#@> primLevelZero <@> primUnit)
   checkExpr e expectedType
 
 checkPath :: NamedArg Binder -> A.Type -> A.Expr -> Type -> TCM Term
@@ -1634,7 +1634,7 @@ doQuoteTerm cmp et t = do
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
 unquoteM tacA hole holeType = do
   tac <- applyQuantityToJudgement zeroQuantity $
-    checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+    checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#@> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
 -- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type

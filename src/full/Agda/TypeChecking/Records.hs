@@ -950,8 +950,9 @@ isSingletonType' regardIrrelevance t rs = do
             IOne -> do
               let
                 argH = Arg $ setHiding Hidden defaultArgInfo
+                argE = Arg erasedHiddenArgInfo
                 it = elt `apply` [defaultArg (Def itIsOne [])]
-              pure (Def subin [] `apply` [argH level, argH tA, argH phi, defaultArg it])
+              pure (Def subin [] `apply` [argE level, argH tA, argH phi, defaultArg it])
             -- Otherwise we're blocked
             OTerm phi' -> patternViolation (unblockOnAnyMetaIn phi')
             -- This fails the MaybeT: we're not looking at a

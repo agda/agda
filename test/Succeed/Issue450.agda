@@ -2,8 +2,8 @@
 
 module Issue450 where
 
+open import Agda.Builtin.Coinduction
 open import Common.Level
-open import Common.Coinduction
 
 data _≡_ {A : Set}(x : A) : A → Set where
   refl : x ≡ x

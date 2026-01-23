@@ -500,7 +500,7 @@ defineCompData d con params names fsT t boundary = do
               imax x y = pure tIMax <@> x <@> y
               ineg r = pure tINeg <@> r
               lvlOfType = (\ (Type l) -> Level l) . getSort
-              pOr la i j u0 u1 = pure tPOr <#> (lvlOfType <$> la) <@> i <@> j
+              pOr la i j u0 u1 = pure tPOr <#@> (lvlOfType <$> la) <@> i <@> j
                                            <#> ilam "o" (\ _ -> unEl <$> la) <@> u0 <@> u1
               absAp x y = liftM2 absApp x y
 
@@ -519,7 +519,7 @@ defineCompData d con params names fsT t boundary = do
                   let
                     -- Γ, i ⊢ squeeze u = primTrans (\ j -> ty [i := i ∨ j]) (φ ∨ i) u
                     squeeze u = cl primTrans
-                                          <#> lam "j" (\ j -> lvlOfType <$> ty `absAp` (imax i j))
+                                          <#@> lam "j" (\ j -> lvlOfType <$> ty `absAp` (imax i j))
                                           <@> lam "j" (\ j -> unEl <$> ty `absAp` (imax i j))
                                           <@> (phi `imax` i)
                                           <@> u
@@ -542,7 +542,7 @@ defineCompData d con params names fsT t boundary = do
                 faces <- mapM (\ x -> liftM2 (,) (open . noabsApp __IMPOSSIBLE__ $ fmap fst x) (open $ fmap snd x)) faces
                 let
                   thePsi = foldl1 imax (map fst faces)
-                  hcomp ty phi sys a0 = pure tHComp <#> (lvlOfType <$> ty)
+                  hcomp ty phi sys a0 = pure tHComp <#@> (lvlOfType <$> ty)
                                                     <#> (unEl <$> ty)
                                                     <#> phi
                                                     <@> sys
@@ -944,7 +944,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           ty <- open $ ty
           face <- (foldr max (pure iz) $ map fst $ sys)
           sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
-          pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
+          pure tHComp <#@> l <#> ty <#> pure face <@> pure sys <@> u0
   interval <- primIntervalType
   let intervalTel nm = ExtendTel (defaultDom interval) (Abs nm EmptyTel)
 
@@ -999,7 +999,8 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
         let
           origPHComp = do
             LEl l t <- fromMaybe __IMPOSSIBLE__ <.> toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
-            let ds = map (argH . unnamed . dotP) [Level l, t]
+            let ds = let f = unnamed . dotP in
+                     [argE (f (Level l)), argH (f t)]
             sequence as0 >>= \case
               ps0@[_hphi,_u,_u0] ->
                 pure $ DefP defaultPatternInfo qHComp $ ds ++ ps0
@@ -1433,9 +1434,9 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
              lvl <- open lvl
              phi <- open the_phi
              field <- open field
-             pure transp <#> lvl <@> pure filled_ty
-                                 <@> phi
-                                 <@> field
+             pure transp <#@> lvl <@> pure filled_ty
+                                  <@> phi
+                                  <@> field
           -- interval arg
           ClosedType{}  ->
             return $ runNames [] $ do
@@ -1561,7 +1562,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
         lam "i" $ \ i -> do
           args <- sequence params
           psi  <- pure imax <@> phi <@> (pure ineg <@> i)
-          u <- lam "j" (\ j -> pure por <#> lvl
+          u <- lam "j" (\ j -> pure por <#@> lvl
                                         <@> phi
                                         <@> (pure ineg <@> i)
                                         <#> lam "_" (\ o -> rect)
@@ -1588,12 +1589,12 @@ defineHCompForFields applyProj name params fsT fns rect = do
   comp <- do
         let
           imax i j = pure tIMax <@> i <@> j
-        let forward la bA r u = pure transp <#> lam "i" (\ i -> la <@> (i `imax` r))
+        let forward la bA r u = pure transp <#@> lam "i" (\ i -> la <@> (i `imax` r))
                                             <@> lam "i" (\ i -> bA <@> (i `imax` r))
                                             <@> r
                                             <@> u
         return $ \ la bA phi u u0 ->
-          pure hcomp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
+          pure hcomp <#@> (la <@> pure io) <#> (bA <@> pure io) <#> phi
                       <@> lam "i" (\ i -> ilam "o" $ \ o ->
                               forward la bA i (u <@> i <..> o))
                       <@> forward la bA (pure iz) u0

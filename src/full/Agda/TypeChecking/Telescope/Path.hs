@@ -49,7 +49,7 @@ telePiPath = \ reAbs lams tel t (Boundary bs) -> do
             l <- getLevel b
             return $ El (Type l) $
               pathP `apply`
-                [ argH (Level l)
+                [ argE (Level l)
                 , argN (Lam defaultArgInfo (unEl <$> b))
                 , argN $ lams names u0
                 , argN $ lams names u1
@@ -63,6 +63,7 @@ telePiPath = \ reAbs lams tel t (Boundary bs) -> do
   where
     argN = Arg defaultArgInfo
     argH = Arg $ setHiding Hidden defaultArgInfo
+    argE = Arg erasedHiddenArgInfo
     getLevel :: Abs Type -> TCM Level
     getLevel b = do
       s <- reduce $ getSort <$> b
