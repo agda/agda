@@ -2,7 +2,7 @@
 
 module Productivity (char : Set) where
 
-  open import Common.Coinduction
+  open import Agda.Builtin.Coinduction
 
   infix  50 _⋆ _+
   infixl 40 _⊛_

@@ -511,7 +511,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
         bindNArg [argH "psi",argN "u", argN "u0"] $ \ x0 -> do
         x0 <- sequence x0
         LEl l t <- fromMaybe __IMPOSSIBLE__ <.> toLType =<< do pure dT `applyN` g1 `applyN` v
-        let ty = map (fmap (unnamed . dotP) . argH) [Level l,t]
+        let ty = map (fmap (unnamed . dotP)) [argE (Level l), argH t]
         pure $ DefP defaultPatternInfo q_hcomp $ ty ++ x0
   hcompD <- runNamesT [] $
             bindN (map unArg $ gamma1ArgNames) $ \ g1 -> do
@@ -1015,14 +1015,14 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
                 Right args -> return args
           comp <- mkCompLazy "hcompClause"
           let
-            hcomp la bA phi u u0 = pure tHComp <#> la <#> bA
+            hcomp la bA phi u u0 = pure tHComp <#@> la <#> bA
                                                <#> phi
                                                <@> u
                                                <@> u0
 
             hfill la bA phi u u0 i = hcomp la bA
                                                (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                                               (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> ilam "o" (\ _ -> bA)
+                                               (lam "j" $ \ j -> pure tPOr <#@> la <@> phi <@> (pure tINeg <@> i) <#> ilam "o" (\ _ -> bA)
                                                      <@> ilam "o" (\ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> ilam "o" (\ _ -> u0)
                                                    )
@@ -1034,10 +1034,10 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
               [phi,u,u0] = map (pure . var) [2,1,0]
               htype = pure $ unEl . unDom $ hdom
               lvl = getLevel $ unDom hdom
-            hc <- pure tHComp <#> lvl <#> htype
-                                      <#> phi
-                                      <@> u
-                                      <@> u0
+            hc <- pure tHComp <#@> lvl <#> htype
+                                       <#> phi
+                                       <@> u
+                                       <@> u0
             return $ liftS (size delta) $ hc `consS` raiseS 3
           -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ raise 3+|Δ| hdom
           hdom <- pure $ raise (3 + size delta) hdom
@@ -1084,7 +1084,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
                            liftTCM (cannotCreate "Cannot compose with type family:" cl)
 
           let
-            pOr_ty i phi psi u0 u1 = pure tPOr <#> (ty_level <@> i)
+            pOr_ty i phi psi u0 u1 = pure tPOr <#@> (ty_level <@> i)
                                                <@> phi <@> psi
                                                <#> ilam "o" (\ _ -> unEl <$> ty i) <@> u0 <@> u1
           alpha <- do

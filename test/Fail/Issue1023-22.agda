@@ -2,7 +2,7 @@
 
 {-# OPTIONS --cubical-compatible --guardedness #-}
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 open import Common.Equality
 
 data False : Set where

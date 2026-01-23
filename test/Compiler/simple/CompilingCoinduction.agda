@@ -2,7 +2,7 @@
 
 module CompilingCoinduction where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 open import Common.Char
 open import Common.String
 

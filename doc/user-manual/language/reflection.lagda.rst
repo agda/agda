@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --allow-unsolved-metas #-}
+  {-# OPTIONS --allow-unsolved-metas --erasure #-}
 
   module language.reflection where
 
@@ -20,7 +20,7 @@
 
   pattern [_] x = x ∷ []
 
-  ¬_ : ∀ {u} → Set u → Set u
+  ¬_ : ∀ {@0 u} → Set u → Set u
   ¬ x  = x → ⊥
 
   infixl 2 ¬_
@@ -391,9 +391,9 @@ Metaprograms, i.e. programs that create other programs, run in a built-in type
 checking monad ``TC``::
 
   postulate
-    TC       : ∀ {a} → Set a → Set a
-    returnTC : ∀ {a} {A : Set a} → A → TC A
-    bindTC   : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
+    TC       : ∀ {@0 a} → Set a → Set a
+    returnTC : ∀ {@0 a} {A : Set a} → A → TC A
+    bindTC   : ∀ {@0 a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
 
   {-# BUILTIN AGDATCM       TC       #-}
   {-# BUILTIN AGDATCMRETURN returnTC #-}
@@ -408,12 +408,12 @@ following primitive operations::
     unify : Term → Term → TC ⊤
 
     -- Throw a type error. Can be caught by catchTC.
-    typeError : ∀ {a} {A : Set a} → List ErrorPart → TC A
+    typeError : ∀ {@0 a} {A : Set a} → List ErrorPart → TC A
 
     -- Block a type checking computation on a blocker. This will abort
     -- the computation and restart it (from the beginning) when the
     -- blocker has been solved.
-    blockTC : ∀ {a} {A : Set a} → Blocker → TC A
+    blockTC : ∀ {@0 a} {A : Set a} → Blocker → TC A
 
     -- Prevent current solutions of metavariables from being rolled back in
     -- case 'blockOnMeta' is called.
@@ -421,7 +421,7 @@ following primitive operations::
 
     -- Backtrack and try the second argument if the first argument throws a
     -- type error.
-    catchTC : ∀ {a} {A : Set a} → TC A → TC A → TC A
+    catchTC : ∀ {@0 a} {A : Set a} → TC A → TC A → TC A
 
     -- Infer the type of a given term
     inferType : Term → TC Type
@@ -444,19 +444,19 @@ following primitive operations::
     getContext : TC Telescope
 
     -- Extend the current context with a variable of the given type and its name.
-    extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
+    extendContext : ∀ {@0 a} {A : Set a} → String → Arg Type → TC A → TC A
 
     -- Set the current context relative to the context the TC computation
     -- is invoked from.  Takes a context telescope entries in reverse
     -- order, as given by `getContext`. Each type should be valid in the
     -- context formed by the remaining elements in the list.
-    inContext : ∀ {a} {A : Set a} → Telescope → TC A → TC A
+    inContext : ∀ {@0 a} {A : Set a} → Telescope → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.
-    quoteTC : ∀ {a} {A : Set a} → A → TC Term
+    quoteTC : ∀ {@0 a} {A : Set a} → A → TC Term
 
     -- Unquote a Term, returning the corresponding value.
-    unquoteTC : ∀ {a} {A : Set a} → Term → TC A
+    unquoteTC : ∀ {@0 a} {A : Set a} → Term → TC A
 
     -- Quote a value in Setω, returning the corresponding Term
     quoteωTC : ∀ {A : Setω} → A → TC Term
@@ -508,21 +508,21 @@ following primitive operations::
     -- Change the behaviour of inferType, checkType, quoteTC, getContext
     -- to normalise (or not) their results. The default behaviour is no
     -- normalisation.
-    withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    withNormalisation : ∀ {@0 a} {A : Set a} → Bool → TC A → TC A
     askNormalisation  : TC Bool
 
     -- If 'true', makes the following primitives to reconstruct hidden arguments:
     -- getDefinition, normalise, reduce, inferType, checkType and getContext
-    withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    withReconstructed : ∀ {@0 a} {A : Set a} → Bool → TC A → TC A
     askReconstructed  : TC Bool
 
     -- Whether implicit arguments at the end should be turned into metavariables
-    withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    withExpandLast : ∀ {@0 a} {A : Set a} → Bool → TC A → TC A
     askExpandLast  : TC Bool
 
     -- White/blacklist specific definitions for reduction while executing the TC computation
     -- 'true' for whitelist, 'false' for blacklist
-    withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+    withReduceDefs : ∀ {@0 a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
     askReduceDefs  : TC (Σ Bool λ _ → List Name)
 
     -- Parse and type check the given string against the given type, returning
@@ -541,15 +541,15 @@ following primitive operations::
 
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.
-    noConstraints : ∀ {a} {A : Set a} → TC A → TC A
+    noConstraints : ∀ {@0 a} {A : Set a} → TC A → TC A
 
     -- Run the given computation at the type level, allowing use of erased things.
-    workOnTypes : ∀ {a} {A : Set a} → TC A → TC A
+    workOnTypes : ∀ {@0 a} {A : Set a} → TC A → TC A
 
     -- Run the given TC action and return the first component. Resets to
     -- the old TC state if the second component is 'false', or keep the
     -- new TC state if it is 'true'.
-    runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+    runSpeculative : ∀ {@0 a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
 
     -- Get a list of all possible instance candidates for the given meta
     -- variable (it does not have to be an instance meta).
@@ -804,7 +804,7 @@ Example usage:
   module unquote-id where
 
     _>>=_ = bindTC
-    _>>_ : ∀ {ℓ} {A : Set ℓ} → TC ⊤ → TC A → TC A
+    _>>_ : ∀ {@0 ℓ} {A : Set ℓ} → TC ⊤ → TC A → TC A
     a >> b = a >>= λ { tt → b }
 
 ::

@@ -1,9 +1,9 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types
-            --no-guardedness --level-universe --erasure #-}
+{-# OPTIONS --erasure #-}
 
-module Agda.Builtin.Strict where
+data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+  refl : x ≡ x
 
-open import Agda.Builtin.Equality
+{-# BUILTIN EQUALITY _≡_ #-}
 
 primitive
   primForce      : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x

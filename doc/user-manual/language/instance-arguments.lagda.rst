@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting --sized-types #-}
+  {-# OPTIONS --rewriting --sized-types --erasure #-}
   module language.instance-arguments where
 
   open import language.built-ins
