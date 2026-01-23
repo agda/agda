@@ -29,6 +29,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.TypeChecking.Pretty as TCM
+import Agda.TypeChecking.Primitive.Base (argE)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
 import Agda.TypeChecking.Substitute
@@ -951,7 +952,8 @@ isSingletonType' regardIrrelevance t rs = do
               let
                 argH = Arg $ setHiding Hidden defaultArgInfo
                 it = elt `apply` [defaultArg (Def itIsOne [])]
-              pure (Def subin [] `apply` [argH level, argH tA, argH phi, defaultArg it])
+              level <- argE level
+              pure (Def subin [] `apply` [level, argH tA, argH phi, defaultArg it])
             -- Otherwise we're blocked
             OTerm phi' -> patternViolation (unblockOnAnyMetaIn phi')
             -- This fails the MaybeT: we're not looking at a

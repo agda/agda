@@ -4,7 +4,7 @@
 
 module GuardednessPreservingTypeConstructors where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 -- Preliminaries.
 

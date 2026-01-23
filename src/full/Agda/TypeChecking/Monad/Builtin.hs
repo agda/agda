@@ -16,6 +16,8 @@ import Data.Function ( on )
 import qualified Data.Map as Map
 import Data.Set (Set)
 
+import Agda.Interaction.Options.Types
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -36,10 +38,7 @@ import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
-class ( Functor m
-      , Applicative m
-      , Monad m
-      ) => HasBuiltins m where
+class HasOptions m => HasBuiltins m where
   getBuiltinThing :: SomeBuiltin -> m (Maybe (Builtin PrimFun))
 
   default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => SomeBuiltin -> m (Maybe (Builtin PrimFun))
@@ -70,6 +69,13 @@ instance MonadIO m => HasBuiltins (TCMT m) where
 -- in a pure context.
 newtype BuiltinAccess a = BuiltinAccess { unBuiltinAccess :: TCState -> a }
   deriving (Functor, Applicative, Monad)
+
+instance HasOptions BuiltinAccess where
+  pragmaOptions      = BuiltinAccess (^. stPragmaOptions)
+  commandLineOptions =
+    BuiltinAccess $ \s ->
+      (stPersistentOptions (stPersistentState s))
+        { optPragmaOptions = s ^. stPragmaOptions }
 
 instance MonadFail BuiltinAccess where
   fail msg = BuiltinAccess $ \_ -> error msg

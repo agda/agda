@@ -1,0 +1,9 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _a_28 (x = x) (f = f) = b (blocked on _a_28)
+  b = _a_28 (x = x) (f = f) (blocked on _a_28)
+  b = _a_28 (blocked on _a_28)
+
+Erased-levels-3.agda:10.99-100: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Erased-levels-3.agda:10.99-100

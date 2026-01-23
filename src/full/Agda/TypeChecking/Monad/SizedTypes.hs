@@ -82,7 +82,7 @@ data BoundedSize
 
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
 class IsSizeType a where
-  isSizeType :: (HasOptions m, HasBuiltins m) => a -> m (Maybe BoundedSize)
+  isSizeType :: HasBuiltins m => a -> m (Maybe BoundedSize)
 
 instance IsSizeType a => IsSizeType (Dom a) where
   isSizeType = isSizeType . unDom
@@ -101,7 +101,7 @@ instance IsSizeType CompareAs where
   isSizeType AsSizes       = return $ Just BoundedNo
   isSizeType AsTypes       = return Nothing
 
-isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
+isSizeTypeTest :: HasBuiltins m => m (Term -> Maybe BoundedSize)
 isSizeTypeTest =
   flip (ifM sizedTypesOption) (return $ const Nothing) $ do
     (size, sizelt) <- getBuiltinSize
@@ -110,12 +110,12 @@ isSizeTypeTest =
         testType _                                    = Nothing
     return testType
 
-isSizeNameTest :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
+isSizeNameTest :: HasBuiltins m => m (QName -> Bool)
 isSizeNameTest = ifM sizedTypesOption
   isSizeNameTestRaw
   (return $ const False)
 
-isSizeNameTestRaw :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
+isSizeNameTestRaw :: HasBuiltins m => m (QName -> Bool)
 isSizeNameTestRaw = do
   (size, sizelt) <- getBuiltinSize
   return $ (`elem` [size, sizelt]) . Just
@@ -142,7 +142,7 @@ sizeType :: (HasBuiltins m) => m Type
 sizeType = El sizeSort . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSize
 
 -- | The name of @SIZESUC@.
-sizeSucName :: (HasBuiltins m, HasOptions m) => m (Maybe QName)
+sizeSucName :: HasBuiltins m => m (Maybe QName)
 sizeSucName = do
   ifM (not <$> sizedTypesOption) (return Nothing) $ do
     getBuiltin' builtinSizeSuc >>= \case

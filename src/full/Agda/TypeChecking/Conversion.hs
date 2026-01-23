@@ -530,7 +530,8 @@ compareTerm' cmp a m n =
           let l = Level lvl
           ty <- el' (pure $ l) (pure $ unArg u0)
           let bA = subIn `apply` [sl,s,phi,u0]
-          let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
+          lArg <- argE l
+          let mkUnglue m = apply unglueU $ [lArg] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
           reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
           compareTerm cmp ty (mkUnglue m) (mkUnglue n)
 
@@ -749,7 +750,7 @@ compareAtom cmp t m n =
                 phi <- open . unArg $ phi
                 bT  <- open . unArg $ bT
                 bAS <- open . unArg $ bAS
-                (pure tSubOut <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> primIZero) <@> bAS)
+                (pure tSubOut <#@> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> primIZero) <@> bAS)
               compareAtom cmp (AsTermsOf $ El (tmSort . unArg $ sucla) $ apply tHComp $ [sucla, argH (Sort s), phi] ++ [argH (unArg bT), argH bA])
                               (unArg b) (unArg b')
               () <- compareElims [] [] (El s bA) (Def q as) bs bs'

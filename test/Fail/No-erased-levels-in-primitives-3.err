@@ -1,0 +1,9 @@
+No-erased-levels-in-primitives-3.agda:29.3-69: error: [UnequalTypes]
+The function types
+  {@0 a : Level} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+and
+  {a : Level} {A : Set a} {x z : A} → x ≡ z → x ≡ z
+are not equal, because:
+  one has erased domain, while the other is unrestricted.
+when checking that the type of the primitive function
+primEraseEquality is ∀ {@0 a} {A : Set a} {x y : A} → x ≡ y → x ≡ y

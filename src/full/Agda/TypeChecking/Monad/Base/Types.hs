@@ -156,12 +156,18 @@ data HighlightingMethod
 -- * Managing file names
 ---------------------------------------------------------------------------
 
+-- | Should @--no-erased-levels-in-primitives@ be ignored when options
+-- are checked for modules that import a given module?
+
+data IgnoreErasedLevelsInPrims = Ignore | DontIgnore
+  deriving (Eq, Ord, Show, Generic)
+
 -- | Discern Agda's primitive modules from other file modules.
 --   @IsPrimitiveModule `implies` IsBuiltinModuleWithSafePostulate `implies` isBuiltinModule.
 
 --   Keep constructors in this order!
 data IsBuiltinModule
-  = IsPrimitiveModule
+  = IsPrimitiveModule IgnoreErasedLevelsInPrims
       -- ^ Very magical module, e.g. @Agda.Primitive@.
   | IsBuiltinModuleWithSafePostulates
       -- ^ Safe module, e.g. @Agda.Builtin.Equality@.
@@ -254,5 +260,6 @@ instance NFData Context
 instance NFData ContextEntry
 instance NFData FileDictWithBuiltins
 instance NFData SourceFile
+instance NFData IgnoreErasedLevelsInPrims
 instance NFData IsBuiltinModule
 instance NFData TopLevelModuleNameWithSourceFile

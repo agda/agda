@@ -100,8 +100,8 @@ instance (PrimType a, PrimType b) => PrimTerm (a, b) where
     b'       <- primType (undefined :: b)
     Type la  <- pure $ getSort a'
     Type lb  <- pure $ getSort b'
-    pure sig <#> pure (Level la)
-             <#> pure (Level lb)
+    pure sig <#@> pure (Level la)
+             <#@> pure (Level lb)
              <@> pure (unEl a')
              <@> pure (nolam $ unEl b')
 
@@ -453,7 +453,7 @@ mkPrimInjective a b qn = do
   -- Define the type
   eqName <- primEqualityName
   let lvl0     = ClosedLevel 0
-  let eq a t u = El (Type lvl0) <$> pure (Def eqName []) <#> pure (Level lvl0)
+  let eq a t u = El (Type lvl0) <$> pure (Def eqName []) <#@> pure (Level lvl0)
                                 <#> pure (unEl a) <@> t <@> u
   let f    = pure (Def qn [])
   ty <- nPi "t" (pure a) $ nPi "u" (pure a) $
@@ -606,8 +606,8 @@ genPrimForce b ret = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
       varS s    = pure $ sort $ varSort s
-  t <- hPi "a" (el primLevel) $
-       hPi "b" (el primLevel) $
+  t <- ePi "a" (el primLevel) $
+       ePi "b" (el primLevel) $
        hPi "A" (varS 1) $
        hPi "B" (varT 2 0 --> varS 1) b
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ ts ->
@@ -655,8 +655,8 @@ primForceLemma = do
   force <- primFunName <$> getPrimitive PrimForce
   genPrimForce (nPi "x" (varT 3 1) $
                 nPi "f" (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) $
-                varEl 4 $ primEquality <#> varM 4 <#> (varM 2 <@> varM 1)
-                                       <@> (pure (Def force []) <#> varM 5 <#> varM 4 <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)
+                varEl 4 $ primEquality <#@> varM 4 <#> (varM 2 <@> varM 1)
+                                       <@> (pure (Def force []) <#@> varM 5 <#@> varM 4 <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)
                                        <@> (varM 0 <@> varM 1)
                ) $ \ _ _ -> refl
 
