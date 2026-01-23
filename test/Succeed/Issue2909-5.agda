@@ -1,9 +1,9 @@
-{-# OPTIONS --no-main #-}
+{-# OPTIONS --no-main --erasure #-}
 
 postulate
-  ∞  : ∀ {a} (A : Set a) → Set a
-  ♯_ : ∀ {a} {A : Set a} → A → ∞ A
-  ♭  : ∀ {a} {A : Set a} → ∞ A → A
+  ∞  : ∀ {@0 a} (A : Set a) → Set a
+  ♯_ : ∀ {@0 a} {A : Set a} → A → ∞ A
+  ♭  : ∀ {@0 a} {A : Set a} → ∞ A → A
 
 {-# BUILTIN INFINITY ∞  #-}
 {-# BUILTIN SHARP    ♯_ #-}

@@ -24,8 +24,8 @@ import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Names
   ( runNamesT, runNames, cl, lam, open, ilam )
 import Agda.TypeChecking.Primitive.Base
-  ( (-->), nPi', pPi', hPi', el, el', el's, (<@>), (<@@>), (<#>), argN, (<..>)
-  , SigmaKit(..), getSigmaKit
+  ( (-->), nPi', pPi', hPi', ePi', el, el', el's, (<@>), (<@@>), (<#>)
+  , (<#@>), argN, (<..>), SigmaKit(..), getSigmaKit
   )
 import Agda.TypeChecking.Primitive.Cubical.Glue
 import Agda.TypeChecking.Primitive.Cubical.Base
@@ -74,13 +74,13 @@ doHCompUKanOp (HCompOp psi u u0) (IsNot (la, phi, bT, bA)) tpos = do
     ifM (headStop tpos phi) (return Nothing) $ Just <$> do
 
     let
-      transp la bA a0 = pure tTransp <#> lam "i" (const la) <@> lam "i" bA <@> pure iz <@> a0
+      transp la bA a0 = pure tTransp <#@> lam "i" (const la) <@> lam "i" bA <@> pure iz <@> a0
       tf i o = hfill la (bT <@> pure io <..> o) psi u u0 i
 
-      bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
-      unglue g = pure tunglue <#> la <#> phi <#> bT <#> bAS <@> g
+      bAS = pure tSubIn <#@> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
+      unglue g = pure tunglue <#@> la <#> phi <#> bT <#> bAS <@> g
 
-      a1 = pure tHComp <#> la <#> bA <#> (imax psi phi)
+      a1 = pure tHComp <#@> la <#> bA <#> (imax psi phi)
         <@> lam "i" (\i -> combineSys la bA
             [ (psi, ilam "o" (\o -> unglue (u <@> i <..> o)))
             , (phi, ilam "o" (\ o -> transp la (\i -> bT <@> (ineg i) <..> o) (tf i o)))
@@ -89,7 +89,7 @@ doHCompUKanOp (HCompOp psi u u0) (IsNot (la, phi, bT, bA)) tpos = do
 
       t1 = tf (pure io)
 
-    -- pure tglue <#> la <#> phi <#> bT <#> bAS <@> (ilam "o" $ \ o -> t1 o) <@> a1
+    -- pure tglue <#@> la <#> phi <#> bT <#> bAS <@> (ilam "o" $ \ o -> t1 o) <@> a1
     case tpos of
       Eliminated -> a1
       Head       -> t1 (pure tItIsOne)
@@ -120,9 +120,9 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
     gcomp <- mkGComp localUse
 
     let
-      transp la bA a0 = pure tTrans <#> lam "i" (const la) <@> lam "i" bA <@> pure iz <@> a0
+      transp la bA a0 = pure tTrans <#@> lam "i" (const la) <@> lam "i" bA <@> pure iz <@> a0
       transpFill la bA phi u0 i = pure tTrans
-        <#> ilam "j" (\ j -> la <@> imin i j)
+        <#@> ilam "j" (\ j -> la <@> imin i j)
         <@> ilam "j" (\ j -> bA <@> imin i j)
         <@> (imax phi (ineg i))
         <@> u0
@@ -144,10 +144,10 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
     tunglue <- cl $ getTermLocal builtin_unglueU
     let
       bAS i = pure tSubIn
-        <#> (pure tLSuc <@> (la <@> i)) <#> (Sort . tmSort <$> (la <@> i)) <#> (phi <@> i)
+        <#@> (pure tLSuc <@> (la <@> i)) <#> (Sort . tmSort <$> (la <@> i)) <#> (phi <@> i)
         <@> (bA <@> i)
       unglue_u0 i = pure tunglue
-        <#> (la <@> i) <#> (phi <@> i) <#> (bT <@> i)
+        <#@> (la <@> i) <#> (phi <@> i) <#> (bT <@> i)
         <#> bAS i <@> u0
 
     ifM (headStop tpos (phi <@> pure io)) (return Nothing) $ Just <$> do
@@ -179,16 +179,16 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
       -- (see src/data/lib/prim/Agda/Builtin/Cubical/HCompU.agda)
       t1'alpha o = -- o : [ φ 1 ]
          pure tTranspProof
-          <#> (la <@> pure io) <@> lam "i" (\i -> bT <@> pure io <@> ineg i <..> o)
+          <#@> (la <@> pure io) <@> lam "i" (\i -> bT <@> pure io <@> ineg i <..> o)
           <@> imax psi forallphi
           <@> pt o
-          <@> (pure tSubIn <#> (la <@> pure io) <#> (bA <@> pure io) <#> imax psi forallphi
+          <@> (pure tSubIn <#@> (la <@> pure io) <#> (bA <@> pure io) <#> imax psi forallphi
                 <@> a1)
 
       -- TODO: optimize?
       t1' o   = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])
       alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
-      a1' = pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io)
+      a1' = pure tHComp <#@> (la <@> pure io) <#> (bA <@> pure io)
         <#> imax (phi <@> pure io) psi
         <@> lam "j" (\j -> combineSys (la <@> pure io) (bA <@> pure io)
           [ (phi <@> pure io, ilam "o" $ \o -> alpha o <@@> (w (pure io) o <@> t1' o, a1, j))
@@ -210,14 +210,14 @@ prim_glueU' = do
 -- applies here.
   requireCubical CWithoutGlue
   t <- runNamesT [] $
-       hPi' "la" (el $ cl primLevel) (\ la ->
+       ePi' "la" (el $ cl primLevel) (\ la ->
        hPi' "φ" primIntervalType $ \ φ ->
        hPi' "T" (nPi' "i" primIntervalType $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
-       hPi' "A" (el's (cl primLevelSuc <@> la) $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
-       let bA = (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
+       hPi' "A" (el's (cl primLevelSuc <@> la) $ cl primSub <#@> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
+       let bA = (cl primSubOut <#@> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
        pPi' "o" φ (\ o -> el' la (t <@> cl primIOne <..> o))
          --> (el' la bA)
-         --> el' la (cl primHComp <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> bA))
+         --> el' la (cl primHComp <#@> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> bA))
   view <- intervalView'
   one <- primItIsOne
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ts ->
@@ -237,12 +237,12 @@ prim_unglueU' = do
 -- applies here.
   requireCubical CWithoutGlue
   t <- runNamesT [] $
-       hPi' "la" (el $ cl primLevel) (\ la ->
+       ePi' "la" (el $ cl primLevel) (\ la ->
        hPi' "φ" primIntervalType $ \ φ ->
        hPi' "T" (nPi' "i" primIntervalType $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
-       hPi' "A" (el's (cl primLevelSuc <@> la) $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
-       let bA = (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
-       el' la (cl primHComp <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> bA)
+       hPi' "A" (el's (cl primLevelSuc <@> la) $ cl primSub <#@> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
+       let bA = (cl primSubOut <#@> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
+       el' la (cl primHComp <#@> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> bA)
          --> el' la bA)
 
   view <- intervalView'
@@ -266,7 +266,7 @@ prim_unglueU' = do
             la <- open . unArg $ la
             bT <- open . unArg $ bT
             b  <- open . unArg $ b
-            pure tTransp <#> lam "i" (\ _ -> la) <@> lam "i" (\ i -> bT <@> ineg i <..> pure one)
+            pure tTransp <#@> lam "i" (\ _ -> la) <@> lam "i" (\ i -> bT <@> ineg i <..> pure one)
               <@> pure iZ <@> b
 
         -- Otherwise, we're dealing with a proper glu- didn't I already
