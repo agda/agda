@@ -26,13 +26,15 @@ tests = do
   dirs <- drop 1 <$>  -- The first in list is @testDir@ itself.
     Find.find (Find.depth Find.<? 1) (Find.fileType Find.==? Find.Directory) testDir
 
-  let tests = map mkBuildSucceedTest dirs
-  return $ testGroup "BuildSucceed" tests
+  let tests x = map (mkBuildSucceedTest x) dirs
+  return $ testGroup "BuildSucceed" $
+    tests False <> [testGroup "Parallel" (tests True)]
 
-mkBuildSucceedTest ::
-     FilePath -- ^ Directory hosting an Agda library.
+mkBuildSucceedTest
+  :: Bool     -- ^ Check in parallel?
+  -> FilePath -- ^ Directory hosting an Agda library.
   -> TestTree
-mkBuildSucceedTest dir =
+mkBuildSucceedTest par dir =
   goldenTestIO1
     testName
     readGolden
@@ -70,6 +72,7 @@ mkBuildSucceedTest dir =
         , "--ignore-interfaces"
         , "--vim"
         ]
+        <> [ "-j" | par ]
 
     (res, ret) <- runAgdaWithCWD testName (Just dir) agdaArgs (Just flagFile) (Just varFile)
 

@@ -294,7 +294,7 @@ jobs:
     # - *cache
     - *agda_setup
 
-    - name: "Standard library test"
+    - name: "Sequential standard library build"
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
@@ -318,6 +318,16 @@ jobs:
 
     - name: "Interaction tests using the standard library"
       run: make std-lib-interaction
+
+    # This relies on the sequential build having executed first, so we
+    # don't need the Cabal step.
+    # We also have to remove the interface files otherwise we're just
+    # checking parallel *loading*, but the std-lib Makefile has a clean
+    # target we can use.
+    - name: "Parallel standard library build"
+      run: |
+        make -C std-lib clean
+        make AGDA_OPTS="-j" std-lib-test
 
 
   # Step 2c: testing the interaction and the LaTeX/HTML backend

@@ -1076,6 +1076,15 @@ diagnosticsColour arg o = case arg of
   Just str -> throwError $ "unknown colour option " ++ str ++ ". Please specify one of auto, always, or never."
   Nothing -> pure o { optDiagnosticsColour = AutoColour }
 
+parallelismFlag :: Maybe String -> Flag CommandLineOptions
+parallelismFlag (Just n) o = case readMaybe n of
+  Just 0  -> pure o { optParallelChecking = Parallel Nothing }
+  Just 1  -> pure o { optParallelChecking = Sequential }
+  Just i  -> pure o { optParallelChecking = Parallel (Just i) }
+  Nothing -> throwError $ "the parallelism should be a number, and " <> show n <> " isn't."
+parallelismFlag Nothing o = pure o { optParallelChecking = Parallel Nothing }
+
+
 -- | Side effect for setting '_optUseUnicode'.
 --
 unicodeOrAsciiEffect :: UnicodeOrAscii -> Flag PragmaOptions
@@ -1359,6 +1368,8 @@ essentialConfigurationOptions = ("Essential type checker configuration",)
                     "exit if a type error is encountered"
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
+    , Option ['j']  ["parallel"] (OptArg parallelismFlag "N")
+                    "use N cores for parallel type-checking. The default is 1, 0 (or no argument) means auto."
     ]
 
 literateOptions :: (String, [OptDescr (Flag CommandLineOptions)])

@@ -987,7 +987,7 @@ executable agda
   -- the idle GC is now by default turned off (-I0).
   ghc-options:
     -rtsopts
-    -with-rtsopts=-I0
+    "-with-rtsopts=-I0 -N1"
 
   if !arch(wasm32)
     ghc-options: -threaded

@@ -88,7 +88,7 @@ getDecodedModules :: TCM DecodedModules
 getDecodedModules = stDecodedModules . stPersistentState <$> getTC
 
 setDecodedModules :: DecodedModules -> TCM ()
-setDecodedModules ms = modifyTC $ \s ->
+setDecodedModules ms = modifyTC' $ \s ->
   s { stPersistentState = (stPersistentState s) { stDecodedModules = ms } }
 
 getDecodedModule :: TopLevelModuleName -> TCM (Maybe ModuleInfo)

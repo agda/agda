@@ -304,6 +304,9 @@ instance FoldDecl a => FoldDecl (List1 a)
 instance FoldDecl a => FoldDecl (List2 a)
 instance FoldDecl a => FoldDecl (WhereClause' a)
 
+instance FoldDecl Module where
+  foldDecl f (Mod _ d) = foldDecl f d
+
 instance FoldDecl Declaration where
   foldDecl f d = f d <> case d of
     Private  _ _        ds  -> foldDecl f ds

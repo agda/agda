@@ -24,19 +24,27 @@ module Agda.Interaction.Imports
   , importPrimitiveModules
   , raiseNonFatalErrors
 
+  , MainInterface(..)
+  , TCWorkers
+  , wantsParallelChecking
+  , chaseModule
+  , setOptionsFromSourcePragmas
+
   -- Currently only used by test/api/Issue1168.hs:
   , readInterface
   ) where
 
 import Prelude hiding (null)
 
+import qualified Control.Exception as E
 import Control.Monad.Except        ( MonadError(..), ExceptT, runExceptT, withExceptT )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State         ( MonadState(..), execStateT )
 import Control.Monad.Trans.Maybe
-import qualified Control.Exception as E
+import Control.Concurrent
 
 import Data.Either
+import Data.Monoid
 import Data.List (intercalate)
 import qualified Data.List as List
 import Data.Maybe
@@ -50,6 +58,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
+import GHC.Conc
+
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath  ( (</>) )
 import System.IO
@@ -57,9 +67,11 @@ import System.IO.Error (isUserError, isFullError)
 
 import Agda.Benchmarking
 
+import qualified Agda.Syntax.Concrete.Definitions as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
+import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty hiding (Mode)
@@ -82,6 +94,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules, sortRulesOfSymbol )
 import Agda.TypeChecking.Rewriting.NonLinPattern (getMatchables)
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
+import Agda.TypeChecking.Monad.State as S
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise (decode, encodeFile, decodeInterface, deserializeHashes)
 import Agda.TypeChecking.Primitive
@@ -117,8 +130,8 @@ import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
-
 import Agda.Utils.Impossible
+import Agda.Utils.IORef.Strict
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -460,6 +473,169 @@ pattern CheckResult { crInterface, crWarnings, crMode, crSource } <- CheckResult
     , crSource' = crSource
     }
 
+-- | Structure necessary for synchronising parallel type-checking workers.
+data TCWorkers = Workers
+  { workerThreads    :: !(MVar (HMap.HashMap TopLevelModuleName (MVar (Maybe TCErr))))
+    -- ^ Synchronized map containing synchronisation points for each
+    -- worker to signal completion (or failure).
+  , workerModules    :: !(IORef DecodedModules)
+    -- ^ The shared 'DecodedModules' where workers can put their results.
+  }
+
+-- | If the user has asked for it, prepare the type checker for loading
+-- in parallel, and return a 'TCWorkers' instance that can be used to
+-- coordinate a number of type-checking tasks.
+--
+-- The given module name, when encountered, will be treated as the
+-- 'MainInterface'.
+wantsParallelChecking :: TCM (Maybe TCWorkers)
+wantsParallelChecking = fmap optParallelChecking commandLineOptions >>= \case
+  Sequential -> pure Nothing
+  Parallel{} -> Just <$> do
+    -- If we're doing parallel type-checking, we have to synchronise the
+    -- interaction callback to make sure we don't end up with mangled logs
+    -- (or, worse, mangled Lisp!).
+    out <- liftIO $ newMVar ()
+    cb <- getInteractionOutputCallback
+    setInteractionOutputCallback \r -> bracket_ (liftIO (takeMVar out)) (liftIO . putMVar out) $
+      cb r
+
+    threads <- liftIO $ newMVar mempty
+    results <- liftIO . newIORef =<< getDecodedModules
+    pure Workers
+      { workerThreads    = threads
+      , workerModules    = results
+      }
+
+-- | Type-check the given module, using a 'TCWorkers' instance to check
+-- its imports in parallel.
+--
+-- Returns an action which *waits* for completion of type-checking of
+-- the given module. Note that the given action updates the
+-- 'DecodedModules' in the TC state where it is called to the current
+-- results of parallel type-checking. The state after running this
+-- action is guaranteed to contain a 'DecodedModule' for the given
+-- 'TopLevelModuleName'.
+--
+-- If the given 'MainInterface' indicates that we are checking the main
+-- module, its checking will happen in the calling thread, and in the
+-- calling TC state. Otherwise, a thread (with isolated TC state) is
+-- created to check it.
+--
+-- Regardless of whether we spawned a new thread or not, checking of the
+-- given module will block until all of its imports have been checked.
+chaseModule
+  :: TCWorkers          -- ^ For synchronization
+  -> TopLevelModuleName -- ^ The name of the module to check
+  -> MainInterface      -- ^ Are we checking the main module?
+  -> Maybe Source       -- ^ Pre-parsed source
+  -> TCM (TCM ModuleInfo)
+chaseModule workers mod main msrc = do
+  let
+    -- This is the generic action for waiting on the result of checking
+    -- a module. The MVar is used just for signaling.
+    use var = liftIO (readMVar var) >>= \case
+      Just exc -> throwError exc
+      Nothing -> do
+        setDecodedModules =<< liftIO (readIORef (workerModules workers))
+        getDecodedModule mod >>= \case
+          Just mi -> pure mi
+          Nothing -> __IMPOSSIBLE_VERBOSE__ $
+            "internal error: parallel loading had thread responsible for "
+            <> show (Agda.Syntax.Common.Pretty.pretty mod)
+            <> " marked as ready, but it has not been decoded"
+
+    has = modifyMVar (workerThreads workers) \wmap -> case HMap.lookup mod wmap of
+      Just var -> pure (wmap, Left var)
+      Nothing  -> do
+        var <- newEmptyMVar
+        let nmap = HMap.insert mod var wmap
+        nmap `seq` pure (nmap, Right var)
+
+  -- In the critical section that holds workerThreads, we just decide
+  -- whether to spawn a new thread or not.
+  -- If the module already had an entry (Left), we can immediately
+  -- return the waiting thunk.
+  liftIO has >>= \case
+    Left var -> use var <$ reportSDoc "import.parallel" 15 ("reusing " <> P.pretty mod)
+
+    -- Otherwise, we have to handle spawning the new thread to do
+    -- type-checking.
+    Right var -> use var <$ do
+      stack <- viewTC eImportStack
+
+      let
+        -- If this is the call corresponding to checking the main
+        -- module, we don't start a new thread.
+        -- This is because we want to be in the state from checking the
+        -- main module, e.g. for interactive checking.
+        --
+        -- If we *are* starting a new thread, we must install an
+        -- exception handler to catch any TCErrs that make it to the top
+        -- level, so that they can propagate back to the main thread
+        -- eventually.
+        detach cont
+          | MainInterface _ <- main = cont
+          | otherwise = do
+            forkTCM $ flip catchError (liftIO . putMVar var . Just) $ do
+            -- If we're starting a new thread, we also need to parse the source file.
+            -- For debugging/profiling/etc., label the thread with the
+            -- name of the module that we're checking.
+            liftIO do
+              let name = show (Agda.Syntax.Common.Pretty.pretty mod)
+              me <- myThreadId
+              labelThread me ("TC " <> name)
+            cont
+
+      detach do
+        reportSDoc "import.parallel" 15 $ "checking " <> P.pretty mod
+        src <- maybe (parseSource =<< findFile mod) pure msrc
+
+        -- Now we traverse through all the imports and collect the
+        -- "promises" for waiting on them. This will spawn the threads
+        -- to check them.
+        imports <- flip foldDecl (srcModule src) \case
+          C.Import opn r x as is -> do
+            let dec = C.NiceImport opn r x as is
+            traceCall (ScopeCheckDeclaration dec) do
+
+            tl  <- S.topLevelModuleName (rawTopLevelModuleNameForQName x)
+
+            -- This is a bit fiddly. 'getInterface' below will push mod
+            -- onto the import stack, so if we push it around the entire
+            -- thread, we get a spurious cyclic import error.
+            --
+            -- However, we can't also push tl, because *its* worker
+            -- thread would end up pushing it, so *it* would be on the
+            -- stack twice, too!
+            --
+            -- We have to check for import cycles here because GHC does
+            -- not seem to always generate the proper "thread blocked
+            -- indefinitely on MVar operation".
+            act <- locallyTC eImportStack (mod:) do
+              locallyTC eImportStack (tl:) checkForImportCycle
+              chaseModule workers tl NotMainInterface Nothing
+
+            pure $ Endo (act:)
+
+          _ -> pure mempty
+
+        -- Now we wait for all the dependencies and, when that's done,
+        -- we can just type-check the module as usual.
+        -- Waiting for the dependencies will have moved us to a TC state
+        -- where they have been placed in the DecodedModules map, so the
+        -- normal type-checking code will just reuse them when we get
+        -- around to actually scope checking the import.
+        sequence_ (appEndo imports [])
+
+        mi <- getInterface mod main (Just src)
+
+        -- After we're done, update the shared DecodedModules map and
+        -- signal our completion.
+        liftIO do
+          atomicModifyIORef (workerModules workers) \v -> (Map.insert mod mi v, ())
+          putMVar var Nothing
+
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
 --   or the file passed on the command line.
@@ -493,7 +669,9 @@ typeCheckMain mode src = do
   -- Now do the type checking via getInterface.
   checkModuleName' (srcModuleName src) (srcOrigin src)
 
-  mi <- getInterface (srcModuleName src) (MainInterface mode) (Just src)
+  mi <- wantsParallelChecking >>= \case
+    Just workers -> join $ chaseModule workers (srcModuleName src) (MainInterface mode) (Just src)
+    Nothing      -> getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
   stCurrentModule `setTCLens'`
     Just ( iModuleName (miInterface mi)
@@ -594,7 +772,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
     Just mi
         -- We can only reuse a sufficiently checked module,
         -- e.g. we cannot import a just scope-checked module when type-checking a module.
-      | miMode mi >= mode
+      | miMode mi >= moduleCheckMode isMain
         -- A module with warnings should never be allowed to be imported from another module.
       , null $ miWarnings mi -> do
           reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
@@ -637,7 +815,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
             mi <- case isMain of
-              MainInterface _ -> createInterface x file isMain msrc
+              MainInterface{}  -> createInterface x file isMain msrc
               NotMainInterface -> createInterfaceIsolated x file msrc
 
             -- Ensure that the given module name matches the one in the file.
@@ -653,7 +831,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
 
       -- Interfaces are not stored if we are only scope-checking, or
       -- if any warnings were encountered.
-      when (mode == ModuleTypeChecked && null (miWarnings mi)) do
+      when (moduleCheckMode isMain == ModuleTypeChecked && null (miWarnings mi)) do
         storeDecodedModule mi
 
       reportS "warning.import" 10
@@ -665,12 +843,6 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       visitModule mi
       return mi
   where
-    mode :: ModuleCheckMode
-    mode = case isMain of
-      MainInterface TypeCheck  -> ModuleTypeChecked
-      NotMainInterface         -> ModuleTypeChecked
-      MainInterface ScopeCheck -> ModuleScopeChecked
-
     addOptionsCompatibilityWarnings :: PragmaOptions -> ModuleInfo -> TCM ModuleInfo
     addOptionsCompatibilityWarnings currentOptions
       mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
@@ -700,6 +872,10 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
   reportSDoc "import.iface.options" 25 $ P.nest 2 $ "imported options =" P.<+> showOptions imported
   forM_ infectiveCoinfectiveOptions $ \opt -> do
     unless (icOptionOK opt current imported) $ do
+      reportSDoc "import.iface.options" 25 $ P.nest 2 $
+        "incompatible: " <> P.text (icOptionDescription opt)
+        <> ", current: " <> P.pretty (icOptionActive opt current)
+        <> ", imported: " <> P.pretty (icOptionActive opt imported)
       put False
       warning $
         (case icOptionKind opt of
@@ -1113,26 +1289,22 @@ createInterface ::
      TopLevelModuleName    -- ^ The expected module name.
   -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
-  -> Maybe Source      -- ^ Optional information about the source code.
+  -> Maybe Source          -- ^ Optional information about the source code.
   -> TCM ModuleInfo
 createInterface mname sf@(SourceFile sfi) isMain msrc = do
   file <- srcFilePath sf
-  let fp = filePath file
-  let checkMsg = case isMain of
-                   MainInterface ScopeCheck -> "Reading "
-                   _                        -> "Checking"
-      withMsgs = bracket_
-       (chaseMsg checkMsg mname $ Just fp)
-       (const $ do ws <- getAllWarnings AllWarnings
-                   let classified = classifyWarnings $ Set.toAscList ws
-                   reportWarningsForModule mname $ tcWarnings classified
-                   when (null (nonFatalErrors classified)) $ chaseMsg "Finished" mname Nothing)
+  let
+    fp = filePath file
+    onlyScope = ModuleScopeChecked == moduleCheckMode isMain
+    checkMsg = if onlyScope then "Reading "
+                            else "Checking"
+    withMsgs = bracket_ (chaseMsg checkMsg mname $ Just fp) $ const $ do
+      ws <- getAllWarnings AllWarnings
+      let classified = classifyWarnings $ Set.toAscList ws
+      reportWarningsForModule mname $ tcWarnings classified
+      when (null (nonFatalErrors classified)) $ chaseMsg "Finished" mname Nothing
 
-  withMsgs $
-    Bench.billTo [Bench.TopModule mname] $
-    localTC (\ e -> e { envCurrentPath = Just sfi }) do
-
-    let onlyScope = isMain == MainInterface ScopeCheck
+  withMsgs $ Bench.billTo [Bench.TopModule mname] $ localTC (\ e -> e { envCurrentPath = Just sfi }) do
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "..."
@@ -1364,8 +1536,8 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 -- warnings.
 
 getAllWarnings' :: (ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m (Set TCWarning)
-getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
-getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
+getAllWarnings' MainInterface{}  = getAllWarningsPreserving unsolvedWarnings
+getAllWarnings' NotMainInterface = getAllWarningsPreserving Set.empty
 
 -- Andreas, issue 964: not checking null interactionPoints
 -- anymore; we want to serialize with open interaction points now!

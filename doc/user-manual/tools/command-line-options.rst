@@ -135,6 +135,26 @@ General options
 
      For use with the Emacs mode (no need to invoke yourself).
 
+.. option:: --parallel[=N], -j[N]
+
+     Type check in parallel. N is optional, and controls the number of
+     threads to use for checking. If ``N`` is omitted, or explicitly set
+     to 0, the number of processors is used. The default, ``-j1``, means
+     type checking is sequential. Parallelism has module granularity.
+
+     Parallel type checking trades space for time, with (generally) a
+     decrease in wall-clock time *larger* than the corresponding
+     increase in total memory usage. Type-checking of a module can not
+     start until all of its dependencies have been checked, so wider
+     dependency graphs will see more speedup than taller dependency
+     graphs.
+
+     Using *too many* cores can make the space-time tradeoff worse. The
+     appropriate number will depend on the specifics of the project
+     being checked.
+
+     A reasonable number to start with is ``-j8``.
+
 .. option:: --interaction-json
 
      .. versionadded:: 2.6.1

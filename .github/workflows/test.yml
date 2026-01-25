@@ -205,7 +205,7 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - name: Setup Agda
       run: make setup-agda
-    - name: Standard library test
+    - name: Sequential standard library build
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
@@ -222,6 +222,10 @@ jobs:
       run: make std-lib-succeed
     - name: Interaction tests using the standard library
       run: make std-lib-interaction
+    - name: Parallel standard library build
+      run: |
+        make -C std-lib clean
+        make AGDA_OPTS="-j" std-lib-test
   test:
     needs: build
     runs-on: ubuntu-24.04

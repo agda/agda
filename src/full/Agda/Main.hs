@@ -10,6 +10,7 @@ import qualified Control.Exception as E
 import Control.Monad          ( void )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Concurrent     (setNumCapabilities)
 
 import qualified Data.List as List
 import Data.Function          ( (&) )
@@ -17,6 +18,8 @@ import Data.Functor
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as T
+
+import GHC.Conc (getNumProcessors)
 
 import System.Environment ( getArgs, getProgName )
 import System.Exit ( exitSuccess, ExitCode )
@@ -310,6 +313,23 @@ runAgdaWithOptions interactor progName opts = do
     initialSetup = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
+
+      -- The GHC runtime has some funky behaviour if we ask it to set
+      -- the number of capabilities on startup.
+      --
+      -- a) The minimum heap size seems to shoot up to approx. the GC
+      -- allocation area times the number of processors, which means the
+      -- performance regression tests with very low memory usage limit
+      -- simply fail to start;
+      --
+      -- b) Even if we set the number of capabilities back down to 1,
+      -- the parallel GC seems to be used unconditionally if we have
+      -- more capabilities on startup, which adds a noticeable amount of
+      -- overhead.
+      liftIO case optParallelChecking opts of
+        Parallel Nothing  -> setNumCapabilities =<< getNumProcessors
+        Parallel (Just i) -> setNumCapabilities i
+        Sequential        -> setNumCapabilities 1
 
     checkFile :: AbsolutePath -> TCM CheckResult
     checkFile inputFile = do

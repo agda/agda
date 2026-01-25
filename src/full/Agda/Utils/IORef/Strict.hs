@@ -16,6 +16,7 @@ module Agda.Utils.IORef.Strict
   , readIORef
   , writeIORef
   , modifyIORef
+  , atomicModifyIORef
   ) where
 
 import Control.Exception (evaluate)
@@ -233,3 +234,8 @@ modifyIORef = \ref f -> do
   a <- readIORef ref
   writeIORef ref (f a)
 {-# INLINE modifyIORef #-}
+
+-- | Atomically modify the contents of a strict 'IORef'.
+-- Both the stored value and the result are forced.
+atomicModifyIORef :: IORef a -> (a -> (a, b)) -> IO b
+atomicModifyIORef (StrictIORef r) = Lazy.atomicModifyIORef' r
