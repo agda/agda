@@ -892,8 +892,8 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 -- | Compare options and return collected warnings.
 -- | Returns `Nothing` if warning collection was skipped.
 
-getOptionsCompatibilityWarnings
-  :: MainInterface
+getOptionsCompatibilityWarnings ::
+     MainInterface
   -> Bool           -- ^ Are we looking at a primitvie module?
   -> PragmaOptions
   -> Interface
@@ -1285,8 +1285,8 @@ writeInterface file i = let fp = filePath file in do
 -- If appropriate this function writes out syntax highlighting
 -- information.
 
-createInterface
-  :: TopLevelModuleName    -- ^ The expected module name.
+createInterface ::
+     TopLevelModuleName    -- ^ The expected module name.
   -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe Source          -- ^ Optional information about the source code.
@@ -1298,11 +1298,11 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     onlyScope = ModuleScopeChecked == moduleCheckMode isMain
     checkMsg = if onlyScope then "Reading "
                             else "Checking"
-    withMsgs = bracket_ (chaseMsg checkMsg mname $ Just fp) (const $ do
+    withMsgs = bracket_ (chaseMsg checkMsg mname $ Just fp) $ const $ do
       ws <- getAllWarnings AllWarnings
       let classified = classifyWarnings $ Set.toAscList ws
       reportWarningsForModule mname $ tcWarnings classified
-      when (null (nonFatalErrors classified)) $ chaseMsg "Finished" mname Nothing)
+      when (null (nonFatalErrors classified)) $ chaseMsg "Finished" mname Nothing
 
   withMsgs $ Bench.billTo [Bench.TopModule mname] $ localTC (\ e -> e { envCurrentPath = Just sfi }) do
 
