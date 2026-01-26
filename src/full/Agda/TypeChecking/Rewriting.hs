@@ -228,6 +228,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
     , prettyList $ map prettyTCM $ toList rels
     ]
   def <- instantiateDef =<< getConstInfo q
+
+
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
@@ -248,16 +250,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
   top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
 
-  ifNotAlreadyAdded def f $ do
-    pure $ RewriteRule q g f ps  rhs b False top
-  where
-    ifNotAlreadyAdded :: Definition -> QName -> MaybeT TCM RewriteRule -> MaybeT TCM RewriteRule
-    ifNotAlreadyAdded def f cont = do
-      rews <- getRewriteRulesFor f
-      -- check if q is already an added rewrite rule
-      case List.find ((q ==) . rewName) rews of
-        Just rew -> illegalRule (GlobalRewrite def) DuplicateRewriteRule
-        Nothing -> cont
+  pure $ RewriteRule q g f ps  rhs b False top
 
 checkLocalRewriteRule :: LocalEquation -> TCM (Maybe LocalRewriteRule)
 checkLocalRewriteRule eq = runMaybeT $ checkRewriteRule' eq LocalRewrite
@@ -304,6 +297,8 @@ checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
       reportSDoc "rewriting.rule.check" 30 $ hsep
         [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
       illegalRule s LHSNotDefinitionOrConstructor
+
+  ifNotAlreadyAdded s f $ do
 
   addContext gamma1 $ do
 
@@ -379,6 +374,18 @@ checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
 
     return rew
   where
+    ifNotAlreadyAdded ::
+         RewriteSource -> LocalRewriteHead -> MaybeT TCM LocalRewriteRule
+      -> MaybeT TCM LocalRewriteRule
+    ifNotAlreadyAdded (GlobalRewrite def) (DefHead f) cont = do
+      rews <- getRewriteRulesFor f
+      -- check if q is already an added rewrite rule
+      case List.find ((defName def ==) . rewName) rews of
+        Just rew -> illegalRule (GlobalRewrite def) DuplicateRewriteRule
+        Nothing -> cont
+    ifNotAlreadyAdded (GlobalRewrite def) (LocHead x) cont = __IMPOSSIBLE__
+    ifNotAlreadyAdded LocalRewrite f cont = cont
+
     checkNoLhsReduction :: LocalRewriteHead -> (Elims -> Term) -> Elims -> MaybeT TCM ()
     checkNoLhsReduction f hd es = do
       -- Skip this check when global confluence check is enabled, as
