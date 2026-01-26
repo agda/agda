@@ -282,10 +282,19 @@ class MonadTCEnv m => MonadAddContext m where
       withFreshName r x $ run . cont
     restoreT $ return st
 
+defaultAddLocalRew :: Maybe LocalEquation -> m a -> m a
+defaultAddLocalRew (Just eq) ret = do
+  -- TODO: Figure out how to to call into Rewriting.hs without cyclic
+  -- module dependencies breaking literally everything
+  -- rw <- checkLocalRewriteRule eq
+  ret
+defaultAddLocalRew Nothing   ret = ret
+
 {-# INLINE defaultAddCtx #-}
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret =
+  -- TODO: Add local rewrite rule to context if appropriate
   updateContext (raiseS 1) (CxExtendVar x a) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a

@@ -639,6 +639,18 @@ instance PrettyTCM RewriteRule where
     ]
 {-# SPECIALIZE prettyTCM :: RewriteRule -> TCM Doc #-}
 
+instance PrettyTCM LocalRewriteRule where
+  prettyTCM (LocalRewriteRule gamma f ps rhs b) = fsep
+    [ prettyTCM gamma <+> " |- "
+    , addContext gamma $ sep
+      [ prettyTCM (headToPat f ps)
+      , " --> "
+      , prettyTCM rhs
+      , " : "
+      , prettyTCM b
+      ]
+    ]
+
 instance PrettyTCM Occurrence where
   prettyTCM occ  = text $ "-[" ++ prettyShow occ ++ "]->"
 {-# SPECIALIZE prettyTCM :: Occurrence -> TCM Doc #-}

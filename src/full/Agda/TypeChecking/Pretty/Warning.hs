@@ -806,7 +806,7 @@ instance PrettyTCM RewriteSource where
   prettyTCM = \case
     -- TODO: Put more info in 'Local' so we can give a better error message.
     LocalRewrite    -> "a local rewrite"
-    GlobalRewrite q -> prettyTCM q
+    GlobalRewrite q -> prettyTCM (defName q)
 
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}

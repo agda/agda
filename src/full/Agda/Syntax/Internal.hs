@@ -1299,8 +1299,16 @@ data LocalRewriteHead
   | LocHead Int -- de Bruijn index of head symbol (excluding lrewContext variables)
   deriving (Show, Generic)
 
--- | Local equations are used merely for constraints ("the LHS and RHS must
--- be convertible in the calling context").
+headToPat :: LocalRewriteHead -> PElims -> NLPat
+headToPat (DefHead f) = PDef f
+headToPat (LocHead x) = PBoundVar x
+
+headToTerm :: LocalRewriteHead -> Elims -> Term
+headToTerm (DefHead f) = Def f
+headToTerm (LocHead x) = Var x
+
+-- | Local equations are used for local rewriting constraints ("the LHS and RHS
+-- must be convertible in the calling context").
 -- They admit arbitrary substitution.
 data LocalEquation = LocalEquation
   { lEqContext :: Telescope

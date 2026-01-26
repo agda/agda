@@ -508,7 +508,7 @@ warningHighlighting' b w = case tcWarning w of
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
-  IllegalRewriteRule (GlobalRewrite x) _ -> deadcodeHighlighting x
+  IllegalRewriteRule (GlobalRewrite x) _ -> deadcodeHighlighting (defName x)
   IllegalRewriteRule LocalRewrite      _ -> mempty -- TODO: Highlight errors with local rewrite rules
   NotARewriteRule x _        -> deadcodeHighlighting x
   PragmaCompileErased{}      -> deadcodeHighlighting w

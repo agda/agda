@@ -5640,7 +5640,7 @@ data InductionAndEta = InductionAndEta
 -- Source of the rewrite rule
 -- TODO: Attach some info to 'Local' so we can give more descriptive error
 -- messages
-data RewriteSource = GlobalRewrite QName | LocalRewrite
+data RewriteSource = GlobalRewrite Definition | LocalRewrite
   deriving (Show, Generic)
 
 -- Reason, why rewrite rule is invalid
