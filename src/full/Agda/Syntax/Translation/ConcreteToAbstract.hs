@@ -76,7 +76,7 @@ import qualified Agda.TypeChecking.Monad.State as S (topLevelModuleName)
 import Agda.TypeChecking.Monad.Signature (notUnderOpaque)
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
+import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath, currentModule)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
 
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
@@ -1726,6 +1726,9 @@ scopeCheckLetDef wh d = setCurrentRange d do
       fx <- getConcreteFixity x
       x  <- toAbstract (NewName LetBound $ mkBoundName x fx)
 
+      mod <- currentModule
+      checkAllowedAxiom info $ A.qualify mod (unBind x)
+
       let
         info' = case instanc of
           InstanceDef _  -> makeInstance info
@@ -1925,14 +1928,7 @@ instance ToAbstract NiceDeclaration where
   -- Axiom (actual postulate)
     C.Axiom r p a i rel x t -> do
       (y, decl) <- toAbstractNiceAxiom AxiomName d
-      -- check that we do not postulate in --safe mode, unless it is a
-      -- builtin module with safe postulates, or the axiom is generated
-      -- from a lone signature
-      whenM (andM [ Lens.getSafeMode <$> commandLineOptions
-                  , not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)
-                  , pure $ getOrigin rel /= Inserted
-                  ])
-            (warning $ SafeFlagPostulate y)
+      checkAllowedAxiom rel y
       -- check the postulate
       return $ singleton decl
 
@@ -2672,6 +2668,18 @@ toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
   definfo <- updateDefInfoOpacity $ mkDefInfoInstance x f p a i isMacro r
   return (y, A.Axiom kind definfo info mp y t')
 toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+
+-- | Check that the name is allowed to be postulated: either we are in a
+-- builtin module, we are not in safe mode, or the axiom comes from a
+-- lone type signature (and so will be reported later as a missing
+-- definition)
+checkAllowedAxiom :: ArgInfo -> A.QName -> ScopeM ()
+checkAllowedAxiom info x = whenM
+  (andM [ pure $ getOrigin info /= Inserted
+        , Lens.getSafeMode <$> commandLineOptions
+        , not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)
+        ])
+  (warning $ SafeFlagPostulate x)
 
 interestingOpaqueDecl :: A.Declaration -> Bool
 interestingOpaqueDecl (A.Mutual _ ds)     = any interestingOpaqueDecl ds

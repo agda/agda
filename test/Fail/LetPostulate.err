@@ -1,0 +1,3 @@
+LetPostulate.agda:7.15-22: error: [SafeFlagPostulate]
+Cannot postulate x with safe flag
+when scope checking let postulate x : Set in x
