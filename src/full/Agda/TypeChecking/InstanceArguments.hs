@@ -172,9 +172,9 @@ initialInstanceCandidates blockOverlap instTy = do
     instanceFields = instanceFields' True
 
     instanceFields' :: Bool -> (CandidateKind,Term,Type) -> BlockT TCM [Candidate]
-    instanceFields' etaOnce (q, v, t) =
-      ifBlocked t (\ m _ -> patternViolation m) $ \ _ t -> do
+    instanceFields' etaOnce (q, v, t) = do
       TelV piTel t' <- lift $ telView t
+      ifBlocked t' (\ m _ -> patternViolation m) $ \ _ t' -> do
       let
         n = size piTel
         hiddenPiTel = fmap (mapHiding \case { NotHidden -> Hidden ; x -> x }) piTel
