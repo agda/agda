@@ -174,15 +174,16 @@ initialInstanceCandidates blockOverlap instTy = do
     instanceFields' :: Bool -> (CandidateKind,Term,Type) -> BlockT TCM [Candidate]
     instanceFields' etaOnce (q, v, t) =
       ifBlocked t (\ m _ -> patternViolation m) $ \ _ t -> do
-      TelV piTel t' <- lift $ telViewUpTo' (-1) notVisible t
+      TelV piTel t' <- lift $ telView t
       let n = size piTel
+          hiddenPiTel = fmap (setHiding Hidden) piTel
       addContext piTel $ caseMaybeM (etaExpand etaOnce t') (return []) $ \ (r, pars) -> do
         let v' = raise n v `apply` teleArgs piTel
         (tel, args) <- lift $ forceEtaExpandRecord r pars v'
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
-          let absArg = abstract piTel (unArg arg)
-              absTy = telePi piTel t
+          let absArg = abstract hiddenPiTel (unArg arg)
+              absTy = telePi hiddenPiTel t
           in ([ Candidate LocalCandidate absArg absTy (infoOverlapMode arg)
               | isInstance arg
               ] ++) <$>
