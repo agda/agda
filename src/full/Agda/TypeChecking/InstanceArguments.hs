@@ -175,19 +175,21 @@ initialInstanceCandidates blockOverlap instTy = do
     instanceFields' etaOnce (q, v, t) =
       ifBlocked t (\ m _ -> patternViolation m) $ \ _ t -> do
       TelV piTel t' <- lift $ telView t
-      let n = size piTel
-          hiddenPiTel = fmap (setHiding Hidden) piTel
+      let
+        n = size piTel
+        hiddenPiTel = fmap (setHiding Hidden) piTel
       addContext piTel $ caseMaybeM (etaExpand etaOnce t') (return []) $ \ (r, pars) -> do
         let v' = raise n v `apply` teleArgs piTel
         (tel, args) <- lift $ forceEtaExpandRecord r pars v'
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
-        fmap concat $ forM (zip args types) $ \ (arg, t) ->
-          let absArg = abstract hiddenPiTel (unArg arg)
-              absTy = telePi hiddenPiTel t
-          in ([ Candidate LocalCandidate absArg absTy (infoOverlapMode arg)
-              | isInstance arg
-              ] ++) <$>
-             instanceFields' False (LocalCandidate, absArg, absTy)
+        fmap concat $ forM (zip args types) $ \ (arg, t) -> do
+          let
+            absArg = abstract hiddenPiTel (unArg arg)
+            absTy = telePi hiddenPiTel t
+          ([ Candidate LocalCandidate absArg absTy (infoOverlapMode arg)
+            | isInstance arg
+            ] ++) <$>
+           instanceFields' False (LocalCandidate, absArg, absTy)
 
     -- Compute whether we should block this instance constraint at the
     -- discrimination tree stage.
