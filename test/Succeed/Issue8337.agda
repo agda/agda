@@ -38,6 +38,11 @@ module InstanceFieldUnderExplicit
   test : ∀ x → F x
   test x = inner
 
+module InstanceFieldUnderExplicitAndInstance
+    (X : Set) (Y : Set) {{_ : Inner Y}} (F : X → Set) (G : (x : X) → {{Inner Y}} -> Outer (F x)) where
+  test : ∀ x → F x
+  test x = inner
+
 module SlightlyPracticalCase where
 
     data _≡_ {A : Set} (a : A) : A -> Set where
