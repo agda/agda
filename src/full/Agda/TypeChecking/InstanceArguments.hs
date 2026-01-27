@@ -177,7 +177,7 @@ initialInstanceCandidates blockOverlap instTy = do
       TelV piTel t' <- lift $ telView t
       let
         n = size piTel
-        hiddenPiTel = fmap (setHiding Hidden) piTel
+        hiddenPiTel = fmap (mapHiding \case { NotHidden -> Hidden ; x -> x }) piTel
       addContext piTel $ caseMaybeM (etaExpand etaOnce t') (return []) $ \ (r, pars) -> do
         let v' = raise n v `apply` teleArgs piTel
         (tel, args) <- lift $ forceEtaExpandRecord r pars v'
