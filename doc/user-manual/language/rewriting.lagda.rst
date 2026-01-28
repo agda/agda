@@ -139,18 +139,18 @@ inductive type:
     base   : Circle
     loop   : base ≡ base
 
-    circle-elim : ∀ (P : Circle → Set) (baseᴾ : P base)
-                → baseᴾ ≡[ P ↓ loop ]≡ baseᴾ
+    circle-elim : ∀ (P : Circle → Set) (baseP : P base)
+                → baseP ≡[ P ↓ loop ]≡ baseP
                 → ∀ x → P x
 
-    circle-elim-base : ∀ (P : Circle → Set) (baseᴾ : P base)
-                        (loopᴾ : baseᴾ ≡[ P ↓ loop ]≡ baseᴾ)
-                    → circle-elim P baseᴾ loopᴾ base ≡ baseᴾ
+    circle-elim-base : ∀ (P : Circle → Set) (baseP : P base)
+                         (loopP : baseP ≡[ P ↓ loop ]≡ baseP)
+                     → circle-elim P baseP loopP base ≡ baseP
     {-# REWRITE circle-elim-base #-}
 
-    circle-elim-loop : ∀ (P : Circle → Set) (baseᴾ : P base)
-                        (loopᴾ : baseᴾ ≡[ P ↓ loop ]≡ baseᴾ)
-                    → dcong (circle-elim P baseᴾ loopᴾ) loop ≡ loopᴾ
+    circle-elim-loop : ∀ (P : Circle → Set) (baseP : P base)
+                         (loopP : baseP ≡[ P ↓ loop ]≡ baseP)
+                     → dcong (circle-elim P baseP loopP) loop ≡ loopP
 
 Ideally, we would also turn the computation rule for ``circle-elim`` applied to
 the path constructor ``loop`` (``circle-elim-loop``) into a rewrite rule:
