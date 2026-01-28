@@ -4,17 +4,20 @@ module Agda.TypeChecking.Datatypes where
 
 import Control.Monad        ( filterM )
 import Control.Monad.Except ( MonadError(..), ExceptT(..), runExceptT )
+import Control.Monad.Trans
 
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Primitive (decomposeInterval)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Sort
 
 import Agda.Utils.CallStack
 import Agda.Utils.Either
@@ -315,3 +318,39 @@ getConstructors_ = \case
     Datatype{dataCons = cs} -> Just cs
     Record{recConHead = h}  -> Just [conName h]
     _                       -> Nothing
+
+-- | Check that a type is a non-irrelevant datatype or a record with
+-- named constructor. Unless the 'Induction' argument is 'CoInductive'
+-- the data type must be inductive.
+isDatatypeCool
+  :: (MonadError SplitError tcm, MonadTrans t, PureTCM tcm', MonadError TCErr tcm', MonadBlock tcm', tcm ~ t tcm')
+  => Induction -> Dom Type -> tcm (DataOrRecord' InductionAndEta, QName, Sort, Args, Args, [QName], Bool)
+isDatatypeCool ind at = do
+  let t       = unDom at
+      throw f = throwError . f =<< lift (buildClosure t)
+  t' <- lift (reduce t)
+  mInterval <- lift (getBuiltinName' builtinInterval)
+  mIsOne    <- lift (getBuiltinName' builtinIsOne)
+  case unEl t' of
+    Def d [] | Just d == mInterval -> throw NotADatatype
+    Def d [Apply phi] | Just d == mIsOne -> do
+                xs <- lift $ decomposeInterval =<< reduce (unArg phi)
+                if null xs
+                   then return $ (IsData, d, mkSSet 0, [phi], [], [], False)
+                   else throw NotADatatype
+    Def d es -> do
+      let ~(Just args) = allApplyElims es
+      def <- lift $ getConstInfo d
+      case theDef def of
+        Datatype{dataSort = s, dataPars = np, dataCons = cs}
+          | otherwise -> do
+              let (ps, is) = splitAt np args
+              return (IsData, d, s, ps, is, cs, not $ null (dataPathCons $ theDef def))
+        Record{recPars = np, recConHead = con, recInduction = i, recEtaEquality'}
+          | i == Just CoInductive && ind /= CoInductive ->
+              throw CoinductiveDatatype
+          | otherwise -> do
+              s <- lift $ shouldBeSort =<< defType def `piApplyM` args
+              return (IsRecord InductionAndEta { recordInduction=i, recordEtaEquality=recEtaEquality' }, d, s, args, [], [conName con], False)
+        _ -> throw NotADatatype
+    _ -> throw NotADatatype
