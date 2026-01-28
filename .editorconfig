@@ -1,0 +1,12 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{hs,py,el}]
+indent_style = space
+
+[Makefile]
+indent_style = tab
