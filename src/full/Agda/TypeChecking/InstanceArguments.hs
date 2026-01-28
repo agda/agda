@@ -798,9 +798,11 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
 
   reportSDoc "tc.instance" 50 $ vcat
     [ "valid candidates:"
-    , nest 2 $ vcat [ if freshMetas v then "(redacted)" else
-                      sep [ prettyTCM v ]
-                    | (_, v, _) <- cands ] ]
+    , nest 2 $ vcat
+      [ if freshMetas v
+          then sep [ pretty v, parens "contains fresh metas" ]
+          else sep [ prettyTCM v ]
+      | (_, v, _) <- cands ] ]
 
   case cands of
     [] -> return cands
@@ -811,7 +813,7 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
     -- If there's nothing, try not to reduce the candidate.
     [cvd] -> pure [cvd]
 
-    cvd@(_, v, _) : vas -> do
+    cvd@(_, v, st) : vas -> do
       let
         equal :: (Candidate, Term, a) -> TCM Bool
         equal (c, v', _)
@@ -828,7 +830,13 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
       -- If we do actually have to remove overlap then we have to reduce
       -- the candidate to eliminate any "phantom" dependencies on fresh
       -- metas.
-      v <- reduce v
+      -- ... issue #8215: while fastReduce is perfectly happy to block
+      -- on a meta that doesn't exist, the short-circuit blocking in
+      -- maybeFastReduce explodes, we have to reduce in the new TC
+      -- state.
+      v <- localTCState do
+        putTC st
+        reduce v
       if
         | freshMetas v -> do
           reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
