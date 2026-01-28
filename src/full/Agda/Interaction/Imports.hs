@@ -340,6 +340,14 @@ mergeInterface i = do
       (iOpaqueBlocks i)
       (iOpaqueNames i)
 
+    -- #8273: We need to ensure the module we are importing is considered
+    -- imported when checking confluence
+
+    -- I think ideally we would @addImport@s earlier so the imported modules
+    -- would stay consistent with i, but this seems very
+    -- fiddly to do correctly.
+    addImport $ iTopLevelModuleName i
+
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -426,10 +434,14 @@ scopeCheckFileImport top = do
     verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
+
+    -- #8273: We need to ensure the imported module is added to
+    -- stImportedModules and stImportedModulesTransitive before actually
+    -- importing it.
+    addImport top
     -- Since scopeCheckFileImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getNonMainInterface top Nothing
-    addImport top
 
     -- Print list of imported modules in current state.
     verboseS "import.iface.imports" 10 do
@@ -809,7 +821,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       reportSLn "import.iface" 15 $ "  Check for cycle"
       checkForImportCycle
 
-      mi <- Bench.billTo [Bench.Import] (getStoredInterface x file msrc)
+      mi <- Bench.billTo [Bench.Import] (getStoredInterface x isMain file msrc)
         `catchExceptT` \ reason -> do
 
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
@@ -910,11 +922,12 @@ getOptionsCompatibilityWarnings _ True _ _ = return Nothing
 getStoredInterface :: HasCallStack
   => TopLevelModuleName
      -- ^ Module name of file we process.
+  -> MainInterface
   -> SourceFile
      -- ^ File we process.
   -> Maybe Source
   -> ExceptT String TCM ModuleInfo
-getStoredInterface x file@(SourceFile fi) msrc = do
+getStoredInterface x isMain file@(SourceFile fi) msrc = do
 
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
