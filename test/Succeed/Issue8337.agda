@@ -65,21 +65,3 @@ module SlightlyPracticalCase where
 
     left-assoc : (M : Semimonoid) (x y z : M .carrier) → (x * (y * z)) ≡ ((x * y) * z)
     left-assoc M x y z = ÷ (right-assoc M x y z)
-
-module InstanceFieldsAreNotSearchedForIfTheThingAtTheEndOfTheTelescopeIsBlocked where
-
-    record Funlike {ℓ} (A : Set) (arg : Set) (out : arg → Set ℓ) : Set ℓ where
-      field
-        _·_ : A → (x : arg) → out x
-      infixl 999 _·_
-
-    open Funlike ⦃ ... ⦄ using (_·_) public
-
-    postulate
-      Fn : Set
-      fn : Fn
-      A : Set
-      instance i : Funlike Fn (A → A) (λ _ → Set)
-
-    ex : Set
-    ex = (x : _ → _) → fn · x

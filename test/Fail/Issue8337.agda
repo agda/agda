@@ -13,5 +13,5 @@ postulate
   A : Set
   instance i : Funlike Fn (A → A) (λ _ → Set)
 
-ex : Set
-ex = (x : _ → _) → fn · x
+FailsBecauseThereCouldBeAnInstanceAtTheEndOfTheTelescope : Set
+FailsBecauseThereCouldBeAnInstanceAtTheEndOfTheTelescope = (x : _ → _) → fn · x

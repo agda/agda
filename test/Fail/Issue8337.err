@@ -1,0 +1,13 @@
+Issue8337.agda:17.11-24: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8337.agda:17.11-12
+  Issue8337.agda:17.15-16
+  Issue8337.agda:17.23-24
+
+Issue8337.agda:17.23-24: error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Resolve instance argument
+    _r_20 : Funlike Fn (_12 → _14) (λ v → Set)
+  No candidates yet
+    (blocked on _14)
+      [ at Issue8337.agda:17.23-24 ]
