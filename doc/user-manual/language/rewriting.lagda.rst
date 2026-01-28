@@ -115,7 +115,7 @@ Additional examples of how to use rewrite rules can be found in `a
 blog post by Jesper Cockx
 <https://jesper.sikanda.be/posts/hack-your-type-theory.html>`__.
 
-Definitional Singletons and Subject Reduction
+Definitional singletons and subject reduction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some useful rewrite rules break subject reduction in the presence
@@ -153,7 +153,7 @@ inductive type:
                     → dcong (circle-elim P baseᴾ loopᴾ) loop ≡ loopᴾ
 
 Ideally, we would also turn the computation rule for ``circle-elim`` applied to
-``loop`` (``circle-elim-loop``) into a rewrite rule:
+the path constructor ``loop`` (``circle-elim-loop``) into a rewrite rule:
 
 .. code-block:: agda
 
