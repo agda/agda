@@ -115,6 +115,78 @@ Additional examples of how to use rewrite rules can be found in `a
 blog post by Jesper Cockx
 <https://jesper.sikanda.be/posts/hack-your-type-theory.html>`__.
 
+Definitional Singletons and Subject Reduction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some useful rewrite rules break subject reduction in the presence
+of definitional singletons (such as the unit type, ``⊤``).
+
+For example, consider the following axiomatisation of the circle as a higher
+inductive type:
+
+::
+
+  IdOver : (P : A → Set) → x ≡ y → P x → P y → Set
+  IdOver P refl x y = x ≡ y
+
+  syntax IdOver P p x y = x ≡[ P ↓ p ]≡ y
+
+  dcong : ∀ {B : A → Set} (f : (x : A) → B x) (p : x ≡ y) → f x ≡[ B ↓ p ]≡ f y
+  dcong f refl = refl
+
+  postulate
+    Circle : Set
+    base   : Circle
+    loop   : base ≡ base
+
+    circle-elim : ∀ (P : Circle → Set) (baseᴾ : P base)
+                → baseᴾ ≡[ P ↓ loop ]≡ baseᴾ
+                → ∀ x → P x
+
+    circle-elim-base : ∀ (P : Circle → Set) (baseᴾ : P base)
+                        (loopᴾ : baseᴾ ≡[ P ↓ loop ]≡ baseᴾ)
+                    → circle-elim P baseᴾ loopᴾ base ≡ baseᴾ
+    {-# REWRITE circle-elim-base #-}
+
+    circle-elim-loop : ∀ (P : Circle → Set) (baseᴾ : P base)
+                        (loopᴾ : baseᴾ ≡[ P ↓ loop ]≡ baseᴾ)
+                    → dcong (circle-elim P baseᴾ loopᴾ) loop ≡ loopᴾ
+
+Ideally, we would also turn the computation rule for ``circle-elim`` applied to
+``loop`` (``circle-elim-loop``) into a rewrite rule:
+
+.. code-block:: agda
+
+  {-# REWRITE circle-elim-loop #-}
+
+Unfortunately, this causes subject reduction issues when eliminating into ``⊤``.
+Note that, by η-equality, we have
+``circle-elim (λ _ → ⊤) tt p = circle-elim (λ _ → ⊤) tt q``
+definitionally for any two identity proofs ``p`` and ``q``.
+
+::
+
+  open import Agda.Builtin.Unit
+
+  circle-elim-pq : ∀ {p q}
+                 → circle-elim (λ _ → ⊤) tt p
+                 ≡ circle-elim (λ _ → ⊤) tt q
+  circle-elim-pq = refl
+
+The computation rule ``circle-elim-loop`` should therefore also
+imply ``p ≡ q`` definitionally, but the inductive identity type does not satisfy
+such an η rule.
+
+Agda tries to detect such problematic rewrite rules and will throw a
+``RewriteVariablesBoundInSingleton`` warning if it is not certain that the
+rewrite is safe. If you are confident your
+rewrite rule is actually safe or you know you are not using
+definitional singletons, or you are simply not worried about weirdly behaving
+definitional equality,
+you can silence the warning with
+``-WnoRewriteVariablesBoundInSingleton`` and continue to rely on the rewrite
+rule.
+
 General shape of rewrite rules
 ------------------------------
 
