@@ -245,7 +245,9 @@ class MonadTCEnv m => MonadAddContext m where
   addCtx :: Name -> Dom Type -> m a -> m a
 
   -- | Add a let bound variable to the context
-  addLetBinding' :: Origin -> Name -> Term -> Dom Type -> m a -> m a
+  addLetBinding' ::
+       IsAxiom   -- ^ Does this let binding come from a 'LetAxiom'?
+    -> Origin -> Name -> Term -> Dom Type -> m a -> m a
 
   -- | Update the context.
   --   Requires a substitution that transports things living in the old context
@@ -261,8 +263,8 @@ class MonadTCEnv m => MonadAddContext m where
 
   default addLetBinding'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
-    => Origin -> Name -> Term -> Dom Type -> m a -> m a
-  addLetBinding' o x u a = liftThrough $ addLetBinding' o x u a
+    => IsAxiom -> Origin -> Name -> Term -> Dom Type -> m a -> m a
+  addLetBinding' isAxiom o x u a = liftThrough $ addLetBinding' isAxiom o x u a
 
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
@@ -297,7 +299,7 @@ deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
-  addLetBinding' o x u a = liftListT $ addLetBinding' o x u a
+  addLetBinding' isAxiom o x u a = liftListT $ addLetBinding' isAxiom o x u a
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
@@ -341,8 +343,8 @@ instance MonadAddContext TCM where
   addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 
-  addLetBinding' o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
-    defaultAddLetBinding' o x u a ret
+  addLetBinding' isAxiom o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+    defaultAddLetBinding' isAxiom o x u a ret
 
   updateContext sub f = unsafeModifyContext f . checkpoint sub
 
@@ -512,18 +514,24 @@ getLetBindings = do
   bs <- asksTC envLetBindings
   forM (Map.toList bs) $ \ (n, o) -> (,) n <$> getOpen o
 
--- | Add a let bound variable
-{-# SPECIALIZE defaultAddLetBinding' :: Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
-defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Origin -> Name -> Term -> Dom Type -> m a -> m a
-defaultAddLetBinding' o x v t ret = do
-    vt <- makeOpen $ LetBinding o v t
+-- | Add a let bound variable.
+{-# SPECIALIZE defaultAddLetBinding' :: IsAxiom -> Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
+defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m)
+  => IsAxiom   -- ^ Does this let binding come from a 'LetAxiom'?
+  -> Origin -> Name -> Term -> Dom Type -> m a -> m a
+defaultAddLetBinding' isAxiom o x v t ret = do
+    vt <- makeOpen $ LetBinding isAxiom o v t
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
--- | Add a let bound variable
+-- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetBinding info o x v t0 ret = addLetBinding' o x v (defaultArgDom info t0) ret
+addLetBinding info o x v t0 ret = addLetBinding' NoAxiom o x v (defaultArgDom info t0) ret
 
+-- | Add a let bound variable without a definition.
+{-# SPECIALIZE addLetAxiom :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
+addLetAxiom :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
+addLetAxiom info o x v t0 ret = addLetBinding' YesAxiom o x v (defaultArgDom info t0) ret
 
 {-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable.
@@ -667,7 +675,7 @@ getVarInfo x =
             _       ->
                 case Map.lookup x def of
                     Just vt -> do
-                      LetBinding _ v t <- getOpen vt
+                      LetBinding _isAxiom _origin v t <- getOpen vt
                       return (v, t)
                     _ -> fail $ unwords
                       [ "unbound variable"

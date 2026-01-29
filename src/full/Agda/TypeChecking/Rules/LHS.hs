@@ -586,7 +586,7 @@ bindAsPatterns (AsB x v a : asb) ret = do
     sep [ ":" <+> prettyTCM a
         , "=" <+> prettyTCM v
         ]
-  addLetBinding' Inserted x v a $ bindAsPatterns asb ret
+  addLetBinding' NoAxiom Inserted x v a $ bindAsPatterns asb ret
 
 -- | Since with-abstraction can change the type of a variable, we have to
 --   recheck the stripped with patterns when checking a with function.

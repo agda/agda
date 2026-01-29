@@ -1931,7 +1931,7 @@ checkLetBinding' b@(A.LetAxiom i info x t) ret = do
   addConstant' axn info t defaultAxiom
 
   val <- Def axn . fmap Apply <$> getContextArgs
-  addLetBinding info UserWritten (A.unBind x) val t ret
+  addLetAxiom info UserWritten (A.unBind x) val t ret
 
 checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
     p <- expandPatternSynonyms p

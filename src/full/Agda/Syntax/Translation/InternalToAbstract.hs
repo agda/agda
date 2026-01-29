@@ -467,7 +467,7 @@ tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings) fallba
   letBindings <- do
     binds  <- asksTC (Map.toAscList . envLetBindings)
     opened <- forM binds $ \ (name, open) -> (,name) <$> getOpen open
-    return [ (body, name) | (LetBinding UserWritten body _, name) <- opened, not $ isNoName name ]  -- Only fold user-written lets
+    return [ (body, name) | (LetBinding _isAxiom UserWritten body _, name) <- opened, not $ isNoName name ]  -- Only fold user-written lets
   matchingBindings <- filterM (\t -> checkSyntacticEquality v (fst t) (\_ _ -> return True) (\_ _ -> return False)) letBindings
   case matchingBindings of
     (_, name) : _ -> return $ A.Var name

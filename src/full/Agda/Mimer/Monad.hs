@@ -382,7 +382,7 @@ getLetVars cost = do
     makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
     makeComp (name, opn) = do
       cId <- fresh
-      return $ opn <&> \ (LetBinding _origin term typ) ->
+      return $ opn <&> \ (LetBinding _isAxiom _origin term typ) ->
                 mkComponent cId [] cost (Just name) 0 term (unDom typ)
 
 -- | Returns the variables as terms together with whether they where found under

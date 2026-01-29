@@ -1542,7 +1542,7 @@ instance InstantiateFull ContextEntry where
   instantiateFull' (CtxVar x a) = CtxVar x <$> instantiateFull' a
 
 instance InstantiateFull LetBinding where
-  instantiateFull' (LetBinding o v t) = LetBinding o <$> instantiateFull' v <*> instantiateFull' t
+  instantiateFull' (LetBinding isAxiom o v t) = LetBinding isAxiom o <$> instantiateFull' v <*> instantiateFull' t
 
 -- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
 instance InstantiateFull t => InstantiateFull (Open t) where

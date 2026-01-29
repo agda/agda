@@ -4530,14 +4530,21 @@ currentModality = do
 
 type LetBindings = Map Name (Open LetBinding)
 
-data LetBinding = LetBinding { letOrigin :: Origin
-                             , letTerm   :: Term
-                             , letType   :: Dom Type
-                             }
+data LetBinding = LetBinding
+  { letAxiom  :: IsAxiom    -- ^ Does this let binding origin from a 'LetAxiom'?
+  , letOrigin :: Origin
+  , letTerm   :: Term
+  , letType   :: Dom Type
+  }
   deriving (Show, Generic)
 
 onLetBindingType :: (Dom Type -> Dom Type) -> LetBinding -> LetBinding
 onLetBindingType f b = b { letType = f $ letType b }
+
+data IsAxiom
+  = YesAxiom
+  | NoAxiom
+  deriving (Eq, Show, Generic)
 
 ---------------------------------------------------------------------------
 -- ** Abstract mode
@@ -6871,6 +6878,7 @@ instance NFData ConstructorDisambiguationData
 instance NFData Statistics
 instance NFData UnusedImportsState
 instance NFData OpenedModule
+instance NFData IsAxiom
 
 -- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
 -- See https://github.com/haskell/deepseq/issues/111.

@@ -218,7 +218,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- And modules created in the telescope (#6916)
   --   TODO
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
-  let addLet (x, LetBinding o v dom) = addLetBinding' o x v dom
+  let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
 
   updateContext sub ((genTelCxt ++) . drop 1) $
     updateContext (raiseS (size tel')) (newTelCxt ++) $
