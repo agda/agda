@@ -353,7 +353,7 @@ mergeInterface i = do
       -- fiddly to do correctly. Instead, we just locally add the imports
       -- for the duration of checking confluence and revert the state
       -- afterwards.
-      locallyAddImport (iTopLevelModuleName i) do
+      locallyAddImport (iTopLevelModuleName i) $
         checkConfluenceOfRules confChk rews
     where
         rebind (x, q) = do

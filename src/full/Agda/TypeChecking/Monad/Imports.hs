@@ -34,26 +34,25 @@ import Agda.Utils.Singleton (singleton)
 import Agda.Utils.Tuple ( (***) )
 
 import Agda.Utils.Impossible
-import Agda.Utils.Lens (over, (^.))
-
 
 -- | Register the given module as imported in the current state.
 --   Also recursively add its imports to the cumulative imports.
 addImport :: TopLevelModuleName -> TCM ()
-addImport top = modifyTC' $ addImportToState top
+addImport top = do
+  vis <- getVisitedModules
+  modifyTCLens' stImportedModules $ Set.insert top
+  modifyTCLens' stImportedModulesTransitive $ completeTransitiveImports' vis top
 
 -- | Temporarily register the given module as imported.
---   Confluence checking imported rewrite rules relies on considering the
---   module being imported as already imported.
 locallyAddImport :: TopLevelModuleName -> TCM () -> TCM ()
-locallyAddImport top = withTCState (addImportToState top)
+locallyAddImport top cont = do
+  vis <- getVisitedModules
+  locallyTCState stImportedModulesTransitive (completeTransitiveImports' vis top) $
+    locallyTCState stImportedModules (Set.insert top) cont
 
-addImportToState :: TopLevelModuleName -> TCState -> TCState
-addImportToState top s
-  = over stImportedModules (Set.insert top)
-  . over stImportedModulesTransitive
-         (completeTransitiveImports (s ^. stVisitedModules) (singleton top))
-  $ s
+completeTransitiveImports' :: VisitedModules -> TopLevelModuleName
+                           -> ImportedModules -> ImportedModules
+completeTransitiveImports' vis top = completeTransitiveImports vis (singleton top)
 
 -- | @completeTransitiveImports ms ms'@.
 --   Precondition: @ms@ disjoint from @ms'@.
