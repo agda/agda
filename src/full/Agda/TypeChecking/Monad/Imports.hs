@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Monad.Imports
   ( addImport
+  , locallyAddImport
   , checkForImportCycle
   , dropDecodedModule
   , getDecodedModule
@@ -33,30 +34,43 @@ import Agda.Utils.Singleton (singleton)
 import Agda.Utils.Tuple ( (***) )
 
 import Agda.Utils.Impossible
+import Agda.Utils.Lens (over, (^.))
+
 
 -- | Register the given module as imported in the current state.
 --   Also recursively add its imports to the cumulative imports.
 addImport :: TopLevelModuleName -> TCM ()
-addImport top = do
-  modifyTCLens' stImportedModules $ Set.insert top
-  modifyTCLensM stImportedModulesTransitive $ completeTransitiveImports $ singleton top
+addImport top = modifyTC' $ addImportToState top
+
+-- | Temporarily register the given module as imported.
+--   Confluence checking imported rewrite rules relies on considering the
+--   module being imported as already imported.
+locallyAddImport :: TopLevelModuleName -> TCM () -> TCM ()
+locallyAddImport top = withTCState (addImportToState top)
+
+addImportToState :: TopLevelModuleName -> TCState -> TCState
+addImportToState top s
+  = over stImportedModules (Set.insert top)
+  . over stImportedModulesTransitive
+         (completeTransitiveImports (s ^. stVisitedModules) (singleton top))
+  $ s
 
 -- | @completeTransitiveImports ms ms'@.
 --   Precondition: @ms@ disjoint from @ms'@.
-completeTransitiveImports :: ReadTCState m => Set TopLevelModuleName -> ImportedModules -> m ImportedModules
-completeTransitiveImports ms old = if null ms then return old else do
+completeTransitiveImports :: VisitedModules -> Set TopLevelModuleName -> ImportedModules -> ImportedModules
+completeTransitiveImports vis ms old = if null ms then old else do
 
   -- Add the given imports to the current set.
   let next = old `Set.union` ms
 
   -- The interfaces for the modules we added to the transitive imports.
-  is <- catMaybes <$> mapM getVisitedModule (Set.toList ms)
+  let is = catMaybes $ getVisitedModule' vis <$> Set.toList ms
 
   -- The imports of these modules.
   let imps = Set.unions $ map (Set.fromList . map fst . iImportedModules . miInterface) is
 
   -- Recurse on the new imports.
-  completeTransitiveImports (imps `Set.difference` next) next
+  completeTransitiveImports vis (imps `Set.difference` next) next
 
 visitModule :: ModuleInfo -> TCM ()
 visitModule mi =
@@ -82,7 +96,12 @@ getPrettyVisitedModules = do
 getVisitedModule :: ReadTCState m
                  => TopLevelModuleName
                  -> m (Maybe ModuleInfo)
-getVisitedModule x = Map.lookup x <$> useTC stVisitedModules
+getVisitedModule x = getVisitedModule' <$> useTC stVisitedModules <*> pure x
+
+getVisitedModule' :: VisitedModules
+                  -> TopLevelModuleName
+                  -> Maybe ModuleInfo
+getVisitedModule' vis x = Map.lookup x vis
 
 getDecodedModules :: TCM DecodedModules
 getDecodedModules = stDecodedModules . stPersistentState <$> getTC
