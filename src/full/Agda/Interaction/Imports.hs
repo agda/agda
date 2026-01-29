@@ -328,31 +328,31 @@ mergeInterface i = do
       (iOpaqueNames i)
 
     -- #8273: We need to ensure the module we are importing is considered
-    -- imported when checking confluence
-
+    -- imported when checking confluence.
+    --
     -- I think ideally we would @addImport@s earlier so the imported modules
     -- would stay consistent with i, but this seems very fiddly to do correctly.
-    -- So, instead we just locally add the modules
-    -- and then revert the state afterwards.
-    -- locallyAddImport (iTopLevelModuleName i) do
-    reportSLn "import.iface.merge" 50 $
-      "  Rebinding primitives " ++ show prim
-    mapM_ rebind prim
-    whenJustM (optConfluenceCheck <$> pragmaOptions) \ confChk -> do
-      let rews = concat $ HMap.elems $ sig ^. sigRewriteRules
-      verboseS "import.iface.confluence" 20 do
-        if null rews then reportSLn "" 1 $ "  No rewrite rules imported"
-        else do
-          reportSDoc "" 1 $ P.vcat $ map (P.nest 2) $
-            "Checking confluence of imported rewrite rules" :
-            map (("-" P.<+>) . prettyTCM . rewName) rews
+    -- So, instead we just locally add the modules and then revert the state
+    -- afterwards.
+    locallyAddImport (iTopLevelModuleName i) do
+      reportSLn "import.iface.merge" 50 $
+        "  Rebinding primitives " ++ show prim
+      mapM_ rebind prim
+      whenJustM (optConfluenceCheck <$> pragmaOptions) \ confChk -> do
+        let rews = concat $ HMap.elems $ sig ^. sigRewriteRules
+        verboseS "import.iface.confluence" 20 do
+          if null rews then reportSLn "" 1 $ "  No rewrite rules imported"
+          else do
+            reportSDoc "" 1 $ P.vcat $ map (P.nest 2) $
+              "Checking confluence of imported rewrite rules" :
+              map (("-" P.<+>) . prettyTCM . rewName) rews
 
-      -- Andreas, 2025-06-28, PR #7934 and issue #7969:
-      -- Global confluence checker requires rules to be sorted
-      -- according to the generality of their lhs
-      when (confChk == GlobalConfluenceCheck) $
-        forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
-      checkConfluenceOfRules confChk rews
+        -- Andreas, 2025-06-28, PR #7934 and issue #7969:
+        -- Global confluence checker requires rules to be sorted
+        -- according to the generality of their lhs
+        when (confChk == GlobalConfluenceCheck) $
+          forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
+        checkConfluenceOfRules confChk rews
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x
@@ -421,14 +421,10 @@ scopeCheckFileImport top = do
     verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
-
-    -- #8273: We need to ensure the imported module is added to
-    -- stImportedModules and stImportedModulesTransitive before actually
-    -- importing it.
-    addImport top
     -- Since scopeCheckFileImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getNonMainInterface top Nothing
+    addImport top
 
     -- Print list of imported modules in current state.
     verboseS "import.iface.imports" 10 do
