@@ -207,6 +207,15 @@ Warnings
     @(tactic not-in-scope) _ : Set
   ```
 
+* New warning `RewriteVariablesBoundInSingleton` for rewrite rules which bind
+  at least one variable exclusively in patterns which might become of singleton
+  type after a substitution. Rewrite rules of this form endanger subject
+  reduction.
+  - Unlike the other warnings about problematic rewrite rules, Agda will still
+    try its best to apply rewrites which trigger this warning.
+    This is because some very useful rewrite rules unfortunately do not preserve
+    subject reduction in the presense of definitional singletons.
+
 Syntax
 ------
 

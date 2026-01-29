@@ -407,6 +407,14 @@ prettyWarning = \case
           <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
           <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ VarSet.toAscList xs))
           <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
+      VariablesBoundInSingleton xs -> do
+        -- This warning is motivated in #8238. If #6636 is implemented, then
+        -- this warning should be disabled.
+        vcat ["I am not certain that the rewrite rule: " <+> prettyTCM q
+          <+> " is safe because it appears that the following variables: "
+          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ VarSet.toAscList xs)
+          <+> " are only bound in contexts which might become definitionally singular."
+          , "This warning can be silenced with -WnoRewriteVariablesBoundInSingleton, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields."]
       LHSReduces v v' -> fsep
         [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
         , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]

@@ -296,7 +296,7 @@ instance Match NLPat Term where
           MetaV m es -> matchingBlocked $ blocked_ m
           _          -> no ""
     case p of
-      PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
+      PVar s i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
         case n of
           0 -> tellSub r (i-n) t v
           _ -> do
