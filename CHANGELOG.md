@@ -363,6 +363,14 @@ Interaction and emacs mode
   regardless of whether invoked at toplevel or in a hole
   (Issue [#2410](https://github.com/agda/agda/issue/2410)).
 
+* _Go-to-definition_ (`M-.`) is now implemented using Emacs' built-in
+  [Xref].  Basic usage stays the same (`M-.` or using the mouse), but
+  now also includes searching for definitions by exact (`C-u M-.`) or
+  approximate names (`C-M-.`) and listing references (`M-?`) in loaded
+  files.
+
+[Xref]: https://www.gnu.org/software/emacs/manual/html_node/emacs/Xref.html
+
 Backends
 --------
 
