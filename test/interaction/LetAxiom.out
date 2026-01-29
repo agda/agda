@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals, Errors*" "?0 : Nat ———— Error ————————————————————————————————————————————————— LetAxiom.agda:13.5-6: error: [MissingDefinitions] The following names are declared but not accompanied by a definition: x when scope checking let x : Nat in ?" nil)
+((last . 1) . (agda2-goals-action '(0)))
+(agda2-status-action "")
+(agda2-info-action "*Goal type etc.*" "Goal: Nat ———— Context ——————————————————————————————————————————————— x : Nat" nil)

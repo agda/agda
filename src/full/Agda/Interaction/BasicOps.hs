@@ -1153,7 +1153,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
 
     mkLet :: (Name, Open M.LetBinding) -> TCM (Maybe ResponseContextEntry)
     mkLet (name, lb) = do
-      LetBinding _ tm !dom <- getOpen lb
+      LetBinding isAxiom _ tm !dom <- getOpen lb
       if shouldHide (domInfo dom) name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
@@ -1161,8 +1161,11 @@ contextOfMeta ii norm = withInteractionId ii $ do
         ty <- reifyUnblocked =<< normalForm norm dom
               -- Remove let bindings from x and later, to avoid folding to x = x, or using bindings
               -- not introduced when x was defined.
-        v  <- removeLetBindingsFrom name $ reifyUnblocked =<< normalForm norm tm
-        return $ ResponseContextEntry n x ty (Just v) s
+        mv <- case isAxiom of
+          -- Andreas, 2026-01-29, issue #8344: do not print bindings for 'LetAxiom's.
+          YesAxiom -> pure Nothing
+          NoAxiom  -> Just <$> do removeLetBindingsFrom name $ reifyUnblocked =<< normalForm norm tm
+        return $ ResponseContextEntry n x ty mv s
 
     shouldHide :: ArgInfo -> A.Name -> Bool
     shouldHide ai n = not (isInstance ai) && (isNoName n || nameIsRecordName n)

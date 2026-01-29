@@ -136,7 +136,7 @@ initialInstanceCandidates blockOverlap instTy = do
       env <- asksTC envLetBindings
       env <- mapM (traverse getOpen) $ Map.toList env
       let lets = [ Candidate LocalCandidate v t DefaultOverlap
-                 | (_, LetBinding _ v Dom{domInfo = info, unDom = t}) <- env
+                 | (_, LetBinding _isAxiom _origin v Dom{domInfo = info, unDom = t}) <- env
                  , isInstance info
                  , usableModality info
                  ]

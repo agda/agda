@@ -1082,7 +1082,7 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
 
 instance Subst LetBinding where
   type SubstArg LetBinding = Term
-  applySubst rho (LetBinding o v t) = LetBinding o (applySubst rho v) (applySubst rho t)
+  applySubst rho (LetBinding isAxiom o v t) = LetBinding isAxiom o (applySubst rho v) (applySubst rho t)
 
 instance Subst ContextEntry where
   type SubstArg ContextEntry = Term
