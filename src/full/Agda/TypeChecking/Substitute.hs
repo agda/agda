@@ -922,9 +922,9 @@ instance DeBruijn BraveTerm where
   deBruijnView = deBruijnView . unBrave
 
 instance DeBruijn NLPat where
-  deBruijnVar i = PVar i []
+  deBruijnVar i = PVar MaybeSing i []
   deBruijnView = \case
-    PVar i []   -> Just i
+    PVar s i [] -> Just i
     PVar{}      -> Nothing
     PDef{}      -> Nothing
     PLam{}      -> Nothing
@@ -938,7 +938,7 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
   where
     nlPatToTerm :: NLPat -> Term
     nlPatToTerm = \case
-      PVar i xs      -> Var i $ map (Apply . fmap var) xs
+      PVar s i xs    -> Var i $ map (Apply . fmap var) xs
       PTerm u        -> u
       PDef f es      -> __IMPOSSIBLE__
       PLam i u       -> __IMPOSSIBLE__
@@ -952,7 +952,7 @@ applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst 
 instance Subst NLPat where
   type SubstArg NLPat = NLPat
   applySubst rho = \case
-    PVar i bvs     -> lookupS rho i `applyBV` bvs
+    PVar s i bvs   -> lookupS rho i `applyBV` bvs
     PDef f es      -> PDef f $ applySubst rho es
     PLam i u       -> PLam i $ applySubst rho u
     PPi a b        -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
@@ -963,7 +963,7 @@ instance Subst NLPat where
     where
       applyBV :: NLPat -> [Arg Int] -> NLPat
       applyBV p ys = case p of
-        PVar i xs      -> PVar i (xs ++ ys)
+        PVar s i xs    -> PVar s i (xs ++ ys)
         PTerm u        -> PTerm $ u `apply` map (fmap var) ys
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__

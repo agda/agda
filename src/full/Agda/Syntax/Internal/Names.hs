@@ -289,7 +289,7 @@ instance NamesIn Section where
 
 instance NamesIn NLPat where
   namesAndMetasIn' sg = \case
-    PVar _ _      -> mempty
+    PVar _ _ _    -> mempty
     PDef a b      -> namesAndMetasIn' sg (a, b)
     PLam _ a      -> namesAndMetasIn' sg a
     PPi a b       -> namesAndMetasIn' sg (a, b)

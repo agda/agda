@@ -196,7 +196,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
     illegalRule BeforeFunctionDefinition
-  -- Issue 6643: Also check that there are no mututal definitions
+  -- Issue 6643: Also check that there are no mutual definitions
   -- that are not yet defined.
   whenJustM (asksTC envMutualBlock) \ mb -> do
     qs <- mutualNames <$> lookupMutualBlock mb
@@ -220,6 +220,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         | otherwise = __IMPOSSIBLE__
   let failureFreeVars :: VarSet -> MaybeT TCM a
       failureFreeVars xs = illegalRule $ VariablesNotBoundByLHS xs
+  let warnUnsafeVars :: VarSet -> MaybeT TCM ()
+      warnUnsafeVars xs = unsafeRule $ VariablesBoundInSingleton xs
   let failureNonLinearPars :: VarSet -> MaybeT TCM a
       failureNonLinearPars xs = illegalRule $ VariablesBoundMoreThanOnce xs
 
@@ -270,7 +272,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
         ps <- fromRightM failureBlocked $ lift $
           catchPatternErr (pure . Left) $
-            Right <$> patternFrom relevant 0 (t , Def f) es
+            Right <$> patternFrom NeverSing NeverSing 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
@@ -285,10 +287,13 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    even though they don't appear in the lhs, since they can be reconstructed.
         --    For postulated or abstract rewrite rules, we consider all arguments
         --    as 'used' (see #5238).
-        let boundVars = nlPatVars ps
-            freeVars  = allFreeVars (ps,rhs)
-            allVars   = VarSet.full $ size gamma
-            usedVars  = case theDef def of
+        let PatVars neverSingPatVars maybeSingPatVars = nlPatVars ps
+            boundVars   = neverSingPatVars <> maybeSingPatVars
+            freeVarsLhs = allFreeVars lhs
+            freeVarsRhs = allFreeVars rhs
+            freeVars    = freeVarsLhs <> freeVarsRhs
+            allVars     = VarSet.full $ size gamma
+            usedVars    = case theDef def of
               Function{}         -> usedArgs def
               Axiom{}            -> allVars
               AbstractDefn{}     -> allVars
@@ -302,15 +307,27 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
         reportSDoc "rewriting" 70 $
-          "variables free in the rewrite rule: " <+> text (show freeVars)
+          "variables free in the rhs: " <+> text (show freeVarsRhs)
         reportSDoc "rewriting" 70 $
           "variables used by the rewrite rule: " <+> text (show usedVars)
+
+        -- All variables occurring in the rewrite must be bound somewhere
+        -- (otherwise the rewrite will simply never fire)
         unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
+        -- #5238: All variables used in the proof of the rewrite must be
+        -- present in the context for the rewrite to fire safely.
+        -- Searching the context is not feasible though, so we instead use the
+        -- tighter criteria that the variables must occur somewhere on the LHS.
         unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
 
         reportSDoc "rewriting" 70 $
           "variables bound in (erased) parameter position: " <+> text (show pars)
         unlessNull (boundVars `VarSet.intersection` VarSet.fromList pars) failureNonLinearPars
+
+        -- #5929: All variables occurring on the rhs should be bound in
+        -- contexts that will never become definitionally singular (even after
+        -- a substitution), otherwise we can lose subject reduction.
+        unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
 
         top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
         let rew = RewriteRule q gamma f ps rhs (unDom b) False top
@@ -325,9 +342,12 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
     _ -> illegalRule DoesNotTargetRewriteRelation
 
   where
+    unsafeRule :: IllegalRewriteRuleReason -> MaybeT TCM ()
+    unsafeRule reason = lift $ warning $ IllegalRewriteRule q reason
+
     illegalRule :: IllegalRewriteRuleReason -> MaybeT TCM a
     illegalRule reason = do
-      lift $ warning $ IllegalRewriteRule q reason
+      unsafeRule reason
       mzero
 
     checkNoLhsReduction :: QName -> (Elims -> Term) -> Elims -> MaybeT TCM ()

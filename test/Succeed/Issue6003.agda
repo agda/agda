@@ -1,4 +1,5 @@
-{-# OPTIONS --type-in-type --rewriting --allow-unsolved-metas #-}
+{-# OPTIONS --type-in-type --rewriting --allow-unsolved-metas
+            -WnoRewriteVariablesBoundInSingleton #-}
 
 open import Agda.Builtin.Equality using (_≡_)
 open import Agda.Builtin.Equality.Rewrite

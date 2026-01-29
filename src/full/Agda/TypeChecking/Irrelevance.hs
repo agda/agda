@@ -315,6 +315,62 @@ usableAtModality' ms why mod t =
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
 usableAtModality = usableAtModality' Nothing
 
+{-# SPECIALIZE isDefSing :: Type -> TCM DefSing #-}
+-- | Compute whether a type is a definitional singleton or might become one
+--   after a substitution or after the addition of some rewrite rules
+--   Assumes type passed in has been reduced (otherwise will be even more
+--   conservative than necessary).
+isDefSing :: (PureTCM m, MonadBlock m) => Type -> m DefSing
+isDefSing a = do
+  let s = getSort a
+  p <- isProp <$> abortIfBlocked s
+  -- Strict propositions are always definitional singletons
+  if p
+  then pure MaybeSing
+  else do
+  case unEl a of
+    Var _ _           -> pure MaybeSing
+    Lam _ _           -> __IMPOSSIBLE__
+    Lit _             -> __IMPOSSIBLE__
+    Def d es          -> do
+      def <- theDef <$> getConstInfo d
+      case def of
+        Datatype{}         -> pure NeverSing
+        Record{recTel=tel} -> case recEtaEquality def of
+          YesEta  -> do
+            let Just vs = allApplyElims es
+            sings <- traverse isDefSing' $ tel `apply` vs
+            pure $ foldr minDefSing AlwaysSing sings
+          NoEta _ -> pure NeverSing
+        Axiom{}            -> pure $ NeverSing
+          -- TODO: Postulated type formers might still become definitionally
+          -- singular if further rewrites are added (see #8266)
+        DataOrRecSig{}     -> pure NeverSing
+        AbstractDefn{}     -> pure MaybeSing
+          -- I am erring on the side of caution here: specifically, I am
+          -- worried about the possibility that a rewrite might look fine
+          -- outside of an abstract block, but then inside an abstract block,
+          -- all the abstract definitions will reduce and the rewrite will
+          -- become invalid.
+        Function{}         -> pure MaybeSing
+        Primitive{}        -> pure MaybeSing
+        PrimitiveSort{}    -> __IMPOSSIBLE__
+        GeneralizableVar{} -> __IMPOSSIBLE__
+        Constructor{}      -> __IMPOSSIBLE__
+    Con _ _ _         -> __IMPOSSIBLE__
+    Pi _ (unAbs -> b) -> isDefSing b
+    Sort _            -> pure NeverSing
+    Level _           -> __IMPOSSIBLE__
+    MetaV _ _         -> __IMPOSSIBLE__
+    DontCare a        -> __IMPOSSIBLE__
+    Dummy _ _         -> __IMPOSSIBLE__
+
+{-# SPECIALIZE isDefSing' :: Dom Type -> TCM DefSing #-}
+isDefSing' :: (PureTCM m, MonadBlock m) => Dom Type -> m DefSing
+isDefSing' t =
+  if isIrrelevant $ getRelevance t
+  then pure AlwaysSing
+  else isDefSing $ unDom t
 
 -- * Propositions
 

@@ -2316,11 +2316,38 @@ instance Pretty DisplayForm where
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
+-- | NLPat might become definitionally singular (after a substitution)
+data DefSing
+  = NeverSing
+    -- ^ Never definitionally singular
+  | MaybeSing
+    -- ^ Might become definitionally singular after a substitution
+  | AlwaysSing
+    -- ^ Always definitionally singular (e.g. irrelevant or in |Prop|)
+  deriving (Show, Generic, Enum, Bounded)
+
+relToDefSing :: Relevance -> DefSing
+relToDefSing r = if isIrrelevant r then AlwaysSing else NeverSing
+
+-- Only approximate if both sides are |NotDefSingIfInj| with non-empty
+-- injective constraints
+minDefSing :: DefSing -> DefSing -> DefSing
+minDefSing s s' = toEnum $ fromEnum s `min` fromEnum s'
+
+maxDefSing :: DefSing -> DefSing -> DefSing
+maxDefSing s s' = toEnum $ fromEnum s `max` fromEnum s'
+
+isAlwaysSing :: DefSing -> Bool
+isAlwaysSing AlwaysSing = True
+isAlwaysSing _          = False
+
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat
-  = PVar !Int [Arg Int]
+  = PVar DefSing !Int [Arg Int]
     -- ^ Matches anything (modulo non-linearity) that only contains bound
     --   variables that occur in the given arguments.
+    --   Tracks the definitional singularity of the surrounding pattern (not
+    --   the type of the variable itself)
   | PDef QName PElims
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
@@ -2674,7 +2701,7 @@ projArgInfo (Projection _ _ _ _ lams) =
 
 -- | Should a record type admit eta-equality?
 data EtaEquality
-  = Specified { theEtaEquality :: !HasEta }  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
+  = Specified { theEtaEquality :: !HasEta }  -- ^ User specified 'eta-equality' or 'no-eta-equality'.
   | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
   deriving (Show, Eq, Generic)
 
@@ -2750,7 +2777,7 @@ data Defn
 data AxiomData = AxiomData
   { _axiomConstTransp :: Bool
     -- ^ Can transp for this postulate be constant?
-    --   Set to @True@ for bultins like String.
+    --   Set to @True@ for builtins like String.
   } deriving (Show, Generic)
 
 pattern Axiom :: Bool -> Defn
@@ -5013,6 +5040,7 @@ illegalRewriteWarningName = \case
   LHSNotDefinitionOrConstructor{}      -> RewriteLHSNotDefinitionOrConstructor_
   VariablesNotBoundByLHS{}             -> RewriteVariablesNotBoundByLHS_
   VariablesBoundMoreThanOnce{}         -> RewriteVariablesBoundMoreThanOnce_
+  VariablesBoundInSingleton{}          -> RewriteVariablesBoundInSingleton_
   LHSReduces{}                         -> RewriteLHSReduces_
   HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
   HeadSymbolIsTypeConstructor{}        -> RewriteHeadSymbolIsTypeConstructor_
@@ -5649,6 +5677,7 @@ data IllegalRewriteRuleReason
   = LHSNotDefinitionOrConstructor
   | VariablesNotBoundByLHS VarSet
   | VariablesBoundMoreThanOnce VarSet
+  | VariablesBoundInSingleton VarSet
   | LHSReduces Term Term
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolIsTypeConstructor QName
@@ -6592,13 +6621,13 @@ instance KillRange NumGeneralizableArgs where
   killRange = id
 
 instance KillRange NLPat where
-  killRange (PVar x y) = killRangeN PVar x y
-  killRange (PDef x y) = killRangeN PDef x y
-  killRange (PLam x y) = killRangeN PLam x y
-  killRange (PPi x y)  = killRangeN PPi x y
-  killRange (PSort x)  = killRangeN PSort x
+  killRange (PVar s x y)    = killRangeN (PVar s) x y
+  killRange (PDef x y)      = killRangeN PDef x y
+  killRange (PLam x y)      = killRangeN PLam x y
+  killRange (PPi x y)       = killRangeN PPi x y
+  killRange (PSort x)       = killRangeN PSort x
   killRange (PBoundVar x y) = killRangeN PBoundVar x y
-  killRange (PTerm x)  = killRangeN PTerm x
+  killRange (PTerm x)       = killRangeN PTerm x
 
 instance KillRange NLPType where
   killRange (NLPType s a) = killRangeN NLPType s a
@@ -6769,6 +6798,7 @@ instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause
 instance NFData DisplayForm
 instance NFData DisplayTerm
+instance NFData DefSing
 instance NFData NLPat
 instance NFData NLPType
 instance NFData NLPSort

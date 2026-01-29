@@ -556,7 +556,7 @@ instance PrettyTCM (Elim' DisplayTerm) where
 {-# SPECIALIZE prettyTCM :: Elim' DisplayTerm -> TCM Doc #-}
 
 instance PrettyTCM NLPat where
-  prettyTCM (PVar x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
+  prettyTCM (PVar s x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = parens $ fsep
