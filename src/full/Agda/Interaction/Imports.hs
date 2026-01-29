@@ -331,8 +331,9 @@ mergeInterface i = do
     -- imported when checking confluence
 
     -- I think ideally we would @addImport@s earlier so the imported modules
-    -- would stay consistent with i, but this seems very
-    -- fiddly to do correctly.
+    -- would stay consistent with i, but this seems very fiddly to do correctly.
+    -- So, instead we just locally add the modules
+    -- and then revert the state afterwards.
     locallyAddImport (iTopLevelModuleName i) do
       reportSLn "import.iface.merge" 50 $
         "  Rebinding primitives " ++ show prim
@@ -642,7 +643,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       reportSLn "import.iface" 15 $ "  Check for cycle"
       checkForImportCycle
 
-      mi <- Bench.billTo [Bench.Import] (getStoredInterface x isMain file msrc)
+      mi <- Bench.billTo [Bench.Import] (getStoredInterface x file msrc)
         `catchExceptT` \ reason -> do
 
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
@@ -745,12 +746,11 @@ getOptionsCompatibilityWarnings _ True _ _ = return Nothing
 getStoredInterface :: HasCallStack
   => TopLevelModuleName
      -- ^ Module name of file we process.
-  -> MainInterface
   -> SourceFile
      -- ^ File we process.
   -> Maybe Source
   -> ExceptT String TCM ModuleInfo
-getStoredInterface x isMain file@(SourceFile fi) msrc = do
+getStoredInterface x file@(SourceFile fi) msrc = do
 
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
