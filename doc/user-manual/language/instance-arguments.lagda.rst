@@ -679,6 +679,14 @@ Find candidates
   a local variable is eta-expandable (e.g., its type is a metavariable),
   instance search will not run.
 
+  This also applies to local variables that are a function producing an
+  eta record, in which case the instance fields are extracting with
+  visible arguments marked implicit. For example, if a local variable
+  ``G : X → Group`` is in scope and ``Group`` is an eta record with a
+  field ``Carrier : Set`` and an instance field
+  ``⦃ mul ⦄ : Mul Carrier``, then ``λ {x} → mul (G x)`` will be a
+  candidate of type ``{x : X} -> Mul (Carrier G)``.
+
   Only candidates of type ``{Δ} → C us``, where ``C`` is the target type
   computed in the previous stage, and ``{Δ}`` only contains implicit or
   instance arguments, are considered.

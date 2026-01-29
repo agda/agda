@@ -283,6 +283,13 @@ Changes to type checker and other components defining the Agda language.
   is correctly generalised over. This should make most (if not all) uses of the
   old-style `inspect` idioms for the built-in equality type unnecessary.
 
+* Instance search now finds instance fields in functions that produce eta
+  records. For example, if a local variable `G : X → Group` is in scope
+  and `Group` is an eta record with a field `Carrier : Set` and an instance
+  field `⦃ mul ⦄ : Mul Carrier`, then `λ {x} → mul (G x)` will be a candidate
+  of type `{x : X} -> Mul (Carrier G)`. See also
+  [Issue #8337](https://github.com/agda/agda/issues/8337).
+
 
 Reflection
 ----------
