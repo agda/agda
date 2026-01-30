@@ -5,7 +5,7 @@ compiler-check: match-exact
 # Local packages specified by relative directory name.
 packages:
 - '.'
-- 'src/size-solver'
+
 
 extra-deps:
 - QuickCheck-2.14.2
