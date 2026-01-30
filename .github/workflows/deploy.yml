@@ -9,78 +9,82 @@ defaults:
   run:
     shell: bash
 jobs:
-  auto-cancel:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion
-      == 'success' }}
-    runs-on: Ubuntu-latest
-    steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
-      with:
-        access_token: ${{ github.token }}
   build:
     env:
-      ARGS: --disable-executable-profiling --disable-library-profiling
-      LINUX_ARGS: --enable-executable-static  --enable-split-sections
-      MACOS_ARGS: --flags=enable-cluster-counting
-      WIN64_ARGS: --flags=enable-cluster-counting  --enable-split-sections
-    if: ${{ always() }}
-    needs: auto-cancel
-    outputs:
-      sha: ${{ steps.vars.outputs.sha }}
+      ARGS: --disable-executable-profiling --disable-library-profiling --flags=use-xdg-data-home
+      LINUX_ARGS: --flags=optimise-heavily --enable-executable-static  --enable-split-sections
+      MACOS_ARGS: --flags=optimise-heavily
+      MATRIX_OS: ${{ matrix.os }}
+      WIN64_ARGS: --flags=optimise-heavily --enable-split-sections
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - id: vars
       name: Set up platform-dependent variables
       run: |
-        sha="$(git rev-parse --short=7 HEAD)"
-        nightly=Agda-nightly
-
-        echo sha="${sha}"                                           >> "${GITHUB_OUTPUT}"
-        echo nightly="${nightly}"                                   >> "${GITHUB_OUTPUT}"
+        bindist="Agda"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
 
-          filename="${nightly}-win64.zip"
+          filename="win64.zip"
+          exe="agda.exe"
           echo args="${ARGS} ${WIN64_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="7z a ${filename} ${nightly} -bb -mx=9" >> "${GITHUB_OUTPUT}"
           echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
-          echo exe="agda.exe"                                       >> "${GITHUB_OUTPUT}"
-          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="cd ${bindist} && 7z a ${filename} -bb -mx=9 && mv ${filename} .." >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$OSTYPE" == "darwin"* ]]; then
+        elif [[ "$MATRIX_OS" == "macos-15-intel" ]]; then
 
-          filename="${nightly}-macOS.tar.xz"
+          filename="macOS-x64.tar.xz"
+          exe="agda"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
-          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
+
+        elif [[ "$MATRIX_OS" == "macos-latest" ]]; then
+
+          filename="macOS-arm64.tar.xz"
+          exe="agda"
+          echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
+          echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
 
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
-          filename="${nightly}-linux.tar.xz"
+          filename="linux.tar.xz"
+          exe="agda"
           echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
-          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
 
         fi
+
+        echo bindist="${bindist}"                                 >> "${GITHUB_OUTPUT}"
+        echo exe="${exe}"                                         >> "${GITHUB_OUTPUT}"
+        echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
     - name: Display build variables
       run: |
-        echo "args         = ${{ steps.vars.outputs.args         }}"
-        echo "compress-cmd = ${{ steps.vars.outputs.compress-cmd }}"
-        echo "content-type = ${{ steps.vars.outputs.content-type }}"
-        echo "filename     = ${{ steps.vars.outputs.filename     }}"
-        echo "nightly      = ${{ steps.vars.outputs.nightly      }}"
+        echo "GITHUB_REF      = ${GITHUB_REF}"
+        echo "GITHUB_REF_NAME = ${GITHUB_REF_NAME}"
+
+        echo "args            = ${{ steps.vars.outputs.args         }}"
+        echo "compress-cmd    = ${{ steps.vars.outputs.compress-cmd }}"
+        echo "content-type    = ${{ steps.vars.outputs.content-type }}"
+        echo "filename        = ${{ steps.vars.outputs.filename     }}"
+    - if: ${{ runner.os == 'Linux' }}
+      name: Set up Alpine Linux with GHC
+      uses: jirutka/setup-alpine@v1
+      with:
+        packages: |
+          cabal g++ gcc gmp-dev gmp-static musl-dev ncurses-dev ncurses-static zlib-static zlib-dev
     - id: setup-haskell
+      if: ${{ runner.os != 'Linux' }}
       uses: haskell-actions/setup@v2
       with:
-        cabal-version: latest
+        cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
-    - name: Environment settings based on the Haskell setup
+    - if: ${{ runner.os != 'Linux' }}
+      name: Environment settings based on the Haskell setup
       run: |
         GHC_VER=$(ghc --numeric-version)
         CABAL_VER=$(cabal --numeric-version)
@@ -89,100 +93,66 @@ jobs:
         echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
         echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
     - if: ${{ runner.os == 'Windows' }}
-      name: Install the ICU library (Windows)
+      name: Install the required packages (Windows)
       run: |
         $env:PATH = "C:\msys64\usr\bin;$env:PATH"
-        pacman -v --noconfirm -S mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
+        pacman -v --noconfirm -S mingw-w64-x86_64-pkgconf mingw-w64-x86_64-binutils
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
       shell: pwsh
-    - if: ${{ runner.os == 'macOS' }}
-      name: Set up for the ICU library (macOS)
-      run: |
-        ICU4C=$(brew --prefix)/opt/icu4c
-        # echo "${ICU4C}/bin" >> "${GITHUB_PATH}" ## Only needed for uconv
-        ICU_DIR=${ICU4C}/lib
-        echo "ICU_DIR=${ICU_DIR}"
-        echo "ICU_DIR=${ICU_DIR}" >> "${GITHUB_ENV}"
-        echo "PKG_CONFIG_PATH=${ICU_DIR}/pkgconfig" >> "${GITHUB_ENV}"
-    - name: Determine the ICU version
-      run: |
-        ICU_VER=$(pkg-config --modversion icu-i18n)
-        echo "ICU_VER=${ICU_VER}"
-        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-        ICU_MAJOR_VER=$(cut -d '.' -f 1 <<< "${ICU_VER}")
-        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
-        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
-    - name: Configure the build plan
+    - if: ${{ runner.os != 'Linux' }}
+      name: Configure the build plan
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
         cabal build --dry-run
     - id: cache
+      if: ${{ runner.os != 'Linux' }}
       name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         key: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
           }}-${{ hashFiles('**/plan.json') }}
         path: ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
           env.CABAL_VER }}-
-    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      name: Build dependencies
-      run: cabal build exe:agda exe:agda-mode --only-dependencies
-    - name: Build Agda
-      run: cabal build exe:agda exe:agda-mode
-    - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
+    - if: ${{ runner.os == 'Linux' }}
+      name: Build dependencies (on Alpine Linux)
       run: |
-        nightly="${{ steps.vars.outputs.nightly }}"
-        mkdir -p "${nightly}"/bin
-        cp -a src/data "${nightly}"
+        cabal update # Liang-Ting (2024-01-26): Alpine Linux has its own GHC toolchain
+        cabal configure ${{ steps.vars.outputs.args }}
+        cabal build exe:agda --only-dependencies
+      shell: alpine.sh {0}
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' && runner.os != 'Linux' }}
+      name: Build dependencies
+      run: cabal build exe:agda --only-dependencies
+    - if: ${{ runner.os == 'Linux' }}
+      name: Build Agda (on Alpine Linux)
+      run: cabal build exe:agda
+      shell: alpine.sh {0}
+    - if: ${{ runner.os != 'Linux' }}
+      name: Build Agda
+      run: cabal build exe:agda
+    - name: Move artefacts to ${{ steps.vars.outputs.bindist }}
+      run: |
+        bindist="${{ steps.vars.outputs.bindist }}"
+        mkdir -p "${bindist}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
 
-          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${nightly}"/bin \;
-          cp -a .github/*.bat "${nightly}"
-          cp /c/msys64/mingw64/bin/libicu*.dll "${nightly}"/bin/
-          ## Issue #6926: strip.exe not installed there.
-          ## Stripping step is optional, so we skip it.
-          # C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
+          find dist-newstyle/build \( -name 'agda.exe' \) -type f -exec cp {} "${bindist}" \;
+          strip "${bindist}"/*
 
         else
 
-          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} "${nightly}"/bin \;
-          strip "${nightly}"/bin/*
-          cp -a .github/*.sh "${nightly}"
+          find dist-newstyle/build \( -name 'agda' \) -type f -exec cp {} "${bindist}" \;
+          strip "${bindist}"/*
 
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-
-          # Change the path to the dynamic library icu4c to the run-time search path:
-          #
-          # 1. the same directory of executable, i.e. @executable_path
-          # 2. @executable_path/../lib
-          # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
-          #
-          mkdir "${nightly}"/lib
-          cp "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicudata.${ICU_MAJOR_VER}.dylib" "${nightly}"/lib
-          install_name_tool -change "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "@rpath/libicuuc.${ICU_MAJOR_VER}.dylib" "${nightly}"/bin/agda
-          install_name_tool -change "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "@rpath/libicui18n.${ICU_MAJOR_VER}.dylib" "${nightly}"/bin/agda
-          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath "${ICU_DIR}" "${nightly}"/bin/agda
-          otool -L "${nightly}"/bin/agda
-
-          fi
         fi
 
-        file "${{ steps.vars.outputs.nightly }}/bin/agda"
-    - if: ${{ runner.os != 'macOS' }}
-      name: Compress the Agda executable
-      uses: svenstaro/upx-action@v2
-      with:
-        files: ${{ steps.vars.outputs.nightly }}/bin/${{ steps.vars.outputs.exe }}
-        strip: false
-    - name: Display the version information
-      run: |
-        ${{ steps.vars.outputs.nightly }}/bin/agda --version
+        file "${{ steps.vars.outputs.bindist }}/agda"
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         if-no-files-found: error
         name: ${{ steps.vars.outputs.filename }}
@@ -191,31 +161,122 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        cabal-ver:
+        - latest
         ghc-ver:
-        - '9.8'
-        include:
-        - ghc-ver: 9.4.7
-          os: ubuntu-20.04
+        - 9.12.2
         os:
         - windows-latest
         - macos-latest
+        - macos-15-intel
+        - ubuntu-latest
   deploy:
-    if: ${{ github.ref == 'refs/heads/master' }}
-    needs: build
+    needs: sanity-check
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/download-artifact@v4
+    - uses: actions/checkout@v6
+      with:
+        sparse-checkout: .
+    - uses: actions/download-artifact@v7
       with:
         path: artifacts
     - env:
         GITHUB_TOKEN: ${{ github.token }}
+      if: ${{ github.ref == 'refs/heads/master' }}
       name: Create/replace the nightly release and upload artifacts as release assets
       run: |
-        gh release delete 'nightly' --repo agda/agda --cleanup-tag --yes || true
+        sha=$(git rev-parse --short=7 HEAD)
+
+        git fetch -q origin 'refs/tags/*:refs/tags/*'
+        last_tag=$(git tag -l | grep -e '^v[[:digit:]]\+\(\.[[:digit:]]\+\)\{2,\}$' | sort -Vr | head -n 1)
+        echo "last_tag  = ${last_tag}"
+
+        gh release delete 'nightly' --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true
+        for i in artifacts/**/*; do mv "${i}" "$(dirname "${i}")/Agda-${sha}-$(basename "${i}")"; done
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --notes-start-tag v2.6.4 --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
+        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag "${last_tag}" --prerelease --title "${sha}@master"
+    - env:
+        GITHUB_TOKEN: ${{ github.token }}
+      if: startsWith(github.ref, 'refs/tags/v')
+      name: Create a release with the bindist as release assets
+      run: |
+        echo "GITHUB_REF_NAME=${GITHUB_REF_NAME}"
+        echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY}"
+
+        gh release delete "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --yes || true
+        gh release create "${GITHUB_REF_NAME}" -d --notes-file CHANGELOG.md --title "${GITHUB_REF_NAME}"
+        for i in artifacts/**/*; do mv "${i}" "$(dirname "${i}")/Agda-${GITHUB_REF_NAME}-$(basename "${i}")"; done
+        ls -R artifacts
+        gh release upload "${GITHUB_REF_NAME}" artifacts/**/* --repo "${GITHUB_REPOSITORY}"
+  sanity-check:
+    env:
+      MATRIX_OS: ${{ matrix.os }}
+    if: ${{ !cancelled() }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    steps:
+    - id: vars
+      name: Set up platform-dependent variables
+      run: |
+        if [[ "$OSTYPE" == "msys"* ]]; then
+
+          osname="win64"
+          ext="zip"
+          decompress_cmd_base="7z x"
+
+        elif [[ "$MATRIX_OS" == "macos-15-intel" ]]; then
+
+          osname="macOS-x64"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        elif [[ "$MATRIX_OS" == "macos-latest" ]]; then
+
+          osname="macOS-arm64"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+
+          osname="linux"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        fi
+
+        filename="${osname}.${ext}"
+        echo filename="${filename}"                              >> "${GITHUB_OUTPUT}"
+        echo decompress-cmd="${decompress_cmd_base} ${filename}" >> "${GITHUB_OUTPUT}"
+    - name: Display variables
+      run: |
+        echo "filename        = ${{ steps.vars.outputs.filename       }}"
+        echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
+    - uses: actions/download-artifact@v7
+      with:
+        name: ${{ steps.vars.outputs.filename }}
+    - name: Unpack artefacts
+      run: |
+        ${{ steps.vars.outputs.decompress-cmd }}
+    - name: Fix for missing notarization
+      run: |
+        if [[ "$MATRIX_OS" == "macos"* ]]; then
+          xattr -c agda
+        fi
+
+        ./agda --version
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - windows-latest
+        - macos-latest
+        - macos-15-intel
+        - ubuntu-latest
 name: Deploy
 'on':
+  push:
+    tags:
+    - v[2-9]+.*
   workflow_dispatch: null
   workflow_run:
     branches:

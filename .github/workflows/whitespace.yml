@@ -7,15 +7,18 @@
 ######################################################
 jobs:
   check:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Checkout agda sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Check for whitespace violations
       uses: andreasabel/fix-whitespace-action@v1
     - name: Check encoding of Parser.y
       run: |
         make check-encoding
+    - name: Check for LANGUAGE RecursiveDo
+      run: |
+        make check-mdo
     - name: Check building the source tarball
       run: |
         cabal sdist

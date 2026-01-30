@@ -20,24 +20,31 @@ jobs:
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
-      python-version: '3.11'
+      python-version: '3.13'
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
+
+    - name: Install imagemagick (convert)
+      run: |
+        sudo apt-get update
+        sudo apt-get install imagemagick
 
     - name: Set up Python ${{ env.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ env.python-version }}
 
-    - name: Install dependencies
+    - name: Install dependencies (Sphinx)
       run: |
-        pip install -r doc/user-manual/requirements.txt
+        make -C doc/user-manual requirements
 
-    - name: Setup TeX Live
-      uses: teatimeguest/setup-texlive-action@v3
+    # This is a fork of teatimeguest/setup-texlive-action, which vanished from github.
+    # See https://github.com/TeX-Live/setup-texlive-action
+    - name: Install dependencies (LaTeX)
+      uses: TeX-Live/setup-texlive-action@v3
       with:
         packages: >-
           scheme-basic
@@ -48,16 +55,18 @@ jobs:
           capt-of
           cmap
           colortbl
-          dvipng
+          dvisvgm
           ellipse
           etoolbox
           fancyvrb
           float
           fncychap
+          fontawesome5
           framed
           keystroke
           latexmk
           mathtools
+          mlmodern
           needspace
           parskip
           pict2e
@@ -69,19 +78,19 @@ jobs:
           upquote
           varwidth
           wrapfig
+          xcolor
           zapfchan
-
-    - name: Build User Manual in HTML
-      run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        make user-manual-html
 
     - name: Build User Manual in PDF
       run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
 
-    - uses: actions/upload-artifact@v4
+    - name: Build User Manual in HTML
+      # Note: latex is already needed to build HTML (for math formulas).
+      run: |
+        make user-manual-html
+
+    - uses: actions/upload-artifact@v6
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf

@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       name: Cleanup
@@ -27,10 +27,10 @@ jobs:
         ## Andreas, 2023-01-23: Do not swallow errors here!
         # set +e
         echo "Deleting caches..."
-        for cacheKey in $cacheKeysForPR
+        for cacheKey in ${cacheKeysForPR}
         do
             echo "- ${cacheKey}"
-            gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
+            gh actions-cache delete "${cacheKey}" -R $REPO -B $BRANCH --confirm
         done
         echo "Done"
 name: Clear cache of closed PR

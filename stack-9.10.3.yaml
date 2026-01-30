@@ -1,0 +1,7 @@
+resolver: lts-24.28
+compiler: ghc-9.10.3
+compiler-check: match-exact
+
+# Local packages specified by relative directory name.
+packages:
+- '.'

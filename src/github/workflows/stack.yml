@@ -10,10 +10,7 @@ on:
     paths: &trigger_path_list
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
-    - 'Setup.hs'
-    - 'stack-9.8.1.yaml'
-      # !!! MATCH THIS WITH ghc_ver IN THE matrix BELOW !!!
-      #
+    - 'stack-*.yaml'
     - 'src/size-solver/size-solver.cabal'
     # Andreas, 2023-01-27, issue #8460:
     # Restrict this workflow to changes in the *.cabal and stack*.yaml files
@@ -40,7 +37,7 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
+    - uses: styfle/cancel-workflow-action@0.13.0
       with:
         access_token: ${{ github.token }}
   stack:
@@ -52,12 +49,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04,macos-12]
-        ghc-ver: [9.8.1]
-          # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
-          #
-          # The LTS snapshots are covered in workflow stack-dry-run.yml.
-          #
+        os: [ubuntu-24.04]
+        ghc-ver: [9.12.2, 9.10.3, 9.8.4, 9.6.7, 9.4.8, 9.2.8]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
           # rather than x.y (which haskell-setup would resolve to a suitable .z)
@@ -65,9 +58,10 @@ jobs:
           # If switching to a new GHC minor version needs manual action, i.e.,
           # adding the respective stack-x.y.z.yaml file.
         include:
-        - os: windows-2022
-          ghc-ver: 9.8.1
-          # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
+        - os: macos-15
+          ghc-ver: 9.12.2
+        - os: windows-2025
+          ghc-ver: 9.12.2
 
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
@@ -77,18 +71,6 @@ jobs:
       EXTRA_ARGS: "--fast"
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
 
-      # Liang-Ting Chen (2021-08-18):
-      # Let pacman choose the file name for ICU4C.
-      #
-      # # The following is used by Windows only
-      # ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
-      # Amélia Liao (2022-08-16):
-      # Use a known-good version of ICU from the msys2 repository since
-      # GHC does not work with ICU ≠ 69
-      ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
-      # ICU_VER: "69.1"
-      # # Andreas, 2023-01-21: the ICU_VER is needed for Windows, it is automatically determined on Linux/macOS.
-
     # Need bash on Windows for piping and evaluation.
     defaults:
       run:
@@ -96,26 +78,9 @@ jobs:
 
     steps:
 
-    - name: Set up for the ICU library (macOS)
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        ICU4C=$(brew --prefix)/opt/icu4c
-        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
-      # echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
-        ## path only needed for running uconv
-
-    # - name: Determine the ICU version (Linux, macOS)
-    #   if: ${{ runner.os != 'Windows' }}
-    #   run: |
-    #     uconv --version
-    #     export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
-    #     echo "ICU_VER=${ICU_VER}"
-    #     echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-    #   # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
-
     # Checkout is needed before the first call to stack exec ${ARGS}
     # because it provides the stack-*.yaml file.
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - uses: haskell-actions/setup@v2
       id: haskell-setup
@@ -145,28 +110,44 @@ jobs:
         echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
     # From now on, use env.GHC_VER rather than matrix.ghc-ver
 
+    - name: Install the ICU library (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install icu4c
+        ICU4C=$(brew --prefix)/opt/icu4c
+        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
+
     # Note that msys2 libraries have to be installed via
     #   stack exec ${ARGS} -- pacman ...
     # because stack comes with its own msys2 instance, see
     #   https://docs.haskellstack.org/en/stable/developing_on_windows/
     # NB: the ${ARGS} is necessary, otherwise stack installs another GHC...
-    # Andreas, 2022-02-04, issue #5768:
-    # To work around keyring problems, we update msys2-keyring before installing ICU.
-    # Andreas, 2022-05-15, pr #5909: the keyring problem was solved upstream by
-    # updating Stack-MSYS to 2022-05-03.
     #
-    # Liang-Ting, 2022-06-30: Always update msys2-keyring in case it is broken upstream again.
-    # Amélia, 2022-08-16: Download a good version of ICU
-    - name: Install the icu library (Windows)
-      if: ${{ runner.os == 'Windows' }}
+    # # Andreas, 2022-02-04, issue #5768:
+    # # To work around keyring problems, we update msys2-keyring before installing ICU.
+    # # Andreas, 2022-05-15, pr #5909: the keyring problem was solved upstream by
+    # # updating Stack-MSYS to 2022-05-03.
+    # #
+    # # Liang-Ting, 2022-06-30: Always update msys2-keyring in case it is broken upstream again.
+    # # Amélia, 2022-08-16: Download a good version of ICU
+
+    - name: Install the ICU library (Windows)
+      if: runner.os == 'Windows'
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
         # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
-        stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkgconf
+        # stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
+        # shellcheck disable=SC2086
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-icu mingw-w64-x86_64-pkgconf mingw-w64-x86_64-zlib
+      # env:
+      #   # Amélia Liao (2022-08-16):
+      #   # Use a known-good version of ICU from the msys2 repository since
+      #   # GHC does not work with ICU ≠ 69
+      #   ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
 
     - name: Determine the ICU version
       run: |
+        # shellcheck disable=SC2086
         ICU_VER=$(stack exec ${ARGS} -- pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
@@ -179,14 +160,16 @@ jobs:
         echo "ICU_VER           = ${ICU_VER}"
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       id:   cache
-      with:
+      env:
+        key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
         # 2023-03-28: We also include Agda.cabal so that the cache gets rewritten if a new dependency is added.
-        key:  &cache_key stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml', env.GHC_VER)) }}
-        restore-keys:    stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
+      with:
+        key: ${{ env.key }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml', env.GHC_VER)) }}
+        restore-keys: ${{ env.key}}-
         path: &cache_pathes |
           ${{ env.STACK_ROOT }}
         # Andreas, 2023-01-23: caching the two work dirs balloons a cache entry from 300MB to 800MB,
@@ -195,30 +178,46 @@ jobs:
           # .stack-work-fast
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      # if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+      # Since we save the cache even when building failed, it may be incomplete.
+      # Thus, do not skip this step:
+      # if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        # shellcheck disable=SC2086
+        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
-        ## Since we do not cache .stack-work and .stack-work-fast, we can fuse them.
+      run: |
+        # shellcheck disable=SC2086
+        stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+      ## Since we do not cache .stack-work and .stack-work-fast, we can fuse them.
       # run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
 
-    - name: Build Agda with the non-default flags Agda.cabal.
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
+    - name: Run agda --version
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --version
 
-    # - name: Clear cache
-    #   if:   ${{ steps.cache.outputs.cache-hit == 'true' }}
-    #   env:
-    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
-    #     GH_TOKEN: ${{ github.token }}
+    - name: Run agda --help
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --help
+
+    ## Running PowerShell does not work out of the box:
+    ## Stack tries to set itself up from scratch...
+    # - name: Run agda --help in PowerShell (Windows)
+    #   if: runner.os == 'Windows'
+    #   shell: pwsh
     #   run: |
-    #     gh extension install actions/gh-actions-cache
-    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
-    #   # Don't fail if cache cannot be deleted
-    #   continue-on-error: true
+    #     # shellcheck disable=SC2086
+    #     stack run ${ARGS} -- --help
+
+    - name: Build Agda with the non-default flags Agda.cabal.
+      run: |
+        # shellcheck disable=SC2086
+        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
 
     - name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       if:   always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
             # save cache even when build fails
       with:

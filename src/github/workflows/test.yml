@@ -41,23 +41,25 @@ on:
     - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
+    - '!CITATION.cff'
 
   pull_request:
     paths: *path_list
 
   workflow_dispatch:
 
+  # Run weekly 0:00am on Sunday.
+  schedule:
+    - cron: '0 0 * * 0'
+
 env:
   # Part 1: Versions (need update)
   ###########################################################################
 
-  # Andreas, 2022-11-24, set the stack version here so that it is easily
-  # shared between the jobs.
-  STACK_VER: "2.13.1"
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.8.1"
+  GHC_VER: "9.12.2"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -67,7 +69,6 @@ env:
 
   # Variables of/for the Makefile
   PARALLEL_TESTS: 2
-  BUILD_DIR: "dist" # relative path, please!
   AGDA_TESTS_OPTIONS: "-j${PARALLEL_TESTS} --hide-successes"
   STACK: "stack --system-ghc"
 
@@ -80,13 +81,18 @@ jobs:
   ###########################################################################
 
   build:
+    # Skip the workflow if requested by a tag in the commit message
+    # but not if it was scheduled or started manually.
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
+         && !contains(github.event.head_commit.message, '[ci skip]')
+         && !contains(github.event.head_commit.message, '[github skip]')
+         && !contains(github.event.head_commit.message, '[skip github]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
 
-    runs-on: &runs_on ubuntu-22.04
+    runs-on: &runs_on ubuntu-24.04
+
     steps:
     - name: Info about the context
       run: |
@@ -97,27 +103,39 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
 
-    - uses: styfle/cancel-workflow-action@0.12.1
+    - uses: styfle/cancel-workflow-action@0.13.0
       # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
       if: github.ref != 'refs/heads/master'
       with:
         access_token: ${{ github.token }}
 
     - &checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
     - &haskell_setup
       uses: haskell-actions/setup@v2
+      id: setup-haskell
       with:
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: ${{ env.STACK_VER }}
+        stack-version: latest
         enable-stack: true
 
     # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
       run:  cp stack-${{ env.GHC_VER }}.yaml stack.yaml
+
+    # Update the package index.
+    # Issue #8211: do this as explicit step so that the following one will not bear its costs.
+    - name: Update package index
+      run: |
+        ${STACK} update
+
+    # Get the list of dependencies and versions to create a correct cache key.
+    - name: "List dependencies and versions"
+      run: |
+        ${STACK} ls dependencies | tee deps.txt
 
     - &icu
       name: Determine the ICU version
@@ -128,17 +146,13 @@ jobs:
       # uconv --version
 
     - name: Restore cache from approximate key
-      # uses: actions/cache/restore@v4
-      # Andreas, 2023-02-02 revert to default cache saving logic.
-      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v5
       id: cache
       with:
         # Andreas, 2023-01-24:
         # Stack seems to insist to rebuild Agda from scratch even when ~/.stack-work is restored.
         # Since it balloons the cache entry from 330 MB to 790 MB, don't include it in the cache.
-        path: &cache_path |
-          ~/.stack
+        path: &cache_path ${{ steps.setup-haskell.outputs.stack-root }}
 
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
@@ -147,8 +161,9 @@ jobs:
         # Thus, we include Agda.cabal in the hash.
         # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
         # because it does not list all the dependencies.
-        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
-        restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
+        key: &cache_key test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+        restore-keys: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-
+          # Andreas, 2024-05-17, note to myself: not using the env.key trick here because of *cache_key references below...
 
     - name: "Install dependencies for Agda and its test suites"
       ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
@@ -158,57 +173,30 @@ jobs:
       ## but printing stuff might not hurt here.
 
     - name: "Build Agda"
-      run: make BUILD_DIR="${BUILD_DIR}" install-bin-debug
+      run: make install-bin
 
-    # Andreas, 2023-10-19: currently building the size-solver triggers a rebuild of Agda,
-    # likely because the cabal flags (`-f`) passed to `cabal build` have changed.
-    # So, deactivate this for now.
-    # - name: "Run tests for the size solver"
-    #   run: |
-    #     export PATH=${HOME}/.local/bin:${PATH}
-    #     make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
-
+      # Save products to use in the remaining jobs.
     - name: "Pack artifacts"
-      # This step should go into the Makefile.
       run: |
-        strip ${BUILD_DIR}/build/agda-tests/agda-tests \
-          ${BUILD_DIR}/build/agda/agda \
-          ${BUILD_DIR}/build/agda-mode/agda-mode
-
-        tar --use-compress-program zstd -cvf dist.tzst \
-          ${BUILD_DIR}/build/agda-tests/agda-tests \
-          ${BUILD_DIR}/build/agda/agda \
-          ${BUILD_DIR}/build/agda-mode/agda-mode
-
-        tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
+        tar --use-compress-program zstd --absolute-names -cvf stack.tzst ${{ steps.setup-haskell.outputs.stack-root }}
+        tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock deps.txt
 
     - name: "Upload artifacts"
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         if-no-files-found: error
         retention-days: 1
         name: agda-${{ runner.os }}-${{ github.sha }}
         path: |
-          dist.tzst
+          stack.tzst
           stack-work.tzst
 
-    # - name: Clear old cache
-    #   if:   ${{ steps.cache.outputs.cache-hit == 'true' }}
-    #   env:
-    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
-    #     GH_TOKEN: ${{ github.token }}
-    #   run: |
-    #     gh extension install actions/gh-actions-cache
-    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
-    #   # Don't fail if cache cannot be deleted
-    #   continue-on-error: true
-
-    # - name: Save cache
-    #   uses: actions/cache/save@v4
-    #   if:   always()  # save cache even when build fails
-    #   with:
-    #     key:  *cache_key
-    #     path: *cache_path
+    - name: Save cache
+      uses: actions/cache/save@v5
+      if:   steps.cache.outputs.cache-hit != 'true'  # don't save cache when build fails as it may get in the way
+      with:
+        key:  *cache_key
+        path: *cache_path
 
   # Step 2a: Basic testsuites: succeed, fail, etc.
   ###########################################################################
@@ -222,66 +210,70 @@ jobs:
     - *haskell_setup
 
     - &download_artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
     - &unpack_artifact
       name: "Unpack artifacts"
       run: |
-        tar --use-compress-program zstd -xvf dist.tzst
+        tar --use-compress-program zstd --absolute-names -xvf stack.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
-    - *icu
-    - &cache
-      name: Restore cache from exact key
-      uses: actions/cache/restore@v4
-      id: cache
-      with:
-        path: *cache_path
-        key:  *cache_key
+    # - *icu
+    # - &cache
+    #   name: Restore cache from exact key
+    #   uses: actions/cache/restore@v5
+    #   id: cache
+    #   with:
+    #     path: *cache_path
+    #     key:  *cache_key
+
+    - &agda_setup
+      name: Setup Agda
+      run: make setup-agda
 
     - name: "Suite of tests for bugs"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
+      run: make bugs
       #    14s (2022-06-17)
 
     - name: "Suite of successful tests: mini-library Common"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" common
+      run: make common
       if: always() # run test even if a previous test failed
       #     8s (2022-06-17)
 
     - name: "Suite of successful tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" succeed
+      run: make succeed
       if: always() # run test even if a previous test failed
       # 4m 14s (2022-06-17)
 
     - name: "Suite of failing tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" fail
+      run: make fail
       if: always() # run test even if a previous test failed
       # 2m  0s (2022-06-17)
 
     - name: "Suite of examples"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" examples
+      run: make examples
       if: always() # run test even if a previous test failed
       #    41s (2022-06-17)
 
     - name: "Suite of interactive tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interactive
+      run: make interactive
       if: always() # run test even if a previous test failed
       #     0s (2022-06-17)
 
     - name: "Successful tests using Agda as a Haskell library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" api-test
+      run: make api-test
       if: always() # run test even if a previous test failed
       #    21s (2022-06-17)
 
     - name: "Internal test suite"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
+      run: make internal-tests
       if: always() # run test even if a previous test failed
       #    11s (2022-06-17)
 
     - name: "Compiler tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" compiler-test
+      run: make compiler-test
       if: always() # run test even if a previous test failed
       # 9m 34s (2022-06-17)
 
@@ -298,33 +290,44 @@ jobs:
     - *haskell_setup
     - *download_artifact
     - *unpack_artifact
-    - *icu
-    - *cache
+    # - *icu
+    # - *cache
+    - *agda_setup
 
-    - name: "Standard library test"
+    - name: "Sequential standard library build"
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
         cabal update
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-test
+        make std-lib-test
 
     # Andreas, 2023-09-13: Benchmark `any` uses the standard library,
     # so benchmarks should be run here (or split out the std-lib benchmarks).
     - name: "Benchmark"
       run: |
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
+        make benchmark-without-logs
+        make benchmark-summary
       if: always() # run test even if a previous test failed
       # 6m  3s (2022-06-17)
 
     - name: "Standard library compiler tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-compiler-test
+      run: make std-lib-compiler-test
 
     - name: "Successful tests using the standard library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-succeed
+      run: make std-lib-succeed
 
     - name: "Interaction tests using the standard library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-interaction
+      run: make std-lib-interaction
+
+    # This relies on the sequential build having executed first, so we
+    # don't need the Cabal step.
+    # We also have to remove the interface files otherwise we're just
+    # checking parallel *loading*, but the std-lib Makefile has a clean
+    # target we can use.
+    - name: "Parallel standard library build"
+      run: |
+        make -C std-lib clean
+        make AGDA_OPTS="-j" std-lib-test
 
 
   # Step 2c: testing the interaction and the LaTeX/HTML backend
@@ -340,36 +343,45 @@ jobs:
     - *download_artifact
     - *unpack_artifact
     - *icu
-    - *cache
+    # - *cache
+    - *agda_setup
 
     - name: "Install Tex Live and Emacs"
       run: |
         sudo apt-get update
-        sudo apt-get install texlive-binaries ${APT_GET_OPTS}
-        sudo apt-get install emacs-nox ${APT_GET_OPTS}
+        # shellcheck disable=SC2086
+        sudo apt-get install ${APT_GET_OPTS} texlive-binaries emacs-nox
+
+    - name: "Test agda --build-library (successful)"
+      run: make build-succeed-test
+
+    - name: "Test agda --build-library (failing)"
+      run: make build-fail-test
+      if: always() # run test even if a previous test failed
 
     - name: "Suite of tests for the LaTeX and HTML backends"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y latex-html-test
+      if: always() # run test even if a previous test failed
+      run: make DONT_RUN_LATEX=Y latex-html-test
 
     - name: "Testing the Emacs mode"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
+      run: make testing-emacs-mode
       if: always() # run test even if a previous test failed
 
     - name: "User manual (test)"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
+      run: make user-manual-test
       if: always() # run test even if a previous test failed
       #    13s (2022-06-17)
 
     - name: "User manual covers all options"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-options
+      run: make user-manual-covers-options
       if: always() # run test even if a previous test failed
 
     - name: "User manual covers all warnings"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-warnings
+      run: make user-manual-covers-warnings
       if: always() # run test even if a previous test failed
 
     - name: "Suite of interaction tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
+      run: make interaction
       if: always() # run test even if a previous test failed
       # 2m 39s (2022-06-17)
       # This test has erratic outages (#5619), so we place it late in the queue.
@@ -378,6 +390,13 @@ jobs:
   ###########################################################################
 
   cubical:
+    # Only run the workflow with tag [cubical] in commit message or PR title
+    # or if it was scheduled or started manually.
+    if: |
+      contains(github.event.head_commit.message, '[cubical]')
+      || contains(github.event.pull_request.title, '[cubical]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: *runs_on
 
@@ -386,11 +405,35 @@ jobs:
     - *haskell_setup
     - *download_artifact
     - *unpack_artifact
-    - *icu
-    - *cache
+    # - *icu
+    # - *cache
+    - *agda_setup
 
     - name: "Cubical library test"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
+      run: make cubical-test
 
     - name: "Successful tests using the cubical library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
+      run: make cubical-succeed
+
+  ## Andreas, 2025-03-04: disable the size-solver-test
+  #
+  # # Step 2e: running size-solver-test
+  # ###########################################################################
+  #
+  # size-solver-test:
+  #   needs: build
+  #   runs-on: *runs_on
+  #
+  #   steps:
+  #   - *checkout
+  #   - *haskell_setup
+  #   - *download_artifact
+  #   - *unpack_artifact
+  #   - *icu
+  #   - *cache
+  #   - *agda_setup
+  #
+  #   - name: "Run tests for the size solver"
+  #     run: |
+  #       export PATH=${HOME}/.local/bin:${PATH}
+  #       make size-solver-test

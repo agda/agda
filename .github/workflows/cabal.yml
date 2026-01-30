@@ -17,21 +17,20 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
+    - uses: styfle/cancel-workflow-action@0.13.0
       with:
         access_token: ${{ github.token }}
   cabal:
     env:
-      CABAL_VER: ${{ matrix.cabal-ver || '3.10' }}
       FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.8.1' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.12.2' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
-    - if: ${{ runner.os == 'Linux' }}
+    - uses: actions/checkout@v6
+    - if: runner.os == 'Linux'
       name: Switch off XDG directories for cabal (Linux)
       run: |
         mkdir -p ~/.cabal
@@ -39,26 +38,19 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: true
-        cabal-version: ${{ env.CABAL-VER }}
+        cabal-version: latest
         ghc-version: ${{ env.GHC_VER }}
-    - name: Environment settings based on the Haskell setup
-      run: |
-        GHC_VER=$(ghc --numeric-version)
-        CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
-        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
-    - if: ${{ runner.os == 'Windows' }}
+    - if: runner.os == 'Windows'
       name: Install the ICU library (Windows)
       run: |
         $env:PATH = "C:\msys64\usr\bin;$env:PATH"
         pacman --noconfirm -S msys2-keyring mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
       shell: pwsh
-    - if: ${{ runner.os == 'macOS' }}
-      name: Set up pkg-config for the ICU library (macOS)
+    - if: runner.os == 'macOS'
+      name: Install the ICU library (macOS)
       run: |
+        brew install icu4c
         PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
         echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
         # # print some information to debug pkg-config
@@ -75,72 +67,87 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
+        # shellcheck disable=SC2086
         cabal configure -O0 ${FLAGS}
         cabal build --dry-run
-    - id: cache
+    - env:
+        key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
+          }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
+      id: cache
       name: Restore cache from approximate key
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v5
       with:
-        key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        restore-keys: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
-          env.CABAL_VER }}-
-    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      name: Install dependencies
+        restore-keys: ${{ env.key }}
+    - name: Install dependencies
       run: |
         cabal build --only-dependencies
     - name: Build Agda
       run: |
         cabal build
-    - if: ${{ matrix.doctest }}
+    - name: Run agda --version
+      run: |
+        cabal run agda -- --version
+    - name: Run agda --help
+      run: |
+        cabal run agda -- --help
+    - if: runner.os == 'Windows'
+      name: Run agda --help in PowerShell (Windows)
+      run: |
+        cabal run agda -- --help
+      shell: pwsh
+    - if: matrix.doctest
       name: Run doctest
       run: |
         make doc-test
+    - if: always() && steps.cache.outputs.cache-hit != 'true'
+      name: Save cache
+      uses: actions/cache/save@v5
+      with:
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
     strategy:
       fail-fast: false
       matrix:
         cabal-flags:
         - --enable-tests -f enable-cluster-counting
-        cabal-ver:
-        - '3.10'
         description:
         - Linux
         doctest:
         - false
         ghc-ver:
-        - 9.8.1
-        - 9.6.4
+        - 9.12.2
+        - 9.10.3
+        - 9.8.4
+        - 9.6.7
         - 9.4.8
         - 9.2.8
-        - 9.0.2
-        - 8.10.7
-        - 8.8.4
-        - 8.6.5
         include:
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
-          ghc-ver: 9.8.1
-          os: ubuntu-22.04
+          ghc-ver: 9.12.2
+          os: ubuntu-24.04
         - cabal-flags: --enable-tests -f debug
           description: Linux debug
-          ghc-ver: 9.8.1
-          os: ubuntu-22.04
-        - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation
-            -f debug-parsing -c containers>=0.7 --allow-newer=containers
-          description: Linux containers 0.7
-          ghc-ver: 9.8.1
-          os: ubuntu-22.04
+          ghc-ver: 9.12.2
+          os: ubuntu-24.04
+        - cabal-flags: --enable-tests -f use-xdg-data-home -f enable-cluster-counting
+            -f debug -f debug-serialisation -f debug-parsing
+          description: Linux debug all
+          ghc-ver: 9.12.2
+          os: ubuntu-24.04
         - description: macOS
-          ghc-ver: 9.8.1
-          os: macos-12
+          ghc-ver: 9.12.2
+          os: macos-15
         - description: Windows
-          ghc-ver: 9.8.1
-          os: windows-2022
+          ghc-ver: 9.12.2
+          os: windows-2025
         os:
-        - ubuntu-22.04
+        - ubuntu-24.04
     timeout-minutes: 60
 name: Build (cabal)
 'on':
@@ -148,7 +155,6 @@ name: Build (cabal)
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal
-    - Setup.hs
     - src/agda-mode/**
     - src/full/**
     - src/main/**
@@ -161,7 +167,6 @@ name: Build (cabal)
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal
-    - Setup.hs
     - src/agda-mode/**
     - src/full/**
     - src/main/**
