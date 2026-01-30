@@ -32,6 +32,7 @@ import Agda.Interaction.Options (optCumulativity, optRewriting)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars () -- instance only
@@ -46,7 +47,6 @@ import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Monad.Signature (HasConstInfo(..), applyDef)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (getDefType)
-import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
