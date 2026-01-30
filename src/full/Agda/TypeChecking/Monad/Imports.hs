@@ -40,19 +40,19 @@ import Agda.Utils.Impossible
 addImport :: TopLevelModuleName -> TCM ()
 addImport top = do
   vis <- getVisitedModules
-  modifyTCLens' stImportedModules $ Set.insert top
-  modifyTCLens' stImportedModulesTransitive $ completeTransitiveImports' vis top
+  modifyTCLens' stImportedModulesAndTransitive $ updateImports vis top
 
 -- | Temporarily register the given module as imported.
 locallyAddImport :: TopLevelModuleName -> TCM () -> TCM ()
 locallyAddImport top cont = do
   vis <- getVisitedModules
-  locallyTCState stImportedModulesTransitive (completeTransitiveImports' vis top) $
-    locallyTCState stImportedModules (Set.insert top) cont
+  locallyTCState stImportedModulesAndTransitive (updateImports vis top) cont
 
-completeTransitiveImports' :: VisitedModules -> TopLevelModuleName
-                           -> ImportedModules -> ImportedModules
-completeTransitiveImports' vis top = completeTransitiveImports vis (singleton top)
+updateImports :: VisitedModules -> TopLevelModuleName
+              -> (ImportedModules, ImportedModules)
+              -> (ImportedModules, ImportedModules)
+updateImports vis top
+  = Set.insert top *** completeTransitiveImports vis (singleton top)
 
 -- | @completeTransitiveImports ms ms'@.
 --   Precondition: @ms@ disjoint from @ms'@.
@@ -63,7 +63,7 @@ completeTransitiveImports vis ms old = if null ms then old else do
   let next = old `Set.union` ms
 
   -- The interfaces for the modules we added to the transitive imports.
-  let is = catMaybes $ getVisitedModule' vis <$> Set.toList ms
+  let is = catMaybes $ (`Map.lookup` vis) <$> Set.toList ms
 
   -- The imports of these modules.
   let imps = Set.unions $ map (Set.fromList . map fst . iImportedModules . miInterface) is
@@ -95,12 +95,7 @@ getPrettyVisitedModules = do
 getVisitedModule :: ReadTCState m
                  => TopLevelModuleName
                  -> m (Maybe ModuleInfo)
-getVisitedModule x = getVisitedModule' <$> useTC stVisitedModules <*> pure x
-
-getVisitedModule' :: VisitedModules
-                  -> TopLevelModuleName
-                  -> Maybe ModuleInfo
-getVisitedModule' vis x = Map.lookup x vis
+getVisitedModule x = Map.lookup x <$> useTC stVisitedModules
 
 getDecodedModules :: TCM DecodedModules
 getDecodedModules = stDecodedModules . stPersistentState <$> getTC
