@@ -17,6 +17,7 @@ checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 class MonadTCEnv m => MonadAddContext m where
   addCtx :: Name -> Dom Type -> m a -> m a
   addLetBinding' :: IsAxiom -> Origin -> Name -> Term -> Dom Type -> m a -> m a
+  addLocalRewrite :: LocalRewriteRule -> m a -> m a
   updateContext :: Substitution -> (Context -> Context) -> m a -> m a
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 
@@ -29,6 +30,11 @@ class MonadTCEnv m => MonadAddContext m where
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => IsAxiom -> Origin -> Name -> Term -> Dom Type -> m a -> m a
   addLetBinding' o x u a = liftThrough $ addLetBinding' o x u a
+
+  default addLocalRewrite
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => LocalRewriteRule -> m a -> m a
+  addLocalRewrite r = liftThrough $ addLocalRewrite r
 
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)

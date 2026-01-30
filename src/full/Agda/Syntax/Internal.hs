@@ -56,6 +56,17 @@ import Agda.Utils.Impossible
 -- * Function type domain
 ---------------------------------------------------------------------------
 
+data RewDom = RewDom
+  { rewDomEq  :: LocalEquation
+    -- ^ Elaborated "@rew" equation
+  , rewDomRew :: Maybe LocalRewriteRule
+    -- ^ "@rew" equation transformed into a directed rewrite rule.
+    --
+    -- @Nothing@ iff invalidated by a substitution. If we are checking
+    -- against an "@rew" domain, this is fine, but if we are inside an "@rew"
+    -- context, this is probably an internal error.
+  } deriving (Show, Generic)
+
 -- | Similar to 'Arg', but we need to distinguish
 --   an irrelevance annotation in a function domain
 --   (the domain itself is not irrelevant!)
@@ -76,21 +87,27 @@ data Dom' t e = Dom
   , domIsFinite :: Bool
     -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
-  , domEq :: Maybe LocalEquation
+  , rewDom    :: Maybe RewDom
     -- ^ Elaborated "@rew" equation
     --
-    -- Will only be present if @annRewrite (argInfoAnnotation domInfo)@
-    -- is @IsRewrite@ and the type targets a valid rewrite relation
+    -- Will only be present if domain annotated with "@rew" (@annRewrite@
+    -- is @IsRewrite@) AND the type successfully elaborated into a rewrite rule.
   , unDom     :: e
   } deriving (Show, Functor, Foldable, Traversable)
 
 type Dom = Dom' Term
+
+domEq :: Dom' t e -> Maybe LocalEquation
+domEq = fmap rewDomEq . rewDom
 
 instance Decoration (Dom' t) where
   traverseF f (Dom ai x t b r a) = Dom ai x t b r <$> f a
 
 instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
+
+instance KillRange RewDom where
+  killRange (RewDom eq rew) = killRangeN RewDom eq rew
 
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
   killRange (Dom info x t b r a) = killRangeN Dom info x t b r a
@@ -118,9 +135,7 @@ instance LensRewriteAnn (Dom' t e) where
   setRewriteAnn = mapRewriteAnn . setRewriteAnn
 
 instance LensLocalEquation (Dom' t e) where
-  getLocalEq        = domEq
-  setLocalEq eq dom = dom { domEq = eq }
-  mapLocalEq f  dom = dom { domEq = f $ domEq dom }
+  getLocalEq = domEq
 
 -- The other lenses are defined through LensArgInfo
 
@@ -148,11 +163,11 @@ namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
 -- However, this causes problems with instance resolution in several places.
 -- often for class AddContext.
 
-domFromArgEq :: Maybe LocalEquation -> Arg a -> Dom a
-domFromArgEq eq (Arg i a) = Dom i Nothing False Nothing eq a
+domFromArgRew :: Maybe RewDom -> Arg a -> Dom a
+domFromArgRew rew (Arg i a) = Dom i Nothing False Nothing rew a
 
 domFromArg :: Arg a -> Dom a
-domFromArg = domFromArgEq Nothing
+domFromArg = domFromArgRew Nothing
 
 domFromNamedArg :: NamedArg a -> Dom a
 domFromNamedArg (Arg i a) = Dom i (nameOf a) False Nothing Nothing (namedThing a)
@@ -160,11 +175,11 @@ domFromNamedArg (Arg i a) = Dom i (nameOf a) False Nothing Nothing (namedThing a
 defaultDom :: a -> Dom a
 defaultDom = defaultArgDom defaultArgInfo
 
-defaultArgDomEq :: ArgInfo -> Maybe LocalEquation -> a -> Dom a
-defaultArgDomEq info eq x = domFromArgEq eq (Arg info x)
+defaultArgDomRew :: ArgInfo -> Maybe RewDom -> a -> Dom a
+defaultArgDomRew info rew x = domFromArgRew rew (Arg info x)
 
 defaultArgDom :: ArgInfo -> a -> Dom a
-defaultArgDom info = defaultArgDomEq info Nothing
+defaultArgDom info = defaultArgDomRew info Nothing
 
 defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
 defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrigin Inserted $ unranged s }
@@ -773,6 +788,7 @@ data Substitution' a
 
 type Substitution = Substitution' Term
 type PatternSubstitution = Substitution' DeBruijnPattern
+type Renaming = Substitution' Nat
 
 infixr 4 :#
 
@@ -1332,14 +1348,6 @@ data LocalRewriteRule = LocalRewriteRule
 class LensLocalEquation a where
   getLocalEq :: a -> Maybe LocalEquation
 
-  setLocalEq :: Maybe LocalEquation -> a -> a
-  setLocalEq = mapLocalEq . const
-
-  mapLocalEq :: (Maybe LocalEquation -> Maybe LocalEquation) -> a -> a
-  mapLocalEq f a = setLocalEq (f $ getLocalEq a) a
-
-  {-# MINIMAL getLocalEq , (setLocalEq | mapLocalEq) #-}
-
 ---------------------------------------------------------------------------
 -- * Null instances.
 ---------------------------------------------------------------------------
@@ -1828,3 +1836,4 @@ instance NFData NLPSort
 instance NFData LocalRewriteHead
 instance NFData LocalEquation
 instance NFData LocalRewriteRule
+instance NFData RewDom

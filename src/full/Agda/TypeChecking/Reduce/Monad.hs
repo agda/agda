@@ -42,6 +42,8 @@ instance MonadAddContext ReduceM where
 
   addLetBinding' = defaultAddLetBinding'
 
+  addLocalRewrite = defaultAddLocalRewrite
+
   updateContext rho f ret = withFreshR $ \ chkpt ->
     localTC (\e -> e { envContext = f $ envContext e
                      , envCurrentCheckpoint = chkpt

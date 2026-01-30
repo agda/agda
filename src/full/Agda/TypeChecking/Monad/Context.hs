@@ -252,6 +252,9 @@ class MonadTCEnv m => MonadAddContext m where
        IsAxiom   -- ^ Does this let binding come from a 'LetAxiom'?
     -> Origin -> Name -> Term -> Dom Type -> m a -> m a
 
+  -- | Adds a local rewrite rule to the context
+  addLocalRewrite :: LocalRewriteRule -> m a -> m a
+
   -- | Update the context.
   --   Requires a substitution that transports things living in the old context
   --   to the new.
@@ -269,6 +272,11 @@ class MonadTCEnv m => MonadAddContext m where
     => IsAxiom -> Origin -> Name -> Term -> Dom Type -> m a -> m a
   addLetBinding' isAxiom o x u a = liftThrough $ addLetBinding' isAxiom o x u a
 
+  default addLocalRewrite
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => LocalRewriteRule -> m a -> m a
+  addLocalRewrite r = liftThrough $ addLocalRewrite r
+
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Substitution -> (Context -> Context) -> m a -> m a
@@ -282,20 +290,16 @@ class MonadTCEnv m => MonadAddContext m where
       withFreshName r x $ run . cont
     restoreT $ return st
 
-defaultAddLocalRew :: Maybe LocalEquation -> m a -> m a
-defaultAddLocalRew (Just eq) ret = do
-  -- TODO: Figure out how to to call into Rewriting.hs without cyclic
-  -- module dependencies breaking literally everything
-  -- rw <- checkLocalRewriteRule eq
-  ret
-defaultAddLocalRew Nothing   ret = ret
-
 {-# INLINE defaultAddCtx #-}
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
-defaultAddCtx x a ret =
-  -- TODO: Add local rewrite rule to context if appropriate
-  updateContext (raiseS 1) (CxExtendVar x a) ret
+defaultAddCtx x a ret = updateContext (raiseS 1) (CxExtendVar x a) $
+  applyWhenJust (rewDom a) addRewDom ret
+
+addRewDom :: MonadAddContext m => RewDom -> m a -> m a
+addRewDom rew = case rewDomRew rew of
+  Just r  -> addLocalRewrite r
+  Nothing -> id -- TODO: This should be __IMPOSSIBLE__
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
@@ -312,6 +316,7 @@ deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
   addLetBinding' isAxiom o x u a = liftListT $ addLetBinding' isAxiom o x u a
+  addLocalRewrite r      = liftListT $ addLocalRewrite r
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
@@ -358,9 +363,16 @@ instance MonadAddContext TCM where
   addLetBinding' isAxiom o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddLetBinding' isAxiom o x u a ret
 
+  addLocalRewrite = defaultAddLocalRewrite
+
   updateContext sub f = unsafeModifyContext f . checkpoint sub
 
   withFreshName r x m = freshName r x >>= m
+
+
+defaultAddLocalRewrite :: MonadTCEnv m => LocalRewriteRule -> m a -> m a
+defaultAddLocalRewrite rew = localTC $ \e ->
+  e { envLocalRewriteRules = rew : envLocalRewriteRules e }
 
 addRecordNameContext
   :: (MonadAddContext m, MonadFresh NameId m)
@@ -586,9 +598,8 @@ illegalRule s reason = do
   mzero
 
 warnIfRew :: (MonadWarning m) => RewriteAnn -> m ()
-warnIfRew IsRewrite
-  = void $ runMaybeT $ illegalRule LocalRewrite LetBoundLocalRewrite
-warnIfRew IsNotRewrite = pure ()
+warnIfRew rewAnn = when (rewAnn == IsRewrite) $
+  void $ runMaybeT $ illegalRule LocalRewrite LetBoundLocalRewrite
 
 -- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}

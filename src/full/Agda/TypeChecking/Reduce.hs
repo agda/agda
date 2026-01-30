@@ -348,6 +348,21 @@ instance Instantiate LocalEquation where
       <*> instantiate' c
       <*> instantiate' d
 
+instance Instantiate LocalRewriteRule where
+  instantiate' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
+      <$> instantiate' a
+      <*> pure b
+      <*> pure c
+      <*> instantiate' d
+      <*> instantiate' e
+
+instance Instantiate RewDom where
+  instantiate' (RewDom a b) =
+    RewDom
+      <$> instantiate' a
+      <*> instantiate' b
+
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
@@ -1684,6 +1699,21 @@ instance InstantiateFull LocalEquation where
       <*> instantiateFull' b
       <*> instantiateFull' c
       <*> instantiateFull' d
+
+instance InstantiateFull LocalRewriteRule where
+  instantiateFull' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
+      <$> instantiateFull' a
+      <*> pure b
+      <*> instantiateFull' c
+      <*> instantiateFull' d
+      <*> instantiateFull' e
+
+instance InstantiateFull RewDom where
+  instantiateFull' (RewDom a b) =
+    RewDom
+      <$> instantiateFull' a
+      <*> instantiateFull' b
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)

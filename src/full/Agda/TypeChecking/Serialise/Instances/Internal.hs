@@ -330,6 +330,25 @@ instance EmbPrj LocalEquation where
 
   value = valueN LocalEquation
 
+instance EmbPrj LocalRewriteHead where
+  icod_ (DefHead a) = icodeN 0 DefHead a
+  icod_ (LocHead a) = icodeN 1 LocHead a
+
+  value = vcase valu where
+    valu (N2 0 a) = valuN DefHead a
+    valu (N2 1 a) = valuN LocHead a
+    valu _        = malformed
+
+instance EmbPrj LocalRewriteRule where
+  icod_ (LocalRewriteRule a b c d e) = icodeN' LocalRewriteRule a b c d e
+
+  value = valueN LocalRewriteRule
+
+instance EmbPrj RewDom where
+  icod_ (RewDom a b) = icodeN' RewDom a b
+
+  value = valueN RewDom
+
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icodeN' Projection a b c d e
 

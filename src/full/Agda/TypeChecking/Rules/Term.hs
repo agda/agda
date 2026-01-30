@@ -88,7 +88,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
-import Agda.TypeChecking.Rewriting (checkRewApp, getEquation)
+import Agda.TypeChecking.Rewriting (checkRewApp, getEquation, checkLocalRewriteRule)
 import Control.Monad.Trans.Maybe (runMaybeT)
 
 ---------------------------------------------------------------------------
@@ -119,7 +119,7 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- uncurry (defaultArgDomEq info) <$> checkPiDomain (info :| []) t
+      a <- uncurry (defaultArgDomRew info) <$> checkPiDomain (info :| []) t
       b <- isType_ b
       s <- inferFunSort a b
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -316,7 +316,7 @@ checkTelescope' lamOrPi (b : tel) ret =
 -- | Check the domain of a function type.
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
 checkDomain :: (LensLock a, LensModality a, LensRewriteAnn a)
-            => LamOrPi -> List1 a -> A.Expr -> TCM (Maybe LocalEquation, Type)
+            => LamOrPi -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkDomain lamOrPi xs e = do
     -- Get cohesion and quantity of arguments, as well as if they are local
     -- rewrite rules. All of these properties should all be equal because
@@ -354,9 +354,17 @@ checkDomain lamOrPi xs e = do
 
         equalSort (getSort t) LockUniv
 
-    eq <- getEquation r t
+    eq  <- getEquation r t
+    rew <- traverse checkLocalRewriteRule eq
+    -- We do not (currently) distinguish failing to elaborate to a LocalEquation
+    -- from failing to elaborate to a LocalRewriteRule. In the case we have
+    -- a valid LocalEquation, but failed to produce a LocalRewriteRule, we could
+    -- technically still store the LocalEquation and check the convertibility
+    -- constraint at call sites. I don't think this is super important, but
+    -- maybe worth trying in future.
+    let rDom = RewDom <$> eq <*> pure (join rew)
 
-    return (eq, t)
+    return (rDom, t)
   where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -366,7 +374,7 @@ checkDomain lamOrPi xs e = do
         modEnv PiNotLam     = id
 
 checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a)
-              => List1 a -> A.Expr -> TCM (Maybe LocalEquation, Type)
+              => List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkPiDomain = checkDomain PiNotLam
 
 -- | Check a typed binding and extends the context with the bound variables.
@@ -386,7 +394,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    (eq, t) <- checkDomain lamOrPi xps e
+    (rew, t) <- checkDomain lamOrPi xps e
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -401,16 +409,16 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         NoOutputTypeName -> setCurrentRange e $
           warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let setTacEq tac eq dom = dom { domTactic = tac, domEq = eq }
-        setTacEqTel tac eq EmptyTel            = EmptyTel
-        setTacEqTel tac eq (ExtendTel dom tel) =
-          ExtendTel (setTacEq tac eq dom) $
-          setTacEqTel (raise 1 tac) (raise 1 eq) <$> tel
+    let setTacRew tac rew dom = dom { domTactic = tac, rewDom = rew }
+        setTacRewTel tac rew EmptyTel            = EmptyTel
+        setTacRewTel tac rew (ExtendTel dom tel) =
+          ExtendTel (setTacRew tac rew dom) $
+          setTacRewTel (raise 1 tac) (raise 1 rew) <$> tel
         -- We need to convert to Dom and set the domTactic field here in order
         -- to not drop @tactic annotations
-        xs' = setTacEq tac eq . domNameFromNamedArgName . modMod lamOrPi experimental
-              <$> xs
-    let tel = setTacEqTel tac eq $ namedBindsToTel1 xs t
+        xs' = setTacRew tac rew . domNameFromNamedArgName .
+              modMod lamOrPi experimental <$> xs
+    let tel = setTacRewTel tac rew $ namedBindsToTel1 xs t
 
     addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
@@ -694,7 +702,7 @@ lambdaModalityCheck dom =
   where m = getModality dom
 
 -- | Check that lambda domain is not a local rewrite rule
--- Lambdas do not block, so this endangers subject reduction
+--   This endangers subject reduction
 lambdaRewCheck :: LensLocalEquation dom => dom -> ArgInfo -> TCM ArgInfo
 lambdaRewCheck dom ai = do
   case getLocalEq dom of

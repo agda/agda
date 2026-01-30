@@ -329,6 +329,10 @@ instance NamesIn LocalRewriteRule where
   namesAndMetasIn' sg (LocalRewriteRule a b c d e) =
     namesAndMetasIn' sg (a, b, c, d, e)
 
+instance NamesIn RewDom where
+  namesAndMetasIn' sg (RewDom a b) =
+    namesAndMetasIn' sg (a, b)
+
 instance (NamesIn b) => NamesIn (HashMap a b) where
   namesAndMetasIn' sg map = foldMap (namesAndMetasIn' sg) map
 

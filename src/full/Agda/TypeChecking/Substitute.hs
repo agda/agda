@@ -61,6 +61,8 @@ import Agda.Utils.Tuple
 import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
+import Data.Void (Void)
+import Unsafe.Coerce (unsafeCoerce)
 
 
 -- | Apply @Elims@ while using the given function to report ill-typed
@@ -821,6 +823,25 @@ renamingR p@(Perm n is) = xs ++# raiseS n
 renameP :: Subst a => Impossible -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
+-- | Only lets through weakenings (or strengthening)
+noCons :: Substitution' a -> Maybe Renaming
+noCons IdS                  = pure IdS
+noCons (EmptyS i)           = pure $ EmptyS i
+noCons (t :# rho)           = Nothing
+noCons (Strengthen i n rho) = Strengthen i n <$> noCons rho
+noCons (Wk n rho)           = Wk n <$> noCons rho
+noCons (Lift n rho)         = Lift n <$> noCons rho
+
+-- | If we know there are no cons-es, we could actually @unsafeCoerce@ and
+--   probably get a nice performance win.
+coerceRen :: DeBruijn a => Renaming -> Substitution' a
+coerceRen IdS                  = IdS
+coerceRen (EmptyS i)           = EmptyS i
+coerceRen (x :# rho)           = deBruijnVar x :# coerceRen rho
+coerceRen (Strengthen i n rho) = Strengthen i n $ coerceRen rho
+coerceRen (Wk n rho)           = Wk n $ coerceRen rho
+coerceRen (Lift n rho)         = Lift n $ coerceRen rho
+
 instance EndoSubst a => Subst (Substitution' a) where
   type SubstArg (Substitution' a) = a
   applySubst rho sgm = composeS rho sgm
@@ -1002,6 +1023,38 @@ instance Subst LocalEquation where
                   (applySubst rho' rhs)
                   (applySubst rho' t)
     where rho' = liftS (size gamma) rho
+
+instance Subst Nat where
+  type SubstArg Nat = Nat
+  applySubst rho x = lookupS rho x
+
+instance Subst LocalRewriteHead where
+  type SubstArg LocalRewriteHead = Nat
+  applySubst rho (DefHead f) = DefHead f
+  applySubst rho (LocHead x) = LocHead $ applySubst rho x
+
+-- Local rewrite rules are not stable under arbitrary substitution, but they can
+-- at least be weakened.
+--
+-- TODO: All the @coerceRen@ are gonna be kinda terrible for performance.
+-- I think we should maybe just have a top-level function for applying
+-- substitutions so we can document a stronger pre-condition and unsafe coerce
+instance Subst LocalRewriteRule where
+  type SubstArg LocalRewriteRule = Nat
+  applySubst rho (LocalRewriteRule gamma f ps rhs b) =
+    LocalRewriteRule (applySubst (coerceRen rho) gamma)
+                      (applySubst rho' f)
+                      (applySubst rho' ps)
+                      (applySubst rho' rhs)
+                      (applySubst rho' b)
+    where
+      rho' :: DeBruijn a => Substitution' a
+      rho' = coerceRen $ liftS (size gamma) rho
+
+instance Subst RewDom where
+  type SubstArg RewDom = Term
+  applySubst rho (RewDom eq rew) =
+    RewDom (applySubst rho eq) (applySubst <$> noCons rho <*> rew)
 
 instance Subst a => Subst (Blocked a) where
   type SubstArg (Blocked a) = SubstArg a
@@ -1570,6 +1623,7 @@ deriving instance Eq NLPSort
 deriving instance Eq LocalEquation
 deriving instance Eq LocalRewriteHead
 deriving instance Eq LocalRewriteRule
+deriving instance Eq RewDom
 
 deriving instance Ord DefSing
 deriving instance Ord NLPSort
@@ -1578,6 +1632,7 @@ deriving instance Ord NLPat
 deriving instance Ord LocalEquation
 deriving instance Ord LocalRewriteHead
 deriving instance Ord LocalRewriteRule
+deriving instance Ord RewDom
 
 ---------------------------------------------------------------------------
 -- * Sort stuff

@@ -160,8 +160,8 @@ composeEquation eq eq' = case maybeToList eq ++ maybeToList eq' of
 
 {-# SPECIALIZE applyEquationToContext :: Maybe LocalEquation -> TCM a -> TCM a #-}
 -- | Apply equational constraint (local rewrite rule) to context
--- We could probably check this immediately, but delaying until application
--- stays consistent with the way modalities are handled.
+--   We could probably check this immediately, but delaying until application
+--   stays consistent with the way modalities are handled.
 applyEquationToContext
   :: (MonadTCEnv tcm) => Maybe LocalEquation -> tcm a -> tcm a
 applyEquationToContext eq

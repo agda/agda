@@ -33,8 +33,14 @@ instance AllMetas Sort      where allMetas f   = allMetas f . Sort
 instance AllMetas Level     where allMetas f   = allMetas f . Level
 instance AllMetas PlusLevel where allMetas f l = allMetas f (Max 0 [l])
 
+instance AllMetas RewDom where
+  allMetas f (RewDom a b) = allMetas f (a, b)
+
 instance AllMetas LocalEquation where
   allMetas f (LocalEquation a b c d) = allMetas f (a, b, c, d)
+
+instance AllMetas LocalRewriteRule where
+  allMetas f (LocalRewriteRule g _ _ es b) = allMetas f (g, es, b)
 
 instance {-# OVERLAPPING #-} AllMetas String where
   allMetas f _ = mempty
