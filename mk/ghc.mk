@@ -1,3 +1,9 @@
+# All makefiles must define TOP, corresponding to the Agda root directory.
+# This is so that they can be imported from a Makefile in a subdirectory.
+ifeq ($(TOP),)
+  $(error "Makefiles must define the TOP variable to correspond with the Agda source root")
+endif
+
 include $(TOP)/mk/cabal.mk
 include $(TOP)/mk/stack.mk
 
@@ -20,8 +26,7 @@ endif
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
 
-# We ask if GHC is available for removing a warning on Travis when
-# testing the documentation.
+# We ask if GHC is available to prevent potential warnings.
 ifneq ($(GHC),)
 
   # major.minor.subminor, e.g. 8.10.2

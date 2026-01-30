@@ -1,15 +1,16 @@
+# All makefiles must define TOP, corresponding to the Agda root directory.
+# This is so that they can be imported from a Makefile in a subdirectory.
+ifeq ($(TOP),)
+  $(error "Makefiles must define the TOP variable to correspond with the Agda source root")
+endif
+
 include $(TOP)/mk/common.mk
 include $(TOP)/mk/versions.mk
 include $(TOP)/mk/ghc.mk
 
-MACRO_DIR = $(TOP)/macros
-
 SRC_DIR        = $(TOP)/src
 MAIN_SRC_DIR   = $(SRC_DIR)/main
 FULL_SRC_DIR   = $(SRC_DIR)/full
-CORE_SRC_DIR   = $(SRC_DIR)/core
-TRANSL_SRC_DIR = $(SRC_DIR)/transl
-COMPAT_SRC_DIR = $(SRC_DIR)/compat
 
 # Note: To use "dist" as the build directory (the default), modify
 # BUILD_DIR below. At the time of writing GHC's recompilation checker
@@ -27,30 +28,39 @@ COMPAT_SRC_DIR = $(SRC_DIR)/compat
 # Andreas, 2020-10-26 further refinement:
 # I often switch GHC version, so indexing v1-style build directories
 # by GHC version x.y.z makes sense.
-BUILD_DIR             = $(TOP)/dist-$(VERSION)-ghc-$(GHC_VER)
-QUICK_BUILD_DIR       = $(BUILD_DIR)-quick
-FAST_BUILD_DIR        = $(BUILD_DIR)-fast
-DEBUG_BUILD_DIR       = $(BUILD_DIR)-debug
-QUICK_DEBUG_BUILD_DIR = $(BUILD_DIR)-debug-quick
 
-STACK_BUILD_DIR       = .stack-work
-QUICK_STACK_BUILD_DIR = $(STACK_BUILD_DIR)-quick
-FAST_STACK_BUILD_DIR  = $(STACK_BUILD_DIR)-fast
+# N.B. don't use TOP here, stack anyway looks upward for stack.yaml
+STACK_WORK_DIR       ?= .stack-work
+QUICK_STACK_WORK_DIR ?= $(STACK_WORK_DIR)-quick
+FAST_STACK_WORK_DIR  ?= $(STACK_WORK_DIR)-fast
 
-OUT_DIR        = $(TOP)/out
-FULL_OUT_DIR   = $(OUT_DIR)/full
-CORE_OUT_DIR   = $(OUT_DIR)/core
-TRANSL_OUT_DIR = $(OUT_DIR)/transl
+# The basic stack command needs to always set the --work-dir.
+STACK_SLOW  = $(STACK) --work-dir=$(STACK_WORK_DIR)
+STACK_QUICK = $(STACK) --work-dir=$(QUICK_STACK_WORK_DIR)
+STACK_FAST  = $(STACK) --work-dir=$(FAST_STACK_WORK_DIR)
 
-DOC_DIR     = $(TOP)/doc
-HADDOCK_DIR = $(DOC_DIR)/haddock
+# BUILD_DIR can be set in the system environment.
+ifdef HAS_STACK
+# Where does Stack place build/ etc.?  (Will contain e.g. the GHC version.)
+  BUILD_DIR       ?= $(TOP)/$(shell $(STACK_SLOW)  path --dist-dir)
+  QUICK_BUILD_DIR ?= $(TOP)/$(shell $(STACK_QUICK) path --dist-dir)
+  FAST_BUILD_DIR  ?= $(TOP)/$(shell $(STACK_FAST)  path --dist-dir)
+else
+# Where does v1-Cabal place build/ etc.? Originally in dist/, but we refine this.
+  BUILD_DIR       ?= $(TOP)/dist-$(VERSION)-ghc-$(GHC_VER)
+  QUICK_BUILD_DIR ?= $(BUILD_DIR)-quick
+  FAST_BUILD_DIR  ?= $(BUILD_DIR)-fast
+endif
 
+# AGDA_BIN can be set in the system environment.
 AGDA_BIN ?= $(BUILD_DIR)/build/agda/agda
 AGDA_BIN := $(abspath $(AGDA_BIN))
 
+# AGDA_MODE can be set in the system environment.
 AGDA_MODE ?= $(BUILD_DIR)/build/agda-mode/agda-mode
 AGDA_MODE := $(abspath $(AGDA_MODE))
 
+# AGDA_TESTS_BIN can be set in the system environment.
 AGDA_TESTS_BIN ?= $(BUILD_DIR)/build/agda-tests/agda-tests
 AGDA_TESTS_BIN := $(abspath $(AGDA_TESTS_BIN))
 
