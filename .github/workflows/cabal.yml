@@ -24,12 +24,12 @@ jobs:
     env:
       FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.10.1' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.12.2' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - if: runner.os == 'Linux'
       name: Switch off XDG directories for cabal (Linux)
       run: |
@@ -74,7 +74,7 @@ jobs:
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: |
@@ -88,7 +88,7 @@ jobs:
         cabal build
     - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: |
@@ -101,9 +101,10 @@ jobs:
         description:
         - Linux
         ghc-ver:
-        - 9.10.1
-        - 9.8.2
-        - 9.6.6
+        - 9.12.2
+        - 9.10.3
+        - 9.8.4
+        - 9.6.7
         - 9.4.8
         - 9.2.8
         - 9.0.2
@@ -116,16 +117,16 @@ jobs:
         include:
         - cabal-flags: --enable-tests -f debug
           description: Linux debug
-          ghc-ver: 9.10.1
-          os: ubuntu-24.04
+          ghc-ver: 9.12.2
+          os: ubuntu-latest
         - description: macOS
-          ghc-ver: 9.10.1
-          os: macos-14
+          ghc-ver: 9.12.2
+          os: macos-latest
         - description: Windows
-          ghc-ver: 9.10.1
-          os: windows-2022
+          ghc-ver: 9.12.2
+          os: windows-latest
         os:
-        - ubuntu-24.04
+        - ubuntu-latest
     timeout-minutes: 60
 name: Build (cabal)
 'on':

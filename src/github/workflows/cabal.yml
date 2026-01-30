@@ -48,36 +48,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04]
+        os: [ubuntu-latest]
         description: [Linux]      ## This just for pretty-printing the job name.
-        ghc-ver: [9.10.1, 9.8.2, 9.6.6, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [9.12.2, 9.10.3, 9.8.4, 9.6.7, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         cabal-flags: ['--enable-tests -f enable-cluster-counting']
         include:
           ## Latest GHC, special builds
 
           # Linux, without -f enable-cluster-counting but with -f debug
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             description: Linux debug
-            ghc-ver: '9.10.1'
+            ghc-ver: '9.12.2'
             cabal-flags: '--enable-tests -f debug'
 
           # macOS with default flags
-          - os: macos-14
+          - os: macos-latest
             description: macOS
-            ghc-ver: '9.10.1'
+            ghc-ver: '9.12.2'
 
           # Windows with default flags
-          - os: windows-2022
+          - os: windows-latest
             description: Windows
-            ghc-ver: '9.10.1'
+            ghc-ver: '9.12.2'
 
     # Default values
     env:
-      GHC_VER:   ${{ matrix.ghc-ver || '9.10.1' }}
+      GHC_VER:   ${{ matrix.ghc-ver || '9.12.2' }}
       FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Switch off XDG directories for cabal (Linux)
       if: runner.os == 'Linux'
@@ -134,7 +134,7 @@ jobs:
       # https://github.com/haskell/cabal/issues/8706
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       id: cache
       with:
         # We don't cache dist-newstyle because it is too fat (e.g. >400MB on GHC 9.4.4)
@@ -171,7 +171,7 @@ jobs:
     #   continue-on-error: true
 
     - name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       if:   always() && steps.cache.outputs.cache-hit != 'true'
       with:
         key:  ${{ steps.cache.outputs.cache-primary-key }}

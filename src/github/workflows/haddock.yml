@@ -24,8 +24,8 @@ jobs:
         # since this often does not point at the latest version;
         # not for the virtual environments, and also haskell/action/setup
         # is usually not up-to-date.
-        os: [ubuntu-24.04]
-        ghc-ver: ['9.10.1']
+        os: [ubuntu-latest]
+        ghc-ver: ['9.12.2']
           # Use the versions that come with the virtual environment, if possible.
 
     if: |
@@ -43,7 +43,7 @@ jobs:
       # Could be turned off with --disable-documentation.
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - uses: haskell-actions/setup@v2
       id: setup-haskell

@@ -30,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - id: vars
       name: Set up platform-dependent variables
       run: |
@@ -206,7 +206,7 @@ jobs:
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         if-no-files-found: error
         name: ${{ steps.vars.outputs.filename }}
@@ -218,7 +218,7 @@ jobs:
         cabal-ver:
         - latest
         ghc-ver:
-        - '9.10'
+        - '9.12'
         os:
         - windows-latest
         - macos-latest
@@ -228,10 +228,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         sparse-checkout: .
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v6
       with:
         path: artifacts
     - env:

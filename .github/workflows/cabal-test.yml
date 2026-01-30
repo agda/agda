@@ -24,7 +24,7 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
       with:
         submodules: recursive
     - id: setup-haskell
@@ -68,12 +68,12 @@ jobs:
       fail-fast: false
       matrix:
         cabal-ver:
-        - '3.8'
+        - '3.12'
         ghc-ver:
-        - '9.4'
+        - '9.12'
         os:
-        - ubuntu-22.04
-        - macos-12
+        - ubuntu-latest
+        - macos-latest
     timeout-minutes: 150
 name: cabal-test
 'on':

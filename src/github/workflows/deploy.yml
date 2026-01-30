@@ -38,7 +38,7 @@ jobs:
         # As of today (2024-02-05), the actual version information can be found in
         # https://github.com/actions/runner-images#available-images
         os: [windows-latest, macos-latest, ubuntu-latest]
-        ghc-ver: ['9.10']
+        ghc-ver: ['9.12']
         cabal-ver: [latest]
 
     env:
@@ -59,7 +59,7 @@ jobs:
     steps:
 
     - name: Check out the master branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up platform-dependent variables
       id: vars
@@ -279,7 +279,7 @@ jobs:
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         path: ${{ steps.vars.outputs.filename }}
         name: ${{ steps.vars.outputs.filename }}
@@ -294,11 +294,11 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         sparse-checkout: .
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v6
       with:
         path: artifacts
 

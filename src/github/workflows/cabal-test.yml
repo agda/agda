@@ -44,18 +44,18 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-22.04
-          - macos-12
+          - ubuntu-latest
+          - macos-latest
           # - windows-latest
           ## Andreas, 2021-08-28, giving up on running the test-suite under Windows.
           ## There is e.g. https://github.com/phile314/tasty-silver/issues/16
           ## that may be responsible that diffs are not shown,
           ## and that prevents me from running the test-suite interactively.
-        ghc-ver: ['9.4']
-        cabal-ver: ['3.8']
+        ghc-ver: ['9.12']
+        cabal-ver: ['3.12']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
       with:
         submodules: recursive
 

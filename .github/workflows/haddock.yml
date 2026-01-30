@@ -16,7 +16,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
@@ -61,9 +61,9 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.10.1
+        - 9.12.2
         os:
-        - ubuntu-24.04
+        - ubuntu-latest
 name: Haddock
 'on':
   pull_request:

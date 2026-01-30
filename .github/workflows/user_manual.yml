@@ -8,28 +8,28 @@
 jobs:
   build:
     env:
-      python-version: '3.12'
+      python-version: '3.13'
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Install imagemagick (convert)
       run: |
         sudo apt-get update
         sudo apt-get install imagemagick
     - name: Set up Python ${{ env.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ env.python-version }}
     - name: Install dependencies
       run: |
         pip install -r doc/user-manual/requirements.txt
     - name: Setup TeX Live
-      uses: teatimeguest/setup-texlive-action@v3
+      uses: TeX-Live/setup-texlive-action@v3
       with:
         packages: scheme-basic anyfontsize bbm bbm-macros booktabs capt-of cmap colortbl
           dvipng ellipse etoolbox fancyvrb float fncychap fontawesome5 framed keystroke
@@ -43,7 +43,7 @@ jobs:
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf

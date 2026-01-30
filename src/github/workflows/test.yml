@@ -55,7 +55,7 @@ env:
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.10.1"
+  GHC_VER: "9.12.2"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -102,7 +102,7 @@ jobs:
         access_token: ${{ github.token }}
 
     - &checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
@@ -127,7 +127,7 @@ jobs:
       # uconv --version
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       id: cache
       with:
         # Andreas, 2023-01-24:
@@ -171,7 +171,7 @@ jobs:
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
 
     - name: "Upload artifacts"
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         if-no-files-found: error
         retention-days: 1
@@ -181,7 +181,7 @@ jobs:
           stack-work.tzst
 
     - name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       if:   always() && steps.cache.outputs.cache-hit != 'true'  # save cache even when build fails
       with:
         key:  *cache_key
@@ -199,7 +199,7 @@ jobs:
     - *haskell_setup
 
     - &download_artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
@@ -212,7 +212,7 @@ jobs:
     - *icu
     - &cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       id: cache
       with:
         path: *cache_path
