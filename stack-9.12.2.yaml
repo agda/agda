@@ -1,0 +1,11 @@
+resolver: nightly-2025-12-30
+compiler: ghc-9.12.2
+compiler-check: match-exact
+
+# Local packages specified by relative directory name.
+packages:
+- '.'
+
+extra-deps:
+- Cabal-syntax-3.12.1.0
+- Cabal-3.12.1.0
