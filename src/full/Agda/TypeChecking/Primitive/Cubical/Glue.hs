@@ -32,8 +32,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Primitive.Base
-  ( (-->), nPi', pPi', hPi', el, el', (<@>), (<@@>), (<#>), argN, argH, (<..>)
-  , SigmaKit(..), getSigmaKit
+  ( (-->), nPi', pPi', hPi', ePi', el, el', (<@>), (<@@>), (<#>), (<#@>)
+  , argN, argH, (<..>), SigmaKit(..), getSigmaKit
   )
 
 import Agda.Utils.Functor
@@ -67,12 +67,12 @@ mkGComp s = do
   tTrans <- getTermLocal builtinTrans
   io      <- getTermLocal builtinIOne
   iz      <- getTermLocal builtinIZero
-  let forward la bA r u = pure tTrans <#> lam "i" (\ i -> la <@> (i `imax` r))
+  let forward la bA r u = pure tTrans <#@> lam "i" (\ i -> la <@> (i `imax` r))
                                       <@> lam "i" (\ i -> bA <@> (i `imax` r))
                                       <@> r
                                       <@> u
   return $ \ la bA phi u u0 ->
-    pure tHComp <#> (la <@> pure io)
+    pure tHComp <#@> (la <@> pure io)
                 <#> (bA <@> pure io)
                 <#> imax phi (ineg phi)
                 <@> lam "i" (\ i -> combineSys (la <@> i) (bA <@> i)
@@ -123,12 +123,12 @@ doGlueKanOp (HCompOp psi u u0) (IsNot (la, lb, bA, phi, bT, e)) tpos = do
     ifM (headStop tpos phi) (return Nothing) $ Just <$> do
     let
       tf i o   = hfill lb (bT <..> o) psi u u0 i
-      unglue g = pure tunglue <#> la <#> lb <#> bA <#> phi <#> bT <#> e <@> g
+      unglue g = pure tunglue <#@> la <#@> lb <#> bA <#> phi <#> bT <#> e <@> g
 
-      a1 = pure tHComp <#> la <#> bA <#> (imax psi phi)
+      a1 = pure tHComp <#@> la <#> bA <#> (imax psi phi)
         <@> lam "i" (\i -> combineSys la bA
             [ (psi, ilam "o" (\o -> unglue (u <@> i <..> o)))
-            , (phi, ilam "o" (\o -> pure tEFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o) <@> tf i o))
+            , (phi, ilam "o" (\o -> pure tEFun <#@> lb <#@> la <#> (bT <..> o) <#> bA <@> (e <..> o) <@> tf i o))
             ])
         <@> unglue u0
 
@@ -166,7 +166,7 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
     -- transpFill: transp (λ j → bA (i ∧ j)) (φ ∨ ~ i) u0
     -- connects u0 and transp bA i0 u0
     let transpFill la bA phi u0 i =
-          pure tTrans <#> lam "j" (\ j -> la <@> imin i j)
+          pure tTrans <#@> lam "j" (\ j -> la <@> imin i j)
                       <@> lam "j" (\ j -> bA <@> imin i j)
                       <@> (imax phi (ineg i))
                       <@> u0
@@ -189,7 +189,11 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
     -- See: https://github.com/agda/agda/issues/5755#issuecomment-1043797776
 
     -- unglue_u0 i = unglue la[i/i] lb[i/i] bA[i/i] phi[i/i] bT[i/i] e[i/e] u0
-    let unglue_u0 i = foldl (<#>) (pure tunglue) (map (<@> i) [la, lb, bA, phi, bT, e]) <@> u0
+    let unglue_u0 i =
+          foldl (<#>)
+            (pure tunglue <#@> (la <@> i) <#@> (lb <@> i))
+            (map (<@> i) [bA, phi, bT, e])
+            <@> u0
 
     view <- intervalView'
 
@@ -216,8 +220,8 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
 
       -- The underlying function of our partial equivalence at the given
       -- endpoint of the interval, together with proof (o : IsOne φ).
-      w i o = pure tEFun <#> (lb <@> i)
-                         <#> (la <@> i)
+      w i o = pure tEFun <#@> (lb <@> i)
+                         <#@> (la <@> i)
                          <#> (bT <@> i <..> o)
                          <#> (bA <@> i)
                          <@> (e <@> i <..> o)
@@ -244,11 +248,11 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       t1'alpha o = -- o : IsOne φ
          -- Because @e i1 1=1@ is an equivalence, we can extend the
          -- partial fibre @pe@ to an actual fibre of (e i1 1=1) over a1.
-         pure toutS <#> (max (la <@> pure io) (lb <@> pure io)) <#> fiberT o
+         pure toutS <#@> (max (la <@> pure io) (lb <@> pure io)) <#> fiberT o
           <#> imax psi forallphi
           <#> pe o
           <@> (pure tEProof
-                <#> (lb <@> pure io)        <#> (la <@> pure io)
+                <#@> (lb <@> pure io)       <#@> (la <@> pure io)
                 <@> (bT <@> pure io <..> o) <@> (bA <@> pure io)
                 <@> (e <@> pure io <..> o)  <@> a1
                 <@> (imax psi forallphi)
@@ -257,7 +261,7 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       -- TODO: optimize?
       t1' o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])
       alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
-      a1' = pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io)
+      a1' = pure tHComp <#@> (la <@> pure io) <#> (bA <@> pure io)
         <#> imax (phi <@> pure io) psi
         <@> lam "j" (\j -> combineSys (la <@> pure io) (bA <@> pure io)
           [ (phi <@> pure io, ilam "o" $ \o -> alpha o <@@> (w (pure io) o <@> t1' o, a1, j))
@@ -282,12 +286,12 @@ primGlue' = do
   --   → (e : PartialP φ λ o → A ≃ T o)
   --   → Type lb
   t <- runNamesT [] $
-       hPi' "la" (el $ cl primLevel) (\ la ->
-       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       ePi' "la" (el $ cl primLevel) (\ la ->
+       ePi' "lb" (el $ cl primLevel) $ \ lb ->
        nPi' "A" (sort . tmSort <$> la) $ \ a ->
        hPi' "φ" primIntervalType $ \ φ ->
        nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       pPi' "o" φ (\ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a)
+       pPi' "o" φ (\ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#@> lb <#@> la <@> (t <@> o) <@> a)
        --> (sort . tmSort <$> lb))
   view <- intervalView'
   one <- primItIsOne
@@ -308,13 +312,13 @@ prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
   requireCubical CFull
   t <- runNamesT [] $
-       hPi' "la" (el $ cl primLevel) (\ la ->
-       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       ePi' "la" (el $ cl primLevel) (\ la ->
+       ePi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
        hPi' "φ" primIntervalType $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a) $ \ e ->
-       pPi' "o" φ (\ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <#> φ <@> t <@> e)))
+       hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#@> lb <#@> la <@> (t <@> o) <@> a) $ \ e ->
+       pPi' "o" φ (\ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#@> la <#@> lb <@> a <#> φ <@> t <@> e)))
 
   -- Takes a partial element of @t : T@ and an element of the base type @A@
   -- which extends @e t@, and makes it into a Glue.
@@ -336,13 +340,13 @@ prim_unglue' :: TCM PrimitiveImpl
 prim_unglue' = do
   requireCubical CFull
   t <- runNamesT [] $
-       hPi' "la" (el $ cl primLevel) (\ la ->
-       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       ePi' "la" (el $ cl primLevel) (\ la ->
+       ePi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
        hPi' "φ" primIntervalType $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a) $ \ e ->
-       (el' lb (cl primGlue <#> la <#> lb <@> a <#> φ <@> t <@> e)) --> el' la a)
+       hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#@> lb <#@> la <@> (t <@> o) <@> a) $ \ e ->
+       (el' lb (cl primGlue <#@> la <#@> lb <@> a <#> φ <@> t <@> e)) --> el' la a)
 
   -- Takes an element @b : Glue φ A (T, e)@ to an element of @A@ which,
   -- under @φ@, agrees with @e b@. Recall that @φ ⊢ e : A → T@ and @φ ⊢

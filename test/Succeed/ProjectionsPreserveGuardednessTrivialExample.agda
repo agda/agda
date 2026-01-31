@@ -3,8 +3,8 @@
 -- 2010-10-14
 module ProjectionsPreserveGuardednessTrivialExample where
 
+open import Agda.Builtin.Coinduction
 open import Common.Level
-open import Common.Coinduction
 open import Common.Product
 
 -- Streams

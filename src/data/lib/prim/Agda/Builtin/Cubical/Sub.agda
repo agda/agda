@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness
+            --erasure #-}
 
 module Agda.Builtin.Cubical.Sub where
 
@@ -7,7 +8,7 @@ module Agda.Builtin.Cubical.Sub where
   {-# BUILTIN SUB Sub #-}
 
   postulate
-    inS : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
+    inS : ∀ {@0 ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
 
   {-# BUILTIN SUBIN inS #-}
 
@@ -15,4 +16,4 @@ module Agda.Builtin.Cubical.Sub where
   {-# COMPILE JS inS = _ => _ => _ => x => x #-}
 
   primitive
-    primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A
+    primSubOut : ∀ {@0 ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A

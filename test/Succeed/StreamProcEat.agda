@@ -22,7 +22,7 @@ Here we model them by mutual data/codata and mutual recursion/corecursion.
 
 module StreamProcEat where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 data Stream (A : Set) : Set where
   cons : A -> ∞ (Stream A) -> Stream A

@@ -3,8 +3,8 @@
 
 module PartialityMonad where
 
+open import Agda.Builtin.Coinduction
 open import Common.Level
-open import Common.Coinduction
 
 record RawMonad {f} (M : Set f → Set f) : Set (lsuc f) where
   infixl 1 _>>=_

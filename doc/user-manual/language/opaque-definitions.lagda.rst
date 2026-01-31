@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting --sized-types #-}
+  {-# OPTIONS --rewriting --sized-types --erasure #-}
   module language.opaque-definitions where
 
   open import language.built-ins

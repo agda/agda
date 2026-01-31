@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness
+            --erasure #-}
 
 module Agda.Builtin.Cubical.Equiv where
 
@@ -19,7 +20,7 @@ open Helpers
 -- We make this a record so that isEquiv can be proved using
 -- copatterns. This is good because copatterns don't get unfolded
 -- unless a projection is applied so it should be more efficient.
-record isEquiv {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) : Set (ℓ ⊔ ℓ') where
+record isEquiv {@0 ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) : Set (ℓ ⊔ ℓ') where
   no-eta-equality
   field
     equiv-proof : (y : B) → isContr (fiber f y)
@@ -28,22 +29,22 @@ open isEquiv public
 
 infix 4 _≃_
 
-_≃_ : ∀ {ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set (ℓ ⊔ ℓ')
+_≃_ : ∀ {@0 ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set (ℓ ⊔ ℓ')
 A ≃ B = Σ (A → B) \ f → (isEquiv f)
 
-equivFun : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} → A ≃ B → A → B
+equivFun : ∀ {@0 ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} → A ≃ B → A → B
 equivFun e = fst e
 
 -- Improved version of equivProof compared to Lemma 5 in CCHM. We put
 -- the (φ = i0) face in contr' making it be definitionally c in this
 -- case. This makes the computational behavior better, in particular
 -- for transp in Glue.
-equivProof : ∀ {la lt} (T : Set la) (A : Set lt) → (w : T ≃ A) → (a : A)
+equivProof : ∀ {@0 la lt} (T : Set la) (A : Set lt) → (w : T ≃ A) → (a : A)
            → ∀ ψ (f : Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a [ ψ ↦ f ]
 equivProof A B w a ψ fb =
   inS (contr' {A = fiber (w .fst) a} (w .snd .equiv-proof a) ψ fb)
   where
-    contr' : ∀ {ℓ} {A : Set ℓ} → isContr A → (φ : I) → (u : Partial φ A) → A
+    contr' : ∀ {@0 ℓ} {A : Set ℓ} → isContr A → (φ : I) → (u : Partial φ A) → A
     contr' {A = A} (c , p) φ u = hcomp (λ i → λ { (φ = i1) → p (u 1=1) i
                                                 ; (φ = i0) → c }) c
 
@@ -52,7 +53,7 @@ equivProof A B w a ψ fb =
 {-# BUILTIN EQUIVFUN   equivFun   #-}
 {-# BUILTIN EQUIVPROOF equivProof #-}
 
-module _ {ℓ : I → Level} (P : (i : I) → Set (ℓ i)) where
+module _ {@0 ℓ : I → Level} (P : (i : I) → Set (ℓ i)) where
   private
     E : (i : I) → Set (ℓ i)
     E  = λ i → P i
@@ -88,6 +89,7 @@ module _ {ℓ : I → Level} (P : (i : I) → Set (ℓ i)) where
       sys = λ {j (k = i0) → ω0 j ; j (k = i1) → ω1 j}
       ω = hcomp sys (g y)
       θ = hfill sys (inS (g y))
+      δ : I → P i1
       δ = λ (j : I) → comp E
             (λ i → λ { (j = i0) → v i y ; (k = i0) → θ0 j (~ i)
                      ; (j = i1) → u i ω ; (k = i1) → θ1 j (~ i) })

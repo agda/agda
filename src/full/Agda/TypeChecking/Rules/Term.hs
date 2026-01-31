@@ -157,8 +157,15 @@ isType_ e = traceCall (IsType_ e) $ do
       unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
       -- allow ShapeIrrelevant variables when checking level
       --   Set : (ShapeIrrelevant) Level -> Set\omega
-      applyRelevanceToContext shapeIrrelevant $
-        sort . Univ u <$> checkLevel arg
+      applyRelevanceToContext shapeIrrelevant $ do
+        -- If --erasure has been turned on, then the argument of
+        -- Set/Prop/SSet is erased.
+        erasureEnabled <- optErasure <$> pragmaOptions
+        sort . Univ u <$>
+          (if erasureEnabled
+           then applyQuantityToJudgement zeroQuantity
+           else id)
+          (checkLevel arg)
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
@@ -399,7 +406,7 @@ checkTacticAttribute :: LamOrPi -> Ranged A.Expr -> TCM Term
 checkTacticAttribute LamNotPi (Ranged r e) = setCurrentRange r $
   typeError $ TacticAttributeNotAllowed
 checkTacticAttribute PiNotLam (Ranged r e) = do
-  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#@> primLevelZero <@> primUnit)
   checkExpr e expectedType
 
 checkPath :: NamedArg Binder -> A.Type -> A.Expr -> Type -> TCM Term
@@ -1627,7 +1634,7 @@ doQuoteTerm cmp et t = do
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
 unquoteM tacA hole holeType = do
   tac <- applyQuantityToJudgement zeroQuantity $
-    checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+    checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#@> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
 -- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type

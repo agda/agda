@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting --sized-types #-}
+  {-# OPTIONS --rewriting --sized-types --erasure #-}
   module language.built-ins where
 
   open import Agda.Builtin.Equality public
@@ -80,7 +80,7 @@ The Σ-type
 
 The built-in ``Σ``-type of dependent pairs is defined as follows::
 
-  record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+  record Σ {@0 a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
     constructor _,_
     field
       fst : A
@@ -104,7 +104,7 @@ Lists
 
 Built-in lists are bound using the ``LIST`` built-in::
 
-  data List {a} (A : Set a) : Set a where
+  data List {@0 a} (A : Set a) : Set a where
     []  : List A
     _∷_ : (x : A) (xs : List A) → List A
   {-# BUILTIN LIST List #-}
@@ -121,15 +121,15 @@ know to compile the List type to Haskell lists.
 ..
   ::
   -- common functions on lists used in other files for examples
-  _++_ : ∀ {a} {A : Set a} → List A → List A → List A
+  _++_ : ∀ {@0 a} {A : Set a} → List A → List A → List A
   [] ++ ys       = ys
   (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
-  map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List A → List B
+  map : ∀ {@0 a b} {A : Set a} {B : Set b} → (A → B) → List A → List B
   map f []       = []
   map f (x ∷ xs) = f x ∷ map f xs
 
-  [_] : ∀ {a} {A : Set a} → A → List A
+  [_] : ∀ {@0 a} {A : Set a} → A → List A
   [ x ] = x ∷ []
 
 .. _built-in-maybe:
@@ -143,7 +143,7 @@ Maybe
 
 Built-in maybe type is bound using the ``MAYBE`` built-in::
 
-  data Maybe {a} (A : Set a) : Set a where
+  data Maybe {@0 a} (A : Set a) : Set a where
     nothing : Maybe A
     just    : A → Maybe A
   {-# BUILTIN MAYBE Maybe #-}
@@ -606,7 +606,7 @@ The identity type can be bound to the built-in ``EQUALITY`` as follows
 .. code-block:: agda
 
   infix 4 _≡_
-  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+  data _≡_ {@0 a} {A : Set a} (x : A) : A → Set a where
     refl : x ≡ x
   {-# BUILTIN EQUALITY _≡_  #-}
 
@@ -631,7 +631,7 @@ The type of ``primEraseEquality`` has to match the flavor of identity type.
 Binding the built-in equality type also enables the ``primEraseEquality`` primitive::
 
   primitive
-    primEraseEquality : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+    primEraseEquality : ∀ {@0 a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
 
 The function takes a proof of an equality between two values ``x`` and ``y`` and stays
 stuck on it until ``x`` and ``y`` actually become definitionally equal. Whenever that
@@ -651,7 +651,7 @@ primTrustMe
 
 From the ``primEraseEquality`` primitive, we can derive a notion of ``primTrustMe``::
 
-  primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+  primTrustMe : ∀ {@0 a} {A : Set a} {x y : A} → x ≡ y
   primTrustMe {x = x} {y} = primEraseEquality unsafePrimTrustMe
     where postulate unsafePrimTrustMe : x ≡ y
 
@@ -769,9 +769,9 @@ Coinduction
 The following built-ins are used for coinductive definitions::
 
     postulate
-      ∞  : ∀ {a} (A : Set a) → Set a
-      ♯_ : ∀ {a} {A : Set a} → A → ∞ A
-      ♭  : ∀ {a} {A : Set a} → ∞ A → A
+      ∞  : ∀ {@0 a} (A : Set a) → Set a
+      ♯_ : ∀ {@0 a} {A : Set a} → A → ∞ A
+      ♭  : ∀ {@0 a} {A : Set a} → ∞ A → A
     {-# BUILTIN INFINITY ∞  #-}
     {-# BUILTIN SHARP    ♯_ #-}
     {-# BUILTIN FLAT     ♭  #-}
@@ -824,7 +824,7 @@ The experimental and totally unsafe :doc:`rewriting machinery <rewriting>` (not
 to be confused with the :ref:`rewrite construct <with-rewrite>`) has a built-in
 ``REWRITE`` for the rewriting relation::
 
-  postulate _↦_ : ∀ {a} {A : Set a} → A → A → Set a
+  postulate _↦_ : ∀ {@0 a} {A : Set a} → A → A → Set a
   {-# BUILTIN REWRITE _↦_ #-}
 
 This builtin is bound to the :ref:`builtin equality type
@@ -852,12 +852,13 @@ Strictness
 There are two primitives for controlling evaluation order::
 
   primitive
-    primForce      : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
-    primForceLemma : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
+    primForce      : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
+    primForceLemma : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
 
-where ``_≡_`` is the :ref:`built-in equality <built-in-equality>`. At compile-time
-``primForce x f`` evaluates to ``f x`` when ``x`` is in weak head normal form (whnf),
-i.e. one of the following:
+where ``_≡_`` is the :ref:`built-in equality <built-in-equality>`. (The definition of
+``primForceLemma`` might not be accepted if the built-in equality does not have the
+"right" form.) At compile-time ``primForce x f`` evaluates to ``f x`` when ``x`` is
+in weak head normal form (whnf), i.e. one of the following:
 
   - a constructor application
   - a literal
@@ -883,7 +884,7 @@ caused by unevaluated ``a + a`` thunks. This problem can be fixed with
 ``primForce``::
 
   infixr 0 _$!_
-  _$!_ : ∀ {a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
+  _$!_ : ∀ {@0 a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
   f $! x = primForce x f
 
   -- pow n a = a 2ⁿ
