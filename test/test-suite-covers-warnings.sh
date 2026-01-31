@@ -41,6 +41,7 @@ EOF
 cat >> $BENIGNWARNS <<EOF
 RewriteBlockedOnProblems
 RewriteRequiresDefinitions
+UnknownJSPrimitive
 EOF
 
 # Warnings covered by the testsuite.

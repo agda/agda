@@ -1771,6 +1771,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Mixfix names without an associated fixity declaration.
 
+.. option:: UnknownJSPrimitive
+
+     A primitive compiled to ``Undefined`` by the JS backend because it
+     is not in the list of known primitives.
+
 .. option:: UnknownNamesInFixityDecl
 
      Names not declared in the same scope as their syntax or fixity
