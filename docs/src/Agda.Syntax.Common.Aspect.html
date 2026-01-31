@@ -1,0 +1,685 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621681724581"><span id="local-6989586621681724582"></span></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html"><span class="hs-identifier">Agda.Syntax.Common.Aspect</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Generic</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName.Boot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier">TopLevelModuleName'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier">Range</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#rangeModule"><span class="hs-identifier">rangeModule</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#rStart"><span class="hs-identifier">rStart</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Position%27"><span class="hs-identifier">Position'</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#posPos"><span class="hs-identifier">posPos</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier">HasRange</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html#unionMaybeWith"><span class="hs-identifier">unionMaybeWith</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier">Null</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">data</span><span> </span><span id="Induction"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Induction"><span class="hs-identifier hs-var">Induction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Inductive"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Inductive"><span class="hs-identifier hs-var">Inductive</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="CoInductive"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#CoInductive"><span class="hs-identifier hs-var">CoInductive</span></a></span></span><span>  </span><span class="hs-comment">-- Keep in this order!</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681724591"><span id="local-6989586621681724596"><span class="annot"><span class="annottext">Induction -&gt; Induction -&gt; Bool
+(Induction -&gt; Induction -&gt; Bool)
+-&gt; (Induction -&gt; Induction -&gt; Bool) -&gt; Eq Induction
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Induction -&gt; Induction -&gt; Bool
+== :: Induction -&gt; Induction -&gt; Bool
+$c/= :: Induction -&gt; Induction -&gt; Bool
+/= :: Induction -&gt; Induction -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724603"><span id="local-6989586621681724605"><span id="local-6989586621681724607"><span id="local-6989586621681724611"><span id="local-6989586621681724614"><span id="local-6989586621681724617"><span id="local-6989586621681724620"><span class="annot"><span class="annottext">Eq Induction
+Eq Induction =&gt;
+(Induction -&gt; Induction -&gt; Ordering)
+-&gt; (Induction -&gt; Induction -&gt; Bool)
+-&gt; (Induction -&gt; Induction -&gt; Bool)
+-&gt; (Induction -&gt; Induction -&gt; Bool)
+-&gt; (Induction -&gt; Induction -&gt; Bool)
+-&gt; (Induction -&gt; Induction -&gt; Induction)
+-&gt; (Induction -&gt; Induction -&gt; Induction)
+-&gt; Ord Induction
+Induction -&gt; Induction -&gt; Bool
+Induction -&gt; Induction -&gt; Ordering
+Induction -&gt; Induction -&gt; Induction
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: Induction -&gt; Induction -&gt; Ordering
+compare :: Induction -&gt; Induction -&gt; Ordering
+$c&lt; :: Induction -&gt; Induction -&gt; Bool
+&lt; :: Induction -&gt; Induction -&gt; Bool
+$c&lt;= :: Induction -&gt; Induction -&gt; Bool
+&lt;= :: Induction -&gt; Induction -&gt; Bool
+$c&gt; :: Induction -&gt; Induction -&gt; Bool
+&gt; :: Induction -&gt; Induction -&gt; Bool
+$c&gt;= :: Induction -&gt; Induction -&gt; Bool
+&gt;= :: Induction -&gt; Induction -&gt; Bool
+$cmax :: Induction -&gt; Induction -&gt; Induction
+max :: Induction -&gt; Induction -&gt; Induction
+$cmin :: Induction -&gt; Induction -&gt; Induction
+min :: Induction -&gt; Induction -&gt; Induction
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724628"><span id="local-6989586621681724630"><span class="annot"><span class="annottext">(forall x. Induction -&gt; Rep Induction x)
+-&gt; (forall x. Rep Induction x -&gt; Induction) -&gt; Generic Induction
+forall x. Rep Induction x -&gt; Induction
+forall x. Induction -&gt; Rep Induction x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Induction -&gt; Rep Induction x
+from :: forall x. Induction -&gt; Rep Induction x
+$cto :: forall x. Rep Induction x -&gt; Induction
+to :: forall x. Rep Induction x -&gt; Induction
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724636"><span id="local-6989586621681724638"><span id="local-6989586621681724642"><span class="annot"><span class="annottext">Int -&gt; Induction -&gt; ShowS
+[Induction] -&gt; ShowS
+Induction -&gt; String
+(Int -&gt; Induction -&gt; ShowS)
+-&gt; (Induction -&gt; String)
+-&gt; ([Induction] -&gt; ShowS)
+-&gt; Show Induction
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Induction -&gt; ShowS
+showsPrec :: Int -&gt; Induction -&gt; ShowS
+$cshow :: Induction -&gt; String
+show :: Induction -&gt; String
+$cshowList :: [Induction] -&gt; ShowS
+showList :: [Induction] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">data</span><span> </span><span id="Aspect"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspect"><span class="hs-identifier hs-var">Aspect</span></a></span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Comment"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Keyword"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Keyword"><span class="hs-identifier hs-var">Keyword</span></a></span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="String"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#String"><span class="hs-identifier hs-var">String</span></a></span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Number"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Number"><span class="hs-identifier hs-var">Number</span></a></span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Hole"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Hole"><span class="hs-identifier hs-var">Hole</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Symbol"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Symbol"><span class="hs-identifier hs-var">Symbol</span></a></span></span><span>
+</span><span id="line-25"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Symbols like @forall@, @=@, @-&gt;@, etc.</span></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="PrimitiveType"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#PrimitiveType"><span class="hs-identifier hs-var">PrimitiveType</span></a></span></span><span>
+</span><span id="line-27"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Things like @Set@ and @Prop@.</span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Name"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-var">Name</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NameKind"><span class="hs-identifier hs-type">NameKind</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-29"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ 'Bool': Is the name an operator part?</span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Pragma"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Pragma"><span class="hs-identifier hs-var">Pragma</span></a></span></span><span>
+</span><span id="line-31"></span><span>      </span><span class="hs-comment">-- ^ Text occurring in pragmas</span><span>
+</span><span id="line-32"></span><span>      </span><span class="hs-comment">--   that does not have a more specific aspect.</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Background"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Background"><span class="hs-identifier hs-var">Background</span></a></span></span><span>
+</span><span id="line-34"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Non-code contents in literate Agda.</span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Markup"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span></span><span>
+</span><span id="line-36"></span><span>      </span><span class="hs-comment">-- ^ Delimiters used to separate the Agda code blocks</span><span>
+</span><span id="line-37"></span><span>      </span><span class="hs-comment">--   from the other contents in literate Agda.</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="URL"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#URL"><span class="hs-identifier hs-var">URL</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-39"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Uniform Resource Locator aka clickable link.</span></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681724659"><span id="local-6989586621681724670"><span class="annot"><span class="annottext">Aspect -&gt; Aspect -&gt; Bool
+(Aspect -&gt; Aspect -&gt; Bool)
+-&gt; (Aspect -&gt; Aspect -&gt; Bool) -&gt; Eq Aspect
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Aspect -&gt; Aspect -&gt; Bool
+== :: Aspect -&gt; Aspect -&gt; Bool
+$c/= :: Aspect -&gt; Aspect -&gt; Bool
+/= :: Aspect -&gt; Aspect -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724675"><span id="local-6989586621681724687"><span id="local-6989586621681724691"><span class="annot"><span class="annottext">Int -&gt; Aspect -&gt; ShowS
+[Aspect] -&gt; ShowS
+Aspect -&gt; String
+(Int -&gt; Aspect -&gt; ShowS)
+-&gt; (Aspect -&gt; String) -&gt; ([Aspect] -&gt; ShowS) -&gt; Show Aspect
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Aspect -&gt; ShowS
+showsPrec :: Int -&gt; Aspect -&gt; ShowS
+$cshow :: Aspect -&gt; String
+show :: Aspect -&gt; String
+$cshowList :: [Aspect] -&gt; ShowS
+showList :: [Aspect] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724695"><span id="local-6989586621681724697"><span class="annot"><span class="annottext">(forall x. Aspect -&gt; Rep Aspect x)
+-&gt; (forall x. Rep Aspect x -&gt; Aspect) -&gt; Generic Aspect
+forall x. Rep Aspect x -&gt; Aspect
+forall x. Aspect -&gt; Rep Aspect x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Aspect -&gt; Rep Aspect x
+from :: forall x. Aspect -&gt; Rep Aspect x
+$cto :: forall x. Rep Aspect x -&gt; Aspect
+to :: forall x. Rep Aspect x -&gt; Aspect
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="annot"><span class="hs-comment">-- | @NameKind@s are figured out during scope checking.</span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">data</span><span> </span><span id="NameKind"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NameKind"><span class="hs-identifier hs-var">NameKind</span></a></span></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Bound"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Bound"><span class="hs-identifier hs-var">Bound</span></a></span></span><span>                         </span><span class="annot"><span class="hs-comment">-- ^ Bound variable.</span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Generalizable"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Generalizable"><span class="hs-identifier hs-var">Generalizable</span></a></span></span><span>                 </span><span class="hs-comment">-- ^ Generalizable variable.</span><span>
+</span><span id="line-47"></span><span>                                  </span><span class="hs-comment">--   (This includes generalizable</span><span>
+</span><span id="line-48"></span><span>                                  </span><span class="hs-comment">--   variables that have been</span><span>
+</span><span id="line-49"></span><span>                                  </span><span class="hs-comment">--   generalized).</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Constructor"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-var">Constructor</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Induction"><span class="hs-identifier hs-type">Induction</span></a></span><span>         </span><span class="annot"><span class="hs-comment">-- ^ Inductive or coinductive constructor.</span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Datatype"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Datatype"><span class="hs-identifier hs-var">Datatype</span></a></span></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Field"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">Field</span></a></span></span><span>                         </span><span class="annot"><span class="hs-comment">-- ^ Record field.</span></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Function"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Function"><span class="hs-identifier hs-var">Function</span></a></span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Module"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Module"><span class="hs-identifier hs-var">Module</span></a></span></span><span>                        </span><span class="annot"><span class="hs-comment">-- ^ Module name.</span></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Postulate"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Postulate"><span class="hs-identifier hs-var">Postulate</span></a></span></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Primitive"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Primitive"><span class="hs-identifier hs-var">Primitive</span></a></span></span><span>                     </span><span class="annot"><span class="hs-comment">-- ^ Primitive.</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Record"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Record"><span class="hs-identifier hs-var">Record</span></a></span></span><span>                        </span><span class="annot"><span class="hs-comment">-- ^ Record type.</span></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Argument"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Argument"><span class="hs-identifier hs-var">Argument</span></a></span></span><span>                      </span><span class="annot"><span class="hs-comment">-- ^ Named argument, like x in {x = v}</span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Macro"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Macro"><span class="hs-identifier hs-var">Macro</span></a></span></span><span>                         </span><span class="annot"><span class="hs-comment">-- ^ Macro.</span></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681724712"><span id="local-6989586621681724717"><span class="annot"><span class="annottext">NameKind -&gt; NameKind -&gt; Bool
+(NameKind -&gt; NameKind -&gt; Bool)
+-&gt; (NameKind -&gt; NameKind -&gt; Bool) -&gt; Eq NameKind
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: NameKind -&gt; NameKind -&gt; Bool
+== :: NameKind -&gt; NameKind -&gt; Bool
+$c/= :: NameKind -&gt; NameKind -&gt; Bool
+/= :: NameKind -&gt; NameKind -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724720"><span id="local-6989586621681724724"><span id="local-6989586621681724727"><span class="annot"><span class="annottext">Int -&gt; NameKind -&gt; ShowS
+[NameKind] -&gt; ShowS
+NameKind -&gt; String
+(Int -&gt; NameKind -&gt; ShowS)
+-&gt; (NameKind -&gt; String) -&gt; ([NameKind] -&gt; ShowS) -&gt; Show NameKind
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; NameKind -&gt; ShowS
+showsPrec :: Int -&gt; NameKind -&gt; ShowS
+$cshow :: NameKind -&gt; String
+show :: NameKind -&gt; String
+$cshowList :: [NameKind] -&gt; ShowS
+showList :: [NameKind] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724730"><span id="local-6989586621681724732"><span class="annot"><span class="annottext">(forall x. NameKind -&gt; Rep NameKind x)
+-&gt; (forall x. Rep NameKind x -&gt; NameKind) -&gt; Generic NameKind
+forall x. Rep NameKind x -&gt; NameKind
+forall x. NameKind -&gt; Rep NameKind x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. NameKind -&gt; Rep NameKind x
+from :: forall x. NameKind -&gt; Rep NameKind x
+$cto :: forall x. Rep NameKind x -&gt; NameKind
+to :: forall x. Rep NameKind x -&gt; NameKind
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | Other aspects, generated by type checking.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--   (These can overlap with each other and with 'Aspect's.)</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-keyword">data</span><span> </span><span id="OtherAspect"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#OtherAspect"><span class="hs-identifier hs-var">OtherAspect</span></a></span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Error"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Error"><span class="hs-identifier hs-var">Error</span></a></span></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ErrorWarning"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#ErrorWarning"><span class="hs-identifier hs-var">ErrorWarning</span></a></span></span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ A warning that is considered fatal in the end.</span></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="DottedPattern"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DottedPattern"><span class="hs-identifier hs-var">DottedPattern</span></a></span></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UnsolvedMeta"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#UnsolvedMeta"><span class="hs-identifier hs-var">UnsolvedMeta</span></a></span></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UnsolvedConstraint"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#UnsolvedConstraint"><span class="hs-identifier hs-var">UnsolvedConstraint</span></a></span></span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-comment">-- ^ Unsolved constraint not connected to meta-variable. This</span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-comment">-- could for instance be an emptyness constraint.</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="TerminationProblem"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TerminationProblem"><span class="hs-identifier hs-var">TerminationProblem</span></a></span></span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="PositivityProblem"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#PositivityProblem"><span class="hs-identifier hs-var">PositivityProblem</span></a></span></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Deadcode"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Deadcode"><span class="hs-identifier hs-var">Deadcode</span></a></span></span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-comment">-- ^ Used for highlighting unreachable clauses, unreachable RHS</span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-comment">-- (because of an absurd pattern), etc.</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ShadowingInTelescope"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#ShadowingInTelescope"><span class="hs-identifier hs-var">ShadowingInTelescope</span></a></span></span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Used for shadowed repeated variable names in telescopes.</span></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CoverageProblem"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#CoverageProblem"><span class="hs-identifier hs-var">CoverageProblem</span></a></span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="IncompletePattern"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#IncompletePattern"><span class="hs-identifier hs-var">IncompletePattern</span></a></span></span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-comment">-- ^ When this constructor is used it is probably a good idea to</span><span>
+</span><span id="line-84"></span><span>    </span><span class="hs-comment">-- include a 'note' explaining why the pattern is incomplete.</span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="TypeChecks"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TypeChecks"><span class="hs-identifier hs-var">TypeChecks</span></a></span></span><span>
+</span><span id="line-86"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Code which is being type-checked.</span></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="MissingDefinition"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#MissingDefinition"><span class="hs-identifier hs-var">MissingDefinition</span></a></span></span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Function declaration without matching definition.</span></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="InstanceProblem"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#InstanceProblem"><span class="hs-identifier hs-var">InstanceProblem</span></a></span></span><span>
+</span><span id="line-90"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Unusable instance etc.</span></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-comment">-- NB: We put CatchallClause and CosmeticProblem last</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-comment">-- so that they are overwritten by other,</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-comment">-- more important, aspects in the emacs mode.</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CosmeticProblem"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#CosmeticProblem"><span class="hs-identifier hs-var">CosmeticProblem</span></a></span></span><span>
+</span><span id="line-96"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Nothing serious, just a beauty flaw.</span></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CatchallClause"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#CatchallClause"><span class="hs-identifier hs-var">CatchallClause</span></a></span></span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ConfluenceProblem"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#ConfluenceProblem"><span class="hs-identifier hs-var">ConfluenceProblem</span></a></span></span><span>
+</span><span id="line-99"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681724753"><span id="local-6989586621681724757"><span class="annot"><span class="annottext">OtherAspect -&gt; OtherAspect -&gt; Bool
+(OtherAspect -&gt; OtherAspect -&gt; Bool)
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; Bool) -&gt; Eq OtherAspect
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: OtherAspect -&gt; OtherAspect -&gt; Bool
+== :: OtherAspect -&gt; OtherAspect -&gt; Bool
+$c/= :: OtherAspect -&gt; OtherAspect -&gt; Bool
+/= :: OtherAspect -&gt; OtherAspect -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724763"><span id="local-6989586621681724767"><span id="local-6989586621681724771"><span id="local-6989586621681724775"><span id="local-6989586621681724778"><span id="local-6989586621681724781"><span id="local-6989586621681724784"><span class="annot"><span class="annottext">Eq OtherAspect
+Eq OtherAspect =&gt;
+(OtherAspect -&gt; OtherAspect -&gt; Ordering)
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; Bool)
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; Bool)
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; Bool)
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; Bool)
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; OtherAspect)
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; OtherAspect)
+-&gt; Ord OtherAspect
+OtherAspect -&gt; OtherAspect -&gt; Bool
+OtherAspect -&gt; OtherAspect -&gt; Ordering
+OtherAspect -&gt; OtherAspect -&gt; OtherAspect
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: OtherAspect -&gt; OtherAspect -&gt; Ordering
+compare :: OtherAspect -&gt; OtherAspect -&gt; Ordering
+$c&lt; :: OtherAspect -&gt; OtherAspect -&gt; Bool
+&lt; :: OtherAspect -&gt; OtherAspect -&gt; Bool
+$c&lt;= :: OtherAspect -&gt; OtherAspect -&gt; Bool
+&lt;= :: OtherAspect -&gt; OtherAspect -&gt; Bool
+$c&gt; :: OtherAspect -&gt; OtherAspect -&gt; Bool
+&gt; :: OtherAspect -&gt; OtherAspect -&gt; Bool
+$c&gt;= :: OtherAspect -&gt; OtherAspect -&gt; Bool
+&gt;= :: OtherAspect -&gt; OtherAspect -&gt; Bool
+$cmax :: OtherAspect -&gt; OtherAspect -&gt; OtherAspect
+max :: OtherAspect -&gt; OtherAspect -&gt; OtherAspect
+$cmin :: OtherAspect -&gt; OtherAspect -&gt; OtherAspect
+min :: OtherAspect -&gt; OtherAspect -&gt; OtherAspect
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724787"><span id="local-6989586621681724789"><span id="local-6989586621681724793"><span class="annot"><span class="annottext">Int -&gt; OtherAspect -&gt; ShowS
+[OtherAspect] -&gt; ShowS
+OtherAspect -&gt; String
+(Int -&gt; OtherAspect -&gt; ShowS)
+-&gt; (OtherAspect -&gt; String)
+-&gt; ([OtherAspect] -&gt; ShowS)
+-&gt; Show OtherAspect
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; OtherAspect -&gt; ShowS
+showsPrec :: Int -&gt; OtherAspect -&gt; ShowS
+$cshow :: OtherAspect -&gt; String
+show :: OtherAspect -&gt; String
+$cshowList :: [OtherAspect] -&gt; ShowS
+showList :: [OtherAspect] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724796"><span id="local-6989586621681724803"><span id="local-6989586621681724808"><span id="local-6989586621681724814"><span id="local-6989586621681724817"><span id="local-6989586621681724822"><span id="local-6989586621681724828"><span id="local-6989586621681724832"><span class="annot"><span class="annottext">Int -&gt; OtherAspect
+OtherAspect -&gt; Int
+OtherAspect -&gt; [OtherAspect]
+OtherAspect -&gt; OtherAspect
+OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+OtherAspect -&gt; OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+(OtherAspect -&gt; OtherAspect)
+-&gt; (OtherAspect -&gt; OtherAspect)
+-&gt; (Int -&gt; OtherAspect)
+-&gt; (OtherAspect -&gt; Int)
+-&gt; (OtherAspect -&gt; [OtherAspect])
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; [OtherAspect])
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; [OtherAspect])
+-&gt; (OtherAspect -&gt; OtherAspect -&gt; OtherAspect -&gt; [OtherAspect])
+-&gt; Enum OtherAspect
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: OtherAspect -&gt; OtherAspect
+succ :: OtherAspect -&gt; OtherAspect
+$cpred :: OtherAspect -&gt; OtherAspect
+pred :: OtherAspect -&gt; OtherAspect
+$ctoEnum :: Int -&gt; OtherAspect
+toEnum :: Int -&gt; OtherAspect
+$cfromEnum :: OtherAspect -&gt; Int
+fromEnum :: OtherAspect -&gt; Int
+$cenumFrom :: OtherAspect -&gt; [OtherAspect]
+enumFrom :: OtherAspect -&gt; [OtherAspect]
+$cenumFromThen :: OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+enumFromThen :: OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+$cenumFromTo :: OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+enumFromTo :: OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+$cenumFromThenTo :: OtherAspect -&gt; OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+enumFromThenTo :: OtherAspect -&gt; OtherAspect -&gt; OtherAspect -&gt; [OtherAspect]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724840"><span id="local-6989586621681724842"><span class="annot"><span class="annottext">OtherAspect
+OtherAspect -&gt; OtherAspect -&gt; Bounded OtherAspect
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: OtherAspect
+minBound :: OtherAspect
+$cmaxBound :: OtherAspect
+maxBound :: OtherAspect
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724848"><span id="local-6989586621681724850"><span class="annot"><span class="annottext">(forall x. OtherAspect -&gt; Rep OtherAspect x)
+-&gt; (forall x. Rep OtherAspect x -&gt; OtherAspect)
+-&gt; Generic OtherAspect
+forall x. Rep OtherAspect x -&gt; OtherAspect
+forall x. OtherAspect -&gt; Rep OtherAspect x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. OtherAspect -&gt; Rep OtherAspect x
+from :: forall x. OtherAspect -&gt; Rep OtherAspect x
+$cto :: forall x. Rep OtherAspect x -&gt; OtherAspect
+to :: forall x. Rep OtherAspect x -&gt; OtherAspect
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="annot"><span class="hs-comment">-- | Some 'NameKind's are more informative than others.</span></span><span>
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681724854"><span id="local-6989586621681724858"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NameKind"><span class="hs-identifier hs-type">NameKind</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-comment">-- During scope-checking of record, we build a constructor</span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-comment">-- whose arguments (@Bound@ variables) are the fields.</span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-comment">-- Later, we process them as @Field@s proper.</span><span>
+</span><span id="line-106"></span><span>  </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">Field</span></a></span><span>    </span><span id="local-6989586621681724864"><span class="annot"><span class="annottext">&lt;&gt; :: NameKind -&gt; NameKind -&gt; NameKind
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Bound"><span class="hs-identifier hs-var">Bound</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">Field</span></a></span><span>
+</span><span id="line-107"></span><span>  </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Bound"><span class="hs-identifier hs-var">Bound</span></a></span><span>    </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">Field</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">Field</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-comment">-- -- Projections are special functions.</span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-comment">-- -- TODO necessary?</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-comment">-- Field    &lt;&gt; Function = Field</span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-comment">-- Function &lt;&gt; Field    = Field</span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-comment">-- TODO: more overwrites?</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621681724865"><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681724865"><span class="hs-identifier hs-var">k1</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span id="local-6989586621681724866"><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681724866"><span class="hs-identifier hs-var">k2</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681724865"><span class="hs-identifier hs-var">k1</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind -&gt; NameKind -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681724866"><span class="hs-identifier hs-var">k2</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681724865"><span class="hs-identifier hs-var">k1</span></a></span><span>
+</span><span id="line-114"></span><span>           </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681724865"><span class="hs-identifier hs-var">k1</span></a></span><span> </span><span class="hs-comment">-- TODO: __IMPOSSIBLE__</span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="annot"><span class="hs-comment">-- | @NameKind@ in @Name@ can get more precise.</span></span><span>
+</span><span id="line-117"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681724869"><span id="local-6989586621681724873"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspect"><span class="hs-identifier hs-type">Aspect</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span id="local-6989586621681724879"><span class="annot"><span class="annottext">Maybe NameKind
+</span><a href="#local-6989586621681724879"><span class="hs-identifier hs-var">mk1</span></a></span></span><span> </span><span id="local-6989586621681724880"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681724880"><span class="hs-identifier hs-var">op1</span></a></span></span><span> </span><span id="local-6989586621681724881"><span class="annot"><span class="annottext">&lt;&gt; :: Aspect -&gt; Aspect -&gt; Aspect
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span id="local-6989586621681724882"><span class="annot"><span class="annottext">Maybe NameKind
+</span><a href="#local-6989586621681724882"><span class="hs-identifier hs-var">mk2</span></a></span></span><span> </span><span id="local-6989586621681724883"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681724883"><span class="hs-identifier hs-var">op2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe NameKind -&gt; Bool -&gt; Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-var">Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(NameKind -&gt; NameKind -&gt; NameKind)
+-&gt; Maybe NameKind -&gt; Maybe NameKind -&gt; Maybe NameKind
+forall a. (a -&gt; a -&gt; a) -&gt; Maybe a -&gt; Maybe a -&gt; Maybe a
+</span><a href="Agda.Utils.Maybe.html#unionMaybeWith"><span class="hs-identifier hs-var">unionMaybeWith</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind -&gt; NameKind -&gt; NameKind
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">Maybe NameKind
+</span><a href="#local-6989586621681724879"><span class="hs-identifier hs-var">mk1</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe NameKind
+</span><a href="#local-6989586621681724882"><span class="hs-identifier hs-var">mk2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681724880"><span class="hs-identifier hs-var">op1</span></a></span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-comment">-- (op1 || op2) breaks associativity</span><span>
+</span><span id="line-120"></span><span>  </span><span id="local-6989586621681724884"><span class="annot"><span class="annottext">Aspect
+</span><a href="#local-6989586621681724884"><span class="hs-identifier hs-var">a1</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span id="local-6989586621681724885"><span class="annot"><span class="annottext">Aspect
+</span><a href="#local-6989586621681724885"><span class="hs-identifier hs-var">a2</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="#local-6989586621681724884"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect -&gt; Aspect -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="#local-6989586621681724885"><span class="hs-identifier hs-var">a2</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="#local-6989586621681724884"><span class="hs-identifier hs-var">a1</span></a></span><span>
+</span><span id="line-121"></span><span>           </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="#local-6989586621681724884"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="hs-comment">-- TODO: __IMPOSSIBLE__</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- Highlighting information</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="annot"><span class="hs-comment">-- | Syntactic aspects of the code. (These cannot overlap.)</span></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | Meta information which can be associated with a</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- character\/character range.</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">data</span><span> </span><span id="Aspects"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-var">Aspects</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Aspects"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-var">Aspects</span></a></span></span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="aspect"><span class="annot"><span class="annottext">Aspects -&gt; Maybe Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#aspect"><span class="hs-identifier hs-var hs-var">aspect</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspect"><span class="hs-identifier hs-type">Aspect</span></a></span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="otherAspects"><span class="annot"><span class="annottext">Aspects -&gt; Set OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#otherAspects"><span class="hs-identifier hs-var hs-var">otherAspects</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#OtherAspect"><span class="hs-identifier hs-type">OtherAspect</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="note"><span class="annot"><span class="annottext">Aspects -&gt; String
+</span><a href="Agda.Syntax.Common.Aspect.html#note"><span class="hs-identifier hs-var hs-var">note</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-135"></span><span>    </span><span class="hs-comment">-- ^ This note, if not null, can be displayed as a tool-tip or</span><span>
+</span><span id="line-136"></span><span>    </span><span class="hs-comment">-- something like that. It should contain useful information about</span><span>
+</span><span id="line-137"></span><span>    </span><span class="hs-comment">-- the range (like the module containing a certain identifier, or</span><span>
+</span><span id="line-138"></span><span>    </span><span class="hs-comment">-- the fixity of an operator).</span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="definitionSite"><span class="annot"><span class="annottext">Aspects -&gt; Maybe DefinitionSite
+</span><a href="Agda.Syntax.Common.Aspect.html#definitionSite"><span class="hs-identifier hs-var hs-var">definitionSite</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span><span>
+</span><span id="line-140"></span><span>    </span><span class="hs-comment">-- ^ The definition site of the annotated thing, if applicable and</span><span>
+</span><span id="line-141"></span><span>    </span><span class="hs-comment">--   known.</span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="tokenBased"><span class="annot"><span class="annottext">Aspects -&gt; TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#tokenBased"><span class="hs-identifier hs-var hs-var">tokenBased</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-type">TokenBased</span></a></span><span>
+</span><span id="line-143"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Is this entry token-based?</span></span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681724892"><span id="local-6989586621681724907"><span id="local-6989586621681724911"><span class="annot"><span class="annottext">Int -&gt; Aspects -&gt; ShowS
+[Aspects] -&gt; ShowS
+Aspects -&gt; String
+(Int -&gt; Aspects -&gt; ShowS)
+-&gt; (Aspects -&gt; String) -&gt; ([Aspects] -&gt; ShowS) -&gt; Show Aspects
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Aspects -&gt; ShowS
+showsPrec :: Int -&gt; Aspects -&gt; ShowS
+$cshow :: Aspects -&gt; String
+show :: Aspects -&gt; String
+$cshowList :: [Aspects] -&gt; ShowS
+showList :: [Aspects] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724916"><span id="local-6989586621681724918"><span class="annot"><span class="annottext">(forall x. Aspects -&gt; Rep Aspects x)
+-&gt; (forall x. Rep Aspects x -&gt; Aspects) -&gt; Generic Aspects
+forall x. Rep Aspects x -&gt; Aspects
+forall x. Aspects -&gt; Rep Aspects x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Aspects -&gt; Rep Aspects x
+from :: forall x. Aspects -&gt; Rep Aspects x
+$cto :: forall x. Rep Aspects x -&gt; Aspects
+to :: forall x. Rep Aspects x -&gt; Aspects
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-keyword">data</span><span> </span><span id="DefinitionSite"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-var">DefinitionSite</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="DefinitionSite"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-var">DefinitionSite</span></a></span></span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="defSiteModule"><span class="annot"><span class="annottext">DefinitionSite -&gt; TopLevelModuleName' Range
+</span><a href="Agda.Syntax.Common.Aspect.html#defSiteModule"><span class="hs-identifier hs-var hs-var">defSiteModule</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ The defining module.</span></span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="defSitePos"><span class="annot"><span class="annottext">DefinitionSite -&gt; Int
+</span><a href="Agda.Syntax.Common.Aspect.html#defSitePos"><span class="hs-identifier hs-var hs-var">defSitePos</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-151"></span><span>      </span><span class="hs-comment">-- ^ The file position in that module. File positions are</span><span>
+</span><span id="line-152"></span><span>      </span><span class="hs-comment">-- counted from 1.</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="defSiteHere"><span class="annot"><span class="annottext">DefinitionSite -&gt; Bool
+</span><a href="Agda.Syntax.Common.Aspect.html#defSiteHere"><span class="hs-identifier hs-var hs-var">defSiteHere</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-154"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Has this @DefinitionSite@ been created at the defining site of the name?</span></span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="defSiteAnchor"><span class="annot"><span class="annottext">DefinitionSite -&gt; Maybe String
+</span><a href="Agda.Syntax.Common.Aspect.html#defSiteAnchor"><span class="hs-identifier hs-var hs-var">defSiteAnchor</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-156"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ A pretty name for the HTML linking.</span></span><span>
+</span><span id="line-157"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-158"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681724926"><span id="local-6989586621681724936"><span id="local-6989586621681724939"><span class="annot"><span class="annottext">Int -&gt; DefinitionSite -&gt; ShowS
+[DefinitionSite] -&gt; ShowS
+DefinitionSite -&gt; String
+(Int -&gt; DefinitionSite -&gt; ShowS)
+-&gt; (DefinitionSite -&gt; String)
+-&gt; ([DefinitionSite] -&gt; ShowS)
+-&gt; Show DefinitionSite
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; DefinitionSite -&gt; ShowS
+showsPrec :: Int -&gt; DefinitionSite -&gt; ShowS
+$cshow :: DefinitionSite -&gt; String
+show :: DefinitionSite -&gt; String
+$cshowList :: [DefinitionSite] -&gt; ShowS
+showList :: [DefinitionSite] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724948"><span id="local-6989586621681724950"><span class="annot"><span class="annottext">(forall x. DefinitionSite -&gt; Rep DefinitionSite x)
+-&gt; (forall x. Rep DefinitionSite x -&gt; DefinitionSite)
+-&gt; Generic DefinitionSite
+forall x. Rep DefinitionSite x -&gt; DefinitionSite
+forall x. DefinitionSite -&gt; Rep DefinitionSite x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. DefinitionSite -&gt; Rep DefinitionSite x
+from :: forall x. DefinitionSite -&gt; Rep DefinitionSite x
+$cto :: forall x. Rep DefinitionSite x -&gt; DefinitionSite
+to :: forall x. Rep DefinitionSite x -&gt; DefinitionSite
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681724954"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-161"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span><span> </span><span id="local-6989586621681724960"><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681724960"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681724961"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681724961"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe String
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681724962"><span class="annot"><span class="annottext">== :: DefinitionSite -&gt; DefinitionSite -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var">==</span></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span><span> </span><span id="local-6989586621681724963"><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681724963"><span class="hs-identifier hs-var">m'</span></a></span></span><span> </span><span id="local-6989586621681724964"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681724964"><span class="hs-identifier hs-var">p'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe String
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681724960"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range -&gt; TopLevelModuleName' Range -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681724963"><span class="hs-identifier hs-var">m'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681724961"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681724964"><span class="hs-identifier hs-var">p'</span></a></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- | Is the highlighting \&quot;token-based\&quot;, i.e. based only on</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- information from the lexer?</span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="hs-keyword">data</span><span> </span><span id="TokenBased"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">TokenBased</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="TokenBased"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">TokenBased</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="NotOnlyTokenBased"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NotOnlyTokenBased"><span class="hs-identifier hs-var">NotOnlyTokenBased</span></a></span></span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681724969"><span id="local-6989586621681724973"><span class="annot"><span class="annottext">TokenBased -&gt; TokenBased -&gt; Bool
+(TokenBased -&gt; TokenBased -&gt; Bool)
+-&gt; (TokenBased -&gt; TokenBased -&gt; Bool) -&gt; Eq TokenBased
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: TokenBased -&gt; TokenBased -&gt; Bool
+== :: TokenBased -&gt; TokenBased -&gt; Bool
+$c/= :: TokenBased -&gt; TokenBased -&gt; Bool
+/= :: TokenBased -&gt; TokenBased -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724977"><span id="local-6989586621681724979"><span class="annot"><span class="annottext">(forall x. TokenBased -&gt; Rep TokenBased x)
+-&gt; (forall x. Rep TokenBased x -&gt; TokenBased) -&gt; Generic TokenBased
+forall x. Rep TokenBased x -&gt; TokenBased
+forall x. TokenBased -&gt; Rep TokenBased x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. TokenBased -&gt; Rep TokenBased x
+from :: forall x. TokenBased -&gt; Rep TokenBased x
+$cto :: forall x. Rep TokenBased x -&gt; TokenBased
+to :: forall x. Rep TokenBased x -&gt; TokenBased
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681724982"><span id="local-6989586621681724984"><span id="local-6989586621681724987"><span class="annot"><span class="annottext">Int -&gt; TokenBased -&gt; ShowS
+[TokenBased] -&gt; ShowS
+TokenBased -&gt; String
+(Int -&gt; TokenBased -&gt; ShowS)
+-&gt; (TokenBased -&gt; String)
+-&gt; ([TokenBased] -&gt; ShowS)
+-&gt; Show TokenBased
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; TokenBased -&gt; ShowS
+showsPrec :: Int -&gt; TokenBased -&gt; ShowS
+$cshow :: TokenBased -&gt; String
+show :: TokenBased -&gt; String
+$cshowList :: [TokenBased] -&gt; ShowS
+showList :: [TokenBased] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681724991"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-type">TokenBased</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-170"></span><span>  </span><span id="local-6989586621681724996"><span class="annot"><span class="annottext">empty :: TokenBased
+</span><a href="#local-6989586621681724996"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">TokenBased</span></a></span><span>
+</span><span id="line-171"></span><span>
+</span><span id="line-172"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-173"></span><span>  </span><span id="local-6989586621681725004"><span class="annot"><span class="annottext">empty :: Aspects
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Aspect
+-&gt; Set OtherAspect
+-&gt; String
+-&gt; Maybe DefinitionSite
+-&gt; TokenBased
+-&gt; Aspects
+</span><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-var">Aspects</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Aspect
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Set OtherAspect
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">Maybe DefinitionSite
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">TokenBased</span></a></span><span>
+</span><span id="line-174"></span><span>  </span><span id="local-6989586621681725013"><span class="annot"><span class="annottext">null :: Aspects -&gt; Bool
+</span><a href="#local-6989586621681725013"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span id="local-6989586621681725015"><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681725015"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681725016"><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681725016"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621681725017"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681725017"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681725018"><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681725018"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681725019"><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681725019"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Aspect -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681725015"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Set OtherAspect -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681725016"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681725017"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Maybe DefinitionSite -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681725018"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">TokenBased -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681725019"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725022"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-177"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span id="local-6989586621681725035"><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681725035"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681725036"><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681725036"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681725037"><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681725037"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681725038"><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681725038"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621681725039"><span class="annot"><span class="annottext">== :: Aspects -&gt; Aspects -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var">==</span></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span id="local-6989586621681725040"><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681725040"><span class="hs-identifier hs-var">a'</span></a></span></span><span> </span><span id="local-6989586621681725041"><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681725041"><span class="hs-identifier hs-var">o'</span></a></span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681725042"><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681725042"><span class="hs-identifier hs-var">d'</span></a></span></span><span> </span><span id="local-6989586621681725043"><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681725043"><span class="hs-identifier hs-var">t'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-178"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681725035"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681725036"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681725037"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681725038"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe Aspect, Set OtherAspect, Maybe DefinitionSite, TokenBased)
+-&gt; (Maybe Aspect, Set OtherAspect, Maybe DefinitionSite,
+    TokenBased)
+-&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681725040"><span class="hs-identifier hs-var">a'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681725041"><span class="hs-identifier hs-var">o'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681725042"><span class="hs-identifier hs-var">d'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681725043"><span class="hs-identifier hs-var">t'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- | Compute the 'Aspects' which (possibly) contain a 'DefinitionSite'</span><span>
+</span><span id="line-181"></span><span class="hs-comment">-- for the given thing-with-range.</span><span>
+</span><span id="line-182"></span><span id="local-6989586621681724544"><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#rangeDefinitionSite"><span class="hs-identifier hs-type">rangeDefinitionSite</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier hs-type">HasRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681724544"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681724544"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span></span><span>
+</span><span id="line-183"></span><span id="rangeDefinitionSite"><span class="annot"><span class="annottext">rangeDefinitionSite :: forall a. HasRange a =&gt; a -&gt; Aspects
+</span><a href="Agda.Syntax.Common.Aspect.html#rangeDefinitionSite"><span class="hs-identifier hs-var hs-var">rangeDefinitionSite</span></a></span></span><span> </span><span id="local-6989586621681725058"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681725058"><span class="hs-identifier hs-var">thing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-184"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-185"></span><span>    </span><span id="local-6989586621681725059"><span class="annot"><span class="annottext">r :: Range
+</span><a href="#local-6989586621681725059"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681725058"><span class="hs-identifier hs-var">thing</span></a></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span>    </span><span class="annot"><a href="#local-6989586621681725061"><span class="hs-identifier hs-type">defs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span><span>
+</span><span id="line-188"></span><span>    </span><span id="local-6989586621681725061"><span class="annot"><span class="annottext">defs :: Maybe DefinitionSite
+</span><a href="#local-6989586621681725061"><span class="hs-identifier hs-var hs-var">defs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-189"></span><span>      </span><span id="local-6989586621681725062"><span class="annot"><a href="#local-6989586621681725062"><span class="hs-identifier hs-var">mod</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Maybe (TopLevelModuleName' Range)
+</span><a href="Agda.Syntax.Position.html#rangeModule"><span class="hs-identifier hs-var">rangeModule</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681725059"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-190"></span><span>      </span><span id="local-6989586621681725063"><span class="annot"><a href="#local-6989586621681725063"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#posPos"><span class="hs-identifier hs-var">posPos</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#rStart"><span class="hs-identifier hs-type">rStart</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681725059"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-191"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span><span>
+</span><span id="line-192"></span><span>        </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#defSiteModule"><span class="hs-identifier hs-var">defSiteModule</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681725062"><span class="hs-identifier hs-type">mod</span></a></span><span>
+</span><span id="line-193"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#defSitePos"><span class="hs-identifier hs-var">defSitePos</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">fromIntegral</span></span><span> </span><span class="annot"><a href="#local-6989586621681725063"><span class="hs-identifier hs-type">pos</span></a></span><span>
+</span><span id="line-194"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#defSiteHere"><span class="hs-identifier hs-var">defSiteHere</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-195"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#defSiteAnchor"><span class="hs-identifier hs-var">defSiteAnchor</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span>
+</span><span id="line-196"></span><span>        </span><span class="hs-special">}</span><span>
+</span><span id="line-197"></span><span>  </span><span class="annot"><span class="annottext">Aspects
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#definitionSite"><span class="hs-identifier hs-var">definitionSite</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681725061"><span class="hs-identifier hs-type">defs</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- NFData instances</span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725066"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span></span><span>
+</span><span id="line-203"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725101"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#OtherAspect"><span class="hs-identifier hs-type">OtherAspect</span></a></span></span><span>
+</span><span id="line-204"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725144"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-type">TokenBased</span></a></span></span><span>
+</span><span id="line-205"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725155"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Induction"><span class="hs-identifier hs-type">Induction</span></a></span></span><span>
+</span><span id="line-206"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725166"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NameKind"><span class="hs-identifier hs-type">NameKind</span></a></span></span><span>
+</span><span id="line-207"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725200"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span></span><span>
+</span><span id="line-208"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681725233"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspect"><span class="hs-identifier hs-type">Aspect</span></a></span></span><span>
+</span><span id="line-209"></span></pre></body></html>

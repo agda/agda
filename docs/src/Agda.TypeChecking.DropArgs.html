@@ -1,0 +1,280 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html"><span class="hs-identifier">Agda.TypeChecking.DropArgs</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html"><span class="hs-identifier">Agda.TypeChecking.CompiledClause</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html"><span class="hs-identifier">Agda.TypeChecking.Coverage.SplitTree</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Permutation.html"><span class="hs-identifier">Agda.Utils.Permutation</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">second</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-21"></span><span class="annot"><span class="hs-comment">-- * Dropping initial arguments to create a projection-like function</span></span><span>
+</span><span id="line-22"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- | When making a function projection-like, we drop the first @n@</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   arguments.</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">class</span><span> </span><span id="DropArgs"><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-var">DropArgs</span></a></span></span><span> </span><span id="local-6989586621681965375"><span class="annot"><a href="#local-6989586621681965375"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-27"></span><span>  </span><span id="dropArgs"><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-type">dropArgs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681965375"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681965375"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681965376"><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681965376"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681965376"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>  </span><span id="local-6989586621681965446"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; Maybe a -&gt; Maybe a
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span id="local-6989586621681965447"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965447"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; Maybe a -&gt; Maybe a
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; a -&gt; a
+forall a. DropArgs a =&gt; Int -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var">dropArgs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965447"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="annot"><span class="hs-comment">-- | NOTE: This creates telescopes with unbound de Bruijn indices.</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>  </span><span id="local-6989586621681965450"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; Telescope -&gt; Telescope
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span id="local-6989586621681965451"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965451"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681965452"><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681965452"><span class="hs-identifier hs-var">tel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListTel -&gt; Telescope
+</span><a href="Agda.Syntax.Internal.html#telFromList"><span class="hs-identifier hs-var">telFromList</span></a></span><span> </span><span class="annot"><span class="annottext">(ListTel -&gt; Telescope) -&gt; ListTel -&gt; Telescope
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; ListTel -&gt; ListTel
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965451"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">(ListTel -&gt; ListTel) -&gt; ListTel -&gt; ListTel
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; ListTel
+forall t. Tele (Dom t) -&gt; [Dom (ArgName, t)]
+</span><a href="Agda.Syntax.Internal.html#telToList"><span class="hs-identifier hs-var">telToList</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681965452"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Permutation.html#Permutation"><span class="hs-identifier hs-type">Permutation</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621681965461"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; Permutation -&gt; Permutation
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span id="local-6989586621681965462"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965462"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Permutation.html#Perm"><span class="hs-identifier hs-type">Perm</span></a></span><span> </span><span id="local-6989586621681965464"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965464"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681965465"><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621681965465"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Int] -&gt; Permutation
+</span><a href="Agda.Utils.Permutation.html#Perm"><span class="hs-identifier hs-var">Perm</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965464"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965462"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Int] -&gt; Permutation) -&gt; [Int] -&gt; Permutation
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int) -&gt; [Int] -&gt; [Int]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">subtract</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965462"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Int] -&gt; [Int]) -&gt; [Int] -&gt; [Int]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Int] -&gt; [Int]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965462"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621681965465"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><span class="hs-comment">-- | NOTE: does not work for recursive functions.</span></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-41"></span><span>  </span><span id="local-6989586621681965469"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; Clause -&gt; Clause
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span id="local-6989586621681965470"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965470"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681965471"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681965471"><span class="hs-identifier hs-var">cl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681965471"><span class="hs-identifier hs-var">cl</span></a></span><span class="hs-special">{</span><span> </span><span class="hs-comment">-- Andreas, 2012-09-25: just dropping the front of telescope</span><span>
+</span><span id="line-43"></span><span>          </span><span class="hs-comment">-- makes it ill-formed (unbound indices)</span><span>
+</span><span id="line-44"></span><span>          </span><span class="hs-comment">-- we should let the telescope intact!?</span><span>
+</span><span id="line-45"></span><span>          </span><span class="hs-comment">-- Ulf, 2016-06-23: Indeed. After parameter refinement it's even</span><span>
+</span><span id="line-46"></span><span>          </span><span class="hs-comment">-- worse: the module parameters we want to drop aren't necessarily</span><span>
+</span><span id="line-47"></span><span>          </span><span class="hs-comment">-- the first things in the telescope.</span><span>
+</span><span id="line-48"></span><span>          </span><span class="annot"><a href="Agda.Syntax.Internal.html#namedClausePats"><span class="hs-identifier hs-var">namedClausePats</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">drop</span></span><span> </span><span class="annot"><a href="#local-6989586621681965470"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#namedClausePats"><span class="hs-identifier hs-var">namedClausePats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681965471"><span class="hs-identifier hs-type">cl</span></a></span><span>
+</span><span id="line-49"></span><span>          </span><span class="hs-comment">-- BUG: need to drop also from recursive calls!!</span><span>
+</span><span id="line-50"></span><span>        </span><span class="hs-special">}</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#FunctionInverse"><span class="hs-identifier hs-type">FunctionInverse</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621681965478"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; FunctionInverse -&gt; FunctionInverse
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span id="local-6989586621681965479"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965479"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681965480"><span class="annot"><span class="annottext">FunctionInverse
+</span><a href="#local-6989586621681965480"><span class="hs-identifier hs-var">finv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Clause -&gt; Clause) -&gt; FunctionInverse -&gt; FunctionInverse
+forall a b. (a -&gt; b) -&gt; FunctionInverse' a -&gt; FunctionInverse' b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Clause -&gt; Clause
+forall a. DropArgs a =&gt; Int -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var">dropArgs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965479"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">FunctionInverse
+</span><a href="#local-6989586621681965480"><span class="hs-identifier hs-var">finv</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Use for dropping initial lambdas in clause bodies.</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   NOTE: does not reduce term, need lambdas to be present.</span><span>
+</span><span id="line-57"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>  </span><span id="local-6989586621681965493"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; Term -&gt; Term
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var">dropArgs</span></a></span><span> </span><span id="local-6989586621681965495"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965495"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span id="local-6989586621681965497"><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681965497"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621681965498"><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681965498"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Term -&gt; Term
+forall a. DropArgs a =&gt; Int -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var">dropArgs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965495"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Abs Term -&gt; Term
+forall a. Subst a =&gt; Abs a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#absBody"><span class="hs-identifier hs-var">absBody</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681965498"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><span class="annottext">Term
+</span><span class="hs-identifier">_</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | To drop the first @n@ arguments in a compiled clause,</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--   we reduce the split argument indices by @n@ and</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--   drop @n@ arguments from the bodies.</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--   NOTE: this only works for non-recursive functions, we</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   are not dropping arguments to recursive calls in bodies.</span><span>
+</span><span id="line-68"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#CompiledClauses"><span class="hs-identifier hs-type">CompiledClauses</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621681965522"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; CompiledClauses -&gt; CompiledClauses
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span id="local-6989586621681965523"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#Case"><span class="hs-identifier hs-type">Case</span></a></span><span> </span><span id="local-6989586621681965525"><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681965525"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681965526"><span class="annot"><span class="annottext">Case CompiledClauses
+</span><a href="#local-6989586621681965526"><span class="hs-identifier hs-var">br</span></a></span></span><span>
+</span><span id="line-71"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Arg Int -&gt; Int
+forall e. Arg e -&gt; e
+</span><a href="Agda.Syntax.Common.html#unArg"><span class="hs-identifier hs-var">unArg</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681965525"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CompiledClauses
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-72"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Arg Int -&gt; Case CompiledClauses -&gt; CompiledClauses
+forall a.
+Arg Int -&gt; Case (CompiledClauses' a) -&gt; CompiledClauses' a
+</span><a href="Agda.TypeChecking.CompiledClause.html#Case"><span class="hs-identifier hs-var">Case</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681965525"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Int -&gt; (Int -&gt; Int) -&gt; Arg Int
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681965530"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965530"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965530"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Case CompiledClauses -&gt; CompiledClauses)
+-&gt; Case CompiledClauses -&gt; CompiledClauses
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(CompiledClauses -&gt; CompiledClauses)
+-&gt; Case CompiledClauses -&gt; Case CompiledClauses
+forall a b. (a -&gt; b) -&gt; Case a -&gt; Case b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; CompiledClauses -&gt; CompiledClauses
+forall a. DropArgs a =&gt; Int -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var">dropArgs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Case CompiledClauses
+</span><a href="#local-6989586621681965526"><span class="hs-identifier hs-var">br</span></a></span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#Done"><span class="hs-identifier hs-type">Done</span></a></span><span> </span><span id="local-6989586621681965532"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965532"><span class="hs-identifier hs-var">no</span></a></span></span><span> </span><span id="local-6989586621681965533"><span class="annot"><span class="annottext">ClauseRecursive
+</span><a href="#local-6989586621681965533"><span class="hs-identifier hs-var">mr</span></a></span></span><span> </span><span id="local-6989586621681965534"><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681965534"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681965535"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681965535"><span class="hs-identifier hs-var">t</span></a></span></span><span>
+</span><span id="line-74"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681965534"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CompiledClauses
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-75"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; ClauseRecursive -&gt; [Arg ArgName] -&gt; Term -&gt; CompiledClauses
+forall a.
+Int -&gt; ClauseRecursive -&gt; [Arg ArgName] -&gt; a -&gt; CompiledClauses' a
+</span><a href="Agda.TypeChecking.CompiledClause.html#Done"><span class="hs-identifier hs-var">Done</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965532"><span class="hs-identifier hs-var">no</span></a></span><span> </span><span class="annot"><span class="annottext">ClauseRecursive
+</span><a href="#local-6989586621681965533"><span class="hs-identifier hs-var">mr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; [Arg ArgName] -&gt; [Arg ArgName]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681965534"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681965535"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#Fail"><span class="hs-identifier hs-type">Fail</span></a></span><span> </span><span id="local-6989586621681965538"><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681965538"><span class="hs-identifier hs-var">xs</span></a></span></span><span>
+</span><span id="line-77"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681965538"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CompiledClauses
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-78"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; CompiledClauses
+forall a. [Arg ArgName] -&gt; CompiledClauses' a
+</span><a href="Agda.TypeChecking.CompiledClause.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; [Arg ArgName] -&gt; [Arg ArgName]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965523"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681965538"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#DropArgs"><span class="hs-identifier hs-type">DropArgs</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree"><span class="hs-identifier hs-type">SplitTree</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-81"></span><span>  </span><span id="local-6989586621681965547"><span class="annot"><span class="annottext">dropArgs :: Int -&gt; SplitTree -&gt; SplitTree
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var hs-var hs-var">dropArgs</span></a></span></span><span> </span><span id="local-6989586621681965548"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965548"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplittingDone"><span class="hs-identifier hs-type">SplittingDone</span></a></span><span> </span><span id="local-6989586621681965550"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965550"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; SplitTree
+forall a. Int -&gt; SplitTree' a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplittingDone"><span class="hs-identifier hs-var">SplittingDone</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965550"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965548"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var">dropArgs</span></a></span><span> </span><span id="local-6989586621681965551"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965551"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitAt"><span class="hs-identifier hs-type">SplitAt</span></a></span><span> </span><span id="local-6989586621681965553"><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681965553"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681965554"><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681965554"><span class="hs-identifier hs-var">lz</span></a></span></span><span> </span><span id="local-6989586621681965555"><span class="annot"><span class="annottext">SplitTrees' SplitTag
+</span><a href="#local-6989586621681965555"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg Int -&gt; LazySplit -&gt; SplitTrees' SplitTag -&gt; SplitTree
+forall a. Arg Int -&gt; LazySplit -&gt; SplitTrees' a -&gt; SplitTree' a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitAt"><span class="hs-identifier hs-var">SplitAt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">subtract</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965551"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int) -&gt; Arg Int -&gt; Arg Int
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681965553"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681965554"><span class="hs-identifier hs-var">lz</span></a></span><span> </span><span class="annot"><span class="annottext">(SplitTrees' SplitTag -&gt; SplitTree)
+-&gt; SplitTrees' SplitTag -&gt; SplitTree
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((SplitTag, SplitTree) -&gt; (SplitTag, SplitTree))
+-&gt; SplitTrees' SplitTag -&gt; SplitTrees' SplitTag
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(SplitTree -&gt; SplitTree)
+-&gt; (SplitTag, SplitTree) -&gt; (SplitTag, SplitTree)
+forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+forall (p :: * -&gt; * -&gt; *) b c a.
+Bifunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="annot"><span class="annottext">((SplitTree -&gt; SplitTree)
+ -&gt; (SplitTag, SplitTree) -&gt; (SplitTag, SplitTree))
+-&gt; (SplitTree -&gt; SplitTree)
+-&gt; (SplitTag, SplitTree)
+-&gt; (SplitTag, SplitTree)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SplitTree -&gt; SplitTree
+forall a. DropArgs a =&gt; Int -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.DropArgs.html#dropArgs"><span class="hs-identifier hs-var">dropArgs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681965551"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SplitTrees' SplitTag
+</span><a href="#local-6989586621681965555"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-83"></span></pre></body></html>

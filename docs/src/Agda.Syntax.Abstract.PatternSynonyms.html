@@ -1,0 +1,429 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Pattern synonym utilities: folding pattern synonym definitions for</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--   printing and merging pattern synonym definitions to handle overloaded</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--   pattern synonyms.</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html"><span class="hs-identifier">Agda.Syntax.Abstract.PatternSynonyms</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#matchPatternSyn"><span class="hs-identifier">matchPatternSyn</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#matchPatternSynP"><span class="hs-identifier">matchPatternSynP</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#mergePatternSynDefs"><span class="hs-identifier">mergePatternSynDefs</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Alternative</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">empty</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>        </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">foldM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">guard</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">zipWithM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">zipWithM_</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadWriter</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">WriterT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">execWriterT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Traversable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">forM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Void</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html"><span class="hs-identifier">Agda.Syntax.Abstract</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Views.html"><span class="hs-identifier">Agda.Syntax.Abstract.Views</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- | Merge a list of pattern synonym definitions. Fails unless all definitions</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--   have the same shape (i.e. equal up to renaming of variables and constructor</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--   names).</span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#mergePatternSynDefs"><span class="hs-identifier hs-type">mergePatternSynDefs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span>
+</span><span id="line-32"></span><span id="mergePatternSynDefs"><span class="annot"><span class="annottext">mergePatternSynDefs :: List1 PatternSynDefn -&gt; Maybe PatternSynDefn
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#mergePatternSynDefs"><span class="hs-identifier hs-var hs-var">mergePatternSynDefs</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681898875"><span class="annot"><span class="annottext">PatternSynDefn
+</span><a href="#local-6989586621681898875"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681898876"><span class="annot"><span class="annottext">[PatternSynDefn]
+</span><a href="#local-6989586621681898876"><span class="hs-identifier hs-var">defs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PatternSynDefn -&gt; PatternSynDefn -&gt; Maybe PatternSynDefn)
+-&gt; PatternSynDefn -&gt; [PatternSynDefn] -&gt; Maybe PatternSynDefn
+forall (t :: * -&gt; *) (m :: * -&gt; *) b a.
+(Foldable t, Monad m) =&gt;
+(b -&gt; a -&gt; m b) -&gt; b -&gt; t a -&gt; m b
+</span><span class="hs-identifier hs-var">foldM</span></span><span> </span><span class="annot"><span class="annottext">PatternSynDefn -&gt; PatternSynDefn -&gt; Maybe PatternSynDefn
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#mergeDef"><span class="hs-identifier hs-var">mergeDef</span></a></span><span> </span><span class="annot"><span class="annottext">PatternSynDefn
+</span><a href="#local-6989586621681898875"><span class="hs-identifier hs-var">def</span></a></span><span> </span><span class="annot"><span class="annottext">[PatternSynDefn]
+</span><a href="#local-6989586621681898876"><span class="hs-identifier hs-var">defs</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#mergeDef"><span class="hs-identifier hs-type">mergeDef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span>
+</span><span id="line-35"></span><span id="mergeDef"><span class="annot"><span class="annottext">mergeDef :: PatternSynDefn -&gt; PatternSynDefn -&gt; Maybe PatternSynDefn
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#mergeDef"><span class="hs-identifier hs-var hs-var">mergeDef</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681898878"><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681898878"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681898879"><span class="annot"><span class="annottext">Pattern' Void
+</span><a href="#local-6989586621681898879"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681898880"><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681898880"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681898881"><span class="annot"><span class="annottext">Pattern' Void
+</span><a href="#local-6989586621681898881"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; Maybe ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Maybe ()) -&gt; Bool -&gt; Maybe ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(WithHiding Name -&gt; Hiding) -&gt; [WithHiding Name] -&gt; [Hiding]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">WithHiding Name -&gt; Hiding
+forall a. WithHiding a -&gt; Hiding
+</span><a href="Agda.Syntax.Common.html#whHiding"><span class="hs-identifier hs-var">whHiding</span></a></span><span> </span><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681898878"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[Hiding] -&gt; [Hiding] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">(WithHiding Name -&gt; Hiding) -&gt; [WithHiding Name] -&gt; [Hiding]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">WithHiding Name -&gt; Hiding
+forall a. WithHiding a -&gt; Hiding
+</span><a href="Agda.Syntax.Common.html#whHiding"><span class="hs-identifier hs-var">whHiding</span></a></span><span> </span><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681898880"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681898883"><span class="annot"><span class="annottext">ren :: [(Name, Name)]
+</span><a href="#local-6989586621681898883"><span class="hs-identifier hs-var hs-var">ren</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; [Name] -&gt; [(Name, Name)]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(WithHiding Name -&gt; Name) -&gt; [WithHiding Name] -&gt; [Name]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">WithHiding Name -&gt; Name
+forall a. WithHiding a -&gt; a
+</span><a href="Agda.Syntax.Common.html#whThing"><span class="hs-identifier hs-var">whThing</span></a></span><span> </span><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681898878"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(WithHiding Name -&gt; Name) -&gt; [WithHiding Name] -&gt; [Name]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">WithHiding Name -&gt; Name
+forall a. WithHiding a -&gt; a
+</span><a href="Agda.Syntax.Common.html#whThing"><span class="hs-identifier hs-var">whThing</span></a></span><span> </span><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681898880"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681898878"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Pattern' Void -&gt; PatternSynDefn)
+-&gt; Maybe (Pattern' Void) -&gt; Maybe PatternSynDefn
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[(Name, Name)]
+-&gt; Pattern' Void -&gt; Pattern' Void -&gt; Maybe (Pattern' Void)
+forall {f :: * -&gt; *} {t :: * -&gt; *} {e} {e}.
+(Alternative f, Foldable t, Monad f) =&gt;
+t (Name, Name) -&gt; Pattern' e -&gt; Pattern' e -&gt; f (Pattern' e)
+</span><a href="#local-6989586621681898886"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, Name)]
+</span><a href="#local-6989586621681898883"><span class="hs-identifier hs-var">ren</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' Void
+</span><a href="#local-6989586621681898879"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' Void
+</span><a href="#local-6989586621681898881"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-40"></span><span>    </span><span id="local-6989586621681898886"><span class="annot"><span class="annottext">merge :: t (Name, Name) -&gt; Pattern' e -&gt; Pattern' e -&gt; f (Pattern' e)
+</span><a href="#local-6989586621681898886"><span class="hs-identifier hs-var hs-var">merge</span></a></span></span><span> </span><span id="local-6989586621681898926"><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898926"><span class="hs-identifier hs-var">ren</span></a></span></span><span> </span><span id="local-6989586621681898927"><span class="annot"><span class="annottext">p :: Pattern' e
+</span><a href="#local-6989586621681898927"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#VarP"><span class="hs-identifier hs-type">VarP</span></a></span><span> </span><span id="local-6989586621681898929"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898929"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#VarP"><span class="hs-identifier hs-type">VarP</span></a></span><span> </span><span id="local-6989586621681898930"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898930"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681898927"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e -&gt; f () -&gt; f (Pattern' e)
+forall a b. a -&gt; f b -&gt; f a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; f ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">BindName -&gt; Name
+</span><a href="Agda.Syntax.Abstract.html#unBind"><span class="hs-identifier hs-var">unBind</span></a></span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898929"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BindName -&gt; Name
+</span><a href="Agda.Syntax.Abstract.html#unBind"><span class="hs-identifier hs-var">unBind</span></a></span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898930"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name, Name) -&gt; t (Name, Name) -&gt; Bool
+forall a. Eq a =&gt; a -&gt; t a -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898926"><span class="hs-identifier hs-var">ren</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><a href="#local-6989586621681898886"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span id="local-6989586621681898934"><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898934"><span class="hs-identifier hs-var">ren</span></a></span></span><span> </span><span id="local-6989586621681898935"><span class="annot"><span class="annottext">p :: Pattern' e
+</span><a href="#local-6989586621681898935"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#LitP"><span class="hs-identifier hs-type">LitP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898937"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898937"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#LitP"><span class="hs-identifier hs-type">LitP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898938"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898938"><span class="hs-identifier hs-var">l'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681898935"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e -&gt; f () -&gt; f (Pattern' e)
+forall a b. a -&gt; f b -&gt; f a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; f ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898937"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Literal -&gt; Literal -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898938"><span class="hs-identifier hs-var">l'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><a href="#local-6989586621681898886"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span id="local-6989586621681898939"><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898939"><span class="hs-identifier hs-var">ren</span></a></span></span><span> </span><span id="local-6989586621681898940"><span class="annot"><span class="annottext">p :: Pattern' e
+</span><a href="#local-6989586621681898940"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#WildP"><span class="hs-identifier hs-type">WildP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#WildP"><span class="hs-identifier hs-type">WildP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pattern' e -&gt; f (Pattern' e)
+forall a. a -&gt; f a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681898940"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><a href="#local-6989586621681898886"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span id="local-6989586621681898942"><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898942"><span class="hs-identifier hs-var">ren</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-type">ConP</span></a></span><span> </span><span id="local-6989586621681898944"><span class="annot"><span class="annottext">ConPatInfo
+</span><a href="#local-6989586621681898944"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#AmbQ"><span class="hs-identifier hs-type">AmbQ</span></a></span><span> </span><span id="local-6989586621681898946"><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681898946"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681898947"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898947"><span class="hs-identifier hs-var">ps</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-type">ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#AmbQ"><span class="hs-identifier hs-type">AmbQ</span></a></span><span> </span><span id="local-6989586621681898948"><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681898948"><span class="hs-identifier hs-var">cs'</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681898949"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898949"><span class="hs-identifier hs-var">qs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-44"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; f ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; f ()) -&gt; Bool -&gt; f ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(NamedArg (Pattern' e) -&gt; ArgInfo) -&gt; NAPs e -&gt; [ArgInfo]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; ArgInfo
+forall a. LensArgInfo a =&gt; a -&gt; ArgInfo
+</span><a href="Agda.Syntax.Common.html#getArgInfo"><span class="hs-identifier hs-var">getArgInfo</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898947"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">[ArgInfo] -&gt; [ArgInfo] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">(NamedArg (Pattern' e) -&gt; ArgInfo) -&gt; NAPs e -&gt; [ArgInfo]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; ArgInfo
+forall a. LensArgInfo a =&gt; a -&gt; ArgInfo
+</span><a href="Agda.Syntax.Common.html#getArgInfo"><span class="hs-identifier hs-var">getArgInfo</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898949"><span class="hs-identifier hs-var">qs</span></a></span><span>
+</span><span id="line-45"></span><span>      </span><span class="annot"><span class="annottext">ConPatInfo -&gt; AmbiguousQName -&gt; NAPs e -&gt; Pattern' e
+forall e. ConPatInfo -&gt; AmbiguousQName -&gt; NAPs e -&gt; Pattern' e
+</span><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-var">ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><a href="#local-6989586621681898944"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 QName -&gt; AmbiguousQName
+</span><a href="Agda.Syntax.Abstract.Name.html#AmbQ"><span class="hs-identifier hs-var">AmbQ</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 QName -&gt; AmbiguousQName) -&gt; List1 QName -&gt; AmbiguousQName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">List1 QName -&gt; List1 QName -&gt; List1 QName
+forall a. Eq a =&gt; List1 a -&gt; List1 a -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#union"><span class="hs-identifier hs-var">List1.union</span></a></span><span> </span><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681898946"><span class="hs-identifier hs-var">cs</span></a></span><span> </span><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681898948"><span class="hs-identifier hs-var">cs'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(NAPs e -&gt; Pattern' e) -&gt; f (NAPs e) -&gt; f (Pattern' e)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(NamedArg (Pattern' e)
+ -&gt; NamedArg (Pattern' e) -&gt; f (NamedArg (Pattern' e)))
+-&gt; NAPs e -&gt; NAPs e -&gt; f (NAPs e)
+forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; m c) -&gt; [a] -&gt; [b] -&gt; m [c]
+</span><span class="hs-identifier hs-var">zipWithM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t (Name, Name)
+-&gt; NamedArg (Pattern' e)
+-&gt; NamedArg (Pattern' e)
+-&gt; f (NamedArg (Pattern' e))
+</span><a href="#local-6989586621681898952"><span class="hs-identifier hs-var">mergeArg</span></a></span><span> </span><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898942"><span class="hs-identifier hs-var">ren</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898947"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898949"><span class="hs-identifier hs-var">qs</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><a href="#local-6989586621681898886"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span class="annot"><span class="annottext">t (Name, Name)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f (Pattern' e)
+forall a. f a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a
+</span><span class="hs-identifier hs-var">empty</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span>    </span><span id="local-6989586621681898952"><span class="annot"><span class="annottext">mergeArg :: t (Name, Name)
+-&gt; NamedArg (Pattern' e)
+-&gt; NamedArg (Pattern' e)
+-&gt; f (NamedArg (Pattern' e))
+</span><a href="#local-6989586621681898952"><span class="hs-identifier hs-var hs-var">mergeArg</span></a></span></span><span> </span><span id="local-6989586621681898953"><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898953"><span class="hs-identifier hs-var">ren</span></a></span></span><span> </span><span id="local-6989586621681898954"><span class="annot"><span class="annottext">NamedArg (Pattern' e)
+</span><a href="#local-6989586621681898954"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681898955"><span class="annot"><span class="annottext">NamedArg (Pattern' e)
+</span><a href="#local-6989586621681898955"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; Pattern' e -&gt; NamedArg (Pattern' e)
+forall a b. NamedArg a -&gt; b -&gt; NamedArg b
+</span><a href="Agda.Syntax.Common.html#setNamedArg"><span class="hs-identifier hs-var">setNamedArg</span></a></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e)
+</span><a href="#local-6989586621681898954"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">(Pattern' e -&gt; NamedArg (Pattern' e))
+-&gt; f (Pattern' e) -&gt; f (NamedArg (Pattern' e))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">t (Name, Name) -&gt; Pattern' e -&gt; Pattern' e -&gt; f (Pattern' e)
+</span><a href="#local-6989586621681898886"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span class="annot"><span class="annottext">t (Name, Name)
+</span><a href="#local-6989586621681898953"><span class="hs-identifier hs-var">ren</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; Pattern' e
+forall a. NamedArg a -&gt; a
+</span><a href="Agda.Syntax.Common.html#namedArg"><span class="hs-identifier hs-var">namedArg</span></a></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e)
+</span><a href="#local-6989586621681898954"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; Pattern' e
+forall a. NamedArg a -&gt; a
+</span><a href="Agda.Syntax.Common.html#namedArg"><span class="hs-identifier hs-var">namedArg</span></a></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e)
+</span><a href="#local-6989586621681898955"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="annot"><span class="hs-comment">-- | Match an expression against a pattern synonym.</span></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#matchPatternSyn"><span class="hs-identifier hs-type">matchPatternSyn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Expr"><span class="hs-identifier hs-type">Expr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#WithHiding"><span class="hs-identifier hs-type">WithHiding</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Expr"><span class="hs-identifier hs-type">Expr</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-52"></span><span id="matchPatternSyn"><span class="annot"><span class="annottext">matchPatternSyn :: PatternSynDefn -&gt; Expr -&gt; Maybe [WithHiding Expr]
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#matchPatternSyn"><span class="hs-identifier hs-var hs-var">matchPatternSyn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Pattern' Void -&gt; Expr -&gt; Match Expr ())
+-&gt; PatternSynDefn -&gt; Expr -&gt; Maybe [WithHiding Expr]
+forall e.
+(Pattern' Void -&gt; e -&gt; Match e ())
+-&gt; PatternSynDefn -&gt; e -&gt; Maybe [WithHiding e]
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#runMatch"><span class="hs-identifier hs-var">runMatch</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' Void -&gt; Expr -&gt; Match Expr ()
+forall {e}. Pattern' e -&gt; Expr -&gt; Match Expr ()
+</span><a href="#local-6989586621681898959"><span class="hs-identifier hs-var">match</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-54"></span><span>    </span><span id="local-6989586621681898959"><span class="annot"><span class="annottext">match :: Pattern' e -&gt; Expr -&gt; Match Expr ()
+</span><a href="#local-6989586621681898959"><span class="hs-identifier hs-var hs-var">match</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#VarP"><span class="hs-identifier hs-type">VarP</span></a></span><span> </span><span id="local-6989586621681898993"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898993"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681898994"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898994"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BindName -&gt; Name
+</span><a href="Agda.Syntax.Abstract.html#unBind"><span class="hs-identifier hs-var">unBind</span></a></span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898993"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Expr -&gt; Match Expr ()
+forall e. Name -&gt; e -&gt; Match e ()
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#%3D%3D%3E"><span class="hs-operator hs-var">==&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898994"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><a href="#local-6989586621681898959"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#LitP"><span class="hs-identifier hs-type">LitP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898996"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898996"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898998"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898998"><span class="hs-identifier hs-var">l'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Match Expr ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898996"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Literal -&gt; Literal -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681898998"><span class="hs-identifier hs-var">l'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><a href="#local-6989586621681898959"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-type">ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#AmbQ"><span class="hs-identifier hs-type">AmbQ</span></a></span><span> </span><span id="local-6989586621681898999"><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681898999"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681899000"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681899000"><span class="hs-identifier hs-var">ps</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681899001"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681899001"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-57"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Abstract.Views.html#Application"><span class="hs-identifier hs-type">Application</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#AmbQ"><span class="hs-identifier hs-type">AmbQ</span></a></span><span> </span><span id="local-6989586621681899004"><span class="annot"><a href="#local-6989586621681899004"><span class="hs-identifier hs-var">cs'</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span id="local-6989586621681899005"><span class="annot"><a href="#local-6989586621681899005"><span class="hs-identifier hs-var">args</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">AppView -&gt; WriterT (Map Name Expr) Maybe AppView
+forall a. a -&gt; WriterT (Map Name Expr) Maybe a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr -&gt; AppView
+</span><a href="Agda.Syntax.Abstract.Views.html#appView"><span class="hs-identifier hs-var">appView</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681899001"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">guard</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">all</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">`elem`</span></span><span> </span><span class="annot"><span class="hs-identifier">cs</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681899004"><span class="hs-identifier hs-type">cs'</span></a></span><span>                       </span><span class="hs-comment">-- check all possible constructors appear in the synonym</span><span>
+</span><span id="line-59"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">guard</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#getArgInfo"><span class="hs-identifier hs-type">getArgInfo</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681899000"><span class="hs-identifier hs-type">ps</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">==</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#getArgInfo"><span class="hs-identifier hs-type">getArgInfo</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681899005"><span class="hs-identifier hs-type">args</span></a></span><span>  </span><span class="hs-comment">-- check that we agree on the hiding (TODO: too strict?)</span><span>
+</span><span id="line-60"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">zipWithM_</span></span><span> </span><span class="annot"><a href="#local-6989586621681898959"><span class="hs-identifier hs-type">match</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#namedArg"><span class="hs-identifier hs-type">namedArg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681899000"><span class="hs-identifier hs-type">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#namedArg"><span class="hs-identifier hs-type">namedArg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681899005"><span class="hs-identifier hs-type">args</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><a href="#local-6989586621681898959"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Match Expr ()
+forall a. WriterT (Map Name Expr) Maybe a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a
+</span><span class="hs-identifier hs-var">empty</span></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="annot"><span class="hs-comment">-- | Match a pattern against a pattern synonym.</span></span><span>
+</span><span id="line-64"></span><span id="local-6989586621681898827"><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#matchPatternSynP"><span class="hs-identifier hs-type">matchPatternSynP</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">Pattern'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898827"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#WithHiding"><span class="hs-identifier hs-type">WithHiding</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">Pattern'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898827"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-65"></span><span id="matchPatternSynP"><span class="annot"><span class="annottext">matchPatternSynP :: forall e.
+PatternSynDefn -&gt; Pattern' e -&gt; Maybe [WithHiding (Pattern' e)]
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#matchPatternSynP"><span class="hs-identifier hs-var hs-var">matchPatternSynP</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Pattern' Void -&gt; Pattern' e -&gt; Match (Pattern' e) ())
+-&gt; PatternSynDefn -&gt; Pattern' e -&gt; Maybe [WithHiding (Pattern' e)]
+forall e.
+(Pattern' Void -&gt; e -&gt; Match e ())
+-&gt; PatternSynDefn -&gt; e -&gt; Maybe [WithHiding e]
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#runMatch"><span class="hs-identifier hs-var">runMatch</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' Void -&gt; Pattern' e -&gt; Match (Pattern' e) ()
+forall {e} {e}.
+Pattern' e
+-&gt; Pattern' e -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+</span><a href="#local-6989586621681899008"><span class="hs-identifier hs-var">match</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-67"></span><span>    </span><span id="local-6989586621681899008"><span class="annot"><span class="annottext">match :: Pattern' e
+-&gt; Pattern' e -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+</span><a href="#local-6989586621681899008"><span class="hs-identifier hs-var hs-var">match</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#VarP"><span class="hs-identifier hs-type">VarP</span></a></span><span> </span><span id="local-6989586621681899030"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681899030"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681899031"><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681899031"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BindName -&gt; Name
+</span><a href="Agda.Syntax.Abstract.html#unBind"><span class="hs-identifier hs-var">unBind</span></a></span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681899030"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Pattern' e -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall e. Name -&gt; e -&gt; Match e ()
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#%3D%3D%3E"><span class="hs-operator hs-var">==&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681899031"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><a href="#local-6989586621681899008"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#LitP"><span class="hs-identifier hs-type">LitP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681899032"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681899032"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#LitP"><span class="hs-identifier hs-type">LitP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681899033"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681899033"><span class="hs-identifier hs-var">l'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681899032"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Literal -&gt; Literal -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681899033"><span class="hs-identifier hs-var">l'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="#local-6989586621681899008"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#WildP"><span class="hs-identifier hs-type">WildP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#WildP"><span class="hs-identifier hs-type">WildP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall a. a -&gt; WriterT (Map Name (Pattern' e)) Maybe a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="#local-6989586621681899008"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-type">ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#AmbQ"><span class="hs-identifier hs-type">AmbQ</span></a></span><span> </span><span id="local-6989586621681899034"><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681899034"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681899035"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681899035"><span class="hs-identifier hs-var">ps</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-type">ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#AmbQ"><span class="hs-identifier hs-type">AmbQ</span></a></span><span> </span><span id="local-6989586621681899036"><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681899036"><span class="hs-identifier hs-var">cs'</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681899037"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681899037"><span class="hs-identifier hs-var">qs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-71"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; WriterT (Map Name (Pattern' e)) Maybe ())
+-&gt; Bool -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; List1 QName -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; List1 QName -&gt; Bool
+forall a. Eq a =&gt; a -&gt; NonEmpty a -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681899034"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">List1 QName
+</span><a href="#local-6989586621681899036"><span class="hs-identifier hs-var">cs'</span></a></span><span>
+</span><span id="line-72"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; WriterT (Map Name (Pattern' e)) Maybe ())
+-&gt; Bool -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(NamedArg (Pattern' e) -&gt; ArgInfo) -&gt; NAPs e -&gt; [ArgInfo]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; ArgInfo
+forall a. LensArgInfo a =&gt; a -&gt; ArgInfo
+</span><a href="Agda.Syntax.Common.html#getArgInfo"><span class="hs-identifier hs-var">getArgInfo</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681899035"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">[ArgInfo] -&gt; [ArgInfo] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">(NamedArg (Pattern' e) -&gt; ArgInfo) -&gt; NAPs e -&gt; [ArgInfo]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; ArgInfo
+forall a. LensArgInfo a =&gt; a -&gt; ArgInfo
+</span><a href="Agda.Syntax.Common.html#getArgInfo"><span class="hs-identifier hs-var">getArgInfo</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681899037"><span class="hs-identifier hs-var">qs</span></a></span><span>
+</span><span id="line-73"></span><span>      </span><span class="annot"><span class="annottext">(Pattern' e
+ -&gt; Pattern' e -&gt; WriterT (Map Name (Pattern' e)) Maybe ())
+-&gt; [Pattern' e]
+-&gt; [Pattern' e]
+-&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; m c) -&gt; [a] -&gt; [b] -&gt; m ()
+</span><span class="hs-identifier hs-var">zipWithM_</span></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+-&gt; Pattern' e -&gt; WriterT (Map Name (Pattern' e)) Maybe ()
+</span><a href="#local-6989586621681899008"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(NamedArg (Pattern' e) -&gt; Pattern' e) -&gt; NAPs e -&gt; [Pattern' e]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; Pattern' e
+forall a. NamedArg a -&gt; a
+</span><a href="Agda.Syntax.Common.html#namedArg"><span class="hs-identifier hs-var">namedArg</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681899035"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(NamedArg (Pattern' e) -&gt; Pattern' e) -&gt; NAPs e -&gt; [Pattern' e]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NamedArg (Pattern' e) -&gt; Pattern' e
+forall a. NamedArg a -&gt; a
+</span><a href="Agda.Syntax.Common.html#namedArg"><span class="hs-identifier hs-var">namedArg</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681899037"><span class="hs-identifier hs-var">qs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><a href="#local-6989586621681899008"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WriterT (Map Name (Pattern' e)) Maybe ()
+forall a. WriterT (Map Name (Pattern' e)) Maybe a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a
+</span><span class="hs-identifier hs-var">empty</span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">type</span><span> </span><span id="Match"><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#Match"><span class="hs-identifier hs-var">Match</span></a></span></span><span> </span><span id="local-6989586621681899038"><span class="annot"><a href="#local-6989586621681899038"><span class="hs-identifier hs-type">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681899038"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span id="local-6989586621681898818"><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#%3D%3D%3E"><span class="hs-operator hs-type">(==&gt;)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898818"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#Match"><span class="hs-identifier hs-type">Match</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898818"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-79"></span><span id="local-6989586621681899043"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681899043"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="%3D%3D%3E"><span class="annot"><span class="annottext">==&gt; :: forall e. Name -&gt; e -&gt; Match e ()
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#%3D%3D%3E"><span class="hs-operator hs-var hs-var">==&gt;</span></a></span></span><span> </span><span id="local-6989586621681899044"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681899044"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map Name e -&gt; WriterT (Map Name e) Maybe ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; e -&gt; Map Name e
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681899043"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681899044"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span id="local-6989586621681898804"><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#runMatch"><span class="hs-identifier hs-type">runMatch</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">Pattern'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Void</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898804"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.PatternSynonyms.html#Match"><span class="hs-identifier hs-type">Match</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898804"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynDefn"><span class="hs-identifier hs-type">PatternSynDefn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898804"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#WithHiding"><span class="hs-identifier hs-type">WithHiding</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898804"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-82"></span><span id="runMatch"><span class="annot"><span class="annottext">runMatch :: forall e.
+(Pattern' Void -&gt; e -&gt; Match e ())
+-&gt; PatternSynDefn -&gt; e -&gt; Maybe [WithHiding e]
+</span><a href="Agda.Syntax.Abstract.PatternSynonyms.html#runMatch"><span class="hs-identifier hs-var hs-var">runMatch</span></a></span></span><span> </span><span id="local-6989586621681899056"><span class="annot"><span class="annottext">Pattern' Void -&gt; e -&gt; Match e ()
+</span><a href="#local-6989586621681899056"><span class="hs-identifier hs-var">match</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681899057"><span class="annot"><span class="annottext">[WithHiding Name]
+</span><a href="#local-6989586621681899057"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681899058"><span class="annot"><span class="annottext">Pattern' Void
+</span><a href="#local-6989586621681899058"><span class="hs-identifier hs-var">pat</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681899059"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681899059"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-83"></span><span>  </span><span id="local-6989586621681899060"><span class="annot"><a href="#local-6989586621681899060"><span class="hs-identifier hs-var">sub</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Match e () -&gt; Maybe (Map Name e)
+forall (m :: * -&gt; *) w a. Monad m =&gt; WriterT w m a -&gt; m w
+</span><span class="hs-identifier hs-var">execWriterT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pattern' Void -&gt; e -&gt; Match e ()
+</span><a href="#local-6989586621681899056"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' Void
+</span><a href="#local-6989586621681899058"><span class="hs-identifier hs-var">pat</span></a></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681899059"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">forM</span></span><span> </span><span class="annot"><a href="#local-6989586621681899057"><span class="hs-identifier hs-type">xs</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681899061"><span class="annot"><span class="annottext">WithHiding Name
+</span><a href="#local-6989586621681899061"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">e -&gt; WithHiding Name -&gt; WithHiding e
+forall a b. a -&gt; WithHiding b -&gt; WithHiding a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">WithHiding Name
+</span><a href="#local-6989586621681899061"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(e -&gt; WithHiding e) -&gt; Maybe e -&gt; Maybe (WithHiding e)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Map Name e -&gt; Maybe e
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WithHiding Name -&gt; Name
+forall a. WithHiding a -&gt; a
+</span><a href="Agda.Syntax.Common.html#whThing"><span class="hs-identifier hs-var">whThing</span></a></span><span> </span><span class="annot"><span class="annottext">WithHiding Name
+</span><a href="#local-6989586621681899061"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map Name e
+</span><a href="#local-6989586621681899060"><span class="hs-identifier hs-var">sub</span></a></span><span>
+</span><span id="line-85"></span></pre></body></html>

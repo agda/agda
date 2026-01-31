@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621681692354"><span id="local-6989586621681692355"></span></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.ExitCode.html"><span class="hs-identifier">Agda.Interaction.ExitCode</span></a></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-4"></span><span>  </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#AgdaError"><span class="hs-identifier">AgdaError</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-5"></span><span>  </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier">agdaErrorToInt</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-6"></span><span>  </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorFromInt"><span class="hs-identifier">agdaErrorFromInt</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-7"></span><span>  </span><span class="annot"><span class="hs-identifier">exitSuccess</span></span><span class="hs-special">,</span><span>
+</span><span id="line-8"></span><span>  </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#exitAgdaWith"><span class="hs-identifier">exitAgdaWith</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Exit</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">exitSuccess</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">exitWith</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ExitCode</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ExitFailure</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">data</span><span> </span><span id="AgdaError"><span class="annot"><a href="Agda.Interaction.ExitCode.html#AgdaError"><span class="hs-identifier hs-var">AgdaError</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="UnknownError"><span class="annot"><a href="Agda.Interaction.ExitCode.html#UnknownError"><span class="hs-identifier hs-var">UnknownError</span></a></span></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ 1</span></span><span>
+</span><span id="line-14"></span><span>               </span><span class="hs-glyph">|</span><span> </span><span id="TCMError"><span class="annot"><a href="Agda.Interaction.ExitCode.html#TCMError"><span class="hs-identifier hs-var">TCMError</span></a></span></span><span>          </span><span class="annot"><span class="hs-comment">-- ^ 42</span></span><span>
+</span><span id="line-15"></span><span>               </span><span class="hs-glyph">|</span><span> </span><span id="OptionError"><span class="annot"><a href="Agda.Interaction.ExitCode.html#OptionError"><span class="hs-identifier hs-var">OptionError</span></a></span></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ 71</span></span><span>
+</span><span id="line-16"></span><span>               </span><span class="hs-glyph">|</span><span> </span><span id="CommandError"><span class="annot"><a href="Agda.Interaction.ExitCode.html#CommandError"><span class="hs-identifier hs-var">CommandError</span></a></span></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ 113</span></span><span>
+</span><span id="line-17"></span><span>               </span><span class="hs-glyph">|</span><span> </span><span id="ImpossibleError"><span class="annot"><a href="Agda.Interaction.ExitCode.html#ImpossibleError"><span class="hs-identifier hs-var">ImpossibleError</span></a></span></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ 120</span></span><span>
+</span><span id="line-18"></span><span>               </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681692375"><span id="local-6989586621681692377"><span id="local-6989586621681692381"><span class="annot"><span class="annottext">Int -&gt; AgdaError -&gt; ShowS
+[AgdaError] -&gt; ShowS
+AgdaError -&gt; String
+(Int -&gt; AgdaError -&gt; ShowS)
+-&gt; (AgdaError -&gt; String)
+-&gt; ([AgdaError] -&gt; ShowS)
+-&gt; Show AgdaError
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; AgdaError -&gt; ShowS
+showsPrec :: Int -&gt; AgdaError -&gt; ShowS
+$cshow :: AgdaError -&gt; String
+show :: AgdaError -&gt; String
+$cshowList :: [AgdaError] -&gt; ShowS
+showList :: [AgdaError] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692386"><span id="local-6989586621681692391"><span class="annot"><span class="annottext">AgdaError -&gt; AgdaError -&gt; Bool
+(AgdaError -&gt; AgdaError -&gt; Bool)
+-&gt; (AgdaError -&gt; AgdaError -&gt; Bool) -&gt; Eq AgdaError
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: AgdaError -&gt; AgdaError -&gt; Bool
+== :: AgdaError -&gt; AgdaError -&gt; Bool
+$c/= :: AgdaError -&gt; AgdaError -&gt; Bool
+/= :: AgdaError -&gt; AgdaError -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692396"><span id="local-6989586621681692402"><span id="local-6989586621681692407"><span id="local-6989586621681692413"><span id="local-6989586621681692416"><span id="local-6989586621681692421"><span id="local-6989586621681692428"><span id="local-6989586621681692431"><span class="annot"><span class="annottext">Int -&gt; AgdaError
+AgdaError -&gt; Int
+AgdaError -&gt; [AgdaError]
+AgdaError -&gt; AgdaError
+AgdaError -&gt; AgdaError -&gt; [AgdaError]
+AgdaError -&gt; AgdaError -&gt; AgdaError -&gt; [AgdaError]
+(AgdaError -&gt; AgdaError)
+-&gt; (AgdaError -&gt; AgdaError)
+-&gt; (Int -&gt; AgdaError)
+-&gt; (AgdaError -&gt; Int)
+-&gt; (AgdaError -&gt; [AgdaError])
+-&gt; (AgdaError -&gt; AgdaError -&gt; [AgdaError])
+-&gt; (AgdaError -&gt; AgdaError -&gt; [AgdaError])
+-&gt; (AgdaError -&gt; AgdaError -&gt; AgdaError -&gt; [AgdaError])
+-&gt; Enum AgdaError
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: AgdaError -&gt; AgdaError
+succ :: AgdaError -&gt; AgdaError
+$cpred :: AgdaError -&gt; AgdaError
+pred :: AgdaError -&gt; AgdaError
+$ctoEnum :: Int -&gt; AgdaError
+toEnum :: Int -&gt; AgdaError
+$cfromEnum :: AgdaError -&gt; Int
+fromEnum :: AgdaError -&gt; Int
+$cenumFrom :: AgdaError -&gt; [AgdaError]
+enumFrom :: AgdaError -&gt; [AgdaError]
+$cenumFromThen :: AgdaError -&gt; AgdaError -&gt; [AgdaError]
+enumFromThen :: AgdaError -&gt; AgdaError -&gt; [AgdaError]
+$cenumFromTo :: AgdaError -&gt; AgdaError -&gt; [AgdaError]
+enumFromTo :: AgdaError -&gt; AgdaError -&gt; [AgdaError]
+$cenumFromThenTo :: AgdaError -&gt; AgdaError -&gt; AgdaError -&gt; [AgdaError]
+enumFromThenTo :: AgdaError -&gt; AgdaError -&gt; AgdaError -&gt; [AgdaError]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692439"><span id="local-6989586621681692441"><span class="annot"><span class="annottext">AgdaError
+AgdaError -&gt; AgdaError -&gt; Bounded AgdaError
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: AgdaError
+minBound :: AgdaError
+$cmaxBound :: AgdaError
+maxBound :: AgdaError
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-type">agdaErrorToInt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#AgdaError"><span class="hs-identifier hs-type">AgdaError</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-21"></span><span id="agdaErrorToInt"><span class="annot"><span class="annottext">agdaErrorToInt :: AgdaError -&gt; Int
+</span><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-var hs-var">agdaErrorToInt</span></a></span></span><span> </span><span class="annot"><span class="annottext">AgdaError
+</span><a href="Agda.Interaction.ExitCode.html#UnknownError"><span class="hs-identifier hs-var">UnknownError</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-22"></span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-var">agdaErrorToInt</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaError
+</span><a href="Agda.Interaction.ExitCode.html#TCMError"><span class="hs-identifier hs-var">TCMError</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">42</span></span><span>
+</span><span id="line-23"></span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-var">agdaErrorToInt</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaError
+</span><a href="Agda.Interaction.ExitCode.html#OptionError"><span class="hs-identifier hs-var">OptionError</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">71</span></span><span>
+</span><span id="line-24"></span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-var">agdaErrorToInt</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaError
+</span><a href="Agda.Interaction.ExitCode.html#CommandError"><span class="hs-identifier hs-var">CommandError</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">113</span></span><span>
+</span><span id="line-25"></span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-var">agdaErrorToInt</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaError
+</span><a href="Agda.Interaction.ExitCode.html#ImpossibleError"><span class="hs-identifier hs-var">ImpossibleError</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">120</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- ^ Return the error corresponding to an exit code from the</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--   Agda process</span><span>
+</span><span id="line-29"></span><span class="annot"><a href="Agda.Interaction.ExitCode.html#agdaErrorFromInt"><span class="hs-identifier hs-type">agdaErrorFromInt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#AgdaError"><span class="hs-identifier hs-type">AgdaError</span></a></span><span>
+</span><span id="line-30"></span><span id="agdaErrorFromInt"><span class="annot"><span class="annottext">agdaErrorFromInt :: Int -&gt; Maybe AgdaError
+</span><a href="Agda.Interaction.ExitCode.html#agdaErrorFromInt"><span class="hs-identifier hs-var hs-var">agdaErrorFromInt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-comment">-- We implement this in a somewhat more inefficient</span><span>
+</span><span id="line-31"></span><span>                   </span><span class="hs-comment">-- way for the sake of consistency</span><span>
+</span><span id="line-32"></span><span>                   </span><span class="annot"><span class="annottext">(Int -&gt; [(Int, AgdaError)] -&gt; Maybe AgdaError)
+-&gt; [(Int, AgdaError)] -&gt; Int -&gt; Maybe AgdaError
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [(Int, AgdaError)] -&gt; Maybe AgdaError
+forall a b. Eq a =&gt; a -&gt; [(a, b)] -&gt; Maybe b
+</span><span class="hs-identifier hs-var">lookup</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">AgdaError -&gt; Int
+</span><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-var">agdaErrorToInt</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaError
+</span><a href="#local-6989586621681692447"><span class="hs-identifier hs-var">error</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">AgdaError
+</span><a href="#local-6989586621681692447"><span class="hs-identifier hs-var">error</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>                               </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681692447"><span class="annot"><span class="annottext">AgdaError
+</span><a href="#local-6989586621681692447"><span class="hs-identifier hs-var">error</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">AgdaError
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">AgdaError
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
+</span><span id="line-34"></span><span>                               </span><span class="hs-special">]</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span id="local-6989586621681692347"><span class="annot"><a href="Agda.Interaction.ExitCode.html#exitAgdaWith"><span class="hs-identifier hs-type">exitAgdaWith</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#AgdaError"><span class="hs-identifier hs-type">AgdaError</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681692347"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-37"></span><span id="exitAgdaWith"><span class="annot"><span class="annottext">exitAgdaWith :: forall a. AgdaError -&gt; IO a
+</span><a href="Agda.Interaction.ExitCode.html#exitAgdaWith"><span class="hs-identifier hs-var hs-var">exitAgdaWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ExitCode -&gt; IO a
+forall a. ExitCode -&gt; IO a
+</span><span class="hs-identifier hs-var">exitWith</span></span><span> </span><span class="annot"><span class="annottext">(ExitCode -&gt; IO a) -&gt; (AgdaError -&gt; ExitCode) -&gt; AgdaError -&gt; IO a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; ExitCode
+</span><span class="hs-identifier hs-var">ExitFailure</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; ExitCode) -&gt; (AgdaError -&gt; Int) -&gt; AgdaError -&gt; ExitCode
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AgdaError -&gt; Int
+</span><a href="Agda.Interaction.ExitCode.html#agdaErrorToInt"><span class="hs-identifier hs-var">agdaErrorToInt</span></a></span><span>
+</span><span id="line-38"></span></pre></body></html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.AgdaTop.html"><span class="hs-identifier">Agda.Interaction.AgdaTop</span></a></span><span>
+</span><span id="line-4"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.AgdaTop.html#repl"><span class="hs-identifier">repl</span></a></span><span>
+</span><span id="line-5"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>                </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">unless</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span>       </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">evalStateT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runStateT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">lift</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Base.html"><span class="hs-identifier">Agda.Interaction.Base</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.ExitCode.html"><span class="hs-identifier">Agda.Interaction.ExitCode</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Response.html"><span class="hs-identifier">Agda.Interaction.Response</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">R</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.InteractionTop.html"><span class="hs-identifier">Agda.Interaction.InteractionTop</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Command.html"><span class="hs-identifier">Agda.Interaction.Command</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Command.html#CommandM"><span class="hs-identifier">CommandM</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Benchmark</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Bench</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">----------------------------------</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="annot"><span class="hs-comment">-- | 'repl' is a fake ghci interpreter for both the Emacs the JSON frontend</span></span><span>
+</span><span id="line-29"></span><span class="annot"><a href="Agda.Interaction.AgdaTop.html#repl"><span class="hs-identifier hs-type">repl</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#InteractionOutputCallback"><span class="hs-identifier hs-type">InteractionOutputCallback</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span id="repl"><span class="annot"><span class="annottext">repl :: InteractionOutputCallback -&gt; [Char] -&gt; TCM () -&gt; TCM ()
+</span><a href="Agda.Interaction.AgdaTop.html#repl"><span class="hs-identifier hs-var hs-var">repl</span></a></span></span><span> </span><span id="local-6989586621682247305"><span class="annot"><span class="annottext">InteractionOutputCallback
+</span><a href="#local-6989586621682247305"><span class="hs-identifier hs-var">callback</span></a></span></span><span> </span><span id="local-6989586621682247306"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682247306"><span class="hs-identifier hs-var">prompt</span></a></span></span><span> </span><span id="local-6989586621682247307"><span class="annot"><span class="annottext">TCM ()
+</span><a href="#local-6989586621682247307"><span class="hs-identifier hs-var">setup</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><span class="annottext">IO () -&gt; TCM ()
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; TCM ()) -&gt; IO () -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-32"></span><span>      </span><span class="annot"><span class="annottext">Handle -&gt; BufferMode -&gt; IO ()
+</span><span class="hs-identifier hs-var">hSetBuffering</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stdout</span></span><span> </span><span class="annot"><span class="annottext">BufferMode
+</span><span class="hs-identifier hs-var">LineBuffering</span></span><span>
+</span><span id="line-33"></span><span>      </span><span class="annot"><span class="annottext">Handle -&gt; BufferMode -&gt; IO ()
+</span><span class="hs-identifier hs-var">hSetBuffering</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stdin</span></span><span>  </span><span class="annot"><span class="annottext">BufferMode
+</span><span class="hs-identifier hs-var">LineBuffering</span></span><span>
+</span><span id="line-34"></span><span>      </span><span class="annot"><span class="annottext">Handle -&gt; TextEncoding -&gt; IO ()
+</span><span class="hs-identifier hs-var">hSetEncoding</span></span><span>  </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stdout</span></span><span> </span><span class="annot"><span class="annottext">TextEncoding
+</span><span class="hs-identifier hs-var">utf8</span></span><span>
+</span><span id="line-35"></span><span>      </span><span class="annot"><span class="annottext">Handle -&gt; TextEncoding -&gt; IO ()
+</span><span class="hs-identifier hs-var">hSetEncoding</span></span><span>  </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stdin</span></span><span>  </span><span class="annot"><span class="annottext">TextEncoding
+</span><span class="hs-identifier hs-var">utf8</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><span class="annottext">InteractionOutputCallback -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.State.html#setInteractionOutputCallback"><span class="hs-identifier hs-var">setInteractionOutputCallback</span></a></span><span> </span><span class="annot"><span class="annottext">InteractionOutputCallback
+</span><a href="#local-6989586621682247305"><span class="hs-identifier hs-var">callback</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span>    </span><span id="local-6989586621682247316"><span class="annot"><a href="#local-6989586621682247316"><span class="hs-identifier hs-var">commands</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO CommandQueue -&gt; TCMT IO CommandQueue
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO CommandQueue -&gt; TCMT IO CommandQueue)
+-&gt; IO CommandQueue -&gt; TCMT IO CommandQueue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IO Command -&gt; IO CommandQueue
+</span><a href="Agda.Interaction.InteractionTop.html#initialiseCommandQueue"><span class="hs-identifier hs-var">initialiseCommandQueue</span></a></span><span> </span><span class="annot"><span class="annottext">IO Command
+</span><a href="#local-6989586621682247318"><span class="hs-identifier hs-var">readCommand</span></a></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><a href="Agda.Interaction.InteractionTop.html#handleCommand_"><span class="hs-identifier hs-type">handleCommand_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">lift</span></span><span> </span><span class="annot"><a href="#local-6989586621682247307"><span class="hs-identifier hs-type">setup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">`evalStateT`</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Base.html#initCommandState"><span class="hs-identifier hs-type">initCommandState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682247316"><span class="hs-identifier hs-type">commands</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span>    </span><span id="local-6989586621682247321"><span class="annot"><a href="#local-6989586621682247321"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#commandLineOptions"><span class="hs-identifier hs-type">commandLineOptions</span></a></span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621682247323"><span class="hs-identifier hs-type">interact'</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-var">`runStateT`</span></span><span>
+</span><span id="line-45"></span><span>           </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Base.html#initCommandState"><span class="hs-identifier hs-type">initCommandState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682247316"><span class="hs-identifier hs-type">commands</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>             </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Base.html#optionsOnReload"><span class="hs-identifier hs-var">optionsOnReload</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682247321"><span class="hs-identifier hs-type">opts</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optAbsoluteIncludePaths"><span class="hs-identifier hs-var">optAbsoluteIncludePaths</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-47"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><a href="#local-6989586621682247323"><span class="hs-identifier hs-type">interact'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Command.html#CommandM"><span class="hs-identifier hs-type">CommandM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>  </span><span id="local-6989586621682247323"><span class="annot"><span class="annottext">interact' :: CommandM ()
+</span><a href="#local-6989586621682247323"><span class="hs-identifier hs-var hs-var">interact'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-51"></span><span>    </span><span class="annot"><span class="annottext">CommandM ()
+forall (m :: * -&gt; *). MonadBench m =&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#reset"><span class="hs-identifier hs-var">Bench.reset</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span id="local-6989586621682247327"><span class="annot"><a href="#local-6989586621682247327"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase (StateT CommandState TCM))
+-&gt; StateT CommandState TCM Bool -&gt; StateT CommandState TCM Bool
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; m c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-var">Bench.billTo</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(StateT CommandState TCM Bool -&gt; StateT CommandState TCM Bool)
+-&gt; StateT CommandState TCM Bool -&gt; StateT CommandState TCM Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span>      </span><span class="annot"><span class="annottext">IO () -&gt; CommandM ()
+forall a. IO a -&gt; StateT CommandState TCM a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; CommandM ()) -&gt; IO () -&gt; CommandM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-55"></span><span>        </span><span class="annot"><span class="annottext">[Char] -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStr</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682247306"><span class="hs-identifier hs-var">prompt</span></a></span><span>
+</span><span id="line-56"></span><span>        </span><span class="annot"><span class="annottext">Handle -&gt; IO ()
+</span><span class="hs-identifier hs-var">hFlush</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stdout</span></span><span>
+</span><span id="line-57"></span><span>      </span><span id="local-6989586621682247331"><span class="annot"><a href="#local-6989586621682247331"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(IOTCM -&gt; CommandM ()) -&gt; CommandM (Command' (Maybe ()))
+forall a. (IOTCM -&gt; CommandM a) -&gt; CommandM (Command' (Maybe a))
+</span><a href="Agda.Interaction.InteractionTop.html#maybeAbort"><span class="hs-identifier hs-var">maybeAbort</span></a></span><span> </span><span class="annot"><span class="annottext">IOTCM -&gt; CommandM ()
+</span><a href="Agda.Interaction.InteractionTop.html#runInteraction"><span class="hs-identifier hs-var">runInteraction</span></a></span><span>
+</span><span id="line-58"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621682247331"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-59"></span><span>        </span><span class="annot"><span class="annottext">Command' (Maybe ())
+</span><a href="Agda.Interaction.Base.html#Done"><span class="hs-identifier hs-var">Done</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; StateT CommandState TCM Bool
+forall a. a -&gt; StateT CommandState TCM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-comment">-- Done.</span><span>
+</span><span id="line-60"></span><span>        </span><span class="annot"><a href="Agda.Interaction.Base.html#Command"><span class="hs-identifier hs-type">Command</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe ()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; StateT CommandState TCM Bool
+forall a. a -&gt; StateT CommandState TCM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-61"></span><span>        </span><span class="annot"><a href="Agda.Interaction.Base.html#Error"><span class="hs-identifier hs-type">Error</span></a></span><span> </span><span id="local-6989586621682247337"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682247337"><span class="hs-identifier hs-var">s</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-62"></span><span>          </span><span id="local-6989586621682247338"><span class="annot"><a href="#local-6989586621682247338"><span class="hs-identifier hs-var">exit</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optExitOnError"><span class="hs-identifier hs-var">optExitOnError</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; Bool)
+-&gt; StateT CommandState TCM CommandLineOptions
+-&gt; StateT CommandState TCM Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">StateT CommandState TCM CommandLineOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m CommandLineOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#commandLineOptions"><span class="hs-identifier hs-var">commandLineOptions</span></a></span><span>
+</span><span id="line-63"></span><span>          </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621682247338"><span class="hs-identifier hs-type">exit</span></a></span><span>
+</span><span id="line-64"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.ExitCode.html#exitAgdaWith"><span class="hs-identifier hs-type">exitAgdaWith</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.ExitCode.html#CommandError"><span class="hs-identifier hs-type">CommandError</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-66"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">putStrLn</span></span><span> </span><span class="annot"><a href="#local-6989586621682247337"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">lift</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#print"><span class="hs-identifier hs-type">Bench.print</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">unless</span></span><span> </span><span class="annot"><a href="#local-6989586621682247327"><span class="hs-identifier hs-type">done</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682247323"><span class="hs-identifier hs-type">interact'</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-comment">-- Reads the next command from stdin.</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span>  </span><span class="annot"><a href="#local-6989586621682247318"><span class="hs-identifier hs-type">readCommand</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Base.html#Command"><span class="hs-identifier hs-type">Command</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621682247318"><span class="annot"><span class="annottext">readCommand :: IO Command
+</span><a href="#local-6989586621682247318"><span class="hs-identifier hs-var hs-var">readCommand</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-76"></span><span>    </span><span id="local-6989586621682247345"><span class="annot"><a href="#local-6989586621682247345"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Bool
+</span><span class="hs-identifier hs-var">isEOF</span></span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621682247345"><span class="hs-identifier hs-type">done</span></a></span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-78"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Base.html#Done"><span class="hs-identifier hs-type">Done</span></a></span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-80"></span><span>      </span><span id="local-6989586621682247347"><span class="annot"><a href="#local-6989586621682247347"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">getLine</span></span><span>
+</span><span id="line-81"></span><span>      </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$!</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">length</span></span><span> </span><span class="annot"><a href="#local-6989586621682247347"><span class="hs-identifier hs-type">r</span></a></span><span>     </span><span class="hs-comment">-- force to read the full input line</span><span>
+</span><span id="line-82"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="hs-identifier hs-type">dropWhile</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">isSpace</span></span><span> </span><span class="annot"><a href="#local-6989586621682247347"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-83"></span><span>        </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IO Command
+</span><a href="#local-6989586621682247318"><span class="hs-identifier hs-var">readCommand</span></a></span><span>
+</span><span id="line-84"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IO Command
+</span><a href="#local-6989586621682247318"><span class="hs-identifier hs-var">readCommand</span></a></span><span>
+</span><span id="line-85"></span><span>        </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Either [Char] IOTCM
+</span><a href="Agda.Interaction.Base.html#parseIOTCM"><span class="hs-identifier hs-var">parseIOTCM</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682247347"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-86"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621682247354"><span class="annot"><span class="annottext">IOTCM
+</span><a href="#local-6989586621682247354"><span class="hs-identifier hs-var">cmd</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Command -&gt; IO Command
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Command -&gt; IO Command) -&gt; Command -&gt; IO Command
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IOTCM -&gt; Command
+forall a. a -&gt; Command' a
+</span><a href="Agda.Interaction.Base.html#Command"><span class="hs-identifier hs-var">Command</span></a></span><span> </span><span class="annot"><span class="annottext">IOTCM
+</span><a href="#local-6989586621682247354"><span class="hs-identifier hs-var">cmd</span></a></span><span>
+</span><span id="line-87"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621682247355"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682247355"><span class="hs-identifier hs-var">err</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Command -&gt; IO Command
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Command -&gt; IO Command) -&gt; Command -&gt; IO Command
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Command
+forall a. [Char] -&gt; Command' a
+</span><a href="Agda.Interaction.Base.html#Error"><span class="hs-identifier hs-var">Error</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682247355"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-88"></span></pre></body></html>

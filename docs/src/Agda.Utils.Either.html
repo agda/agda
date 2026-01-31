@@ -1,0 +1,365 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="annot"><span class="hs-comment">-- | Utilities for the 'Either' type.</span></span><span>
+</span><span id="line-3"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html"><span class="hs-identifier">Agda.Utils.Either</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#whileLeft"><span class="hs-identifier">whileLeft</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#caseEitherM"><span class="hs-identifier">caseEitherM</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#mapLeft"><span class="hs-identifier">mapLeft</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#mapRight"><span class="hs-identifier">mapRight</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#traverseEither"><span class="hs-identifier">traverseEither</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isLeft</span></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isRight</span></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#fromLeft"><span class="hs-identifier">fromLeft</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#fromRight"><span class="hs-identifier">fromRight</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#fromLeftM"><span class="hs-identifier">fromLeftM</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#fromRightM"><span class="hs-identifier">fromRightM</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#maybeLeft"><span class="hs-identifier">maybeLeft</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#maybeRight"><span class="hs-identifier">maybeRight</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#allLeft"><span class="hs-identifier">allLeft</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#allRight"><span class="hs-identifier">allRight</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#groupByEither"><span class="hs-identifier">groupByEither</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#maybeToEither"><span class="hs-identifier">maybeToEither</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html#swapEither"><span class="hs-identifier">swapEither</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">isLeft</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isRight</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">unfoldr</span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#spanJust"><span class="hs-identifier">spanJust</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;|)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><span class="hs-comment">-- | Loop while we have an exception.</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span id="local-6989586621681714243"><span id="local-6989586621681714244"><span id="local-6989586621681714245"><span id="local-6989586621681714246"><span id="local-6989586621681714247"><span class="annot"><a href="Agda.Utils.Either.html#whileLeft"><span class="hs-identifier hs-type">whileLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681714243"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714244"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714245"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714246"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714244"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714245"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714243"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714244"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714244"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714246"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714243"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714247"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714244"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714243"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714247"><span class="hs-identifier hs-type">d</span></a></span></span></span></span></span></span><span>
+</span><span id="line-37"></span><span id="whileLeft"><span class="annot"><span class="annottext">whileLeft :: forall (m :: * -&gt; *) a b c d.
+Monad m =&gt;
+(a -&gt; Either b c) -&gt; (a -&gt; b -&gt; m a) -&gt; (a -&gt; c -&gt; m d) -&gt; a -&gt; m d
+</span><a href="Agda.Utils.Either.html#whileLeft"><span class="hs-identifier hs-var hs-var">whileLeft</span></a></span></span><span> </span><span id="local-6989586621681714400"><span class="annot"><span class="annottext">a -&gt; Either b c
+</span><a href="#local-6989586621681714400"><span class="hs-identifier hs-var">test</span></a></span></span><span> </span><span id="local-6989586621681714401"><span class="annot"><span class="annottext">a -&gt; b -&gt; m a
+</span><a href="#local-6989586621681714401"><span class="hs-identifier hs-var">left</span></a></span></span><span> </span><span id="local-6989586621681714402"><span class="annot"><span class="annottext">a -&gt; c -&gt; m d
+</span><a href="#local-6989586621681714402"><span class="hs-identifier hs-var">right</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; m d
+</span><a href="#local-6989586621681714403"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681714403"><span class="annot"><span class="annottext">loop :: a -&gt; m d
+</span><a href="#local-6989586621681714403"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681714404"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681714404"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-39"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">a -&gt; Either b c
+</span><a href="#local-6989586621681714400"><span class="hs-identifier hs-var">test</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681714404"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-40"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span id="local-6989586621681714405"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681714405"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; m d
+</span><a href="#local-6989586621681714403"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m d) -&gt; m a -&gt; m d
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; m a
+</span><a href="#local-6989586621681714401"><span class="hs-identifier hs-var">left</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681714404"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681714405"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-41"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681714407"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681714407"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; c -&gt; m d
+</span><a href="#local-6989586621681714402"><span class="hs-identifier hs-var">right</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681714404"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681714407"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- | Monadic version of 'either' with a different argument ordering.</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span id="local-6989586621681714256"><span id="local-6989586621681714257"><span id="local-6989586621681714258"><span id="local-6989586621681714259"><span class="annot"><a href="Agda.Utils.Either.html#caseEitherM"><span class="hs-identifier hs-type">caseEitherM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681714256"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714256"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714257"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714258"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714257"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714256"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714259"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714258"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714256"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714259"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714256"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714259"><span class="hs-identifier hs-type">c</span></a></span></span></span></span></span><span>
+</span><span id="line-46"></span><span id="caseEitherM"><span class="annot"><span class="annottext">caseEitherM :: forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+m (Either a b) -&gt; (a -&gt; m c) -&gt; (b -&gt; m c) -&gt; m c
+</span><a href="Agda.Utils.Either.html#caseEitherM"><span class="hs-identifier hs-var hs-var">caseEitherM</span></a></span></span><span> </span><span id="local-6989586621681714411"><span class="annot"><span class="annottext">m (Either a b)
+</span><a href="#local-6989586621681714411"><span class="hs-identifier hs-var">mm</span></a></span></span><span> </span><span id="local-6989586621681714412"><span class="annot"><span class="annottext">a -&gt; m c
+</span><a href="#local-6989586621681714412"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681714413"><span class="annot"><span class="annottext">b -&gt; m c
+</span><a href="#local-6989586621681714413"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m c) -&gt; (b -&gt; m c) -&gt; Either a b -&gt; m c
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m c
+</span><a href="#local-6989586621681714412"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; m c
+</span><a href="#local-6989586621681714413"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">(Either a b -&gt; m c) -&gt; m (Either a b) -&gt; m c
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">m (Either a b)
+</span><a href="#local-6989586621681714411"><span class="hs-identifier hs-var">mm</span></a></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><span class="hs-comment">-- | 'Either _ b' is a functor.</span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span id="local-6989586621681714267"><span id="local-6989586621681714268"><span id="local-6989586621681714269"><span class="annot"><a href="Agda.Utils.Either.html#mapLeft"><span class="hs-identifier hs-type">mapLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714267"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714268"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714267"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714269"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714268"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714269"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-51"></span><span id="mapLeft"><span class="annot"><span class="annottext">mapLeft :: forall a c b. (a -&gt; c) -&gt; Either a b -&gt; Either c b
+</span><a href="Agda.Utils.Either.html#mapLeft"><span class="hs-identifier hs-var hs-var">mapLeft</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; c) -&gt; Either a b -&gt; Either c b
+forall a c b. (a -&gt; c) -&gt; Either a b -&gt; Either c b
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><span class="hs-comment">-- | 'Either a' is a functor.</span></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span id="local-6989586621681714278"><span id="local-6989586621681714279"><span id="local-6989586621681714280"><span class="annot"><a href="Agda.Utils.Either.html#mapRight"><span class="hs-identifier hs-type">mapRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714278"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714279"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714280"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714278"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714280"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714279"><span class="hs-identifier hs-type">d</span></a></span></span></span></span><span>
+</span><span id="line-56"></span><span id="mapRight"><span class="annot"><span class="annottext">mapRight :: forall b d a. (b -&gt; d) -&gt; Either a b -&gt; Either a d
+</span><a href="Agda.Utils.Either.html#mapRight"><span class="hs-identifier hs-var hs-var">mapRight</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; d) -&gt; Either a b -&gt; Either a d
+forall b d a. (b -&gt; d) -&gt; Either a b -&gt; Either a d
+forall (p :: * -&gt; * -&gt; *) b c a.
+Bifunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><span class="hs-identifier hs-var">second</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- | 'Either' is bitraversable.</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- Note: From @base &gt;= 4.10.0.0@ already present in `Data.Bitraversable`.</span><span>
+</span><span id="line-60"></span><span id="local-6989586621681714287"><span id="local-6989586621681714288"><span id="local-6989586621681714289"><span id="local-6989586621681714290"><span id="local-6989586621681714291"><span class="annot"><a href="Agda.Utils.Either.html#traverseEither"><span class="hs-identifier hs-type">traverseEither</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681714287"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714288"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714287"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714289"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714290"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714287"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714291"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714288"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714290"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714287"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714289"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714291"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span></span></span></span></span></span><span>
+</span><span id="line-61"></span><span id="traverseEither"><span class="annot"><span class="annottext">traverseEither :: forall (f :: * -&gt; *) a c b d.
+Functor f =&gt;
+(a -&gt; f c) -&gt; (b -&gt; f d) -&gt; Either a b -&gt; f (Either c d)
+</span><a href="Agda.Utils.Either.html#traverseEither"><span class="hs-identifier hs-var hs-var">traverseEither</span></a></span></span><span> </span><span id="local-6989586621681714422"><span class="annot"><span class="annottext">a -&gt; f c
+</span><a href="#local-6989586621681714422"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681714423"><span class="annot"><span class="annottext">b -&gt; f d
+</span><a href="#local-6989586621681714423"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f (Either c d))
+-&gt; (b -&gt; f (Either c d)) -&gt; Either a b -&gt; f (Either c d)
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(c -&gt; Either c d) -&gt; f c -&gt; f (Either c d)
+forall a b. (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">c -&gt; Either c d
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(f c -&gt; f (Either c d)) -&gt; (a -&gt; f c) -&gt; a -&gt; f (Either c d)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; f c
+</span><a href="#local-6989586621681714422"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(d -&gt; Either c d) -&gt; f d -&gt; f (Either c d)
+forall a b. (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">d -&gt; Either c d
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(f d -&gt; f (Either c d)) -&gt; (b -&gt; f d) -&gt; b -&gt; f (Either c d)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; f d
+</span><a href="#local-6989586621681714423"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="annot"><span class="hs-comment">-- | Analogue of 'Data.Maybe.fromMaybe'.</span></span><span>
+</span><span id="line-64"></span><span id="local-6989586621681714305"><span id="local-6989586621681714306"><span class="annot"><a href="Agda.Utils.Either.html#fromLeft"><span class="hs-identifier hs-type">fromLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714305"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714306"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714306"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714305"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714306"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-65"></span><span id="fromLeft"><span class="annot"><span class="annottext">fromLeft :: forall b a. (b -&gt; a) -&gt; Either a b -&gt; a
+</span><a href="Agda.Utils.Either.html#fromLeft"><span class="hs-identifier hs-var hs-var">fromLeft</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; (b -&gt; a) -&gt; Either a b -&gt; a
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-operator hs-var">`either`</span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="annot"><span class="hs-comment">-- | Analogue of 'Data.Maybe.fromMaybe'.</span></span><span>
+</span><span id="line-68"></span><span id="local-6989586621681714310"><span id="local-6989586621681714311"><span class="annot"><a href="Agda.Utils.Either.html#fromRight"><span class="hs-identifier hs-type">fromRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714310"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714311"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714310"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714311"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714311"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-69"></span><span id="fromRight"><span class="annot"><span class="annottext">fromRight :: forall a b. (a -&gt; b) -&gt; Either a b -&gt; b
+</span><a href="Agda.Utils.Either.html#fromRight"><span class="hs-identifier hs-var hs-var">fromRight</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; (b -&gt; b) -&gt; Either a b -&gt; b
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-operator hs-var">`either`</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; b
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><span class="hs-comment">-- | Analogue of 'Agda.Utils.Maybe.fromMaybeM'.</span></span><span>
+</span><span id="line-72"></span><span id="local-6989586621681714314"><span id="local-6989586621681714315"><span id="local-6989586621681714316"><span class="annot"><a href="Agda.Utils.Either.html#fromLeftM"><span class="hs-identifier hs-type">fromLeftM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681714314"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714315"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714314"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714316"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714314"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714316"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714315"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714314"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714316"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-73"></span><span id="fromLeftM"><span class="annot"><span class="annottext">fromLeftM :: forall (m :: * -&gt; *) b a.
+Monad m =&gt;
+(b -&gt; m a) -&gt; m (Either a b) -&gt; m a
+</span><a href="Agda.Utils.Either.html#fromLeftM"><span class="hs-identifier hs-var hs-var">fromLeftM</span></a></span></span><span> </span><span id="local-6989586621681714429"><span class="annot"><span class="annottext">b -&gt; m a
+</span><a href="#local-6989586621681714429"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681714430"><span class="annot"><span class="annottext">m (Either a b)
+</span><a href="#local-6989586621681714430"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; (b -&gt; m a) -&gt; Either a b -&gt; m a
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; m a
+</span><a href="#local-6989586621681714429"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Either a b -&gt; m a) -&gt; m (Either a b) -&gt; m a
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">m (Either a b)
+</span><a href="#local-6989586621681714430"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="annot"><span class="hs-comment">-- | Analogue of 'Agda.Utils.Maybe.fromMaybeM'.</span></span><span>
+</span><span id="line-76"></span><span id="local-6989586621681714322"><span id="local-6989586621681714323"><span id="local-6989586621681714324"><span class="annot"><a href="Agda.Utils.Either.html#fromRightM"><span class="hs-identifier hs-type">fromRightM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681714322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681714323"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714324"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714323"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714324"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681714322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714324"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-77"></span><span id="fromRightM"><span class="annot"><span class="annottext">fromRightM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; m (Either a b) -&gt; m b
+</span><a href="Agda.Utils.Either.html#fromRightM"><span class="hs-identifier hs-var hs-var">fromRightM</span></a></span></span><span> </span><span id="local-6989586621681714434"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681714434"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681714435"><span class="annot"><span class="annottext">m (Either a b)
+</span><a href="#local-6989586621681714435"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m b) -&gt; (b -&gt; m b) -&gt; Either a b -&gt; m b
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681714434"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; m b
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either a b -&gt; m b) -&gt; m (Either a b) -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">m (Either a b)
+</span><a href="#local-6989586621681714435"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- | Safe projection from 'Left'.</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   &gt; maybeLeft (Left a) = Just a</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--   &gt; maybeLeft Right{}  = Nothing</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--</span><span>
+</span><span id="line-84"></span><span id="local-6989586621681714328"><span id="local-6989586621681714329"><span class="annot"><a href="Agda.Utils.Either.html#maybeLeft"><span class="hs-identifier hs-type">maybeLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714328"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714329"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681714328"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-85"></span><span id="maybeLeft"><span class="annot"><span class="annottext">maybeLeft :: forall a b. Either a b -&gt; Maybe a
+</span><a href="Agda.Utils.Either.html#maybeLeft"><span class="hs-identifier hs-var hs-var">maybeLeft</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe a) -&gt; (b -&gt; Maybe a) -&gt; Either a b -&gt; Maybe a
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a -&gt; b -&gt; Maybe a
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- | Safe projection from 'Right'.</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--   &gt; maybeRight (Right b) = Just b</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--   &gt; maybeRight Left{}    = Nothing</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--</span><span>
+</span><span id="line-92"></span><span id="local-6989586621681714335"><span id="local-6989586621681714336"><span class="annot"><a href="Agda.Utils.Either.html#maybeRight"><span class="hs-identifier hs-type">maybeRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714335"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714336"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681714336"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-93"></span><span id="maybeRight"><span class="annot"><span class="annottext">maybeRight :: forall a b. Either a b -&gt; Maybe b
+</span><a href="Agda.Utils.Either.html#maybeRight"><span class="hs-identifier hs-var hs-var">maybeRight</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe b) -&gt; (b -&gt; Maybe b) -&gt; Either a b -&gt; Maybe b
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe b -&gt; a -&gt; Maybe b
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Maybe b
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">b -&gt; Maybe b
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- | Returns @'Just' input_with_tags_stripped@ if all elements are</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- to the 'Left', and otherwise 'Nothing'.</span><span>
+</span><span id="line-97"></span><span id="local-6989586621681714339"><span id="local-6989586621681714340"><span class="annot"><a href="Agda.Utils.Either.html#allLeft"><span class="hs-identifier hs-type">allLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714339"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714340"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681714339"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-98"></span><span id="allLeft"><span class="annot"><span class="annottext">allLeft :: forall a b. [Either a b] -&gt; Maybe [a]
+</span><a href="Agda.Utils.Either.html#allLeft"><span class="hs-identifier hs-var hs-var">allLeft</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Either a b -&gt; Maybe a) -&gt; [Either a b] -&gt; Maybe [a]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">Either a b -&gt; Maybe a
+forall a b. Either a b -&gt; Maybe a
+</span><a href="Agda.Utils.Either.html#maybeLeft"><span class="hs-identifier hs-var">maybeLeft</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- | Returns @'Just' input_with_tags_stripped@ if all elements are</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- to the right, and otherwise 'Nothing'.</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-104"></span><span class="hs-comment">--  allRight xs ==</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--    if all isRight xs then</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--      Just (map (\(Right x) -&gt; x) xs)</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--     else</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--      Nothing</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span id="local-6989586621681714347"><span id="local-6989586621681714348"><span class="annot"><a href="Agda.Utils.Either.html#allRight"><span class="hs-identifier hs-type">allRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714347"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714348"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681714348"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-112"></span><span id="allRight"><span class="annot"><span class="annottext">allRight :: forall a b. [Either a b] -&gt; Maybe [b]
+</span><a href="Agda.Utils.Either.html#allRight"><span class="hs-identifier hs-var hs-var">allRight</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Either a b -&gt; Maybe b) -&gt; [Either a b] -&gt; Maybe [b]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">Either a b -&gt; Maybe b
+forall a b. Either a b -&gt; Maybe b
+</span><a href="Agda.Utils.Either.html#maybeRight"><span class="hs-identifier hs-var">maybeRight</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="annot"><span class="hs-comment">-- | Groups a list into alternating chunks of 'Left' and 'Right' values</span></span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Agda.Utils.Either.html#groupByEither"><span class="hs-identifier hs-type">groupByEither</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681714351"><span class="annot"><a href="#local-6989586621681714351"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681714352"><span class="annot"><a href="#local-6989586621681714352"><span class="hs-identifier hs-type">b</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714351"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714352"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714351"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714352"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-116"></span><span id="groupByEither"><span class="annot"><span class="annottext">groupByEither :: forall a b. [Either a b] -&gt; [Either (List1 a) (List1 b)]
+</span><a href="Agda.Utils.Either.html#groupByEither"><span class="hs-identifier hs-var hs-var">groupByEither</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Either a b] -&gt; Maybe (Either (List1 a) (List1 b), [Either a b]))
+-&gt; [Either a b] -&gt; [Either (List1 a) (List1 b)]
+forall b a. (b -&gt; Maybe (a, b)) -&gt; b -&gt; [a]
+</span><span class="hs-identifier hs-var">unfoldr</span></span><span> </span><span class="annot"><span class="annottext">[Either a b] -&gt; Maybe (Either (List1 a) (List1 b), [Either a b])
+</span><a href="#local-6989586621681714447"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><a href="#local-6989586621681714447"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714351"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714352"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714351"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714352"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714351"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714352"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621681714447"><span class="annot"><span class="annottext">c :: [Either a b] -&gt; Maybe (Either (List1 a) (List1 b), [Either a b])
+</span><a href="#local-6989586621681714447"><span class="hs-identifier hs-var hs-var">c</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (Either (List1 a) (List1 b), [Either a b])
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-120"></span><span>  </span><span class="annot"><a href="#local-6989586621681714447"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span id="local-6989586621681714448"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681714448"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681714449"><span class="annot"><span class="annottext">[Either a b]
+</span><a href="#local-6989586621681714449"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Either (List1 a) (List1 b), [Either a b])
+-&gt; Maybe (Either (List1 a) (List1 b), [Either a b])
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">((Either (List1 a) (List1 b), [Either a b])
+ -&gt; Maybe (Either (List1 a) (List1 b), [Either a b]))
+-&gt; (Either (List1 a) (List1 b), [Either a b])
+-&gt; Maybe (Either (List1 a) (List1 b), [Either a b])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; Either (List1 a) (List1 b))
+-&gt; ([a], [Either a b])
+-&gt; (Either (List1 a) (List1 b), [Either a b])
+forall a b c. (a -&gt; b) -&gt; (a, c) -&gt; (b, c)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 a -&gt; Either (List1 a) (List1 b)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span>  </span><span class="annot"><span class="annottext">(List1 a -&gt; Either (List1 a) (List1 b))
+-&gt; ([a] -&gt; List1 a) -&gt; [a] -&gt; Either (List1 a) (List1 b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681714448"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; List1 a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(([a], [Either a b]) -&gt; (Either (List1 a) (List1 b), [Either a b]))
+-&gt; ([a], [Either a b])
+-&gt; (Either (List1 a) (List1 b), [Either a b])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Either a b -&gt; Maybe a) -&gt; [Either a b] -&gt; ([a], [Either a b])
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; (Prefix b, [a])
+</span><a href="Agda.Utils.List.html#spanJust"><span class="hs-identifier hs-var">spanJust</span></a></span><span> </span><span class="annot"><span class="annottext">Either a b -&gt; Maybe a
+forall a b. Either a b -&gt; Maybe a
+</span><a href="Agda.Utils.Either.html#maybeLeft"><span class="hs-identifier hs-var">maybeLeft</span></a></span><span>  </span><span class="annot"><span class="annottext">[Either a b]
+</span><a href="#local-6989586621681714449"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-121"></span><span>  </span><span class="annot"><a href="#local-6989586621681714447"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681714450"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681714450"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681714451"><span class="annot"><span class="annottext">[Either a b]
+</span><a href="#local-6989586621681714451"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Either (List1 a) (List1 b), [Either a b])
+-&gt; Maybe (Either (List1 a) (List1 b), [Either a b])
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">((Either (List1 a) (List1 b), [Either a b])
+ -&gt; Maybe (Either (List1 a) (List1 b), [Either a b]))
+-&gt; (Either (List1 a) (List1 b), [Either a b])
+-&gt; Maybe (Either (List1 a) (List1 b), [Either a b])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">([b] -&gt; Either (List1 a) (List1 b))
+-&gt; ([b], [Either a b])
+-&gt; (Either (List1 a) (List1 b), [Either a b])
+forall a b c. (a -&gt; b) -&gt; (a, c) -&gt; (b, c)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 b -&gt; Either (List1 a) (List1 b)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(List1 b -&gt; Either (List1 a) (List1 b))
+-&gt; ([b] -&gt; List1 b) -&gt; [b] -&gt; Either (List1 a) (List1 b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681714450"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; [b] -&gt; List1 b
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(([b], [Either a b]) -&gt; (Either (List1 a) (List1 b), [Either a b]))
+-&gt; ([b], [Either a b])
+-&gt; (Either (List1 a) (List1 b), [Either a b])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Either a b -&gt; Maybe b) -&gt; [Either a b] -&gt; ([b], [Either a b])
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; (Prefix b, [a])
+</span><a href="Agda.Utils.List.html#spanJust"><span class="hs-identifier hs-var">spanJust</span></a></span><span> </span><span class="annot"><span class="annottext">Either a b -&gt; Maybe b
+forall a b. Either a b -&gt; Maybe b
+</span><a href="Agda.Utils.Either.html#maybeRight"><span class="hs-identifier hs-var">maybeRight</span></a></span><span> </span><span class="annot"><span class="annottext">[Either a b]
+</span><a href="#local-6989586621681714451"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="annot"><span class="hs-comment">-- | Convert 'Maybe' to @'Either' e@, given an error @e@ for the 'Nothing' case.</span></span><span>
+</span><span id="line-124"></span><span id="local-6989586621681714366"><span id="local-6989586621681714367"><span class="annot"><a href="Agda.Utils.Either.html#maybeToEither"><span class="hs-identifier hs-type">maybeToEither</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681714366"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681714367"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714366"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714367"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-125"></span><span id="maybeToEither"><span class="annot"><span class="annottext">maybeToEither :: forall e a. e -&gt; Maybe a -&gt; Either e a
+</span><a href="Agda.Utils.Either.html#maybeToEither"><span class="hs-identifier hs-var hs-var">maybeToEither</span></a></span></span><span> </span><span id="local-6989586621681714452"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681714452"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Either e a -&gt; (a -&gt; Either e a) -&gt; Maybe a -&gt; Either e a
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">e -&gt; Either e a
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681714452"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a -&gt; Either e a
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="annot"><span class="hs-comment">-- | Swap tags 'Left' and 'Right'.</span></span><span>
+</span><span id="line-128"></span><span id="local-6989586621681714372"><span id="local-6989586621681714373"><span class="annot"><a href="Agda.Utils.Either.html#swapEither"><span class="hs-identifier hs-type">swapEither</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714372"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714373"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681714373"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681714372"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-129"></span><span id="swapEither"><span class="annot"><span class="annottext">swapEither :: forall a b. Either a b -&gt; Either b a
+</span><a href="Agda.Utils.Either.html#swapEither"><span class="hs-identifier hs-var hs-var">swapEither</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Either b a) -&gt; (b -&gt; Either b a) -&gt; Either a b -&gt; Either b a
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Either b a
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Either b a
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span>
+</span><span id="line-130"></span></pre></body></html>

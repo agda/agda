@@ -1,0 +1,1353 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Preprocessors for literate code formats.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html"><span class="hs-identifier">Agda.Syntax.Parser.Literate</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateProcessors"><span class="hs-identifier">literateProcessors</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateExts"><span class="hs-identifier">literateExts</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateTeX"><span class="hs-identifier">literateTeX</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateRsT"><span class="hs-identifier">literateRsT</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateMd"><span class="hs-identifier">literateMd</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateOrg"><span class="hs-identifier">literateOrg</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#illiterate"><span class="hs-identifier">illiterate</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#atomizeLayers"><span class="hs-identifier">atomizeLayers</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier">Processor</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layers"><span class="hs-identifier">Layers</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier">Layer</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier">LayerRole</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#isCode"><span class="hs-identifier">isCode</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#isCodeLayer"><span class="hs-identifier">isCodeLayer</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&lt;=&lt;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">isSpace</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">isPrefixOf</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Regex.TDFA</span></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Regex</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getAllTextSubmatches</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">match</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">matchM</span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeRegexOpts</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">blankCompOpt</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">blankExecOpt</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">newSyntax</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">caseSensitive</span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><span class="hs-comment">-- | Role of a character in the file.</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">data</span><span> </span><span id="LayerRole"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-var">LayerRole</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Markup"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Comment"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Code"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681749930"><span id="local-6989586621681749932"><span id="local-6989586621681749936"><span class="annot"><span class="annottext">Int -&gt; LayerRole -&gt; ShowS
+[LayerRole] -&gt; ShowS
+LayerRole -&gt; [Char]
+(Int -&gt; LayerRole -&gt; ShowS)
+-&gt; (LayerRole -&gt; [Char])
+-&gt; ([LayerRole] -&gt; ShowS)
+-&gt; Show LayerRole
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; [Char]) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; LayerRole -&gt; ShowS
+showsPrec :: Int -&gt; LayerRole -&gt; ShowS
+$cshow :: LayerRole -&gt; [Char]
+show :: LayerRole -&gt; [Char]
+$cshowList :: [LayerRole] -&gt; ShowS
+showList :: [LayerRole] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681749941"><span id="local-6989586621681749946"><span class="annot"><span class="annottext">LayerRole -&gt; LayerRole -&gt; Bool
+(LayerRole -&gt; LayerRole -&gt; Bool)
+-&gt; (LayerRole -&gt; LayerRole -&gt; Bool) -&gt; Eq LayerRole
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: LayerRole -&gt; LayerRole -&gt; Bool
+== :: LayerRole -&gt; LayerRole -&gt; Bool
+$c/= :: LayerRole -&gt; LayerRole -&gt; Bool
+/= :: LayerRole -&gt; LayerRole -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="annot"><span class="hs-comment">-- | A sequence of characters in a file playing the same role.</span></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">data</span><span> </span><span id="Layer"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-var">Layer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Layer"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-var">Layer</span></a></span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="layerRole"><span class="annot"><span class="annottext">Layer -&gt; LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#layerRole"><span class="hs-identifier hs-var hs-var">layerRole</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="interval"><span class="annot"><span class="annottext">Layer -&gt; IntervalWithoutFile
+</span><a href="Agda.Syntax.Parser.Literate.html#interval"><span class="hs-identifier hs-var hs-var">interval</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#IntervalWithoutFile"><span class="hs-identifier hs-type">IntervalWithoutFile</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="layerContent"><span class="annot"><span class="annottext">Layer -&gt; [Char]
+</span><a href="Agda.Syntax.Parser.Literate.html#layerContent"><span class="hs-identifier hs-var hs-var">layerContent</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681749955"><span id="local-6989586621681749966"><span id="local-6989586621681749970"><span class="annot"><span class="annottext">Int -&gt; Layer -&gt; ShowS
+[Layer] -&gt; ShowS
+Layer -&gt; [Char]
+(Int -&gt; Layer -&gt; ShowS)
+-&gt; (Layer -&gt; [Char]) -&gt; ([Layer] -&gt; ShowS) -&gt; Show Layer
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; [Char]) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Layer -&gt; ShowS
+showsPrec :: Int -&gt; Layer -&gt; ShowS
+$cshow :: Layer -&gt; [Char]
+show :: Layer -&gt; [Char]
+$cshowList :: [Layer] -&gt; ShowS
+showList :: [Layer] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="annot"><span class="hs-comment">-- | A list of contiguous layers.</span></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">type</span><span> </span><span id="Layers"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layers"><span class="hs-identifier hs-var">Layers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRangeWithoutFile"><span class="hs-identifier hs-type">HasRangeWithoutFile</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-57"></span><span>  </span><span id="local-6989586621681749979"><span class="annot"><span class="annottext">getRangeWithoutFile :: Layer -&gt; RangeWithoutFile
+</span><a href="#local-6989586621681749979"><span class="hs-identifier hs-var hs-var hs-var">getRangeWithoutFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntervalWithoutFile -&gt; RangeWithoutFile
+forall a. HasRangeWithoutFile a =&gt; a -&gt; RangeWithoutFile
+</span><a href="Agda.Syntax.Position.html#getRangeWithoutFile"><span class="hs-identifier hs-var">getRangeWithoutFile</span></a></span><span> </span><span class="annot"><span class="annottext">(IntervalWithoutFile -&gt; RangeWithoutFile)
+-&gt; (Layer -&gt; IntervalWithoutFile) -&gt; Layer -&gt; RangeWithoutFile
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Layer -&gt; IntervalWithoutFile
+</span><a href="Agda.Syntax.Parser.Literate.html#interval"><span class="hs-identifier hs-var">interval</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="annot"><span class="hs-comment">-- | Annotates a tokenized string with position information.</span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-type">mkLayers</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#PositionWithoutFile"><span class="hs-identifier hs-type">PositionWithoutFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layers"><span class="hs-identifier hs-type">Layers</span></a></span><span>
+</span><span id="line-62"></span><span id="mkLayers"><span class="annot"><span class="annottext">mkLayers :: PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var hs-var">mkLayers</span></a></span></span><span> </span><span id="local-6989586621681749983"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749983"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#emptyLiterate"><span class="hs-identifier hs-var">emptyLiterate</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749983"><span class="hs-identifier hs-var">pos</span></a></span><span>
+</span><span id="line-63"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span id="local-6989586621681749985"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749985"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681749986"><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+</span><a href="#local-6989586621681749986"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749985"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+</span><a href="#local-6989586621681749986"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-64"></span><span>                             </span><span class="hs-comment">-- Empty layers are ignored.</span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span id="local-6989586621681749987"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749987"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681749988"><span class="annot"><span class="annottext">LayerRole
+</span><a href="#local-6989586621681749988"><span class="hs-identifier hs-var">ty</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681749989"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681749989"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681749990"><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+</span><a href="#local-6989586621681749990"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><span class="annottext">LayerRole -&gt; IntervalWithoutFile -&gt; [Char] -&gt; Layer
+</span><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-var">Layer</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="#local-6989586621681749988"><span class="hs-identifier hs-var">ty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">()
+-&gt; PositionWithoutFile
+-&gt; PositionWithoutFile
+-&gt; IntervalWithoutFile
+forall a.
+a -&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' a
+</span><a href="Agda.Syntax.Position.html#Interval"><span class="hs-identifier hs-var">Interval</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749987"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749992"><span class="hs-identifier hs-var">next</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681749989"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Layer -&gt; [Layer] -&gt; [Layer]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749992"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+</span><a href="#local-6989586621681749990"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681749992"><span class="annot"><span class="annottext">next :: PositionWithoutFile
+</span><a href="#local-6989586621681749992"><span class="hs-identifier hs-var hs-var">next</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [Char] -&gt; PositionWithoutFile
+forall (t :: * -&gt; *) a.
+Foldable t =&gt;
+Position' a -&gt; t Char -&gt; Position' a
+</span><a href="Agda.Syntax.Position.html#movePosByString"><span class="hs-identifier hs-var">movePosByString</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681749987"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681749989"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#unMkLayers"><span class="hs-identifier hs-type">unMkLayers</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layers"><span class="hs-identifier hs-type">Layers</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-71"></span><span id="unMkLayers"><span class="annot"><span class="annottext">unMkLayers :: [Layer] -&gt; [(LayerRole, [Char])]
+</span><a href="Agda.Syntax.Parser.Literate.html#unMkLayers"><span class="hs-identifier hs-var hs-var">unMkLayers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Layer -&gt; (LayerRole, [Char])) -&gt; [Layer] -&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole -&gt; [Char] -&gt; (LayerRole, [Char]))
+-&gt; (Layer -&gt; LayerRole) -&gt; Layer -&gt; [Char] -&gt; (LayerRole, [Char])
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Layer -&gt; LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#layerRole"><span class="hs-identifier hs-var">layerRole</span></a></span><span> </span><span class="annot"><span class="annottext">(Layer -&gt; [Char] -&gt; (LayerRole, [Char]))
+-&gt; (Layer -&gt; [Char]) -&gt; Layer -&gt; (LayerRole, [Char])
+forall a b. (Layer -&gt; a -&gt; b) -&gt; (Layer -&gt; a) -&gt; Layer -&gt; b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Layer -&gt; [Char]
+</span><a href="Agda.Syntax.Parser.Literate.html#layerContent"><span class="hs-identifier hs-var">layerContent</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#atomizeLayers"><span class="hs-identifier hs-type">atomizeLayers</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layers"><span class="hs-identifier hs-type">Layers</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-74"></span><span id="atomizeLayers"><span class="annot"><span class="annottext">atomizeLayers :: [Layer] -&gt; [(LayerRole, Char)]
+</span><a href="Agda.Syntax.Parser.Literate.html#atomizeLayers"><span class="hs-identifier hs-var hs-var">atomizeLayers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Char -&gt; (LayerRole, Char)) -&gt; [Char] -&gt; [(LayerRole, Char)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">((Char -&gt; (LayerRole, Char)) -&gt; [Char] -&gt; [(LayerRole, Char)])
+-&gt; ((LayerRole, [Char]) -&gt; Char -&gt; (LayerRole, Char))
+-&gt; (LayerRole, [Char])
+-&gt; [Char]
+-&gt; [(LayerRole, Char)]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole -&gt; Char -&gt; (LayerRole, Char))
+-&gt; ((LayerRole, [Char]) -&gt; LayerRole)
+-&gt; (LayerRole, [Char])
+-&gt; Char
+-&gt; (LayerRole, Char)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char]) -&gt; LayerRole
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((LayerRole, [Char]) -&gt; [Char] -&gt; [(LayerRole, Char)])
+-&gt; ((LayerRole, [Char]) -&gt; [Char])
+-&gt; (LayerRole, [Char])
+-&gt; [(LayerRole, Char)]
+forall a b.
+((LayerRole, [Char]) -&gt; a -&gt; b)
+-&gt; ((LayerRole, [Char]) -&gt; a) -&gt; (LayerRole, [Char]) -&gt; b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char]) -&gt; [Char]
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((LayerRole, [Char]) -&gt; [(LayerRole, Char)])
+-&gt; ([Layer] -&gt; [(LayerRole, [Char])])
+-&gt; [Layer]
+-&gt; [(LayerRole, Char)]
+forall (m :: * -&gt; *) b c a.
+Monad m =&gt;
+(b -&gt; m c) -&gt; (a -&gt; m b) -&gt; a -&gt; m c
+</span><span class="hs-operator hs-var">&lt;=&lt;</span></span><span> </span><span class="annot"><span class="annottext">[Layer] -&gt; [(LayerRole, [Char])]
+</span><a href="Agda.Syntax.Parser.Literate.html#unMkLayers"><span class="hs-identifier hs-var">unMkLayers</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | Type of a literate preprocessor:</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--   Invariants:</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--   &gt; f : Processor</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   proposition&gt; f pos s /= []</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--   proposition&gt; f pos s &gt;&gt;= layerContent == s</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">type</span><span> </span><span id="Processor"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-var">Processor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#PositionWithoutFile"><span class="hs-identifier hs-type">PositionWithoutFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- | List of valid extensions for literate Agda files, and their</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--   corresponding preprocessors.</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--   If you add new extensions, remember to update test/Utils.hs so</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--   that test cases ending in the new extensions are found.</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--   The 'Bool' parameter controls whether only @```agda@ blocks</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--   are treated as Agda code in Markdown/Typst files.</span><span>
+</span><span id="line-95"></span><span class="hs-comment">--   When @True@, only blocks marked @```agda@ are considered code.</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--   When @False@, both @```@ and @```agda@ blocks are code (default).</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateProcessors"><span class="hs-identifier hs-type">literateProcessors</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-type">Processor</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#FileType"><span class="hs-identifier hs-type">FileType</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-99"></span><span id="literateProcessors"><span class="annot"><span class="annottext">literateProcessors :: Bool -&gt; [([Char], (Processor, FileType))]
+</span><a href="Agda.Syntax.Parser.Literate.html#literateProcessors"><span class="hs-identifier hs-var hs-var">literateProcessors</span></a></span></span><span> </span><span id="local-6989586621681749998"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681749998"><span class="hs-identifier hs-var">onlyAgdaBlocks</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char]
+ -&gt; (Processor, FileType) -&gt; ([Char], (Processor, FileType)))
+-&gt; (([Char], (Processor, FileType)) -&gt; [Char])
+-&gt; ([Char], (Processor, FileType))
+-&gt; (Processor, FileType)
+-&gt; ([Char], (Processor, FileType))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.lagda&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ShowS
+-&gt; (([Char], (Processor, FileType)) -&gt; [Char])
+-&gt; ([Char], (Processor, FileType))
+-&gt; [Char]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([Char], (Processor, FileType)) -&gt; [Char]
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">(([Char], (Processor, FileType))
+ -&gt; (Processor, FileType) -&gt; ([Char], (Processor, FileType)))
+-&gt; (([Char], (Processor, FileType)) -&gt; (Processor, FileType))
+-&gt; ([Char], (Processor, FileType))
+-&gt; ([Char], (Processor, FileType))
+forall a b.
+(([Char], (Processor, FileType)) -&gt; a -&gt; b)
+-&gt; (([Char], (Processor, FileType)) -&gt; a)
+-&gt; ([Char], (Processor, FileType))
+-&gt; b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">([Char], (Processor, FileType)) -&gt; (Processor, FileType)
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(([Char], (Processor, FileType))
+ -&gt; ([Char], (Processor, FileType)))
+-&gt; [([Char], (Processor, FileType))]
+-&gt; [([Char], (Processor, FileType))]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span>
+</span><span id="line-101"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateTeX"><span class="hs-identifier hs-var">literateTeX</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#TexFileType"><span class="hs-identifier hs-var">TexFileType</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.rst&quot;</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateRsT"><span class="hs-identifier hs-var">literateRsT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#RstFileType"><span class="hs-identifier hs-var">RstFileType</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.tex&quot;</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateTeX"><span class="hs-identifier hs-var">literateTeX</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#TexFileType"><span class="hs-identifier hs-var">TexFileType</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.md&quot;</span></span><span class="hs-special">,</span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateMd"><span class="hs-identifier hs-var">literateMd</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681749998"><span class="hs-identifier hs-var">onlyAgdaBlocks</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#MdFileType"><span class="hs-identifier hs-var">MdFileType</span></a></span><span> </span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.org&quot;</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateOrg"><span class="hs-identifier hs-var">literateOrg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#OrgFileType"><span class="hs-identifier hs-var">OrgFileType</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.tree&quot;</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateTree"><span class="hs-identifier hs-var">literateTree</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#TreeFileType"><span class="hs-identifier hs-var">TreeFileType</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-comment">-- For now, treat typst as markdown because they use the same</span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-comment">-- syntax for code blocks.</span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.typ&quot;</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateMd"><span class="hs-identifier hs-var">literateMd</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681749998"><span class="hs-identifier hs-var">onlyAgdaBlocks</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#TypstFileType"><span class="hs-identifier hs-var">TypstFileType</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="annot"><span class="hs-comment">-- | List of valid literate file extensions.</span></span><span>
+</span><span id="line-113"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateExts"><span class="hs-identifier hs-type">literateExts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-114"></span><span id="literateExts"><span class="annot"><span class="annottext">literateExts :: [[Char]]
+</span><a href="Agda.Syntax.Parser.Literate.html#literateExts"><span class="hs-identifier hs-var hs-var">literateExts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Char], (Processor, FileType)) -&gt; [Char]
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">(([Char], (Processor, FileType)) -&gt; [Char])
+-&gt; [([Char], (Processor, FileType))] -&gt; [[Char]]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; [([Char], (Processor, FileType))]
+</span><a href="Agda.Syntax.Parser.Literate.html#literateProcessors"><span class="hs-identifier hs-var">literateProcessors</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="annot"><span class="hs-comment">-- | Returns @True@ if the role corresponds to Agda code.</span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#isCode"><span class="hs-identifier hs-type">isCode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-119"></span><span id="isCode"><span class="annot"><span class="annottext">isCode :: LayerRole -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isCode"><span class="hs-identifier hs-var hs-var">isCode</span></a></span></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-120"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#isCode"><span class="hs-identifier hs-var">isCode</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-121"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#isCode"><span class="hs-identifier hs-var">isCode</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="annot"><span class="hs-comment">-- | Returns @True@ if the layer contains Agda code.</span></span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#isCodeLayer"><span class="hs-identifier hs-type">isCodeLayer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-126"></span><span id="isCodeLayer"><span class="annot"><span class="annottext">isCodeLayer :: Layer -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isCodeLayer"><span class="hs-identifier hs-var hs-var">isCodeLayer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LayerRole -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isCode"><span class="hs-identifier hs-var">isCode</span></a></span><span> </span><span class="annot"><span class="annottext">(LayerRole -&gt; Bool) -&gt; (Layer -&gt; LayerRole) -&gt; Layer -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Layer -&gt; LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#layerRole"><span class="hs-identifier hs-var">layerRole</span></a></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | Blanks the non-code parts of a given file, preserving positions of</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--   characters corresponding to code. This way, there is a direct</span><span>
+</span><span id="line-130"></span><span class="hs-comment">--   correspondence between source positions and positions in the</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--   processed result.</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#illiterate"><span class="hs-identifier hs-type">illiterate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-134"></span><span id="illiterate"><span class="annot"><span class="annottext">illiterate :: [Layer] -&gt; [Char]
+</span><a href="Agda.Syntax.Parser.Literate.html#illiterate"><span class="hs-identifier hs-var hs-var">illiterate</span></a></span></span><span> </span><span id="local-6989586621681750006"><span class="annot"><span class="annottext">[Layer]
+</span><a href="#local-6989586621681750006"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; [Char]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">LayerRole -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isCode"><span class="hs-identifier hs-var">isCode</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="#local-6989586621681750008"><span class="hs-identifier hs-var">layerRole</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">ShowS
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><a href="Agda.Syntax.Parser.Literate.html#bleach"><span class="hs-identifier hs-var">bleach</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750011"><span class="hs-identifier hs-var">layerContent</span></a></span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span class="hs-special">{</span><span id="local-6989586621681750008"><span class="annot"><span class="annottext">LayerRole
+layerRole :: Layer -&gt; LayerRole
+layerRole :: LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#layerRole"><span class="hs-identifier hs-var hs-var">layerRole</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750011"><span class="annot"><span class="annottext">[Char]
+layerContent :: Layer -&gt; [Char]
+layerContent :: [Char]
+</span><a href="Agda.Syntax.Parser.Literate.html#layerContent"><span class="hs-identifier hs-var hs-var">layerContent</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Layer]
+</span><a href="#local-6989586621681750006"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="annot"><span class="hs-comment">-- | Replaces non-space characters in a string with spaces.</span></span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#bleach"><span class="hs-identifier hs-type">bleach</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-142"></span><span id="bleach"><span class="annot"><span class="annottext">bleach :: ShowS
+</span><a href="Agda.Syntax.Parser.Literate.html#bleach"><span class="hs-identifier hs-var hs-var">bleach</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Char) -&gt; ShowS
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">((Char -&gt; Char) -&gt; ShowS) -&gt; (Char -&gt; Char) -&gt; ShowS
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750012"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681750012"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681750012"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681750012"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\t'</span></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681750012"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span class="annot"><span class="hs-comment">-- | Check if a character is a blank character.</span></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#isBlank"><span class="hs-identifier hs-type">isBlank</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-147"></span><span id="isBlank"><span class="annot"><span class="annottext">isBlank :: Char -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isBlank"><span class="hs-identifier hs-var hs-var">isBlank</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">(&amp;&amp;)</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool -&gt; Bool) -&gt; (Char -&gt; Bool) -&gt; Char -&gt; Bool -&gt; Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool -&gt; Bool) -&gt; (Char -&gt; Bool) -&gt; Char -&gt; Bool
+forall a b. (Char -&gt; a -&gt; b) -&gt; (Char -&gt; a) -&gt; Char -&gt; b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- | Returns a tuple consisting of the first line of the input, and the rest</span><span>
+</span><span id="line-150"></span><span class="hs-comment">--   of the input.</span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span id="local-6989586621681749789"><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-type">caseLine</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681749789"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681749789"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681749789"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-153"></span><span id="caseLine"><span class="annot"><span class="annottext">caseLine :: forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var hs-var">caseLine</span></a></span></span><span> </span><span id="local-6989586621681750020"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681750020"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681750021"><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; a
+</span><a href="#local-6989586621681750021"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681750020"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span id="local-6989586621681750022"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681750022"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681750023"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750023"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; a
+</span><a href="#local-6989586621681750021"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 Char -&gt; [Item (List1 Char)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">List1 Char
+</span><a href="#local-6989586621681750024"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750025"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-156"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-157"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681750024"><span class="annot"><span class="annottext">List1 Char
+</span><a href="#local-6989586621681750024"><span class="hs-identifier hs-var">line</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750025"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750025"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; Char -&gt; [Char] -&gt; (List1 Char, [Char])
+forall a. (a -&gt; Bool) -&gt; a -&gt; [a] -&gt; (List1 a, [a])
+</span><a href="Agda.Utils.List.html#breakAfter1"><span class="hs-identifier hs-var">breakAfter1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681750022"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750023"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="annot"><span class="hs-comment">-- | Canonical decomposition of an empty literate file.</span></span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#emptyLiterate"><span class="hs-identifier hs-type">emptyLiterate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#PositionWithoutFile"><span class="hs-identifier hs-type">PositionWithoutFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-162"></span><span id="emptyLiterate"><span class="annot"><span class="annottext">emptyLiterate :: PositionWithoutFile -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#emptyLiterate"><span class="hs-identifier hs-var hs-var">emptyLiterate</span></a></span></span><span> </span><span id="local-6989586621681750027"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750027"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">LayerRole -&gt; IntervalWithoutFile -&gt; [Char] -&gt; Layer
+</span><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-var">Layer</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">()
+-&gt; PositionWithoutFile
+-&gt; PositionWithoutFile
+-&gt; IntervalWithoutFile
+forall a.
+a -&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' a
+</span><a href="Agda.Syntax.Position.html#Interval"><span class="hs-identifier hs-var">Interval</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750027"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750027"><span class="hs-identifier hs-var">pos</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- | Create a regular expression that:</span><span>
+</span><span id="line-165"></span><span class="hs-comment">--   - Must match the whole string</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--   - Works across line boundaries</span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-type">rex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Regex</span></span><span>
+</span><span id="line-169"></span><span id="rex"><span class="annot"><span class="annottext">rex :: [Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var hs-var">rex</span></a></span></span><span> </span><span id="local-6989586621681750029"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750029"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-170"></span><span>  </span><span class="annot"><span class="annottext">CompOption -&gt; ExecOption -&gt; [Char] -&gt; Regex
+forall regex compOpt execOpt source.
+RegexMaker regex compOpt execOpt source =&gt;
+compOpt -&gt; execOpt -&gt; source -&gt; regex
+</span><span class="hs-identifier hs-var">makeRegexOpts</span></span><span> </span><span class="annot"><span class="annottext">CompOption
+forall regex compOpt execOpt.
+RegexOptions regex compOpt execOpt =&gt;
+compOpt
+</span><span class="hs-identifier hs-var">blankCompOpt</span></span><span class="hs-special">{</span><span class="annot"><span class="hs-identifier hs-var">newSyntax</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">ExecOption
+forall regex compOpt execOpt.
+RegexOptions regex compOpt execOpt =&gt;
+execOpt
+</span><span class="hs-identifier hs-var">blankExecOpt</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Regex) -&gt; [Char] -&gt; Regex
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-171"></span><span>    </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;\\`&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750029"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;\\'&quot;</span></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="annot"><span class="hs-comment">-- | Preprocessor for literate TeX.</span></span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateTeX"><span class="hs-identifier hs-type">literateTeX</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-type">Processor</span></a></span><span>
+</span><span id="line-176"></span><span id="literateTeX"><span class="annot"><span class="annottext">literateTeX :: Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateTeX"><span class="hs-identifier hs-var hs-var">literateTeX</span></a></span></span><span> </span><span id="local-6989586621681750030"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750030"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span id="local-6989586621681750031"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750031"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750030"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750032"><span class="hs-identifier hs-var">tex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750031"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-178"></span><span>  </span><span class="annot"><a href="#local-6989586621681750032"><span class="hs-identifier hs-type">tex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-179"></span><span>  </span><span id="local-6989586621681750032"><span class="annot"><span class="annottext">tex :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750032"><span class="hs-identifier hs-var hs-var">tex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750033"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750033"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750034"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750034"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-180"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750035"><span class="hs-identifier hs-var">r_begin</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Maybe (AllTextSubmatches [] [Char])
+forall regex source target (m :: * -&gt; *).
+(RegexContext regex source target, MonadFail m) =&gt;
+regex -&gt; source -&gt; m target
+forall (m :: * -&gt; *).
+MonadFail m =&gt;
+Regex -&gt; [Char] -&gt; m (AllTextSubmatches [] [Char])
+</span><span class="hs-operator hs-var">`matchM`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750033"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-181"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char] -&gt; [[Char]]
+forall (f :: * -&gt; *) b. AllTextSubmatches f b -&gt; f b
+</span><span class="hs-identifier hs-var">getAllTextSubmatches</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750036"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750036"><span class="hs-identifier hs-var">pre</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750037"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750037"><span class="hs-identifier hs-var">markup</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750038"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750038"><span class="hs-identifier hs-var">whitespace</span></a></span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-182"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750036"><span class="hs-identifier hs-var">pre</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750037"><span class="hs-identifier hs-var">markup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-183"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750038"><span class="hs-identifier hs-var">whitespace</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750039"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750034"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-184"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char]
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-185"></span><span>      </span><span class="annot"><span class="annottext">Maybe (AllTextSubmatches [] [Char])
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750033"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750032"><span class="hs-identifier hs-var">tex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750034"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span>  </span><span id="local-6989586621681750035"><span class="annot"><span class="annottext">r_begin :: Regex
+</span><a href="#local-6989586621681750035"><span class="hs-identifier hs-var hs-var">r_begin</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;(([^\\%]|\\\\.)*)(\\\\begin\\{code\\}[^\n]*)(\n)?&quot;</span></span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span>  </span><span class="annot"><a href="#local-6989586621681750039"><span class="hs-identifier hs-type">code</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-190"></span><span>  </span><span id="local-6989586621681750039"><span class="annot"><span class="annottext">code :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750039"><span class="hs-identifier hs-var hs-var">code</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750041"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750041"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750042"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750042"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-191"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750043"><span class="hs-identifier hs-var">r_end</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Maybe (AllTextSubmatches [] [Char])
+forall regex source target (m :: * -&gt; *).
+(RegexContext regex source target, MonadFail m) =&gt;
+regex -&gt; source -&gt; m target
+forall (m :: * -&gt; *).
+MonadFail m =&gt;
+Regex -&gt; [Char] -&gt; m (AllTextSubmatches [] [Char])
+</span><span class="hs-operator hs-var">`matchM`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750041"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-192"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char] -&gt; [[Char]]
+forall (f :: * -&gt; *) b. AllTextSubmatches f b -&gt; f b
+</span><span class="hs-identifier hs-var">getAllTextSubmatches</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750044"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750044"><span class="hs-identifier hs-var">code</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750045"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750045"><span class="hs-identifier hs-var">markup</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750046"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750046"><span class="hs-identifier hs-var">post</span></a></span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-193"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750044"><span class="hs-identifier hs-var">code</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750045"><span class="hs-identifier hs-var">markup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750046"><span class="hs-identifier hs-var">post</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750032"><span class="hs-identifier hs-var">tex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750042"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-194"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char]
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-195"></span><span>      </span><span class="annot"><span class="annottext">Maybe (AllTextSubmatches [] [Char])
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750041"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750039"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750042"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span>  </span><span id="local-6989586621681750043"><span class="annot"><span class="annottext">r_end :: Regex
+</span><a href="#local-6989586621681750043"><span class="hs-identifier hs-var hs-var">r_end</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;([[:blank:]]*)(\\\\end\\{code\\})(.*)&quot;</span></span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- | Preprocessor for Markdown.</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--   The 'Bool' parameter controls whether only @```agda@ blocks</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--   are treated as Agda code.</span><span>
+</span><span id="line-203"></span><span class="hs-comment">--   When @True@, only blocks explicitly marked @```agda@ are considered code.</span><span>
+</span><span id="line-204"></span><span class="hs-comment">--   When @False@, both unmarked @```@ and @```agda@ blocks are code (default).</span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateMd"><span class="hs-identifier hs-type">literateMd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-type">Processor</span></a></span><span>
+</span><span id="line-207"></span><span id="literateMd"><span class="annot"><span class="annottext">literateMd :: Bool -&gt; Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateMd"><span class="hs-identifier hs-var hs-var">literateMd</span></a></span></span><span> </span><span id="local-6989586621681750047"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681750047"><span class="hs-identifier hs-var">onlyAgdaBlocks</span></a></span></span><span> </span><span id="local-6989586621681750048"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750048"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span id="local-6989586621681750049"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750049"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750048"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">([(LayerRole, [Char])] -&gt; [Layer])
+-&gt; [(LayerRole, [Char])] -&gt; [Layer]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750050"><span class="hs-identifier hs-var">md</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750049"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-208"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-209"></span><span>  </span><span class="annot"><a href="#local-6989586621681750050"><span class="hs-identifier hs-type">md</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-210"></span><span>  </span><span id="local-6989586621681750050"><span class="annot"><span class="annottext">md :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750050"><span class="hs-identifier hs-var hs-var">md</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750051"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750051"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750052"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750052"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-211"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750053"><span class="hs-identifier hs-var">md_begin</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Maybe (AllTextSubmatches [] [Char])
+forall regex source target (m :: * -&gt; *).
+(RegexContext regex source target, MonadFail m) =&gt;
+regex -&gt; source -&gt; m target
+forall (m :: * -&gt; *).
+MonadFail m =&gt;
+Regex -&gt; [Char] -&gt; m (AllTextSubmatches [] [Char])
+</span><span class="hs-operator hs-var">`matchM`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750051"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-212"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char] -&gt; [[Char]]
+forall (f :: * -&gt; *) b. AllTextSubmatches f b -&gt; f b
+</span><span class="hs-identifier hs-var">getAllTextSubmatches</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750054"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750054"><span class="hs-identifier hs-var">pre</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750055"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750055"><span class="hs-identifier hs-var">markup</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750056"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750056"><span class="hs-identifier hs-var">tag</span></a></span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-213"></span><span>        </span><span class="hs-comment">-- When onlyAgdaBlocks is True, only treat blocks with &quot;agda&quot; tag as code</span><span>
+</span><span id="line-214"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681750047"><span class="hs-identifier hs-var">onlyAgdaBlocks</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750056"><span class="hs-identifier hs-var">tag</span></a></span><span>
+</span><span id="line-215"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750054"><span class="hs-identifier hs-var">pre</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750055"><span class="hs-identifier hs-var">markup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750058"><span class="hs-identifier hs-var">code_other</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750052"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-216"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750054"><span class="hs-identifier hs-var">pre</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750055"><span class="hs-identifier hs-var">markup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750059"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750052"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-217"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char]
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-218"></span><span>      </span><span class="annot"><span class="annottext">Maybe (AllTextSubmatches [] [Char])
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-219"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750051"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-220"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750060"><span class="hs-identifier hs-var">md_begin_other</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Bool
+forall regex source target.
+RegexContext regex source target =&gt;
+regex -&gt; source -&gt; target
+</span><span class="hs-operator hs-var">`match`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750051"><span class="hs-identifier hs-var">line</span></a></span><span>
+</span><span id="line-221"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750058"><span class="hs-identifier hs-var">code_other</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750052"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-222"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750050"><span class="hs-identifier hs-var">md</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750052"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-223"></span><span>
+</span><span id="line-224"></span><span>  </span><span id="local-6989586621681750053"><span class="annot"><span class="annottext">md_begin :: Regex
+</span><a href="#local-6989586621681750053"><span class="hs-identifier hs-var hs-var">md_begin</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;(.*)([[:space:]]*```(agda)?[[:space:]]*)&quot;</span></span><span>
+</span><span id="line-225"></span><span>  </span><span id="local-6989586621681750060"><span class="annot"><span class="annottext">md_begin_other :: Regex
+</span><a href="#local-6989586621681750060"><span class="hs-identifier hs-var hs-var">md_begin_other</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;[[:space:]]*```[a-zA-Z0-9-]*[[:space:]]*&quot;</span></span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span>  </span><span class="annot"><a href="#local-6989586621681750059"><span class="hs-identifier hs-type">code</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-228"></span><span>  </span><span id="local-6989586621681750059"><span class="annot"><span class="annottext">code :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750059"><span class="hs-identifier hs-var hs-var">code</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750061"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750061"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750062"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750062"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-229"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750063"><span class="hs-identifier hs-var">md_end</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Maybe (AllTextSubmatches [] [Char])
+forall regex source target (m :: * -&gt; *).
+(RegexContext regex source target, MonadFail m) =&gt;
+regex -&gt; source -&gt; m target
+forall (m :: * -&gt; *).
+MonadFail m =&gt;
+Regex -&gt; [Char] -&gt; m (AllTextSubmatches [] [Char])
+</span><span class="hs-operator hs-var">`matchM`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750061"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-230"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char] -&gt; [[Char]]
+forall (f :: * -&gt; *) b. AllTextSubmatches f b -&gt; f b
+</span><span class="hs-identifier hs-var">getAllTextSubmatches</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750064"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750064"><span class="hs-identifier hs-var">markup</span></a></span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-231"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750064"><span class="hs-identifier hs-var">markup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750050"><span class="hs-identifier hs-var">md</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750062"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-232"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char]
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-233"></span><span>      </span><span class="annot"><span class="annottext">Maybe (AllTextSubmatches [] [Char])
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750061"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750059"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750062"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-234"></span><span>
+</span><span id="line-235"></span><span>  </span><span class="hs-comment">-- A non-Agda code block.</span><span>
+</span><span id="line-236"></span><span>  </span><span class="annot"><a href="#local-6989586621681750058"><span class="hs-identifier hs-type">code_other</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-237"></span><span>  </span><span id="local-6989586621681750058"><span class="annot"><span class="annottext">code_other :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750058"><span class="hs-identifier hs-var hs-var">code_other</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750065"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750065"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750066"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750066"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-238"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750065"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-239"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750063"><span class="hs-identifier hs-var">md_end</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Bool
+forall regex source target.
+RegexContext regex source target =&gt;
+regex -&gt; source -&gt; target
+</span><span class="hs-operator hs-var">`match`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750065"><span class="hs-identifier hs-var">line</span></a></span><span>
+</span><span id="line-240"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750050"><span class="hs-identifier hs-var">md</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750066"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-241"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750058"><span class="hs-identifier hs-var">code_other</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750066"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span>  </span><span id="local-6989586621681750063"><span class="annot"><span class="annottext">md_end :: Regex
+</span><a href="#local-6989586621681750063"><span class="hs-identifier hs-var hs-var">md_end</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;([[:space:]]*```[[:space:]]*)&quot;</span></span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span class="annot"><span class="hs-comment">-- | Preprocessor for reStructuredText.</span></span><span>
+</span><span id="line-246"></span><span>
+</span><span id="line-247"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateRsT"><span class="hs-identifier hs-type">literateRsT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-type">Processor</span></a></span><span>
+</span><span id="line-248"></span><span id="literateRsT"><span class="annot"><span class="annottext">literateRsT :: Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateRsT"><span class="hs-identifier hs-var hs-var">literateRsT</span></a></span></span><span> </span><span id="local-6989586621681750067"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750067"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span id="local-6989586621681750068"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750068"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750067"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">([(LayerRole, [Char])] -&gt; [Layer])
+-&gt; [(LayerRole, [Char])] -&gt; [Layer]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750069"><span class="hs-identifier hs-var">rst</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750068"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-249"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-250"></span><span>  </span><span class="annot"><a href="#local-6989586621681750069"><span class="hs-identifier hs-type">rst</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-251"></span><span>  </span><span id="local-6989586621681750069"><span class="annot"><span class="annottext">rst :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750069"><span class="hs-identifier hs-var hs-var">rst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750070"><span class="hs-identifier hs-var">maybe_code</span></a></span><span>
+</span><span id="line-252"></span><span>
+</span><span id="line-253"></span><span>  </span><span id="local-6989586621681750070"><span class="annot"><span class="annottext">maybe_code :: [Char] -&gt; [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750070"><span class="hs-identifier hs-var hs-var">maybe_code</span></a></span></span><span> </span><span id="local-6989586621681750083"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750083"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750084"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750084"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-254"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750085"><span class="hs-identifier hs-var">r_comment</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Bool
+forall regex source target.
+RegexContext regex source target =&gt;
+regex -&gt; source -&gt; target
+</span><span class="hs-operator hs-var">`match`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750083"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-255"></span><span>      </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+</span><a href="#local-6989586621681750086"><span class="hs-identifier hs-var">not_code</span></a></span><span>
+</span><span id="line-256"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750087"><span class="hs-identifier hs-var">r_code</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; [[[Char]]]
+forall regex source target.
+RegexContext regex source target =&gt;
+regex -&gt; source -&gt; target
+</span><span class="hs-operator hs-var">`match`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750083"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-257"></span><span>      </span><span class="hs-special">[</span><span class="hs-special">]</span><span>                         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+</span><a href="#local-6989586621681750086"><span class="hs-identifier hs-var">not_code</span></a></span><span>
+</span><span id="line-258"></span><span>      </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750088"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750088"><span class="hs-identifier hs-var">before</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;::&quot;</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750089"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750089"><span class="hs-identifier hs-var">after</span></a></span></span><span class="hs-special">]</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-259"></span><span>        </span><span class="hs-comment">-- Code starts</span><span>
+</span><span id="line-260"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; (Char -&gt; Bool) -&gt; Maybe Char -&gt; Bool
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isBlank"><span class="hs-identifier hs-var">isBlank</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Char -&gt; Bool) -&gt; Maybe Char -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Maybe Char
+forall a. [a] -&gt; Maybe a
+</span><a href="Agda.Utils.List.html#lastMaybe"><span class="hs-identifier hs-var">lastMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750088"><span class="hs-identifier hs-var">before</span></a></span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-261"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750083"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750092"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750084"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-262"></span><span>        </span><span class="hs-keyword">else</span><span>
+</span><span id="line-263"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750088"><span class="hs-identifier hs-var">before</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;:&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750089"><span class="hs-identifier hs-var">after</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750092"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750084"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-264"></span><span>      </span><span class="annot"><span class="annottext">[[[Char]]]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-265"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-266"></span><span>    </span><span id="local-6989586621681750086"><span class="annot"><span class="annottext">not_code :: [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750086"><span class="hs-identifier hs-var hs-var">not_code</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750083"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750069"><span class="hs-identifier hs-var">rst</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750084"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-267"></span><span>
+</span><span id="line-268"></span><span>  </span><span class="hs-comment">-- Finds the next indented block in the input.</span><span>
+</span><span id="line-269"></span><span>  </span><span class="annot"><a href="#local-6989586621681750092"><span class="hs-identifier hs-type">code</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-270"></span><span>  </span><span id="local-6989586621681750092"><span class="annot"><span class="annottext">code :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750092"><span class="hs-identifier hs-var hs-var">code</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750093"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750093"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750094"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750094"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-271"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; [Char] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750093"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-272"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750093"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750092"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750094"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-273"></span><span>    </span><span class="hs-keyword">else</span><span>
+</span><span id="line-274"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681750096"><span class="annot"><span class="annottext">xs :: [Char]
+</span><a href="#local-6989586621681750096"><span class="hs-identifier hs-var hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; ShowS
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">takeWhile</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isBlank"><span class="hs-identifier hs-var">isBlank</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750093"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">in</span><span>
+</span><span id="line-275"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750096"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-276"></span><span>      </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750070"><span class="hs-identifier hs-var">maybe_code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750093"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750094"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-277"></span><span>      </span><span class="hs-keyword">else</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750093"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750098"><span class="hs-identifier hs-var">indented</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750096"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750094"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-278"></span><span>
+</span><span id="line-279"></span><span>  </span><span class="hs-comment">-- Process an indented block.</span><span>
+</span><span id="line-280"></span><span>  </span><span class="annot"><a href="#local-6989586621681750098"><span class="hs-identifier hs-type">indented</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-281"></span><span>  </span><span id="local-6989586621681750098"><span class="annot"><span class="annottext">indented :: [Char] -&gt; [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750098"><span class="hs-identifier hs-var hs-var">indented</span></a></span></span><span> </span><span id="local-6989586621681750099"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750099"><span class="hs-identifier hs-var">ind</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750100"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750100"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750101"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750101"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-282"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; [Char] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750100"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750099"><span class="hs-identifier hs-var">ind</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; Bool
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Bool
+</span><span class="hs-operator hs-var">`isPrefixOf`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750100"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-283"></span><span>          </span><span class="hs-keyword">then</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750100"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750098"><span class="hs-identifier hs-var">indented</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750099"><span class="hs-identifier hs-var">ind</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750101"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-284"></span><span>          </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750070"><span class="hs-identifier hs-var">maybe_code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750100"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750101"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-285"></span><span>
+</span><span id="line-286"></span><span>  </span><span class="hs-comment">-- Beginning of a code block.</span><span>
+</span><span id="line-287"></span><span>  </span><span id="local-6989586621681750087"><span class="annot"><span class="annottext">r_code :: Regex
+</span><a href="#local-6989586621681750087"><span class="hs-identifier hs-var hs-var">r_code</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;(.*)(::)([[:space:]]*)&quot;</span></span><span>
+</span><span id="line-288"></span><span>
+</span><span id="line-289"></span><span>  </span><span class="hs-comment">-- Beginning of a comment block.</span><span>
+</span><span id="line-290"></span><span>  </span><span id="local-6989586621681750085"><span class="annot"><span class="annottext">r_comment :: Regex
+</span><a href="#local-6989586621681750085"><span class="hs-identifier hs-var hs-var">r_comment</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;[[:space:]]*\\.\\.([[:space:]].*)?&quot;</span></span><span>
+</span><span id="line-291"></span><span>
+</span><span id="line-292"></span><span class="annot"><span class="hs-comment">-- | Preprocessor for Org mode documents.</span></span><span>
+</span><span id="line-293"></span><span>
+</span><span id="line-294"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateOrg"><span class="hs-identifier hs-type">literateOrg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-type">Processor</span></a></span><span>
+</span><span id="line-295"></span><span id="literateOrg"><span class="annot"><span class="annottext">literateOrg :: Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateOrg"><span class="hs-identifier hs-var hs-var">literateOrg</span></a></span></span><span> </span><span id="local-6989586621681750103"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750103"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span id="local-6989586621681750104"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750104"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750103"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">([(LayerRole, [Char])] -&gt; [Layer])
+-&gt; [(LayerRole, [Char])] -&gt; [Layer]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750105"><span class="hs-identifier hs-var">org</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750104"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-296"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-297"></span><span>  </span><span class="annot"><a href="#local-6989586621681750105"><span class="hs-identifier hs-type">org</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-298"></span><span>  </span><span id="local-6989586621681750105"><span class="annot"><span class="annottext">org :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750105"><span class="hs-identifier hs-var hs-var">org</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750106"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750106"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750107"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750107"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-299"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750108"><span class="hs-identifier hs-var">org_begin</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Bool
+forall regex source target.
+RegexContext regex source target =&gt;
+regex -&gt; source -&gt; target
+</span><span class="hs-operator hs-var">`match`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750106"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-300"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750106"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750109"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750107"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-301"></span><span>    </span><span class="hs-keyword">else</span><span>
+</span><span id="line-302"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750106"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750105"><span class="hs-identifier hs-var">org</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750107"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-303"></span><span>
+</span><span id="line-304"></span><span>  </span><span class="hs-comment">-- Valid: #+begin_src agda2 :tangle yes</span><span>
+</span><span id="line-305"></span><span>  </span><span class="hs-comment">-- Valid: #+begin_src agda2</span><span>
+</span><span id="line-306"></span><span>  </span><span class="hs-comment">-- Invalid: #+begin_src adga2-foo</span><span>
+</span><span id="line-307"></span><span>  </span><span id="local-6989586621681750108"><span class="annot"><span class="annottext">org_begin :: Regex
+</span><a href="#local-6989586621681750108"><span class="hs-identifier hs-var hs-var">org_begin</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="#local-6989586621681750110"><span class="hs-identifier hs-var">rex'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;\\`(.*)([[:space:]]*\\#\\+begin_src agda2[[:space:]]+)&quot;</span></span><span>
+</span><span id="line-308"></span><span>
+</span><span id="line-309"></span><span>  </span><span class="annot"><a href="#local-6989586621681750109"><span class="hs-identifier hs-type">code</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-310"></span><span>  </span><span id="local-6989586621681750109"><span class="annot"><span class="annottext">code :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750109"><span class="hs-identifier hs-var hs-var">code</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750111"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750111"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750112"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750112"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-311"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750113"><span class="hs-identifier hs-var">org_end</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Bool
+forall regex source target.
+RegexContext regex source target =&gt;
+regex -&gt; source -&gt; target
+</span><span class="hs-operator hs-var">`match`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750111"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-312"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750111"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750105"><span class="hs-identifier hs-var">org</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750112"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-313"></span><span>    </span><span class="hs-keyword">else</span><span>
+</span><span id="line-314"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750111"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750109"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750112"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-315"></span><span>
+</span><span id="line-316"></span><span>  </span><span id="local-6989586621681750113"><span class="annot"><span class="annottext">org_end :: Regex
+</span><a href="#local-6989586621681750113"><span class="hs-identifier hs-var hs-var">org_end</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="#local-6989586621681750110"><span class="hs-identifier hs-var">rex'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;\\`([[:space:]]*\\#\\+end_src[[:space:]]*)(.*)&quot;</span></span><span>
+</span><span id="line-317"></span><span>
+</span><span id="line-318"></span><span>  </span><span class="hs-comment">-- Explicit type annotation required to disambiguate source.</span><span>
+</span><span id="line-319"></span><span>  </span><span class="annot"><a href="#local-6989586621681750110"><span class="hs-identifier hs-type">rex'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Regex</span></span><span>
+</span><span id="line-320"></span><span>  </span><span class="hs-comment">-- Source blocks start with `#+begin_src` but the casing does not matter.</span><span>
+</span><span id="line-321"></span><span>  </span><span id="local-6989586621681750110"><span class="annot"><span class="annottext">rex' :: [Char] -&gt; Regex
+</span><a href="#local-6989586621681750110"><span class="hs-identifier hs-var hs-var">rex'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompOption -&gt; ExecOption -&gt; [Char] -&gt; Regex
+forall regex compOpt execOpt source.
+RegexMaker regex compOpt execOpt source =&gt;
+compOpt -&gt; execOpt -&gt; source -&gt; regex
+</span><span class="hs-identifier hs-var">makeRegexOpts</span></span><span> </span><span class="annot"><span class="annottext">CompOption
+forall regex compOpt execOpt.
+RegexOptions regex compOpt execOpt =&gt;
+compOpt
+</span><span class="hs-identifier hs-var">blankCompOpt</span></span><span class="hs-special">{</span><span class="annot"><span class="hs-identifier hs-var">newSyntax</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-var">caseSensitive</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">ExecOption
+forall regex compOpt execOpt.
+RegexOptions regex compOpt execOpt =&gt;
+execOpt
+</span><span class="hs-identifier hs-var">blankExecOpt</span></span><span>
+</span><span id="line-322"></span><span>
+</span><span id="line-323"></span><span class="annot"><span class="hs-comment">-- | Preprocessor for Forester documents</span></span><span>
+</span><span id="line-324"></span><span>
+</span><span id="line-325"></span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#literateTree"><span class="hs-identifier hs-type">literateTree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-type">Processor</span></a></span><span>
+</span><span id="line-326"></span><span id="literateTree"><span class="annot"><span class="annottext">literateTree :: Processor
+</span><a href="Agda.Syntax.Parser.Literate.html#literateTree"><span class="hs-identifier hs-var hs-var">literateTree</span></a></span></span><span> </span><span id="local-6989586621681750114"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750114"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span id="local-6989586621681750115"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750115"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; [(LayerRole, [Char])] -&gt; [Layer]
+</span><a href="Agda.Syntax.Parser.Literate.html#mkLayers"><span class="hs-identifier hs-var">mkLayers</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681750114"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750116"><span class="hs-identifier hs-var">tree</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750115"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-327"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-328"></span><span>  </span><span class="annot"><a href="#local-6989586621681750116"><span class="hs-identifier hs-type">tree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-329"></span><span>  </span><span id="local-6989586621681750116"><span class="annot"><span class="annottext">tree :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750116"><span class="hs-identifier hs-var hs-var">tree</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750117"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750117"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750118"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750118"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-330"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750119"><span class="hs-identifier hs-var">tree_begin</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Maybe (AllTextSubmatches [] [Char])
+forall regex source target (m :: * -&gt; *).
+(RegexContext regex source target, MonadFail m) =&gt;
+regex -&gt; source -&gt; m target
+forall (m :: * -&gt; *).
+MonadFail m =&gt;
+Regex -&gt; [Char] -&gt; m (AllTextSubmatches [] [Char])
+</span><span class="hs-operator hs-var">`matchM`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750117"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-331"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char] -&gt; [[Char]]
+forall (f :: * -&gt; *) b. AllTextSubmatches f b -&gt; f b
+</span><span class="hs-identifier hs-var">getAllTextSubmatches</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750120"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750120"><span class="hs-identifier hs-var">pre</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750121"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750121"><span class="hs-identifier hs-var">markup</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750122"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750122"><span class="hs-identifier hs-var">whitespace</span></a></span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-332"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750120"><span class="hs-identifier hs-var">pre</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750121"><span class="hs-identifier hs-var">markup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-333"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750122"><span class="hs-identifier hs-var">whitespace</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750123"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750118"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-334"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char]
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-335"></span><span>      </span><span class="annot"><span class="annottext">Maybe (AllTextSubmatches [] [Char])
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750117"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750116"><span class="hs-identifier hs-var">tree</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750118"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-336"></span><span>
+</span><span id="line-337"></span><span>  </span><span id="local-6989586621681750119"><span class="annot"><span class="annottext">tree_begin :: Regex
+</span><a href="#local-6989586621681750119"><span class="hs-identifier hs-var hs-var">tree_begin</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;(([^\\%]|\\\\.)*)(\\\\agda\\{[^\n]*)(\n)?&quot;</span></span><span>
+</span><span id="line-338"></span><span>
+</span><span id="line-339"></span><span>  </span><span class="annot"><a href="#local-6989586621681750123"><span class="hs-identifier hs-type">code</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#LayerRole"><span class="hs-identifier hs-type">LayerRole</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-340"></span><span>  </span><span id="local-6989586621681750123"><span class="annot"><span class="annottext">code :: [Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750123"><span class="hs-identifier hs-var hs-var">code</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a. a -&gt; ([Char] -&gt; [Char] -&gt; a) -&gt; [Char] -&gt; a
+</span><a href="Agda.Syntax.Parser.Literate.html#caseLine"><span class="hs-identifier hs-var">caseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+ -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; ([Char] -&gt; [Char] -&gt; [(LayerRole, [Char])])
+-&gt; [Char]
+-&gt; [(LayerRole, [Char])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681750124"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750124"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span id="local-6989586621681750125"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750125"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-341"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Regex
+</span><a href="#local-6989586621681750126"><span class="hs-identifier hs-var">tree_end</span></a></span><span> </span><span class="annot"><span class="annottext">Regex -&gt; [Char] -&gt; Maybe (AllTextSubmatches [] [Char])
+forall regex source target (m :: * -&gt; *).
+(RegexContext regex source target, MonadFail m) =&gt;
+regex -&gt; source -&gt; m target
+forall (m :: * -&gt; *).
+MonadFail m =&gt;
+Regex -&gt; [Char] -&gt; m (AllTextSubmatches [] [Char])
+</span><span class="hs-operator hs-var">`matchM`</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750124"><span class="hs-identifier hs-var">line</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-342"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char] -&gt; [[Char]]
+forall (f :: * -&gt; *) b. AllTextSubmatches f b -&gt; f b
+</span><span class="hs-identifier hs-var">getAllTextSubmatches</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750127"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750127"><span class="hs-identifier hs-var">code</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750128"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750128"><span class="hs-identifier hs-var">markup</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681750129"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750129"><span class="hs-identifier hs-var">post</span></a></span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-343"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750127"><span class="hs-identifier hs-var">code</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750128"><span class="hs-identifier hs-var">markup</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750129"><span class="hs-identifier hs-var">post</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750116"><span class="hs-identifier hs-var">tree</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750125"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-344"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">AllTextSubmatches [] [Char]
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[(LayerRole, [Char])]
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-345"></span><span>      </span><span class="annot"><span class="annottext">Maybe (AllTextSubmatches [] [Char])
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750124"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(LayerRole, [Char])
+-&gt; [(LayerRole, [Char])] -&gt; [(LayerRole, [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(LayerRole, [Char])]
+</span><a href="#local-6989586621681750123"><span class="hs-identifier hs-var">code</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681750125"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-346"></span><span>
+</span><span id="line-347"></span><span>  </span><span id="local-6989586621681750126"><span class="annot"><span class="annottext">tree_end :: Regex
+</span><a href="#local-6989586621681750126"><span class="hs-identifier hs-var hs-var">tree_end</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Regex
+</span><a href="Agda.Syntax.Parser.Literate.html#rex"><span class="hs-identifier hs-var">rex</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;([[:blank:]]*)(\\})(.*)&quot;</span></span><span>
+</span><span id="line-348"></span></pre></body></html>

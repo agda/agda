@@ -1,0 +1,382 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Overloaded 'zip' and 'zipWith'.</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- This module provides the 'Zip' class to overload zipping functions</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- for variants of the list type ('[]', 'List1', 'List2', 'ListInf').</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Motivation:</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- In practice, we often zip a finite list with an infinite list,</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- e.g. @zipWith f xs (ys ++ repeat z)@.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- We can know statically in this case that the resulting considers</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- each @xs@ by rewriting this to @zipWith f xs (ListInf.pad ys z)@</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- statically exposing the infinite nature of the second list.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- To avoid cluttering the namespace with 4*4 variants of 'zipWith'</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- for all combination of our list types, we introduce an overloaded version.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- Import this module as follows:</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- import Prelude hiding (zip, zipWith)</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- import Agda.Utils.Zip</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Zip.html"><span class="hs-identifier">Agda.Utils.Zip</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(.)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">flip</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span>          </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List.Infinite</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">heteroZipWith</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- import Agda.Utils.List    ( pattern (:) )</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>   </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html"><span class="hs-identifier">Agda.Utils.List2</span></a></span><span>   </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier">List2</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier">List2</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html"><span class="hs-identifier">Agda.Utils.ListInf</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier">ListInf</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:&lt;)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>    </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>   </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html"><span class="hs-identifier">Agda.Utils.List2</span></a></span><span>   </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List2</span></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html"><span class="hs-identifier">Agda.Utils.ListInf</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">ListInf</span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">class</span><span> </span><span id="Zip"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-var">Zip</span></a></span></span><span> </span><span id="local-6989586621681812736"><span class="annot"><a href="#local-6989586621681812736"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span id="local-6989586621681812738"><span class="annot"><a href="#local-6989586621681812738"><span class="hs-identifier hs-type">g</span></a></span></span><span> </span><span id="local-6989586621681812740"><span class="annot"><a href="#local-6989586621681812740"><span class="hs-identifier hs-type">h</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="#local-6989586621681812736"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812738"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812740"><span class="hs-identifier hs-type">h</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-40"></span><span>  </span><span id="zip"><span class="annot"><a href="Agda.Utils.Zip.html#zip"><span class="hs-identifier hs-type">zip</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681812737"><span id="local-6989586621681812739"><span class="annot"><a href="#local-6989586621681812736"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812737"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812738"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812739"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812740"><span class="hs-identifier hs-type">h</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681812737"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681812739"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-41"></span><span>  </span><span id="local-6989586621681812830"><span class="annot"><a href="Agda.Utils.Zip.html#zip"><span class="hs-identifier hs-var hs-var">zip</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; (a, b)) -&gt; f a -&gt; g b -&gt; h (a, b)
+forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+forall (f :: * -&gt; *) (g :: * -&gt; *) (h :: * -&gt; *) a b c.
+Zip f g h =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span>  </span><span id="zipWith"><span class="annot"><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-type">zipWith</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681812744"><span id="local-6989586621681812745"><span id="local-6989586621681812746"><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681812744"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812745"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812746"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812736"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812744"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812738"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812745"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681812740"><span class="hs-identifier hs-type">h</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812746"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-comment">-- zipWith f as bs = map (uncurry f) (zip as bs) -- needs Functor h</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-pragma">{-# MINIMAL</span><span> </span><span class="annot"><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-pragma hs-type">zipWith</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- List instances</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- 0/0</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681812836"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">List.zipWith</span></span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621681812838"><span class="annot"><span class="annottext">zip :: forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><a href="Agda.Utils.Zip.html#zip"><span class="hs-identifier hs-var hs-var hs-var">zip</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [b] -&gt; [(a, b)]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">List.zip</span></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- 0/1</span><span>
+</span><span id="line-56"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812840"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-57"></span><span>  </span><span id="local-6989586621681812845"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; List1 b -&gt; [c]
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">List1 b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span id="local-6989586621681812846"><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812846"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812847"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812847"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681812848"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812848"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812849"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812849"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681812850"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812850"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812846"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812847"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812849"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; [c]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+forall (f :: * -&gt; *) (g :: * -&gt; *) (h :: * -&gt; *) a b c.
+Zip f g h =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812846"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812848"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812850"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- 1/0</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812852"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-62"></span><span>  </span><span id="local-6989586621681812857"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List1 a -&gt; [b] -&gt; [c]
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">List1 a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span id="local-6989586621681812858"><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812858"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812859"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812859"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681812860"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812860"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812861"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812861"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681812862"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812862"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812858"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812859"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812861"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; [c]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+forall (f :: * -&gt; *) (g :: * -&gt; *) (h :: * -&gt; *) a b c.
+Zip f g h =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812858"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812860"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812862"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- 0/2</span><span>
+</span><span id="line-66"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812864"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-67"></span><span>  </span><span id="local-6989586621681812869"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; List2 b -&gt; [c]
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>  </span><span class="annot"><span class="annottext">List2 b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span id="local-6989586621681812870"><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812870"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812871"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812871"><span class="hs-identifier hs-var">a1</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681812872"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812872"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span id="local-6989586621681812873"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812873"><span class="hs-identifier hs-var">b1</span></a></span></span><span> </span><span id="local-6989586621681812874"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812874"><span class="hs-identifier hs-var">b2</span></a></span></span><span> </span><span id="local-6989586621681812875"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812875"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812870"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812871"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812873"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; [c]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; [a] -&gt; NonEmpty b -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; List1 b -&gt; [c]
+forall (f :: * -&gt; *) (g :: * -&gt; *) (h :: * -&gt; *) a b c.
+Zip f g h =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812870"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812872"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812874"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; [b] -&gt; NonEmpty b
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812875"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- 2/0</span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812877"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621681812882"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List2 a -&gt; [b] -&gt; [c]
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">List2 a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span id="local-6989586621681812883"><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812883"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span id="local-6989586621681812884"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812884"><span class="hs-identifier hs-var">a1</span></a></span></span><span> </span><span id="local-6989586621681812885"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812885"><span class="hs-identifier hs-var">a2</span></a></span></span><span> </span><span id="local-6989586621681812886"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812886"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812887"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812887"><span class="hs-identifier hs-var">b1</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681812888"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812888"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812883"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812884"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812887"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; [c]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; NonEmpty a -&gt; [b] -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; List1 a -&gt; [b] -&gt; [c]
+forall (f :: * -&gt; *) (g :: * -&gt; *) (h :: * -&gt; *) a b c.
+Zip f g h =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812883"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812885"><span class="hs-identifier hs-var">a2</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812886"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812888"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- 0/&#8734;</span><span>
+</span><span id="line-76"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812890"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621681812896"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; ListInf b -&gt; [c]
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ListInf b -&gt; [a] -&gt; [c]) -&gt; [a] -&gt; ListInf b -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((ListInf b -&gt; [a] -&gt; [c]) -&gt; [a] -&gt; ListInf b -&gt; [c])
+-&gt; ((a -&gt; b -&gt; c) -&gt; ListInf b -&gt; [a] -&gt; [c])
+-&gt; (a -&gt; b -&gt; c)
+-&gt; [a]
+-&gt; ListInf b
+-&gt; [c]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; a -&gt; c) -&gt; ListInf b -&gt; [a] -&gt; [c]
+forall (t :: * -&gt; *) a b c.
+Traversable t =&gt;
+(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; t b -&gt; t c
+</span><span class="hs-identifier hs-var">heteroZipWith</span></span><span> </span><span class="annot"><span class="annottext">((b -&gt; a -&gt; c) -&gt; ListInf b -&gt; [a] -&gt; [c])
+-&gt; ((a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c)
+-&gt; (a -&gt; b -&gt; c)
+-&gt; ListInf b
+-&gt; [a]
+-&gt; [c]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- &#8734;/0</span><span>
+</span><span id="line-80"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812898"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-81"></span><span>  </span><span id="local-6989586621681812903"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; ListInf a -&gt; [b] -&gt; [c]
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; [b] -&gt; [c]
+forall (t :: * -&gt; *) a b c.
+Traversable t =&gt;
+(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; t b -&gt; t c
+</span><span class="hs-identifier hs-var">heteroZipWith</span></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- List1 instances</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- 1/1</span><span>
+</span><span id="line-86"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621681812907"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List1 a -&gt; List1 b -&gt; List1 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; NonEmpty a -&gt; NonEmpty b -&gt; NonEmpty c
+forall a b c. (a -&gt; b -&gt; c) -&gt; List1 a -&gt; List1 b -&gt; List1 c
+</span><span class="hs-identifier hs-var">List1.zipWith</span></span><span>
+</span><span id="line-88"></span><span>  </span><span id="local-6989586621681812909"><span class="annot"><span class="annottext">zip :: forall a b. List1 a -&gt; List1 b -&gt; List1 (a, b)
+</span><a href="Agda.Utils.Zip.html#zip"><span class="hs-identifier hs-var hs-var hs-var">zip</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty b -&gt; NonEmpty (a, b)
+forall a b. List1 a -&gt; List1 b -&gt; List1 (a, b)
+</span><span class="hs-identifier hs-var">List1.zip</span></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- 1/2</span><span>
+</span><span id="line-91"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812912"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-92"></span><span>  </span><span id="local-6989586621681812917"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List1 a -&gt; List2 b -&gt; List1 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span id="local-6989586621681812918"><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812918"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812919"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812919"><span class="hs-identifier hs-var">a1</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681812920"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812920"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span id="local-6989586621681812921"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812921"><span class="hs-identifier hs-var">b1</span></a></span></span><span> </span><span id="local-6989586621681812922"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812922"><span class="hs-identifier hs-var">b2</span></a></span></span><span> </span><span id="local-6989586621681812923"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812923"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812918"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812919"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812921"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; NonEmpty c
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; [a] -&gt; NonEmpty b -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; List1 b -&gt; [c]
+forall (f :: * -&gt; *) (g :: * -&gt; *) (h :: * -&gt; *) a b c.
+Zip f g h =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812918"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812920"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812922"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; [b] -&gt; NonEmpty b
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812923"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- 2/1</span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812925"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621681812930"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List2 a -&gt; List1 b -&gt; List1 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span id="local-6989586621681812931"><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812931"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span id="local-6989586621681812932"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812932"><span class="hs-identifier hs-var">a1</span></a></span></span><span> </span><span id="local-6989586621681812933"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812933"><span class="hs-identifier hs-var">a2</span></a></span></span><span> </span><span id="local-6989586621681812934"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812934"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812935"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812935"><span class="hs-identifier hs-var">b1</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681812936"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812936"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812931"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812932"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681812935"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; NonEmpty c
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; NonEmpty a -&gt; [b] -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; List1 a -&gt; [b] -&gt; [c]
+forall (f :: * -&gt; *) (g :: * -&gt; *) (h :: * -&gt; *) a b c.
+Zip f g h =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; g b -&gt; h c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var">zipWith</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621681812931"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681812933"><span class="hs-identifier hs-var">a2</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681812934"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681812936"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- 1/&#8734;</span><span>
+</span><span id="line-99"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812938"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-100"></span><span>  </span><span id="local-6989586621681812944"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List1 a -&gt; ListInf b -&gt; List1 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ListInf b -&gt; List1 a -&gt; List1 c)
+-&gt; List1 a -&gt; ListInf b -&gt; List1 c
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((ListInf b -&gt; List1 a -&gt; List1 c)
+ -&gt; List1 a -&gt; ListInf b -&gt; List1 c)
+-&gt; ((a -&gt; b -&gt; c) -&gt; ListInf b -&gt; List1 a -&gt; List1 c)
+-&gt; (a -&gt; b -&gt; c)
+-&gt; List1 a
+-&gt; ListInf b
+-&gt; List1 c
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; a -&gt; c) -&gt; ListInf b -&gt; List1 a -&gt; List1 c
+forall (t :: * -&gt; *) a b c.
+Traversable t =&gt;
+(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; t b -&gt; t c
+</span><span class="hs-identifier hs-var">heteroZipWith</span></span><span> </span><span class="annot"><span class="annottext">((b -&gt; a -&gt; c) -&gt; ListInf b -&gt; List1 a -&gt; List1 c)
+-&gt; ((a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c)
+-&gt; (a -&gt; b -&gt; c)
+-&gt; ListInf b
+-&gt; List1 a
+-&gt; List1 c
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- &#8734;/1</span><span>
+</span><span id="line-103"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812946"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621681812951"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; ListInf a -&gt; List1 b -&gt; List1 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; NonEmpty b -&gt; NonEmpty c
+forall (t :: * -&gt; *) a b c.
+Traversable t =&gt;
+(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; t b -&gt; t c
+</span><span class="hs-identifier hs-var">heteroZipWith</span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- List2 instances</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- 2/2</span><span>
+</span><span id="line-109"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621681812955"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List2 a -&gt; List2 b -&gt; List2 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; List2 a -&gt; List2 b -&gt; List2 c
+forall a b c. (a -&gt; b -&gt; c) -&gt; List2 a -&gt; List2 b -&gt; List2 c
+</span><a href="Agda.Utils.List2.html#zipWith"><span class="hs-identifier hs-var">List2.zipWith</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621681812957"><span class="annot"><span class="annottext">zip :: forall a b. List2 a -&gt; List2 b -&gt; List2 (a, b)
+</span><a href="Agda.Utils.Zip.html#zip"><span class="hs-identifier hs-var hs-var hs-var">zip</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List2 a -&gt; List2 b -&gt; List2 (a, b)
+forall a b. List2 a -&gt; List2 b -&gt; List2 (a, b)
+</span><a href="Agda.Utils.List2.html#zip"><span class="hs-identifier hs-var">List2.zip</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- 2/&#8734;</span><span>
+</span><span id="line-114"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812960"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-115"></span><span>  </span><span id="local-6989586621681812966"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; List2 a -&gt; ListInf b -&gt; List2 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ListInf b -&gt; List2 a -&gt; List2 c)
+-&gt; List2 a -&gt; ListInf b -&gt; List2 c
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((ListInf b -&gt; List2 a -&gt; List2 c)
+ -&gt; List2 a -&gt; ListInf b -&gt; List2 c)
+-&gt; ((a -&gt; b -&gt; c) -&gt; ListInf b -&gt; List2 a -&gt; List2 c)
+-&gt; (a -&gt; b -&gt; c)
+-&gt; List2 a
+-&gt; ListInf b
+-&gt; List2 c
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; a -&gt; c) -&gt; ListInf b -&gt; List2 a -&gt; List2 c
+forall (t :: * -&gt; *) a b c.
+Traversable t =&gt;
+(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; t b -&gt; t c
+</span><span class="hs-identifier hs-var">heteroZipWith</span></span><span> </span><span class="annot"><span class="annottext">((b -&gt; a -&gt; c) -&gt; ListInf b -&gt; List2 a -&gt; List2 c)
+-&gt; ((a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c)
+-&gt; (a -&gt; b -&gt; c)
+-&gt; ListInf b
+-&gt; List2 a
+-&gt; List2 c
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- &#8734;/2</span><span>
+</span><span id="line-118"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681812968"><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621681812973"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; ListInf a -&gt; List2 b -&gt; List2 c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; List2 b -&gt; List2 c
+forall (t :: * -&gt; *) a b c.
+Traversable t =&gt;
+(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; t b -&gt; t c
+</span><span class="hs-identifier hs-var">heteroZipWith</span></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- ListInf instances</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- &#8734;/&#8734;</span><span>
+</span><span id="line-124"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Zip.html#Zip"><span class="hs-identifier hs-type">Zip</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.ListInf.html#ListInf"><span class="hs-identifier hs-type">ListInf</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621681812977"><span class="annot"><span class="annottext">zipWith :: forall a b c. (a -&gt; b -&gt; c) -&gt; ListInf a -&gt; ListInf b -&gt; ListInf c
+</span><a href="Agda.Utils.Zip.html#zipWith"><span class="hs-identifier hs-var hs-var hs-var">zipWith</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; c) -&gt; Infinite a -&gt; Infinite b -&gt; Infinite c
+forall a b c. (a -&gt; b -&gt; c) -&gt; ListInf a -&gt; ListInf b -&gt; ListInf c
+</span><span class="hs-identifier hs-var">ListInf.zipWith</span></span><span>
+</span><span id="line-126"></span><span>  </span><span id="local-6989586621681812979"><span class="annot"><span class="annottext">zip :: forall a b. ListInf a -&gt; ListInf b -&gt; ListInf (a, b)
+</span><a href="Agda.Utils.Zip.html#zip"><span class="hs-identifier hs-var hs-var hs-var">zip</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Infinite a -&gt; Infinite b -&gt; Infinite (a, b)
+forall a b. ListInf a -&gt; ListInf b -&gt; ListInf (a, b)
+</span><span class="hs-identifier hs-var">ListInf.zip</span></span><span>
+</span><span id="line-127"></span></pre></body></html>

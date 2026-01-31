@@ -1,0 +1,380 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html"><span class="hs-identifier">Agda.Compiler.Treeless.AsPatterns</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#recoverAsPatterns"><span class="hs-identifier">recoverAsPatterns</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html"><span class="hs-identifier">Agda.Syntax.Treeless</span></a></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">data</span><span> </span><span id="AsPat"><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-var">AsPat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="AsPat"><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-var">AsPat</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span>  </span><span class="hs-comment">-- x@(c ys)</span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681768742"><span id="local-6989586621681768752"><span id="local-6989586621681768756"><span class="annot"><span class="annottext">Int -&gt; AsPat -&gt; ShowS
+[AsPat] -&gt; ShowS
+AsPat -&gt; String
+(Int -&gt; AsPat -&gt; ShowS)
+-&gt; (AsPat -&gt; String) -&gt; ([AsPat] -&gt; ShowS) -&gt; Show AsPat
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; AsPat -&gt; ShowS
+showsPrec :: Int -&gt; AsPat -&gt; ShowS
+$cshow :: AsPat -&gt; String
+show :: AsPat -&gt; String
+$cshowList :: [AsPat] -&gt; ShowS
+showList :: [AsPat] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#wk"><span class="hs-identifier hs-type">wk</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-type">AsPat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-type">AsPat</span></a></span><span>
+</span><span id="line-13"></span><span id="wk"><span class="annot"><span class="annottext">wk :: Int -&gt; AsPat -&gt; AsPat
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#wk"><span class="hs-identifier hs-var hs-var">wk</span></a></span></span><span> </span><span id="local-6989586621681768761"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768761"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-type">AsPat</span></a></span><span> </span><span id="local-6989586621681768762"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768762"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681768763"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768763"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681768764"><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621681768764"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; QName -&gt; [Int] -&gt; AsPat
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-var">AsPat</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768761"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768762"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768763"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Int -&gt; Int) -&gt; [Int] -&gt; [Int]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768761"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621681768764"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">type</span><span> </span><span id="S"><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-var">S</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Reader</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-type">AsPat</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span id="local-6989586621681768642"><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#runS"><span class="hs-identifier hs-type">runS</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768642"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681768642"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-18"></span><span id="runS"><span class="annot"><span class="annottext">runS :: forall a. S a -&gt; a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#runS"><span class="hs-identifier hs-var hs-var">runS</span></a></span></span><span> </span><span id="local-6989586621681768767"><span class="annot"><span class="annottext">S a
+</span><a href="#local-6989586621681768767"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">S a -&gt; [AsPat] -&gt; a
+forall r a. Reader r a -&gt; r -&gt; a
+</span><span class="hs-identifier hs-var">runReader</span></span><span> </span><span class="annot"><span class="annottext">S a
+</span><a href="#local-6989586621681768767"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span id="local-6989586621681768649"><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#underBinds"><span class="hs-identifier hs-type">underBinds</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768649"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768649"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-21"></span><span id="underBinds"><span class="annot"><span class="annottext">underBinds :: forall a. Int -&gt; S a -&gt; S a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#underBinds"><span class="hs-identifier hs-var hs-var">underBinds</span></a></span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">S a -&gt; S a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-22"></span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#underBinds"><span class="hs-identifier hs-var">underBinds</span></a></span><span> </span><span id="local-6989586621681768774"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768774"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([AsPat] -&gt; [AsPat]) -&gt; S a -&gt; S a
+forall a.
+([AsPat] -&gt; [AsPat])
+-&gt; ReaderT [AsPat] Identity a -&gt; ReaderT [AsPat] Identity a
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(AsPat -&gt; AsPat) -&gt; [AsPat] -&gt; [AsPat]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">((AsPat -&gt; AsPat) -&gt; [AsPat] -&gt; [AsPat])
+-&gt; (AsPat -&gt; AsPat) -&gt; [AsPat] -&gt; [AsPat]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; AsPat -&gt; AsPat
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#wk"><span class="hs-identifier hs-var">wk</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768774"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span id="local-6989586621681768660"><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#bindAsPattern"><span class="hs-identifier hs-type">bindAsPattern</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-type">AsPat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768660"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768660"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-25"></span><span id="bindAsPattern"><span class="annot"><span class="annottext">bindAsPattern :: forall a. AsPat -&gt; S a -&gt; S a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#bindAsPattern"><span class="hs-identifier hs-var hs-var">bindAsPattern</span></a></span></span><span> </span><span id="local-6989586621681768778"><span class="annot"><span class="annottext">AsPat
+</span><a href="#local-6989586621681768778"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([AsPat] -&gt; [AsPat])
+-&gt; ReaderT [AsPat] Identity a -&gt; ReaderT [AsPat] Identity a
+forall a.
+([AsPat] -&gt; [AsPat])
+-&gt; ReaderT [AsPat] Identity a -&gt; ReaderT [AsPat] Identity a
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AsPat
+</span><a href="#local-6989586621681768778"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">AsPat -&gt; [AsPat] -&gt; [AsPat]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#lookupAsPattern"><span class="hs-identifier hs-type">lookupAsPattern</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span>
+</span><span id="line-28"></span><span id="lookupAsPattern"><span class="annot"><span class="annottext">lookupAsPattern :: QName -&gt; [TTerm] -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#lookupAsPattern"><span class="hs-identifier hs-var hs-var">lookupAsPattern</span></a></span></span><span> </span><span id="local-6989586621681768780"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768780"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681768781"><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768781"><span class="hs-identifier hs-var">vs</span></a></span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681768782"><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621681768782"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[TTerm] -&gt; Maybe [Int]
+</span><a href="#local-6989586621681768783"><span class="hs-identifier hs-var">allVars</span></a></span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768781"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-30"></span><span>    </span><span id="local-6989586621681768784"><span class="annot"><a href="#local-6989586621681768784"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ReaderT [AsPat] Identity [AsPat]
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><a href="#local-6989586621681768786"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-type">AsPat</span></a></span><span> </span><span id="local-6989586621681768786"><span class="annot"><a href="#local-6989586621681768786"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681768787"><span class="annot"><a href="#local-6989586621681768787"><span class="hs-identifier hs-var">c'</span></a></span></span><span> </span><span id="local-6989586621681768788"><span class="annot"><a href="#local-6989586621681768788"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681768784"><span class="hs-identifier hs-type">ps</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681768780"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">==</span></span><span> </span><span class="annot"><a href="#local-6989586621681768787"><span class="hs-identifier hs-type">c'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681768782"><span class="hs-identifier hs-type">xs</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">==</span></span><span> </span><span class="annot"><a href="#local-6989586621681768788"><span class="hs-identifier hs-type">ys</span></a></span><span> </span><span class="hs-special">]</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-32"></span><span>      </span><span id="local-6989586621681768789"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768789"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; S TTerm) -&gt; TTerm -&gt; S TTerm
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-var">TVar</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768789"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-33"></span><span>      </span><span class="annot"><span class="annottext">[Int]
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; S TTerm) -&gt; TTerm -&gt; S TTerm
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; [TTerm] -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#mkTApp"><span class="hs-identifier hs-var">mkTApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TCon"><span class="hs-identifier hs-var">TCon</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768780"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768781"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; S TTerm) -&gt; TTerm -&gt; S TTerm
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; [TTerm] -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#mkTApp"><span class="hs-identifier hs-var">mkTApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TCon"><span class="hs-identifier hs-var">TCon</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768780"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768781"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-36"></span><span>    </span><span id="local-6989586621681768783"><span class="annot"><span class="annottext">allVars :: [TTerm] -&gt; Maybe [Int]
+</span><a href="#local-6989586621681768783"><span class="hs-identifier hs-var hs-var">allVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; Maybe Int) -&gt; [TTerm] -&gt; Maybe [Int]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; Maybe Int
+</span><a href="#local-6989586621681768801"><span class="hs-identifier hs-var">getVar</span></a></span><span>
+</span><span id="line-37"></span><span>    </span><span id="local-6989586621681768801"><span class="annot"><span class="annottext">getVar :: TTerm -&gt; Maybe Int
+</span><a href="#local-6989586621681768801"><span class="hs-identifier hs-var hs-var">getVar</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-type">TVar</span></a></span><span> </span><span id="local-6989586621681768802"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768802"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768802"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-38"></span><span>    </span><span class="annot"><a href="#local-6989586621681768801"><span class="hs-identifier hs-var">getVar</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>   </span><span class="hs-comment">-- what about erased?</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | We lose track of @-patterns in the internal syntax. This pass puts them</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   back.</span><span>
+</span><span id="line-42"></span><span id="local-6989586621681768669"><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#recoverAsPatterns"><span class="hs-identifier hs-type">recoverAsPatterns</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681768669"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681768669"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span></span><span>
+</span><span id="line-43"></span><span id="recoverAsPatterns"><span class="annot"><span class="annottext">recoverAsPatterns :: forall (m :: * -&gt; *). Monad m =&gt; TTerm -&gt; m TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recoverAsPatterns"><span class="hs-identifier hs-var hs-var">recoverAsPatterns</span></a></span></span><span> </span><span id="local-6989586621681768805"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768805"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; m TTerm
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; m TTerm) -&gt; TTerm -&gt; m TTerm
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">S TTerm -&gt; TTerm
+forall a. S a -&gt; a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#runS"><span class="hs-identifier hs-var">runS</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768805"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-type">recover</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span>
+</span><span id="line-46"></span><span id="recover"><span class="annot"><span class="annottext">recover :: TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var hs-var">recover</span></a></span></span><span> </span><span id="local-6989586621681768807"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TApp"><span class="hs-identifier hs-type">TApp</span></a></span><span> </span><span id="local-6989586621681768809"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768809"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681768810"><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768810"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>      </span><span id="local-6989586621681768811"><span class="annot"><a href="#local-6989586621681768811"><span class="hs-identifier hs-var">f</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768809"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-50"></span><span>      </span><span id="local-6989586621681768812"><span class="annot"><a href="#local-6989586621681768812"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">mapM</span></span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-type">recover</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768810"><span class="hs-identifier hs-type">vs</span></a></span><span>
+</span><span id="line-51"></span><span>      </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#tApp"><span class="hs-identifier hs-type">tApp</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768811"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681768812"><span class="hs-identifier hs-type">vs</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLam"><span class="hs-identifier hs-type">TLam</span></a></span><span> </span><span id="local-6989586621681768815"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768815"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TLam"><span class="hs-identifier hs-var">TLam</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; TTerm) -&gt; S TTerm -&gt; S TTerm
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S TTerm -&gt; S TTerm
+forall a. Int -&gt; S a -&gt; S a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#underBinds"><span class="hs-identifier hs-var">underBinds</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768815"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCon"><span class="hs-identifier hs-type">TCon</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; [TTerm] -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#tApp"><span class="hs-identifier hs-var">tApp</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>   </span><span class="hs-comment">-- need to recover nullary constructors as well (to make deep @-patterns work)</span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLet"><span class="hs-identifier hs-type">TLet</span></a></span><span> </span><span id="local-6989586621681768818"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768818"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681768819"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768819"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TLet"><span class="hs-identifier hs-var">TLet</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; TTerm -&gt; TTerm)
+-&gt; S TTerm -&gt; ReaderT [AsPat] Identity (TTerm -&gt; TTerm)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768818"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT [AsPat] Identity (TTerm -&gt; TTerm) -&gt; S TTerm -&gt; S TTerm
+forall a b.
+ReaderT [AsPat] Identity (a -&gt; b)
+-&gt; ReaderT [AsPat] Identity a -&gt; ReaderT [AsPat] Identity b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S TTerm -&gt; S TTerm
+forall a. Int -&gt; S a -&gt; S a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#underBinds"><span class="hs-identifier hs-var">underBinds</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768819"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCase"><span class="hs-identifier hs-type">TCase</span></a></span><span> </span><span id="local-6989586621681768821"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768821"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681768822"><span class="annot"><span class="annottext">CaseInfo
+</span><a href="#local-6989586621681768822"><span class="hs-identifier hs-var">ct</span></a></span></span><span> </span><span id="local-6989586621681768823"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768823"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681768824"><span class="annot"><span class="annottext">[TAlt]
+</span><a href="#local-6989586621681768824"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; CaseInfo -&gt; TTerm -&gt; [TAlt] -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TCase"><span class="hs-identifier hs-var">TCase</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768821"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">CaseInfo
+</span><a href="#local-6989586621681768822"><span class="hs-identifier hs-var">ct</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; [TAlt] -&gt; TTerm)
+-&gt; S TTerm -&gt; ReaderT [AsPat] Identity ([TAlt] -&gt; TTerm)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768823"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT [AsPat] Identity ([TAlt] -&gt; TTerm)
+-&gt; ReaderT [AsPat] Identity [TAlt] -&gt; S TTerm
+forall a b.
+ReaderT [AsPat] Identity (a -&gt; b)
+-&gt; ReaderT [AsPat] Identity a -&gt; ReaderT [AsPat] Identity b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(TAlt -&gt; ReaderT [AsPat] Identity TAlt)
+-&gt; [TAlt] -&gt; ReaderT [AsPat] Identity [TAlt]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; TAlt -&gt; ReaderT [AsPat] Identity TAlt
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recoverAlt"><span class="hs-identifier hs-var">recoverAlt</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768821"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[TAlt]
+</span><a href="#local-6989586621681768824"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCoerce"><span class="hs-identifier hs-type">TCoerce</span></a></span><span> </span><span id="local-6989586621681768827"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768827"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TCoerce"><span class="hs-identifier hs-var">TCoerce</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; TTerm) -&gt; S TTerm -&gt; S TTerm
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768827"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLit"><span class="hs-identifier hs-type">TLit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-type">TVar</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TPrim"><span class="hs-identifier hs-type">TPrim</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TDef"><span class="hs-identifier hs-type">TDef</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TUnit"><span class="hs-identifier hs-type">TUnit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TSort"><span class="hs-identifier hs-type">TSort</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TErased"><span class="hs-identifier hs-type">TErased</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-64"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TError"><span class="hs-identifier hs-type">TError</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768807"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#recoverAlt"><span class="hs-identifier hs-type">recoverAlt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAlt"><span class="hs-identifier hs-type">TAlt</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAlt"><span class="hs-identifier hs-type">TAlt</span></a></span><span>
+</span><span id="line-67"></span><span id="recoverAlt"><span class="annot"><span class="annottext">recoverAlt :: Int -&gt; TAlt -&gt; ReaderT [AsPat] Identity TAlt
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recoverAlt"><span class="hs-identifier hs-var hs-var">recoverAlt</span></a></span></span><span> </span><span id="local-6989586621681768835"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768835"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681768836"><span class="annot"><span class="annottext">TAlt
+</span><a href="#local-6989586621681768836"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TAlt
+</span><a href="#local-6989586621681768836"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TACon"><span class="hs-identifier hs-type">TACon</span></a></span><span> </span><span id="local-6989586621681768838"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768838"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681768839"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768839"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681768840"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768840"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Int -&gt; TTerm -&gt; TAlt
+</span><a href="Agda.Syntax.Treeless.html#TACon"><span class="hs-identifier hs-var">TACon</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768838"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768839"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; TAlt) -&gt; S TTerm -&gt; ReaderT [AsPat] Identity TAlt
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S TTerm -&gt; S TTerm
+forall a. Int -&gt; S a -&gt; S a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#underBinds"><span class="hs-identifier hs-var">underBinds</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768839"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AsPat -&gt; S TTerm -&gt; S TTerm
+forall a. AsPat -&gt; S a -&gt; S a
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#bindAsPattern"><span class="hs-identifier hs-var">bindAsPattern</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; QName -&gt; [Int] -&gt; AsPat
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#AsPat"><span class="hs-identifier hs-var">AsPat</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768835"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768839"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768838"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768839"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681768839"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(S TTerm -&gt; S TTerm) -&gt; S TTerm -&gt; S TTerm
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768840"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAGuard"><span class="hs-identifier hs-type">TAGuard</span></a></span><span> </span><span id="local-6989586621681768842"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768842"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621681768843"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768843"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm -&gt; TAlt
+</span><a href="Agda.Syntax.Treeless.html#TAGuard"><span class="hs-identifier hs-var">TAGuard</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; TTerm -&gt; TAlt)
+-&gt; S TTerm -&gt; ReaderT [AsPat] Identity (TTerm -&gt; TAlt)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768842"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT [AsPat] Identity (TTerm -&gt; TAlt)
+-&gt; S TTerm -&gt; ReaderT [AsPat] Identity TAlt
+forall a b.
+ReaderT [AsPat] Identity (a -&gt; b)
+-&gt; ReaderT [AsPat] Identity a -&gt; ReaderT [AsPat] Identity b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768843"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TALit"><span class="hs-identifier hs-type">TALit</span></a></span><span> </span><span id="local-6989586621681768845"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681768845"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681768846"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768846"><span class="hs-identifier hs-var">b</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Literal -&gt; TTerm -&gt; TAlt
+</span><a href="Agda.Syntax.Treeless.html#TALit"><span class="hs-identifier hs-var">TALit</span></a></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681768845"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; TAlt) -&gt; S TTerm -&gt; ReaderT [AsPat] Identity TAlt
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#recover"><span class="hs-identifier hs-var">recover</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768846"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#tApp"><span class="hs-identifier hs-type">tApp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span>
+</span><span id="line-74"></span><span id="tApp"><span class="annot"><span class="annottext">tApp :: TTerm -&gt; [TTerm] -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#tApp"><span class="hs-identifier hs-var hs-var">tApp</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCon"><span class="hs-identifier hs-type">TCon</span></a></span><span> </span><span id="local-6989586621681768847"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768847"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681768848"><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768848"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; [TTerm] -&gt; S TTerm
+</span><a href="Agda.Compiler.Treeless.AsPatterns.html#lookupAsPattern"><span class="hs-identifier hs-var">lookupAsPattern</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681768847"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768848"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-75"></span><span class="annot"><a href="Agda.Compiler.Treeless.AsPatterns.html#tApp"><span class="hs-identifier hs-var">tApp</span></a></span><span> </span><span id="local-6989586621681768849"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768849"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681768850"><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768850"><span class="hs-identifier hs-var">vs</span></a></span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; S TTerm
+forall a. a -&gt; ReaderT [AsPat] Identity a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; S TTerm) -&gt; TTerm -&gt; S TTerm
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; [TTerm] -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#mkTApp"><span class="hs-identifier hs-var">mkTApp</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681768849"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681768850"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span></pre></body></html>

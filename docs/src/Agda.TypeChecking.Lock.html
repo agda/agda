@@ -1,0 +1,392 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE NondecreasingIndentation #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Lock.html"><span class="hs-identifier">Agda.TypeChecking.Lock</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Lock.html#isTimeless"><span class="hs-identifier">isTimeless</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Lock.html#checkLockedVars"><span class="hs-identifier">checkLockedVars</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Lock.html#checkEarlierThan"><span class="hs-identifier">checkEarlierThan</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IMap</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html"><span class="hs-identifier">Agda.TypeChecking.Pretty</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Constraints.html"><span class="hs-identifier">Agda.TypeChecking.Constraints</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- instance MonadConstraint TCM</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Reduce</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html"><span class="hs-identifier">Agda.TypeChecking.Substitute.Class</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html"><span class="hs-identifier">Agda.TypeChecking.Free</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">VarSet</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier">VarSet</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Size.html"><span class="hs-identifier">Agda.Utils.Size</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="annot"><a href="Agda.TypeChecking.Lock.html#checkLockedVars"><span class="hs-identifier hs-type">checkLockedVars</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-38"></span><span>     </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-39"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ term to check</span></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-41"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ its type</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-43"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ the lock</span></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-45"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ type of the lock</span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span id="checkLockedVars"><span class="annot"><span class="annottext">checkLockedVars :: Term -&gt; Type -&gt; Arg Term -&gt; Type -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Lock.html#checkLockedVars"><span class="hs-identifier hs-var hs-var">checkLockedVars</span></a></span></span><span> </span><span id="local-6989586621682107268"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682107268"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621682107269"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682107269"><span class="hs-identifier hs-var">ty</span></a></span></span><span> </span><span id="local-6989586621682107270"><span class="annot"><span class="annottext">Arg Term
+</span><a href="#local-6989586621682107270"><span class="hs-identifier hs-var">lk</span></a></span></span><span> </span><span id="local-6989586621682107271"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682107271"><span class="hs-identifier hs-var">lk_ty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-comment">-- Have to instantiate the lock, otherwise we might block on it even</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-comment">-- after it's been solved (e.g.: it's an interaction point, see #6528)</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-comment">-- Update (Andreas, 2023-10-23, issue #6913): need even full instantiation.</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-comment">-- Since @lk@ is typically just a variable, 'instantiateFull' is not expensive here.</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-comment">-- In #6913 it was a postulate applied to a meta, thus, 'instantiate' was not enough.</span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621682107272"><span class="annot"><a href="#local-6989586621682107272"><span class="hs-identifier hs-var">lk</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Arg Term -&gt; TCMT IO (Arg Term)
+forall a (m :: * -&gt; *).
+(InstantiateFull a, MonadReduce m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Reduce.html#instantiateFull"><span class="hs-identifier hs-var">instantiateFull</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Term
+</span><a href="#local-6989586621682107270"><span class="hs-identifier hs-var">lk</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#catchConstraint"><span class="hs-identifier hs-type">catchConstraint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckLockedVars"><span class="hs-identifier hs-type">CheckLockedVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107268"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107269"><span class="hs-identifier hs-type">ty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107272"><span class="hs-identifier hs-type">lk</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107271"><span class="hs-identifier hs-type">lk_ty</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.term.lock&quot;</span></span><span> </span><span class="annot"><span class="hs-number">40</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Checking locked vars..&quot;</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.term.lock&quot;</span></span><span> </span><span class="annot"><span class="hs-number">45</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#nest"><span class="hs-identifier hs-type">nest</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#vcat"><span class="hs-identifier hs-type">vcat</span></a></span><span>
+</span><span id="line-58"></span><span>     </span><span class="hs-special">[</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;t     = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier hs-type">prettyTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107268"><span class="hs-identifier hs-type">t</span></a></span><span>
+</span><span id="line-59"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;ty    = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier hs-type">prettyTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107269"><span class="hs-identifier hs-type">ty</span></a></span><span>
+</span><span id="line-60"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;lk    = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier hs-type">prettyTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107272"><span class="hs-identifier hs-type">lk</span></a></span><span>
+</span><span id="line-61"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;lk_ty = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier hs-type">prettyTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107271"><span class="hs-identifier hs-type">lk_ty</span></a></span><span>
+</span><span id="line-62"></span><span>     </span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.term.lock&quot;</span></span><span> </span><span class="annot"><span class="hs-number">80</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#nest"><span class="hs-identifier hs-type">nest</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#vcat"><span class="hs-identifier hs-type">vcat</span></a></span><span>
+</span><span id="line-64"></span><span>     </span><span class="hs-special">[</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;t     = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107268"><span class="hs-identifier hs-type">t</span></a></span><span>
+</span><span id="line-65"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;ty    = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107269"><span class="hs-identifier hs-type">ty</span></a></span><span>
+</span><span id="line-66"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;lk    = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107272"><span class="hs-identifier hs-type">lk</span></a></span><span>
+</span><span id="line-67"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;lk_ty = &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107271"><span class="hs-identifier hs-type">lk_ty</span></a></span><span>
+</span><span id="line-68"></span><span>     </span><span class="hs-special">]</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-comment">-- Strategy: compute allowed variables, check that @t@ doesn't use more.</span><span>
+</span><span id="line-71"></span><span>  </span><span id="local-6989586621682107283"><span class="annot"><a href="#local-6989586621682107283"><span class="hs-identifier hs-var">mi</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Lock.html#getLockVar"><span class="hs-identifier hs-type">getLockVar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#unArg"><span class="hs-identifier hs-var">unArg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107272"><span class="hs-identifier hs-type">lk</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><a href="Agda.Utils.Maybe.html#caseMaybe"><span class="hs-identifier hs-type">caseMaybe</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107283"><span class="hs-identifier hs-type">mi</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-type">typeError</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#DoesNotMentionTicks"><span class="hs-identifier hs-type">DoesNotMentionTicks</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107268"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107269"><span class="hs-identifier hs-type">ty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107272"><span class="hs-identifier hs-type">lk</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682107289"><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107289"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621682107290"><span class="annot"><a href="#local-6989586621682107290"><span class="hs-identifier hs-var">cxt</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO Context
+forall (m :: * -&gt; *). MonadTCEnv m =&gt; m Context
+</span><a href="Agda.TypeChecking.Monad.Context.html#getContext"><span class="hs-identifier hs-var">getContext</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682107292"><span class="annot"><a href="#local-6989586621682107292"><span class="hs-identifier hs-var hs-var">fv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; (Term, Type) -&gt; VarMap
+forall a c t.
+(IsVarSet a c, Singleton Variable c, Free t) =&gt;
+IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#freeVarsIgnore"><span class="hs-identifier hs-var">freeVarsIgnore</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreInAnnotations"><span class="hs-identifier hs-var">IgnoreInAnnotations</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682107268"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682107269"><span class="hs-identifier hs-var">ty</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-78"></span><span>    </span><span id="local-6989586621682107295"><span class="annot"><a href="#local-6989586621682107295"><span class="hs-identifier hs-var hs-var">rigid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#rigidVars"><span class="hs-identifier hs-var">rigidVars</span></a></span><span> </span><span class="annot"><span class="annottext">VarMap
+</span><a href="#local-6989586621682107292"><span class="hs-identifier hs-var">fv</span></a></span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-comment">-- flexible = IMap.keysSet $ flexibleVars fv</span><span>
+</span><span id="line-80"></span><span>    </span><span id="local-6989586621682107297"><span class="annot"><a href="#local-6989586621682107297"><span class="hs-identifier hs-var hs-var">termVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#allVars"><span class="hs-identifier hs-var">allVars</span></a></span><span> </span><span class="annot"><span class="annottext">VarMap
+</span><a href="#local-6989586621682107292"><span class="hs-identifier hs-var">fv</span></a></span><span> </span><span class="hs-comment">-- ISet.union rigid flexible</span><span>
+</span><span id="line-81"></span><span>    </span><span id="local-6989586621682107299"><span class="annot"><a href="#local-6989586621682107299"><span class="hs-identifier hs-var hs-var">earlierVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Variable -&gt; Variable -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#range"><span class="hs-identifier hs-var">VarSet.range</span></a></span><span> </span><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107289"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Context -&gt; Variable
+forall a. Sized a =&gt; a -&gt; Variable
+</span><a href="Agda.Utils.Size.html#size"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">Context
+</span><a href="#local-6989586621682107290"><span class="hs-identifier hs-var">cxt</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621682107297"><span class="hs-identifier hs-type">termVars</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#isSubsetOf"><span class="hs-operator hs-type">`VarSet.isSubsetOf`</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107299"><span class="hs-identifier hs-type">earlierVars</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682107303"><span class="annot"><a href="#local-6989586621682107303"><span class="hs-identifier hs-var hs-var">toCheck</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Variable] -&gt; Context -&gt; [(Variable, ContextEntry)]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Variable
+</span><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(Context -&gt; [(Variable, ContextEntry)])
+-&gt; Context -&gt; [(Variable, ContextEntry)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Variable -&gt; ContextEntry -&gt; ContextEntry)
+-&gt; [Variable] -&gt; Context -&gt; Context
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">Variable -&gt; ContextEntry -&gt; ContextEntry
+forall a. Subst a =&gt; Variable -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#raise"><span class="hs-identifier hs-var">raise</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Variable
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Variable -&gt; Context -&gt; Context
+forall a. Variable -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107289"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Context
+</span><a href="#local-6989586621682107290"><span class="hs-identifier hs-var">cxt</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>  </span><span id="local-6989586621682107307"><span class="annot"><a href="#local-6989586621682107307"><span class="hs-identifier hs-var">checked</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">catMaybes</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">forM</span></span><span> </span><span class="annot"><a href="#local-6989586621682107303"><span class="hs-identifier hs-type">toCheck</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621682107311"><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107311"><span class="hs-identifier hs-var">j</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621682107312"><span class="annot"><span class="annottext">ContextEntry
+</span><a href="#local-6989586621682107312"><span class="hs-identifier hs-var">ce</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>    </span><span class="annot"><span class="annottext">TCMT IO Bool
+-&gt; TCMT IO (Maybe Variable)
+-&gt; TCMT IO (Maybe Variable)
+-&gt; TCMT IO (Maybe Variable)
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier hs-var">ifM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type -&gt; TCMT IO Bool
+</span><a href="Agda.TypeChecking.Lock.html#isTimeless"><span class="hs-identifier hs-var">isTimeless</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ContextEntry -&gt; Type
+</span><a href="Agda.TypeChecking.Monad.Context.html#ctxEntryType"><span class="hs-identifier hs-var">ctxEntryType</span></a></span><span> </span><span class="annot"><span class="annottext">ContextEntry
+</span><a href="#local-6989586621682107312"><span class="hs-identifier hs-var">ce</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Variable -&gt; TCMT IO (Maybe Variable)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Variable -&gt; TCMT IO (Maybe Variable))
+-&gt; Maybe Variable -&gt; TCMT IO (Maybe Variable)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Variable -&gt; Maybe Variable
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107311"><span class="hs-identifier hs-var">j</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Variable -&gt; TCMT IO (Maybe Variable)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Variable -&gt; TCMT IO (Maybe Variable))
+-&gt; Maybe Variable -&gt; TCMT IO (Maybe Variable)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe Variable
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682107315"><span class="annot"><a href="#local-6989586621682107315"><span class="hs-identifier hs-var hs-var">allowedVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; VarSet -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#union"><span class="hs-identifier hs-var">VarSet.union</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682107299"><span class="hs-identifier hs-var">earlierVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Variable] -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#fromList"><span class="hs-identifier hs-var">VarSet.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">[Variable]
+</span><a href="#local-6989586621682107307"><span class="hs-identifier hs-var">checked</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621682107297"><span class="hs-identifier hs-type">termVars</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#isSubsetOf"><span class="hs-operator hs-type">`VarSet.isSubsetOf`</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107315"><span class="hs-identifier hs-type">allowedVars</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-94"></span><span>    </span><span id="local-6989586621682107318"><span class="annot"><a href="#local-6989586621682107318"><span class="hs-identifier hs-var hs-var">illegalVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682107295"><span class="hs-identifier hs-var">rigid</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; VarSet -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#difference"><span class="hs-operator hs-var">`VarSet.difference`</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682107315"><span class="hs-identifier hs-var">allowedVars</span></a></span><span>
+</span><span id="line-95"></span><span>    </span><span class="hs-comment">-- flexVars = flexibleVars fv</span><span>
+</span><span id="line-96"></span><span>    </span><span class="hs-comment">-- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)</span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-type">null</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107318"><span class="hs-identifier hs-type">illegalVars</span></a></span><span> </span><span class="hs-keyword">then</span><span>  </span><span class="hs-comment">-- only flexible vars are infringing</span><span>
+</span><span id="line-98"></span><span>    </span><span class="hs-comment">-- TODO: be more precise about which metas</span><span>
+</span><span id="line-99"></span><span>    </span><span class="hs-comment">-- flexVars = flexibleVars fv</span><span>
+</span><span id="line-100"></span><span>    </span><span class="hs-comment">-- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)</span><span>
+</span><span id="line-101"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-type">patternViolation</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-type">alwaysUnblock</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-keyword">else</span><span>
+</span><span id="line-103"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-type">typeError</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReferencesFutureVariables"><span class="hs-identifier hs-type">ReferencesFutureVariables</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107268"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">List1.fromList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.VarSet.html#toAscList"><span class="hs-identifier hs-type">VarSet.toAscList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107318"><span class="hs-identifier hs-type">illegalVars</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682107272"><span class="hs-identifier hs-type">lk</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107289"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-104"></span><span>    </span><span class="hs-comment">-- List1.fromList is guarded by not (null illegalVars)</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="annot"><span class="hs-comment">-- | Precondition: 'Term' is fully instantiated.</span></span><span>
+</span><span id="line-108"></span><span class="annot"><a href="Agda.TypeChecking.Lock.html#getLockVar"><span class="hs-identifier hs-type">getLockVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCMT"><span class="hs-identifier hs-type">TCMT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span id="getLockVar"><span class="annot"><span class="annottext">getLockVar :: Term -&gt; TCMT IO (Maybe Variable)
+</span><a href="Agda.TypeChecking.Lock.html#getLockVar"><span class="hs-identifier hs-var hs-var">getLockVar</span></a></span></span><span> </span><span id="local-6989586621682107325"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682107325"><span class="hs-identifier hs-var">lk</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-111"></span><span>    </span><span id="local-6989586621682107326"><span class="annot"><span class="annottext">fv :: VarMap
+</span><a href="#local-6989586621682107326"><span class="hs-identifier hs-var hs-var hs-var">fv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; Term -&gt; VarMap
+forall a c t.
+(IsVarSet a c, Singleton Variable c, Free t) =&gt;
+IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#freeVarsIgnore"><span class="hs-identifier hs-var">freeVarsIgnore</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreInAnnotations"><span class="hs-identifier hs-var">IgnoreInAnnotations</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682107325"><span class="hs-identifier hs-var">lk</span></a></span><span>
+</span><span id="line-112"></span><span>    </span><span id="local-6989586621682107327"><span class="annot"><span class="annottext">flex :: IntMap MetaSet
+</span><a href="#local-6989586621682107327"><span class="hs-identifier hs-var hs-var hs-var">flex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarMap -&gt; IntMap MetaSet
+</span><a href="Agda.TypeChecking.Free.html#flexibleVars"><span class="hs-identifier hs-var">flexibleVars</span></a></span><span> </span><span class="annot"><span class="annottext">VarMap
+</span><a href="#local-6989586621682107326"><span class="hs-identifier hs-var">fv</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span>    </span><span id="local-6989586621682107352"><span class="annot"><span class="annottext">isLock :: Variable -&gt; f Bool
+</span><a href="#local-6989586621682107352"><span class="hs-identifier hs-var hs-var hs-var">isLock</span></a></span></span><span> </span><span id="local-6989586621682107353"><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107353"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Dom' Term Type -&gt; Lock) -&gt; f (Dom' Term Type) -&gt; f Lock
+forall a b. (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ArgInfo -&gt; Lock
+forall a. LensLock a =&gt; a -&gt; Lock
+</span><a href="Agda.Syntax.Common.html#getLock"><span class="hs-identifier hs-var">getLock</span></a></span><span> </span><span class="annot"><span class="annottext">(ArgInfo -&gt; Lock)
+-&gt; (Dom' Term Type -&gt; ArgInfo) -&gt; Dom' Term Type -&gt; Lock
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Dom' Term Type -&gt; ArgInfo
+forall t e. Dom' t e -&gt; ArgInfo
+</span><a href="Agda.Syntax.Internal.html#domInfo"><span class="hs-identifier hs-var">domInfo</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Variable -&gt; f (Dom' Term Type)
+forall (m :: * -&gt; *).
+(MonadDebug m, MonadTCEnv m) =&gt;
+Variable -&gt; m (Dom' Term Type)
+</span><a href="Agda.TypeChecking.Monad.Context.html#domOfBV"><span class="hs-identifier hs-var">domOfBV</span></a></span><span> </span><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107353"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f Lock -&gt; (Lock -&gt; Bool) -&gt; f Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-115"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Common.html#IsLock"><span class="hs-identifier hs-type">IsLock</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-116"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Common.html#IsNotLock"><span class="hs-identifier hs-type">IsNotLock</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; TCM () -&gt; TCM ()
+forall b (m :: * -&gt; *). (IsBool b, Monad m) =&gt; b -&gt; m () -&gt; m ()
+</span><a href="Agda.Utils.Monad.html#unless"><span class="hs-identifier hs-var">unless</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntMap MetaSet -&gt; Bool
+forall a. IntMap a -&gt; Bool
+</span><span class="hs-identifier hs-var">IMap.null</span></span><span> </span><span class="annot"><span class="annottext">IntMap MetaSet
+</span><a href="#local-6989586621682107327"><span class="hs-identifier hs-var">flex</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCM () -&gt; TCM ()) -&gt; TCM () -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682107362"><span class="annot"><span class="annottext">metas :: Set MetaId
+</span><a href="#local-6989586621682107362"><span class="hs-identifier hs-var hs-var">metas</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Set MetaId] -&gt; Set MetaId
+forall (f :: * -&gt; *) a. (Foldable f, Ord a) =&gt; f (Set a) -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.unions</span></span><span> </span><span class="annot"><span class="annottext">([Set MetaId] -&gt; Set MetaId) -&gt; [Set MetaId] -&gt; Set MetaId
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaSet -&gt; Set MetaId) -&gt; [MetaSet] -&gt; [Set MetaId]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(MetaId -&gt; Set MetaId -&gt; Set MetaId)
+-&gt; Set MetaId -&gt; MetaSet -&gt; Set MetaId
+forall a. (MetaId -&gt; a -&gt; a) -&gt; a -&gt; MetaSet -&gt; a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#foldrMetaSet"><span class="hs-identifier hs-var">foldrMetaSet</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Set MetaId -&gt; Set MetaId
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.insert</span></span><span> </span><span class="annot"><span class="annottext">Set MetaId
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([MetaSet] -&gt; [Set MetaId]) -&gt; [MetaSet] -&gt; [Set MetaId]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IntMap MetaSet -&gt; [MetaSet]
+forall a. IntMap a -&gt; [a]
+</span><span class="hs-identifier hs-var">IMap.elems</span></span><span> </span><span class="annot"><span class="annottext">IntMap MetaSet
+</span><a href="#local-6989586621682107327"><span class="hs-identifier hs-var">flex</span></a></span><span>
+</span><span id="line-120"></span><span>    </span><span class="annot"><span class="annottext">Blocker -&gt; TCM ()
+forall a. Blocker -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">(Blocker -&gt; TCM ()) -&gt; Blocker -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set MetaId -&gt; Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#unblockOnAnyMeta"><span class="hs-identifier hs-var">unblockOnAnyMeta</span></a></span><span> </span><span class="annot"><span class="annottext">Set MetaId
+</span><a href="#local-6989586621682107362"><span class="hs-identifier hs-var">metas</span></a></span><span>
+</span><span id="line-121"></span><span>      </span><span class="hs-comment">-- Andreas, 2023-10-23, issue #6913:</span><span>
+</span><span id="line-122"></span><span>      </span><span class="hs-comment">-- We should not block on solved metas, so we need @lk@ to be fully instantiated,</span><span>
+</span><span id="line-123"></span><span>      </span><span class="hs-comment">-- otherwise it may mention solved metas which end up here.</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621682107369"><span class="annot"><a href="#local-6989586621682107369"><span class="hs-identifier hs-var">is</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Variable -&gt; TCMT IO Bool) -&gt; [Variable] -&gt; TCMT IO [Variable]
+forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+(a -&gt; m Bool) -&gt; [a] -&gt; m [a]
+</span><span class="hs-identifier hs-var">filterM</span></span><span> </span><span class="annot"><span class="annottext">Variable -&gt; TCMT IO Bool
+forall {f :: * -&gt; *}.
+(MonadDebug f, MonadTCEnv f) =&gt;
+Variable -&gt; f Bool
+</span><a href="#local-6989586621682107352"><span class="hs-identifier hs-var">isLock</span></a></span><span> </span><span class="annot"><span class="annottext">([Variable] -&gt; TCMT IO [Variable])
+-&gt; [Variable] -&gt; TCMT IO [Variable]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; [Variable]
+</span><a href="Agda.Utils.VarSet.html#toAscList"><span class="hs-identifier hs-var">VarSet.toAscList</span></a></span><span> </span><span class="annot"><span class="annottext">(VarSet -&gt; [Variable]) -&gt; VarSet -&gt; [Variable]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#rigidVars"><span class="hs-identifier hs-var">rigidVars</span></a></span><span> </span><span class="annot"><span class="annottext">VarMap
+</span><a href="#local-6989586621682107326"><span class="hs-identifier hs-var">fv</span></a></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-comment">-- Out of the lock variables that appear in @lk@ the one in the</span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-comment">-- left-most position in the context is what will determine the</span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-comment">-- available context for the head.</span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682107371"><span class="annot"><a href="#local-6989586621682107371"><span class="hs-identifier hs-var hs-var">mi</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">[Variable] -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">Prelude.null</span></span><span> </span><span class="annot"><span class="annottext">[Variable]
+</span><a href="#local-6989586621682107369"><span class="hs-identifier hs-var">is</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Variable
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-131"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Variable -&gt; Maybe Variable
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Variable -&gt; Maybe Variable) -&gt; Variable -&gt; Maybe Variable
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Variable] -&gt; Variable
+forall a. Ord a =&gt; [a] -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="annot"><span class="annottext">[Variable]
+</span><a href="#local-6989586621682107369"><span class="hs-identifier hs-var">is</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><a href="#local-6989586621682107371"><span class="hs-identifier hs-type">mi</span></a></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="annot"><a href="Agda.TypeChecking.Lock.html#isTimeless"><span class="hs-identifier hs-type">isTimeless</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-136"></span><span id="isTimeless"><span class="annot"><span class="annottext">isTimeless :: Type -&gt; TCMT IO Bool
+</span><a href="Agda.TypeChecking.Lock.html#isTimeless"><span class="hs-identifier hs-var hs-var">isTimeless</span></a></span></span><span> </span><span id="local-6989586621682107373"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682107373"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-137"></span><span>  </span><span id="local-6989586621682107374"><span class="annot"><a href="#local-6989586621682107374"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Type -&gt; TCMT IO Type
+forall (m :: * -&gt; *) t.
+(MonadReduce m, MonadBlock m, IsMeta t, Reduce t) =&gt;
+t -&gt; m t
+</span><a href="Agda.TypeChecking.Reduce.html#abortIfBlocked"><span class="hs-identifier hs-var">abortIfBlocked</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682107373"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-138"></span><span>  </span><span id="local-6989586621682107376"><span class="annot"><a href="#local-6989586621682107376"><span class="hs-identifier hs-var">timeless</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">mapM</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Builtin.html#getName%27"><span class="hs-identifier hs-type">getName'</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinInterval"><span class="hs-identifier hs-type">builtinInterval</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIsOne"><span class="hs-identifier hs-type">builtinIsOne</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#unEl"><span class="hs-identifier hs-var">unEl</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682107374"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-140"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-type">Def</span></a></span><span> </span><span id="local-6989586621682107383"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682107383"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Maybe QName
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682107383"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe QName -&gt; [Maybe QName] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[Maybe QName]
+</span><a href="#local-6989586621682107376"><span class="hs-identifier hs-var">timeless</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; TCMT IO Bool
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-141"></span><span>    </span><span class="annot"><span class="annottext">Term
+</span><span class="hs-identifier">_</span></span><span>                                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; TCMT IO Bool
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- | If the first argument is a lock variable, check that all variables in the given set</span><span>
+</span><span id="line-144"></span><span class="hs-comment">--   are either earlier than this variable or are timeless.</span><span>
+</span><span id="line-145"></span><span class="hs-comment">--</span><span>
+</span><span id="line-146"></span><span class="annot"><a href="Agda.TypeChecking.Lock.html#checkEarlierThan"><span class="hs-identifier hs-type">checkEarlierThan</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-147"></span><span id="checkEarlierThan"><span class="annot"><span class="annottext">checkEarlierThan :: Term -&gt; VarSet -&gt; TCMT IO Bool
+</span><a href="Agda.TypeChecking.Lock.html#checkEarlierThan"><span class="hs-identifier hs-var hs-var">checkEarlierThan</span></a></span></span><span> </span><span id="local-6989586621682107385"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682107385"><span class="hs-identifier hs-var">lk</span></a></span></span><span> </span><span id="local-6989586621682107386"><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682107386"><span class="hs-identifier hs-var">fvs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-148"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; TCMT IO (Maybe Variable)
+</span><a href="Agda.TypeChecking.Lock.html#getLockVar"><span class="hs-identifier hs-var">getLockVar</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682107385"><span class="hs-identifier hs-var">lk</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO (Maybe Variable)
+-&gt; (Maybe Variable -&gt; TCMT IO Bool) -&gt; TCMT IO Bool
+forall a b. TCMT IO a -&gt; (a -&gt; TCMT IO b) -&gt; TCMT IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-149"></span><span>    </span><span class="annot"><span class="annottext">Maybe Variable
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; TCMT IO Bool
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-150"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682107387"><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107387"><span class="hs-identifier hs-var">i</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Variable -&gt; TCMT IO Bool) -&gt; [Variable] -&gt; TCMT IO Bool
+forall (f :: * -&gt; *) (m :: * -&gt; *) a.
+(Foldable f, Monad m) =&gt;
+(a -&gt; m Bool) -&gt; f a -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#allM"><span class="hs-identifier hs-var">allM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type -&gt; TCMT IO Bool
+</span><a href="Agda.TypeChecking.Lock.html#isTimeless"><span class="hs-identifier hs-var">isTimeless</span></a></span><span> </span><span class="annot"><span class="annottext">(Type -&gt; TCMT IO Bool)
+-&gt; (Variable -&gt; TCMT IO Type) -&gt; Variable -&gt; TCMT IO Bool
+forall (m :: * -&gt; *) b c a.
+Monad m =&gt;
+(b -&gt; m c) -&gt; (a -&gt; m b) -&gt; a -&gt; m c
+</span><span class="hs-operator hs-var">&lt;=&lt;</span></span><span> </span><span class="annot"><span class="annottext">Variable -&gt; TCMT IO Type
+forall (m :: * -&gt; *).
+(MonadDebug m, MonadTCEnv m) =&gt;
+Variable -&gt; m Type
+</span><a href="Agda.TypeChecking.Monad.Context.html#typeOfBV"><span class="hs-identifier hs-var">typeOfBV</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Variable] -&gt; TCMT IO Bool) -&gt; [Variable] -&gt; TCMT IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Variable -&gt; Bool) -&gt; [Variable] -&gt; [Variable]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Variable -&gt; Variable -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Variable
+</span><a href="#local-6989586621682107387"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Variable] -&gt; [Variable]) -&gt; [Variable] -&gt; [Variable]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; [Variable]
+</span><a href="Agda.Utils.VarSet.html#toAscList"><span class="hs-identifier hs-var">VarSet.toAscList</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682107386"><span class="hs-identifier hs-var">fvs</span></a></span><span>
+</span><span id="line-151"></span></pre></body></html>

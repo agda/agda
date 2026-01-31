@@ -1,0 +1,816 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">{- | Modality.
+
+Agda has support for several modalities, namely:
+
+ * 'Cohesion'
+ * 'Quantity'
+ * 'Relevance'
+
+In order to type check such modalities, we must store the current modality in
+the typing context. This module provides functions to update the context based
+on a given modality.
+
+See &quot;Agda.TypeChecking.Irrelevance&quot;.
+-}</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Modality</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Context.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Context</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Env.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Env</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html"><span class="hs-identifier">Agda.Utils.Function</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | data 'Relevance'</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--   see &quot;Agda.Syntax.Common&quot;.</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="annot"><span class="hs-comment">-- * Operations on 'Dom'.</span></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | Prepare parts of a parameter telescope for abstraction in constructors</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   and projections.</span><span>
+</span><span id="line-42"></span><span id="local-6989586621681955377"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#hideAndRelParams"><span class="hs-identifier hs-type">hideAndRelParams</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#LensHiding"><span class="hs-identifier hs-type">LensHiding</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955377"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensRelevance"><span class="hs-identifier hs-type">LensRelevance</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955377"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955377"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955377"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-43"></span><span id="hideAndRelParams"><span class="annot"><span class="annottext">hideAndRelParams :: forall a. (LensHiding a, LensRelevance a) =&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#hideAndRelParams"><span class="hs-identifier hs-var hs-var">hideAndRelParams</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall a. LensHiding a =&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#hideOrKeepInstance"><span class="hs-identifier hs-var">hideOrKeepInstance</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; (a -&gt; a) -&gt; a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Relevance -&gt; Relevance) -&gt; a -&gt; a
+forall a. LensRelevance a =&gt; (Relevance -&gt; Relevance) -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#mapRelevance"><span class="hs-identifier hs-var">mapRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#shapeIrrelevantToIrrelevant"><span class="hs-identifier hs-var">shapeIrrelevantToIrrelevant</span></a></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="annot"><span class="hs-comment">-- * Operations on 'Context'.</span></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | Modify the context whenever going from the l.h.s. (term side)</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--   of the typing judgement to the r.h.s. (type side).</span><span>
+</span><span id="line-49"></span><span id="local-6989586621681955387"><span id="local-6989586621681955391"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#workOnTypes"><span class="hs-identifier hs-type">workOnTypes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955387"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955387"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955387"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955387"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955391"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955387"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955391"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-51"></span><span id="workOnTypes"><span class="annot"><span class="annottext">workOnTypes :: forall (m :: * -&gt; *) a.
+(MonadTCEnv m, HasOptions m, MonadDebug m) =&gt;
+m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#workOnTypes"><span class="hs-identifier hs-var hs-var">workOnTypes</span></a></span></span><span> </span><span id="local-6989586621681955583"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681955583"><span class="hs-identifier hs-var">cont</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681955584"><span class="annot"><a href="#local-6989586621681955584"><span class="hs-identifier hs-var">allowed</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optExperimentalIrrelevance"><span class="hs-identifier hs-var">optExperimentalIrrelevance</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool) -&gt; m PragmaOptions -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#verboseBracket"><span class="hs-identifier hs-type">verboseBracket</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.irr&quot;</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="hs-string">&quot;workOnTypes&quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#workOnTypes%27"><span class="hs-identifier hs-type">workOnTypes'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955584"><span class="hs-identifier hs-type">allowed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955583"><span class="hs-identifier hs-type">cont</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Internal workhorse, expects value of --experimental-irrelevance flag</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   as argument.</span><span>
+</span><span id="line-57"></span><span id="local-6989586621681955408"><span id="local-6989586621681955409"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#workOnTypes%27"><span class="hs-identifier hs-type">workOnTypes'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955408"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955408"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955409"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955408"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955409"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-58"></span><span id="workOnTypes%27"><span class="annot"><span class="annottext">workOnTypes' :: forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Bool -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#workOnTypes%27"><span class="hs-identifier hs-var hs-var">workOnTypes'</span></a></span></span><span> </span><span id="local-6989586621681955602"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681955602"><span class="hs-identifier hs-var">experimental</span></a></span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; (m a -&gt; m a) -&gt; m a -&gt; m a
+forall b a. IsBool b =&gt; b -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Agda.Utils.Function.html#applyWhen"><span class="hs-identifier hs-var">applyWhen</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681955602"><span class="hs-identifier hs-var">experimental</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(forall e. Dom e -&gt; Dom e) -&gt; m a -&gt; m a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+(forall e. Dom e -&gt; Dom e) -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Context.html#modifyContextInfo"><span class="hs-identifier hs-var">modifyContextInfo</span></a></span><span> </span><span class="annot"><span class="annottext">((forall e. Dom e -&gt; Dom e) -&gt; m a -&gt; m a)
+-&gt; (forall e. Dom e -&gt; Dom e) -&gt; m a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Relevance -&gt; Relevance) -&gt; Dom e -&gt; Dom e
+forall a. LensRelevance a =&gt; (Relevance -&gt; Relevance) -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#mapRelevance"><span class="hs-identifier hs-var">mapRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#irrelevantToShapeIrrelevant"><span class="hs-identifier hs-var">irrelevantToShapeIrrelevant</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; (m a -&gt; m a) -&gt; m a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Quantity -&gt; m a -&gt; m a
+forall (tcm :: * -&gt; *) q a.
+(MonadTCEnv tcm, LensQuantity q) =&gt;
+q -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyQuantityToJudgement"><span class="hs-identifier hs-var">applyQuantityToJudgement</span></a></span><span> </span><span class="annot"><span class="annottext">Quantity
+</span><a href="Agda.Syntax.Common.html#zeroQuantity"><span class="hs-identifier hs-var">zeroQuantity</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; (m a -&gt; m a) -&gt; m a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PolarityModality -&gt; m a -&gt; m a
+forall (tcm :: * -&gt; *) p a.
+(MonadTCEnv tcm, LensModalPolarity p) =&gt;
+p -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyPolarityToContext"><span class="hs-identifier hs-var">applyPolarityToContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModalPolarity -&gt; PolarityModality
+</span><a href="Agda.Syntax.Common.html#withStandardLock"><span class="hs-identifier hs-var">withStandardLock</span></a></span><span> </span><span class="annot"><span class="annottext">ModalPolarity
+</span><a href="Agda.Syntax.Common.html#UnusedPolarity"><span class="hs-identifier hs-var">UnusedPolarity</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>  </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; (m a -&gt; m a) -&gt; m a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m a -&gt; m a
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Env.html#typeLevelReductions"><span class="hs-identifier hs-var">typeLevelReductions</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; (m a -&gt; m a) -&gt; m a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall a. (TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681955615"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681955615"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681955615"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envWorkingOnTypes"><span class="hs-identifier hs-var">envWorkingOnTypes</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span id="local-6989586621681955430"><span id="local-6989586621681955431"><span id="local-6989586621681955432"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyPolarityToContext"><span class="hs-identifier hs-type">applyPolarityToContext</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955430"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensModalPolarity"><span class="hs-identifier hs-type">LensModalPolarity</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955431"><span class="hs-identifier hs-type">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955431"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955430"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955432"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955430"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955432"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-66"></span><span id="applyPolarityToContext"><span class="annot"><span class="annottext">applyPolarityToContext :: forall (tcm :: * -&gt; *) p a.
+(MonadTCEnv tcm, LensModalPolarity p) =&gt;
+p -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyPolarityToContext"><span class="hs-identifier hs-var hs-var">applyPolarityToContext</span></a></span></span><span> </span><span id="local-6989586621681955627"><span class="annot"><span class="annottext">p
+</span><a href="#local-6989586621681955627"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a. (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a)
+-&gt; (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv [ContextEntry] -&gt; LensMap TCEnv [ContextEntry]
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">([ContextEntry] -&gt; f [ContextEntry]) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv [ContextEntry]
+</span><a href="Agda.TypeChecking.Monad.Base.html#eContext"><span class="hs-identifier hs-var">eContext</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ContextEntry -&gt; ContextEntry) -&gt; [ContextEntry] -&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">((ContextEntry -&gt; ContextEntry)
+ -&gt; [ContextEntry] -&gt; [ContextEntry])
+-&gt; (ContextEntry -&gt; ContextEntry)
+-&gt; [ContextEntry]
+-&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">PolarityModality -&gt; ContextEntry -&gt; ContextEntry
+forall a. LensModalPolarity a =&gt; PolarityModality -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyPolarity"><span class="hs-identifier hs-var">inverseApplyPolarity</span></a></span><span> </span><span class="annot"><span class="annottext">PolarityModality
+</span><a href="#local-6989586621681955633"><span class="hs-identifier hs-var">pol</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; (TCEnv -&gt; TCEnv) -&gt; TCEnv -&gt; TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Map Name (Open LetBinding))
+-&gt; LensMap TCEnv (Map Name (Open LetBinding))
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Map Name (Open LetBinding) -&gt; f (Map Name (Open LetBinding)))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Map Name (Open LetBinding))
+</span><a href="Agda.TypeChecking.Monad.Base.html#eLetBindings"><span class="hs-identifier hs-var">eLetBindings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Open LetBinding -&gt; Open LetBinding)
+-&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding)
+forall a b k. (a -&gt; b) -&gt; Map k a -&gt; Map k b
+</span><span class="hs-identifier hs-var">Map.map</span></span><span> </span><span class="annot"><span class="annottext">((Open LetBinding -&gt; Open LetBinding)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding
+forall a b. (a -&gt; b) -&gt; Open a -&gt; Open b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">((LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Open LetBinding
+-&gt; Open LetBinding
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding
+</span><a href="Agda.TypeChecking.Monad.Base.html#onLetBindingType"><span class="hs-identifier hs-var">onLetBindingType</span></a></span><span>
+</span><span id="line-69"></span><span>                       </span><span class="annot"><span class="annottext">((Dom Type -&gt; Dom Type)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">PolarityModality -&gt; Dom Type -&gt; Dom Type
+forall a. LensModalPolarity a =&gt; PolarityModality -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyPolarity"><span class="hs-identifier hs-var">inverseApplyPolarity</span></a></span><span> </span><span class="annot"><span class="annottext">PolarityModality
+</span><a href="#local-6989586621681955633"><span class="hs-identifier hs-var">pol</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>    </span><span id="local-6989586621681955633"><span class="annot"><span class="annottext">pol :: PolarityModality
+</span><a href="#local-6989586621681955633"><span class="hs-identifier hs-var hs-var">pol</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">p -&gt; PolarityModality
+forall a. LensModalPolarity a =&gt; a -&gt; PolarityModality
+</span><a href="Agda.Syntax.Common.html#getModalPolarity"><span class="hs-identifier hs-var">getModalPolarity</span></a></span><span> </span><span class="annot"><span class="annottext">p
+</span><a href="#local-6989586621681955627"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- | (Conditionally) wake up irrelevant variables and make them relevant.</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--   For instance,</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--   in an irrelevant function argument otherwise irrelevant variables</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   may be used, so they are awoken before type checking the argument.</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--   Also allow the use of irrelevant definitions.</span><span>
+</span><span id="line-79"></span><span id="local-6989586621681955465"><span id="local-6989586621681955466"><span id="local-6989586621681955467"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContext"><span class="hs-identifier hs-type">applyRelevanceToContext</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955465"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensRelevance"><span class="hs-identifier hs-type">LensRelevance</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955466"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955466"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955465"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955467"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955465"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955467"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-80"></span><span id="applyRelevanceToContext"><span class="annot"><span class="annottext">applyRelevanceToContext :: forall (tcm :: * -&gt; *) r a.
+(MonadTCEnv tcm, LensRelevance r) =&gt;
+r -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContext"><span class="hs-identifier hs-var hs-var">applyRelevanceToContext</span></a></span></span><span> </span><span id="local-6989586621681955649"><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681955649"><span class="hs-identifier hs-var">thing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; (tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall b a. IsBool b =&gt; b -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Agda.Utils.Function.html#applyUnless"><span class="hs-identifier hs-var">applyUnless</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Relevance -&gt; Bool
+forall a. LensRelevance a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Common.html#isRelevant"><span class="hs-identifier hs-var">isRelevant</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955652"><span class="hs-identifier hs-var">rel</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>   </span><span class="annot"><span class="annottext">((tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a)
+-&gt; (tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Relevance -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextOnly"><span class="hs-identifier hs-var">applyRelevanceToContextOnly</span></a></span><span>   </span><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955652"><span class="hs-identifier hs-var">rel</span></a></span><span>
+</span><span id="line-83"></span><span>   </span><span class="annot"><span class="annottext">(tcm a -&gt; tcm a) -&gt; (tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Relevance -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToJudgementOnly"><span class="hs-identifier hs-var">applyRelevanceToJudgementOnly</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955652"><span class="hs-identifier hs-var">rel</span></a></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681955652"><span class="annot"><span class="annottext">rel :: Relevance
+</span><a href="#local-6989586621681955652"><span class="hs-identifier hs-var hs-var">rel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">r -&gt; Relevance
+forall a. LensRelevance a =&gt; a -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#getRelevance"><span class="hs-identifier hs-var">getRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681955649"><span class="hs-identifier hs-var">thing</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- | (Conditionally) wake up irrelevant variables and make them relevant.</span><span>
+</span><span id="line-87"></span><span class="hs-comment">--   For instance,</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--   in an irrelevant function argument otherwise irrelevant variables</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--   may be used, so they are awoken before type checking the argument.</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--   Precondition: @Relevance /= Relevant@</span><span>
+</span><span id="line-92"></span><span id="local-6989586621681955472"><span id="local-6989586621681955473"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextOnly"><span class="hs-identifier hs-type">applyRelevanceToContextOnly</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955472"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Relevance"><span class="hs-identifier hs-type">Relevance</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955472"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955473"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955472"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955473"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-93"></span><span id="applyRelevanceToContextOnly"><span class="annot"><span class="annottext">applyRelevanceToContextOnly :: forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Relevance -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextOnly"><span class="hs-identifier hs-var hs-var">applyRelevanceToContextOnly</span></a></span></span><span> </span><span id="local-6989586621681955662"><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955662"><span class="hs-identifier hs-var">rel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a. (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span>
+</span><span id="line-94"></span><span>  </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a)
+-&gt; (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv [ContextEntry] -&gt; LensMap TCEnv [ContextEntry]
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">([ContextEntry] -&gt; f [ContextEntry]) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv [ContextEntry]
+</span><a href="Agda.TypeChecking.Monad.Base.html#eContext"><span class="hs-identifier hs-var">eContext</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ContextEntry -&gt; ContextEntry) -&gt; [ContextEntry] -&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">((ContextEntry -&gt; ContextEntry)
+ -&gt; [ContextEntry] -&gt; [ContextEntry])
+-&gt; (ContextEntry -&gt; ContextEntry)
+-&gt; [ContextEntry]
+-&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; ContextEntry -&gt; ContextEntry
+forall a. LensRelevance a =&gt; Relevance -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyRelevance"><span class="hs-identifier hs-var">inverseApplyRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955662"><span class="hs-identifier hs-var">rel</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span>  </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; (TCEnv -&gt; TCEnv) -&gt; TCEnv -&gt; TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Map Name (Open LetBinding))
+-&gt; LensMap TCEnv (Map Name (Open LetBinding))
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Map Name (Open LetBinding) -&gt; f (Map Name (Open LetBinding)))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Map Name (Open LetBinding))
+</span><a href="Agda.TypeChecking.Monad.Base.html#eLetBindings"><span class="hs-identifier hs-var">eLetBindings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Open LetBinding -&gt; Open LetBinding)
+-&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding)
+forall a b k. (a -&gt; b) -&gt; Map k a -&gt; Map k b
+</span><span class="hs-identifier hs-var">Map.map</span></span><span> </span><span class="annot"><span class="annottext">((Open LetBinding -&gt; Open LetBinding)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding
+forall a b. (a -&gt; b) -&gt; Open a -&gt; Open b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">((LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Open LetBinding
+-&gt; Open LetBinding
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding
+</span><a href="Agda.TypeChecking.Monad.Base.html#onLetBindingType"><span class="hs-identifier hs-var">onLetBindingType</span></a></span><span> </span><span class="annot"><span class="annottext">((Dom Type -&gt; Dom Type)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; Dom Type -&gt; Dom Type
+forall a. LensRelevance a =&gt; Relevance -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyRelevance"><span class="hs-identifier hs-var">inverseApplyRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955662"><span class="hs-identifier hs-var">rel</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | Apply relevance @rel@ the the relevance annotation of the (typing/equality)</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--   judgement.  This is part of the work done when going into a @rel@-context.</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--   Precondition: @Relevance /= Relevant@</span><span>
+</span><span id="line-101"></span><span id="local-6989586621681955668"><span id="local-6989586621681955669"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToJudgementOnly"><span class="hs-identifier hs-type">applyRelevanceToJudgementOnly</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955668"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Relevance"><span class="hs-identifier hs-type">Relevance</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955668"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955669"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955668"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955669"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-102"></span><span id="applyRelevanceToJudgementOnly"><span class="annot"><span class="annottext">applyRelevanceToJudgementOnly :: forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Relevance -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToJudgementOnly"><span class="hs-identifier hs-var hs-var">applyRelevanceToJudgementOnly</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a. (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a)
+-&gt; (Relevance -&gt; TCEnv -&gt; TCEnv) -&gt; Relevance -&gt; tcm a -&gt; tcm a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv Relevance -&gt; LensMap TCEnv Relevance
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Relevance -&gt; f Relevance) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv Relevance
+</span><a href="Agda.TypeChecking.Monad.Base.html#eRelevance"><span class="hs-identifier hs-var">eRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">LensMap TCEnv Relevance
+-&gt; (Relevance -&gt; Relevance -&gt; Relevance)
+-&gt; Relevance
+-&gt; TCEnv
+-&gt; TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; Relevance -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#composeRelevance"><span class="hs-identifier hs-var">composeRelevance</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- | Like 'applyRelevanceToContext', but only act on context if</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--   @--irrelevant-projections@.</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--   See issue #2170.</span><span>
+</span><span id="line-107"></span><span id="local-6989586621681955482"><span id="local-6989586621681955484"><span id="local-6989586621681955485"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextFunBody"><span class="hs-identifier hs-type">applyRelevanceToContextFunBody</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCM"><span class="hs-identifier hs-type">MonadTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955482"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensRelevance"><span class="hs-identifier hs-type">LensRelevance</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955484"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955484"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955482"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955485"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955482"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955485"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-108"></span><span id="applyRelevanceToContextFunBody"><span class="annot"><span class="annottext">applyRelevanceToContextFunBody :: forall (tcm :: * -&gt; *) r a.
+(MonadTCM tcm, LensRelevance r) =&gt;
+r -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextFunBody"><span class="hs-identifier hs-var hs-var">applyRelevanceToContextFunBody</span></a></span></span><span> </span><span id="local-6989586621681955698"><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681955698"><span class="hs-identifier hs-var">thing</span></a></span></span><span> </span><span id="local-6989586621681955699"><span class="annot"><span class="annottext">tcm a
+</span><a href="#local-6989586621681955699"><span class="hs-identifier hs-var">cont</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">r -&gt; Relevance
+forall a. LensRelevance a =&gt; a -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#getRelevance"><span class="hs-identifier hs-var">getRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681955698"><span class="hs-identifier hs-var">thing</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-110"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Common.html#Relevant"><span class="hs-identifier hs-type">Relevant</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">tcm a
+</span><a href="#local-6989586621681955699"><span class="hs-identifier hs-var">cont</span></a></span><span>
+</span><span id="line-111"></span><span>    </span><span id="local-6989586621681955701"><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955701"><span class="hs-identifier hs-var">rel</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">tcm Bool -&gt; (tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall b (m :: * -&gt; *) a.
+(IsBool b, Monad m) =&gt;
+m b -&gt; (m a -&gt; m a) -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Function.html#applyWhenM"><span class="hs-identifier hs-var">applyWhenM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optIrrelevantProjections"><span class="hs-identifier hs-var">optIrrelevantProjections</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool) -&gt; tcm PragmaOptions -&gt; tcm Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">tcm PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Relevance -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Relevance -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextOnly"><span class="hs-identifier hs-var">applyRelevanceToContextOnly</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955701"><span class="hs-identifier hs-var">rel</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>    </span><span class="hs-comment">-- enable local irr. defs only when option</span><span>
+</span><span id="line-113"></span><span>      </span><span class="annot"><span class="annottext">Relevance -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Relevance -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToJudgementOnly"><span class="hs-identifier hs-var">applyRelevanceToJudgementOnly</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance
+</span><a href="#local-6989586621681955701"><span class="hs-identifier hs-var">rel</span></a></span><span> </span><span class="annot"><span class="annottext">tcm a
+</span><a href="#local-6989586621681955699"><span class="hs-identifier hs-var">cont</span></a></span><span> </span><span class="hs-comment">-- enable global irr. defs alway</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- | Apply the quantity to the quantity annotation of the</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- (typing/equality) judgement.</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- Precondition: The quantity must not be @'Quantity1' something@.</span><span>
+</span><span id="line-119"></span><span id="local-6989586621681955427"><span id="local-6989586621681955428"><span id="local-6989586621681955429"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyQuantityToJudgement"><span class="hs-identifier hs-type">applyQuantityToJudgement</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955427"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensQuantity"><span class="hs-identifier hs-type">LensQuantity</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955428"><span class="hs-identifier hs-type">q</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955428"><span class="hs-identifier hs-type">q</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955427"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955429"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955427"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955429"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-121"></span><span id="applyQuantityToJudgement"><span class="annot"><span class="annottext">applyQuantityToJudgement :: forall (tcm :: * -&gt; *) q a.
+(MonadTCEnv tcm, LensQuantity q) =&gt;
+q -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyQuantityToJudgement"><span class="hs-identifier hs-var hs-var">applyQuantityToJudgement</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-122"></span><span>  </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a. (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a)
+-&gt; (q -&gt; TCEnv -&gt; TCEnv) -&gt; q -&gt; tcm a -&gt; tcm a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv Quantity -&gt; LensMap TCEnv Quantity
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Quantity -&gt; f Quantity) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv Quantity
+</span><a href="Agda.TypeChecking.Monad.Base.html#eQuantity"><span class="hs-identifier hs-var">eQuantity</span></a></span><span> </span><span class="annot"><span class="annottext">LensMap TCEnv Quantity
+-&gt; (q -&gt; Quantity -&gt; Quantity) -&gt; q -&gt; TCEnv -&gt; TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Quantity -&gt; Quantity -&gt; Quantity
+</span><a href="Agda.Syntax.Common.html#composeQuantity"><span class="hs-identifier hs-var">composeQuantity</span></a></span><span> </span><span class="annot"><span class="annottext">(Quantity -&gt; Quantity -&gt; Quantity)
+-&gt; (q -&gt; Quantity) -&gt; q -&gt; Quantity -&gt; Quantity
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">q -&gt; Quantity
+forall a. LensQuantity a =&gt; a -&gt; Quantity
+</span><a href="Agda.Syntax.Common.html#getQuantity"><span class="hs-identifier hs-var">getQuantity</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="annot"><span class="hs-comment">-- | Apply inverse composition with the given cohesion to the typing context.</span></span><span>
+</span><span id="line-125"></span><span id="local-6989586621681955501"><span id="local-6989586621681955502"><span id="local-6989586621681955504"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyCohesionToContext"><span class="hs-identifier hs-type">applyCohesionToContext</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955501"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensCohesion"><span class="hs-identifier hs-type">LensCohesion</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955502"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955502"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955501"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955504"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955501"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955504"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-126"></span><span id="applyCohesionToContext"><span class="annot"><span class="annottext">applyCohesionToContext :: forall (tcm :: * -&gt; *) m a.
+(MonadTCEnv tcm, LensCohesion m) =&gt;
+m -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyCohesionToContext"><span class="hs-identifier hs-var hs-var">applyCohesionToContext</span></a></span></span><span> </span><span id="local-6989586621681955721"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621681955721"><span class="hs-identifier hs-var">thing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">m -&gt; Cohesion
+forall a. LensCohesion a =&gt; a -&gt; Cohesion
+</span><a href="Agda.Syntax.Common.html#getCohesion"><span class="hs-identifier hs-var">getCohesion</span></a></span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621681955721"><span class="hs-identifier hs-var">thing</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-128"></span><span>    </span><span id="local-6989586621681955723"><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955723"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955723"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Cohesion -&gt; Cohesion -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Cohesion
+</span><a href="Agda.Syntax.Common.html#unitCohesion"><span class="hs-identifier hs-var">unitCohesion</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">tcm a -&gt; tcm a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-129"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Cohesion -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Cohesion -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyCohesionToContextOnly"><span class="hs-identifier hs-var">applyCohesionToContextOnly</span></a></span><span>   </span><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955723"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-130"></span><span>                             </span><span class="hs-comment">-- Cohesion does not apply to the judgment.</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span id="local-6989586621681955512"><span id="local-6989586621681955513"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyCohesionToContextOnly"><span class="hs-identifier hs-type">applyCohesionToContextOnly</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955512"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Cohesion"><span class="hs-identifier hs-type">Cohesion</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955512"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955513"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955512"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955513"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-133"></span><span id="applyCohesionToContextOnly"><span class="annot"><span class="annottext">applyCohesionToContextOnly :: forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Cohesion -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyCohesionToContextOnly"><span class="hs-identifier hs-var hs-var">applyCohesionToContextOnly</span></a></span></span><span> </span><span id="local-6989586621681955734"><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955734"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a. (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a)
+-&gt; (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv [ContextEntry] -&gt; LensMap TCEnv [ContextEntry]
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">([ContextEntry] -&gt; f [ContextEntry]) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv [ContextEntry]
+</span><a href="Agda.TypeChecking.Monad.Base.html#eContext"><span class="hs-identifier hs-var">eContext</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ContextEntry -&gt; ContextEntry) -&gt; [ContextEntry] -&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">((ContextEntry -&gt; ContextEntry)
+ -&gt; [ContextEntry] -&gt; [ContextEntry])
+-&gt; (ContextEntry -&gt; ContextEntry)
+-&gt; [ContextEntry]
+-&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cohesion -&gt; ContextEntry -&gt; ContextEntry
+forall a. LensCohesion a =&gt; Cohesion -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyCohesion"><span class="hs-identifier hs-var">inverseApplyCohesion</span></a></span><span> </span><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955734"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>  </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; (TCEnv -&gt; TCEnv) -&gt; TCEnv -&gt; TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Map Name (Open LetBinding))
+-&gt; LensMap TCEnv (Map Name (Open LetBinding))
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Map Name (Open LetBinding) -&gt; f (Map Name (Open LetBinding)))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Map Name (Open LetBinding))
+</span><a href="Agda.TypeChecking.Monad.Base.html#eLetBindings"><span class="hs-identifier hs-var">eLetBindings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Open LetBinding -&gt; Open LetBinding)
+-&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding)
+forall a b k. (a -&gt; b) -&gt; Map k a -&gt; Map k b
+</span><span class="hs-identifier hs-var">Map.map</span></span><span> </span><span class="annot"><span class="annottext">((Open LetBinding -&gt; Open LetBinding)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding
+forall a b. (a -&gt; b) -&gt; Open a -&gt; Open b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">((LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Open LetBinding
+-&gt; Open LetBinding
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding
+</span><a href="Agda.TypeChecking.Monad.Base.html#onLetBindingType"><span class="hs-identifier hs-var">onLetBindingType</span></a></span><span> </span><span class="annot"><span class="annottext">((Dom Type -&gt; Dom Type)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cohesion -&gt; Dom Type -&gt; Dom Type
+forall a. LensCohesion a =&gt; Cohesion -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyCohesion"><span class="hs-identifier hs-var">inverseApplyCohesion</span></a></span><span> </span><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955734"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">-- | Can we split on arguments of the given cohesion?</span></span><span>
+</span><span id="line-138"></span><span id="local-6989586621681955521"><span id="local-6989586621681955522"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#splittableCohesion"><span class="hs-identifier hs-type">splittableCohesion</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955521"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensCohesion"><span class="hs-identifier hs-type">LensCohesion</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955522"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955522"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955521"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-139"></span><span id="splittableCohesion"><span class="annot"><span class="annottext">splittableCohesion :: forall (m :: * -&gt; *) a.
+(HasOptions m, LensCohesion a) =&gt;
+a -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Modality.html#splittableCohesion"><span class="hs-identifier hs-var hs-var">splittableCohesion</span></a></span></span><span> </span><span id="local-6989586621681955758"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681955758"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681955759"><span class="annot"><span class="annottext">c :: Cohesion
+</span><a href="#local-6989586621681955759"><span class="hs-identifier hs-var hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Cohesion
+forall a. LensCohesion a =&gt; a -&gt; Cohesion
+</span><a href="Agda.Syntax.Common.html#getCohesion"><span class="hs-identifier hs-var">getCohesion</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681955758"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-141"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m Bool
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Cohesion -&gt; Bool
+forall a. LensCohesion a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Common.html#usableCohesion"><span class="hs-identifier hs-var">usableCohesion</span></a></span><span> </span><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955759"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m Bool -&gt; m Bool -&gt; m Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#and2M"><span class="hs-operator hs-var">`and2M`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; m Bool
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Cohesion
+</span><a href="#local-6989586621681955759"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Cohesion -&gt; Cohesion -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Cohesion
+</span><a href="Agda.Syntax.Common.html#Flat"><span class="hs-identifier hs-var">Flat</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m Bool -&gt; m Bool -&gt; m Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#or2M"><span class="hs-operator hs-var">`or2M`</span></a></span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optFlatSplit"><span class="hs-identifier hs-var">optFlatSplit</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool) -&gt; m PragmaOptions -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContext"><span class="hs-pragma hs-type">applyModalityToContext</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621681955767"><span class="annot"><a href="Agda.Syntax.Common.html#Modality"><span class="hs-pragma hs-type">Modality</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955767"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955767"><span class="hs-pragma hs-type">a</span></a></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- | (Conditionally) wake up irrelevant variables and make them relevant.</span><span>
+</span><span id="line-146"></span><span class="hs-comment">--   For instance,</span><span>
+</span><span id="line-147"></span><span class="hs-comment">--   in an irrelevant function argument otherwise irrelevant variables</span><span>
+</span><span id="line-148"></span><span class="hs-comment">--   may be used, so they are awoken before type checking the argument.</span><span>
+</span><span id="line-149"></span><span class="hs-comment">--</span><span>
+</span><span id="line-150"></span><span class="hs-comment">--   Also allow the use of irrelevant definitions.</span><span>
+</span><span id="line-151"></span><span class="hs-comment">--</span><span>
+</span><span id="line-152"></span><span class="hs-comment">--   This function might also do something for other modalities.</span><span>
+</span><span id="line-153"></span><span id="local-6989586621681955528"><span id="local-6989586621681955529"><span id="local-6989586621681955531"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContext"><span class="hs-identifier hs-type">applyModalityToContext</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955528"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensModality"><span class="hs-identifier hs-type">LensModality</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955529"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955529"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955528"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955531"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955528"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955531"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-154"></span><span id="applyModalityToContext"><span class="annot"><span class="annottext">applyModalityToContext :: forall (tcm :: * -&gt; *) m a.
+(MonadTCEnv tcm, LensModality m) =&gt;
+m -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContext"><span class="hs-identifier hs-var hs-var">applyModalityToContext</span></a></span></span><span> </span><span id="local-6989586621681955776"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621681955776"><span class="hs-identifier hs-var">thing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">m -&gt; Modality
+forall a. LensModality a =&gt; a -&gt; Modality
+</span><a href="Agda.Syntax.Common.html#getModality"><span class="hs-identifier hs-var">getModality</span></a></span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621681955776"><span class="hs-identifier hs-var">thing</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-156"></span><span>    </span><span id="local-6989586621681955778"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955778"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955778"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Modality -&gt; Modality -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="Agda.Syntax.Common.html#unitModality"><span class="hs-identifier hs-var">unitModality</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">tcm a -&gt; tcm a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-157"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Modality -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Modality -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContextOnly"><span class="hs-identifier hs-var">applyModalityToContextOnly</span></a></span><span>   </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955778"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-158"></span><span>                           </span><span class="annot"><span class="annottext">(tcm a -&gt; tcm a) -&gt; (tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Modality -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Modality -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToJudgementOnly"><span class="hs-identifier hs-var">applyModalityToJudgementOnly</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955778"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- | (Conditionally) wake up irrelevant variables and make them relevant.</span><span>
+</span><span id="line-161"></span><span class="hs-comment">--   For instance,</span><span>
+</span><span id="line-162"></span><span class="hs-comment">--   in an irrelevant function argument otherwise irrelevant variables</span><span>
+</span><span id="line-163"></span><span class="hs-comment">--   may be used, so they are awoken before type checking the</span><span>
+</span><span id="line-164"></span><span class="hs-comment">--   argument.</span><span>
+</span><span id="line-165"></span><span class="hs-comment">--</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--   This function might also do something for other modalities, but</span><span>
+</span><span id="line-167"></span><span class="hs-comment">--   not for quantities.</span><span>
+</span><span id="line-168"></span><span class="hs-comment">--</span><span>
+</span><span id="line-169"></span><span class="hs-comment">--   Precondition: @Modality /= Relevant@</span><span>
+</span><span id="line-170"></span><span id="local-6989586621681955537"><span id="local-6989586621681955538"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContextOnly"><span class="hs-identifier hs-type">applyModalityToContextOnly</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955537"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Modality"><span class="hs-identifier hs-type">Modality</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955537"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955538"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955537"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955538"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-171"></span><span id="applyModalityToContextOnly"><span class="annot"><span class="annottext">applyModalityToContextOnly :: forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Modality -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContextOnly"><span class="hs-identifier hs-var hs-var">applyModalityToContextOnly</span></a></span></span><span> </span><span id="local-6989586621681955789"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955789"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a. (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span>
+</span><span id="line-172"></span><span>  </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a)
+-&gt; (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv [ContextEntry] -&gt; LensMap TCEnv [ContextEntry]
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">([ContextEntry] -&gt; f [ContextEntry]) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv [ContextEntry]
+</span><a href="Agda.TypeChecking.Monad.Base.html#eContext"><span class="hs-identifier hs-var">eContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ContextEntry -&gt; ContextEntry) -&gt; [ContextEntry] -&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">((ContextEntry -&gt; ContextEntry)
+ -&gt; [ContextEntry] -&gt; [ContextEntry])
+-&gt; (ContextEntry -&gt; ContextEntry)
+-&gt; [ContextEntry]
+-&gt; [ContextEntry]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Modality -&gt; ContextEntry -&gt; ContextEntry
+forall a. LensModality a =&gt; Modality -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyModalityButNotQuantity"><span class="hs-identifier hs-var">inverseApplyModalityButNotQuantity</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955789"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-173"></span><span>  </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; (TCEnv -&gt; TCEnv) -&gt; TCEnv -&gt; TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Map Name (Open LetBinding))
+-&gt; LensMap TCEnv (Map Name (Open LetBinding))
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Map Name (Open LetBinding) -&gt; f (Map Name (Open LetBinding)))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Map Name (Open LetBinding))
+</span><a href="Agda.TypeChecking.Monad.Base.html#eLetBindings"><span class="hs-identifier hs-var">eLetBindings</span></a></span><span>
+</span><span id="line-174"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Open LetBinding -&gt; Open LetBinding)
+-&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding)
+forall a b k. (a -&gt; b) -&gt; Map k a -&gt; Map k b
+</span><span class="hs-identifier hs-var">Map.map</span></span><span> </span><span class="annot"><span class="annottext">((Open LetBinding -&gt; Open LetBinding)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding
+forall a b. (a -&gt; b) -&gt; Open a -&gt; Open b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">((LetBinding -&gt; LetBinding) -&gt; Open LetBinding -&gt; Open LetBinding)
+-&gt; ((Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding)
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Open LetBinding
+-&gt; Open LetBinding
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Dom Type -&gt; Dom Type) -&gt; LetBinding -&gt; LetBinding
+</span><a href="Agda.TypeChecking.Monad.Base.html#onLetBindingType"><span class="hs-identifier hs-var">onLetBindingType</span></a></span><span> </span><span class="annot"><span class="annottext">((Dom Type -&gt; Dom Type)
+ -&gt; Map Name (Open LetBinding) -&gt; Map Name (Open LetBinding))
+-&gt; (Dom Type -&gt; Dom Type)
+-&gt; Map Name (Open LetBinding)
+-&gt; Map Name (Open LetBinding)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Modality -&gt; Dom Type -&gt; Dom Type
+forall a. LensModality a =&gt; Modality -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#inverseApplyModalityButNotQuantity"><span class="hs-identifier hs-var">inverseApplyModalityButNotQuantity</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955789"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span class="hs-comment">-- | Apply the relevance and quantity components of the modality to</span><span>
+</span><span id="line-177"></span><span class="hs-comment">-- the modality annotation of the (typing/equality) judgement.</span><span>
+</span><span id="line-178"></span><span class="hs-comment">--</span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- Precondition: The relevance component must not be 'Relevant'.</span><span>
+</span><span id="line-180"></span><span id="local-6989586621681955795"><span id="local-6989586621681955796"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToJudgementOnly"><span class="hs-identifier hs-type">applyModalityToJudgementOnly</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955795"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Modality"><span class="hs-identifier hs-type">Modality</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955795"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955796"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955795"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955796"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-181"></span><span id="applyModalityToJudgementOnly"><span class="annot"><span class="annottext">applyModalityToJudgementOnly :: forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Modality -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToJudgementOnly"><span class="hs-identifier hs-var hs-var">applyModalityToJudgementOnly</span></a></span></span><span> </span><span id="local-6989586621681955803"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955803"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-182"></span><span>  </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a. (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a)
+-&gt; (TCEnv -&gt; TCEnv) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv Relevance -&gt; LensMap TCEnv Relevance
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Relevance -&gt; f Relevance) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv Relevance
+</span><a href="Agda.TypeChecking.Monad.Base.html#eRelevance"><span class="hs-identifier hs-var">eRelevance</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Relevance -&gt; Relevance -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#composeRelevance"><span class="hs-identifier hs-var">composeRelevance</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; Relevance
+forall a. LensRelevance a =&gt; a -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#getRelevance"><span class="hs-identifier hs-var">getRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955803"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; (TCEnv -&gt; TCEnv) -&gt; TCEnv -&gt; TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-183"></span><span>            </span><span class="annot"><span class="annottext">Lens' TCEnv Quantity -&gt; LensMap TCEnv Quantity
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(Quantity -&gt; f Quantity) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv Quantity
+</span><a href="Agda.TypeChecking.Monad.Base.html#eQuantity"><span class="hs-identifier hs-var">eQuantity</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Quantity -&gt; Quantity -&gt; Quantity
+</span><a href="Agda.Syntax.Common.html#composeQuantity"><span class="hs-identifier hs-var">composeQuantity</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; Quantity
+forall a. LensQuantity a =&gt; a -&gt; Quantity
+</span><a href="Agda.Syntax.Common.html#getQuantity"><span class="hs-identifier hs-var">getQuantity</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955803"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- | Like 'applyModalityToContext', but only act on context (for Relevance) if</span><span>
+</span><span id="line-186"></span><span class="hs-comment">--   @--irrelevant-projections@.</span><span>
+</span><span id="line-187"></span><span class="hs-comment">--   See issue #2170.</span><span>
+</span><span id="line-188"></span><span id="local-6989586621681955550"><span id="local-6989586621681955551"><span id="local-6989586621681955552"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContextFunBody"><span class="hs-identifier hs-type">applyModalityToContextFunBody</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCM"><span class="hs-identifier hs-type">MonadTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955550"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#LensModality"><span class="hs-identifier hs-type">LensModality</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955551"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955551"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955550"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955552"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955550"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955552"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-189"></span><span id="applyModalityToContextFunBody"><span class="annot"><span class="annottext">applyModalityToContextFunBody :: forall (tcm :: * -&gt; *) r a.
+(MonadTCM tcm, LensModality r) =&gt;
+r -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContextFunBody"><span class="hs-identifier hs-var hs-var">applyModalityToContextFunBody</span></a></span></span><span> </span><span id="local-6989586621681955838"><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681955838"><span class="hs-identifier hs-var">thing</span></a></span></span><span> </span><span id="local-6989586621681955839"><span class="annot"><span class="annottext">tcm a
+</span><a href="#local-6989586621681955839"><span class="hs-identifier hs-var">cont</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-190"></span><span>    </span><span class="annot"><span class="annottext">tcm Bool -&gt; tcm a -&gt; tcm a -&gt; tcm a
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier hs-var">ifM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optIrrelevantProjections"><span class="hs-identifier hs-var">optIrrelevantProjections</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool) -&gt; tcm PragmaOptions -&gt; tcm Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">tcm PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-191"></span><span>      </span><span class="hs-comment">{-then-}</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) m a.
+(MonadTCEnv tcm, LensModality m) =&gt;
+m -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyModalityToContext"><span class="hs-identifier hs-var">applyModalityToContext</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955841"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">tcm a
+</span><a href="#local-6989586621681955839"><span class="hs-identifier hs-var">cont</span></a></span><span class="hs-special">)</span><span>                </span><span class="hs-comment">-- enable global irr. defs always</span><span>
+</span><span id="line-192"></span><span>      </span><span class="hs-comment">{-else-}</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Relevance -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) r a.
+(MonadTCM tcm, LensRelevance r) =&gt;
+r -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextFunBody"><span class="hs-identifier hs-var">applyRelevanceToContextFunBody</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; Relevance
+forall a. LensRelevance a =&gt; a -&gt; Relevance
+</span><a href="Agda.Syntax.Common.html#getRelevance"><span class="hs-identifier hs-var">getRelevance</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955841"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-193"></span><span>               </span><span class="annot"><span class="annottext">(tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cohesion -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) m a.
+(MonadTCEnv tcm, LensCohesion m) =&gt;
+m -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyCohesionToContext"><span class="hs-identifier hs-var">applyCohesionToContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; Cohesion
+forall a. LensCohesion a =&gt; a -&gt; Cohesion
+</span><a href="Agda.Syntax.Common.html#getCohesion"><span class="hs-identifier hs-var">getCohesion</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955841"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-194"></span><span>               </span><span class="annot"><span class="annottext">(tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">PolarityModality -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) p a.
+(MonadTCEnv tcm, LensModalPolarity p) =&gt;
+p -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyPolarityToContext"><span class="hs-identifier hs-var">applyPolarityToContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; PolarityModality
+forall a. LensModalPolarity a =&gt; a -&gt; PolarityModality
+</span><a href="Agda.Syntax.Common.html#getModalPolarity"><span class="hs-identifier hs-var">getModalPolarity</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955841"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-195"></span><span>               </span><span class="annot"><span class="annottext">(tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Quantity -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) q a.
+(MonadTCEnv tcm, LensQuantity q) =&gt;
+q -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyQuantityToJudgement"><span class="hs-identifier hs-var">applyQuantityToJudgement</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; Quantity
+forall a. LensQuantity a =&gt; a -&gt; Quantity
+</span><a href="Agda.Syntax.Common.html#getQuantity"><span class="hs-identifier hs-var">getQuantity</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621681955841"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">tcm a
+</span><a href="#local-6989586621681955839"><span class="hs-identifier hs-var">cont</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- enable local irr. defs only when option</span><span>
+</span><span id="line-196"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-197"></span><span>    </span><span id="local-6989586621681955841"><span class="annot"><span class="annottext">m :: Modality
+</span><a href="#local-6989586621681955841"><span class="hs-identifier hs-var hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">r -&gt; Modality
+forall a. LensModality a =&gt; a -&gt; Modality
+</span><a href="Agda.Syntax.Common.html#getModality"><span class="hs-identifier hs-var">getModality</span></a></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681955838"><span class="hs-identifier hs-var">thing</span></a></span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- | Wake up irrelevant variables and make them relevant. This is used</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--   when type checking terms in a hole, in which case you want to be able to</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--   (for instance) infer the type of an irrelevant variable. In the course</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--   of type checking an irrelevant function argument 'applyRelevanceToContext'</span><span>
+</span><span id="line-203"></span><span class="hs-comment">--   is used instead, which also sets the context relevance to 'Irrelevant'.</span><span>
+</span><span id="line-204"></span><span class="hs-comment">--   This is not the right thing to do when type checking interactively in a</span><span>
+</span><span id="line-205"></span><span class="hs-comment">--   hole since it also marks all metas created during type checking as</span><span>
+</span><span id="line-206"></span><span class="hs-comment">--   irrelevant (issue #2568).</span><span>
+</span><span id="line-207"></span><span class="hs-comment">--</span><span>
+</span><span id="line-208"></span><span class="hs-comment">--   Also set the current quantity to 0.</span><span>
+</span><span id="line-209"></span><span id="local-6989586621681955843"><span id="local-6989586621681955844"><span class="annot"><a href="Agda.TypeChecking.Monad.Modality.html#wakeIrrelevantVars"><span class="hs-identifier hs-type">wakeIrrelevantVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955843"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955843"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955844"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681955843"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681955844"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-210"></span><span id="wakeIrrelevantVars"><span class="annot"><span class="annottext">wakeIrrelevantVars :: forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#wakeIrrelevantVars"><span class="hs-identifier hs-var hs-var">wakeIrrelevantVars</span></a></span></span><span>
+</span><span id="line-211"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Relevance -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) a.
+MonadTCEnv tcm =&gt;
+Relevance -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyRelevanceToContextOnly"><span class="hs-identifier hs-var">applyRelevanceToContextOnly</span></a></span><span> </span><span class="annot"><span class="annottext">Relevance
+</span><a href="Agda.Syntax.Common.html#irrelevant"><span class="hs-identifier hs-var">irrelevant</span></a></span><span>
+</span><span id="line-212"></span><span>  </span><span class="annot"><span class="annottext">(tcm a -&gt; tcm a) -&gt; (tcm a -&gt; tcm a) -&gt; tcm a -&gt; tcm a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Quantity -&gt; tcm a -&gt; tcm a
+forall (tcm :: * -&gt; *) q a.
+(MonadTCEnv tcm, LensQuantity q) =&gt;
+q -&gt; tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Modality.html#applyQuantityToJudgement"><span class="hs-identifier hs-var">applyQuantityToJudgement</span></a></span><span> </span><span class="annot"><span class="annottext">Quantity
+</span><a href="Agda.Syntax.Common.html#zeroQuantity"><span class="hs-identifier hs-var">zeroQuantity</span></a></span><span>
+</span><span id="line-213"></span></pre></body></html>

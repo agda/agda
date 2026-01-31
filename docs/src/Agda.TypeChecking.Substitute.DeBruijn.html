@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html"><span class="hs-identifier">Agda.TypeChecking.Substitute.DeBruijn</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- | Things we can substitute for a variable.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--   Needs to be able to represent variables, e.g. for substituting under binders.</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">class</span><span> </span><span id="DeBruijn"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-var">DeBruijn</span></a></span></span><span> </span><span id="local-6989586621681776889"><span class="annot"><a href="#local-6989586621681776889"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-comment">-- | Produce a variable without name suggestion.</span><span>
+</span><span id="line-13"></span><span>  </span><span id="deBruijnVar"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-type">deBruijnVar</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681776889"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span id="local-6989586621681776922"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-var hs-var">deBruijnVar</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; a
+forall a. DeBruijn a =&gt; String -&gt; Int -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnNamedVar"><span class="hs-identifier hs-var">deBruijnNamedVar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+forall a. Underscore a =&gt; a
+</span><a href="Agda.Syntax.Common.html#underscore"><span class="hs-identifier hs-var">underscore</span></a></span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-comment">-- | Produce a variable with name suggestion.</span><span>
+</span><span id="line-17"></span><span>  </span><span id="deBruijnNamedVar"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnNamedVar"><span class="hs-identifier hs-type">deBruijnNamedVar</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681776889"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span id="local-6989586621681776928"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnNamedVar"><span class="hs-identifier hs-var hs-var">deBruijnNamedVar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; a
+forall a. DeBruijn a =&gt; Int -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-var">deBruijnVar</span></a></span></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-comment">-- | Are we dealing with a variable?</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-comment">--   If yes, what is its index?</span><span>
+</span><span id="line-22"></span><span>  </span><span id="deBruijnView"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-type">deBruijnView</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681776889"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-pragma">{-# MINIMAL</span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-pragma hs-type">deBruijnVar</span></a></span><span> </span><span class="hs-pragma">|</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnNamedVar"><span class="hs-pragma hs-type">deBruijnNamedVar</span></a></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-pragma hs-type">deBruijnView</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- | We can substitute @Term@s for variables.</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681776933"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-type">DeBruijn</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-28"></span><span>  </span><span id="local-6989586621681776938"><span class="annot"><span class="annottext">deBruijnVar :: Int -&gt; Term
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-var hs-var hs-var">deBruijnVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#var"><span class="hs-identifier hs-var">var</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span id="local-6989586621681776942"><span class="annot"><span class="annottext">deBruijnView :: Term -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var hs-var hs-var">deBruijnView</span></a></span></span><span> </span><span id="local-6989586621681776943"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681776943"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681776943"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-31"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621681776945"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681776945"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681776945"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-32"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span id="local-6989586621681776947"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681776947"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Level -&gt; Maybe Int
+forall a. DeBruijn a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var">deBruijnView</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681776947"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-33"></span><span>      </span><span class="annot"><span class="annottext">Term
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681776950"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-type">DeBruijn</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#PlusLevel"><span class="hs-identifier hs-type">PlusLevel</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-36"></span><span>  </span><span id="local-6989586621681776955"><span class="annot"><span class="annottext">deBruijnVar :: Int -&gt; PlusLevel
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-var hs-var hs-var">deBruijnVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term -&gt; PlusLevel
+forall t. Integer -&gt; t -&gt; PlusLevel' t
+</span><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-var">Plus</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; PlusLevel) -&gt; (Int -&gt; Term) -&gt; Int -&gt; PlusLevel
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Term
+forall a. DeBruijn a =&gt; Int -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-var">deBruijnVar</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621681776963"><span class="annot"><span class="annottext">deBruijnView :: PlusLevel -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var hs-var hs-var">deBruijnView</span></a></span></span><span> </span><span id="local-6989586621681776964"><span class="annot"><span class="annottext">PlusLevel
+</span><a href="#local-6989586621681776964"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-38"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">PlusLevel
+</span><a href="#local-6989586621681776964"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-39"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-type">Plus</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span id="local-6989586621681776965"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681776965"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Maybe Int
+forall a. DeBruijn a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var">deBruijnView</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681776965"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-40"></span><span>      </span><span class="annot"><span class="annottext">PlusLevel
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681776968"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-type">DeBruijn</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-43"></span><span>  </span><span id="local-6989586621681776972"><span class="annot"><span class="annottext">deBruijnVar :: Int -&gt; Level
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-var hs-var hs-var">deBruijnVar</span></a></span></span><span> </span><span id="local-6989586621681776973"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681776973"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; [PlusLevel] -&gt; Level
+forall t. Integer -&gt; [PlusLevel' t] -&gt; Level' t
+</span><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-var">Max</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int -&gt; PlusLevel
+forall a. DeBruijn a =&gt; Int -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnVar"><span class="hs-identifier hs-var">deBruijnVar</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681776973"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-44"></span><span>  </span><span id="local-6989586621681776978"><span class="annot"><span class="annottext">deBruijnView :: Level -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var hs-var hs-var">deBruijnView</span></a></span></span><span> </span><span id="local-6989586621681776979"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681776979"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-45"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681776979"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-46"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-type">Max</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span id="local-6989586621681776980"><span class="annot"><span class="annottext">PlusLevel
+</span><a href="#local-6989586621681776980"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PlusLevel -&gt; Maybe Int
+forall a. DeBruijn a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var">deBruijnView</span></a></span><span> </span><span class="annot"><span class="annottext">PlusLevel
+</span><a href="#local-6989586621681776980"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-47"></span><span>      </span><span class="annot"><span class="annottext">Level
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681776982"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-type">DeBruijn</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#DBPatVar"><span class="hs-identifier hs-type">DBPatVar</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-50"></span><span>  </span><span id="local-6989586621681776987"><span class="annot"><span class="annottext">deBruijnNamedVar :: String -&gt; Int -&gt; DBPatVar
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnNamedVar"><span class="hs-identifier hs-var hs-var hs-var">deBruijnNamedVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; DBPatVar
+</span><a href="Agda.Syntax.Internal.html#DBPatVar"><span class="hs-identifier hs-var">DBPatVar</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span id="local-6989586621681776989"><span class="annot"><span class="annottext">deBruijnView :: DBPatVar -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var hs-var hs-var">deBruijnView</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Maybe Int) -&gt; (DBPatVar -&gt; Int) -&gt; DBPatVar -&gt; Maybe Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">DBPatVar -&gt; Int
+</span><a href="Agda.Syntax.Internal.html#dbPatVarIndex"><span class="hs-identifier hs-var">dbPatVarIndex</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681776910"><span id="local-6989586621681776993"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-type">DeBruijn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681776910"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-type">DeBruijn</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Named_"><span class="hs-identifier hs-type">Named_</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681776910"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621681776999"><span class="annot"><span class="annottext">deBruijnNamedVar :: String -&gt; Int -&gt; Named_ a
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnNamedVar"><span class="hs-identifier hs-var hs-var hs-var">deBruijnNamedVar</span></a></span></span><span> </span><span id="local-6989586621681777000"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681777000"><span class="hs-identifier hs-var">nm</span></a></span></span><span> </span><span id="local-6989586621681777001"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681777001"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Named_ a
+forall a name. a -&gt; Named name a
+</span><a href="Agda.Syntax.Common.html#unnamed"><span class="hs-identifier hs-var">unnamed</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Named_ a) -&gt; a -&gt; Named_ a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; a
+forall a. DeBruijn a =&gt; String -&gt; Int -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnNamedVar"><span class="hs-identifier hs-var">deBruijnNamedVar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681777000"><span class="hs-identifier hs-var">nm</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681777001"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span id="local-6989586621681777004"><span class="annot"><span class="annottext">deBruijnView :: Named_ a -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var hs-var hs-var">deBruijnView</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe Int
+forall a. DeBruijn a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var">deBruijnView</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe Int) -&gt; (Named_ a -&gt; a) -&gt; Named_ a -&gt; Maybe Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Named_ a -&gt; a
+forall name a. Named name a -&gt; a
+</span><a href="Agda.Syntax.Common.html#namedThing"><span class="hs-identifier hs-var">namedThing</span></a></span><span>
+</span><span id="line-57"></span></pre></body></html>

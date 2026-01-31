@@ -1,0 +1,1172 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-orphans #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.Highlighting</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html"><span class="hs-identifier">Agda.Utils.Range</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier">Range</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html"><span class="hs-identifier">Agda.Interaction.Highlighting.Precise</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">HP</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html"><span class="hs-identifier">Agda.Utils.RangeMap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#PairInt"><span class="hs-identifier">PairInt</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html"><span class="hs-identifier">Agda.Utils.RangeMap</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">RM</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Base</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Common.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.Common</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">--instance only</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681943671"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>  </span><span id="local-6989586621681943694"><span class="annot"><span class="annottext">icod_ :: Range -&gt; S Word32
+</span><a href="#local-6989586621681943694"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span id="local-6989586621681943697"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681943697"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681943698"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681943698"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int -&gt; Range)
+-&gt; Arrows (Domains (Int -&gt; Int -&gt; Range)) (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Range
+</span><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-var">Range</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681943697"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681943698"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span>  </span><span id="local-6989586621681943711"><span class="annot"><span class="annottext">value :: Word32 -&gt; R Range
+</span><a href="#local-6989586621681943711"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int -&gt; Range)
+-&gt; Word32 -&gt; R (CoDomain (Int -&gt; Int -&gt; Range))
+forall t.
+(VALU t (Arity t), All EmbPrj (CoDomain t : Domains t)) =&gt;
+t -&gt; Word32 -&gt; R (CoDomain t)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valueN"><span class="hs-identifier hs-var">valueN</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Range
+</span><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-var">Range</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681943717"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NameKind"><span class="hs-identifier hs-type">HP.NameKind</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>  </span><span id="local-6989586621681943792"><span class="annot"><span class="annottext">icod_ :: NameKind -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Bound"><span class="hs-identifier hs-var">HP.Bound</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind -&gt; Arrows (Domains NameKind) (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Bound"><span class="hs-identifier hs-var">HP.Bound</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-type">HP.Constructor</span></a></span><span> </span><span id="local-6989586621681943795"><span class="annot"><span class="annottext">Induction
+</span><a href="#local-6989586621681943795"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32
+-&gt; (Induction -&gt; NameKind)
+-&gt; Arrows (Domains (Induction -&gt; NameKind)) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Induction -&gt; NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-var">HP.Constructor</span></a></span><span> </span><span class="annot"><span class="annottext">Induction
+</span><a href="#local-6989586621681943795"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Datatype"><span class="hs-identifier hs-var">HP.Datatype</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">2</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">HP.Field</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">3</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Function"><span class="hs-identifier hs-var">HP.Function</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">4</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Module"><span class="hs-identifier hs-var">HP.Module</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">5</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Postulate"><span class="hs-identifier hs-var">HP.Postulate</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">6</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Primitive"><span class="hs-identifier hs-var">HP.Primitive</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">7</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Record"><span class="hs-identifier hs-var">HP.Record</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">8</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Argument"><span class="hs-identifier hs-var">HP.Argument</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">9</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Macro"><span class="hs-identifier hs-var">HP.Macro</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">10</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Generalizable"><span class="hs-identifier hs-var">HP.Generalizable</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">11</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681943808"><span class="annot"><span class="annottext">value :: Word32 -&gt; R NameKind
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Node -&gt; R NameKind) -&gt; Word32 -&gt; R NameKind
+forall a. EmbPrj a =&gt; (Node -&gt; R a) -&gt; Word32 -&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#vcase"><span class="hs-identifier hs-var">vcase</span></a></span><span> </span><span class="annot"><span class="annottext">Node -&gt; R NameKind
+</span><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>    </span><span id="local-6989586621681943810"><span class="annot"><span class="annottext">valu :: Node
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+</span><a href="#local-6989586621681943810"><span class="hs-identifier hs-var hs-var">valu</span></a></span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Bound"><span class="hs-identifier hs-var">HP.Bound</span></a></span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2"><span class="hs-identifier hs-type">N2</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span> </span><span id="local-6989586621681943888"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681943888"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Induction -&gt; NameKind)
+-&gt; Arrows
+     (Constant Word32 (Domains (Induction -&gt; NameKind)))
+     (R (CoDomain (Induction -&gt; NameKind)))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Induction -&gt; NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-var">HP.Constructor</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681943888"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Datatype"><span class="hs-identifier hs-var">HP.Datatype</span></a></span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">3</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">HP.Field</span></a></span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">4</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Function"><span class="hs-identifier hs-var">HP.Function</span></a></span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">5</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Module"><span class="hs-identifier hs-var">HP.Module</span></a></span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">6</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Postulate"><span class="hs-identifier hs-var">HP.Postulate</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">7</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Primitive"><span class="hs-identifier hs-var">HP.Primitive</span></a></span><span>
+</span><span id="line-47"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">8</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Record"><span class="hs-identifier hs-var">HP.Record</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">9</span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Argument"><span class="hs-identifier hs-var">HP.Argument</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">10</span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Macro"><span class="hs-identifier hs-var">HP.Macro</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">11</span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameKind
+-&gt; Arrows
+     (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Generalizable"><span class="hs-identifier hs-var">HP.Generalizable</span></a></span><span>
+</span><span id="line-51"></span><span>    </span><span class="annot"><a href="#local-6989586621681943810"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="annot"><span class="annottext">Node
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">R NameKind
+Arrows (Constant Word32 (Domains NameKind)) (R (CoDomain NameKind))
+forall a. HasCallStack =&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#malformed"><span class="hs-identifier hs-var">malformed</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681943894"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspect"><span class="hs-identifier hs-type">HP.Aspect</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-54"></span><span>  </span><span id="local-6989586621681943981"><span class="annot"><span class="annottext">icod_ :: Aspect -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Comment"><span class="hs-identifier hs-var">HP.Comment</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Keyword"><span class="hs-identifier hs-var">HP.Keyword</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#String"><span class="hs-identifier hs-var">HP.String</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">2</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Number"><span class="hs-identifier hs-var">HP.Number</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">3</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Symbol"><span class="hs-identifier hs-var">HP.Symbol</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect -&gt; Arrows (Domains Aspect) (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Symbol"><span class="hs-identifier hs-var">HP.Symbol</span></a></span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#PrimitiveType"><span class="hs-identifier hs-var">HP.PrimitiveType</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">4</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-type">HP.Name</span></a></span><span> </span><span id="local-6989586621681943989"><span class="annot"><span class="annottext">Maybe NameKind
+</span><a href="#local-6989586621681943989"><span class="hs-identifier hs-var">mk</span></a></span></span><span> </span><span id="local-6989586621681943990"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681943990"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32
+-&gt; (Maybe NameKind -&gt; Bool -&gt; Aspect)
+-&gt; Arrows (Domains (Maybe NameKind -&gt; Bool -&gt; Aspect)) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="annottext">Maybe NameKind -&gt; Bool -&gt; Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-var">HP.Name</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe NameKind
+</span><a href="#local-6989586621681943989"><span class="hs-identifier hs-var">mk</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681943990"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Pragma"><span class="hs-identifier hs-var">HP.Pragma</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">6</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Background"><span class="hs-identifier hs-var">HP.Background</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">7</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Markup"><span class="hs-identifier hs-var">HP.Markup</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">8</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Hole"><span class="hs-identifier hs-var">HP.Hole</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; () -&gt; Arrows (Domains ()) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">9</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#URL"><span class="hs-identifier hs-type">HP.URL</span></a></span><span> </span><span id="local-6989586621681943996"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681943996"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32
+-&gt; (Text -&gt; Aspect) -&gt; Arrows (Domains (Text -&gt; Aspect)) (S Word32)
+forall t.
+(ICODE (Word32 -&gt; t) (Arity (Word32 -&gt; t)),
+ StrictCurrying (Domains (Word32 -&gt; t)) (S Word32),
+ All EmbPrj (Domains (Word32 -&gt; t))) =&gt;
+Word32 -&gt; t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN"><span class="hs-identifier hs-var">icodeN</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#URL"><span class="hs-identifier hs-var">HP.URL</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681943996"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span>  </span><span id="local-6989586621681943998"><span class="annot"><span class="annottext">value :: Word32 -&gt; R Aspect
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Node -&gt; R Aspect) -&gt; Word32 -&gt; R Aspect
+forall a. EmbPrj a =&gt; (Node -&gt; R a) -&gt; Word32 -&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#vcase"><span class="hs-identifier hs-var">vcase</span></a></span><span> </span><span class="annot"><span class="annottext">Node -&gt; R Aspect
+</span><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>    </span><span id="local-6989586621681943999"><span class="annot"><span class="annottext">valu :: Node
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+</span><a href="#local-6989586621681943999"><span class="hs-identifier hs-var hs-var">valu</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Comment"><span class="hs-identifier hs-var">HP.Comment</span></a></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Keyword"><span class="hs-identifier hs-var">HP.Keyword</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#String"><span class="hs-identifier hs-var">HP.String</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">3</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Number"><span class="hs-identifier hs-var">HP.Number</span></a></span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Symbol"><span class="hs-identifier hs-var">HP.Symbol</span></a></span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">4</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#PrimitiveType"><span class="hs-identifier hs-var">HP.PrimitiveType</span></a></span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-identifier hs-type">N3</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">5</span></span><span> </span><span id="local-6989586621681944081"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944081"><span class="hs-identifier hs-var">mk</span></a></span></span><span> </span><span id="local-6989586621681944082"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944082"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe NameKind -&gt; Bool -&gt; Aspect)
+-&gt; Arrows
+     (Constant Word32 (Domains (Maybe NameKind -&gt; Bool -&gt; Aspect)))
+     (R (CoDomain (Maybe NameKind -&gt; Bool -&gt; Aspect)))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe NameKind -&gt; Bool -&gt; Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-var">HP.Name</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944081"><span class="hs-identifier hs-var">mk</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944082"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">6</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Pragma"><span class="hs-identifier hs-var">HP.Pragma</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">7</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Background"><span class="hs-identifier hs-var">HP.Background</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">8</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Markup"><span class="hs-identifier hs-var">HP.Markup</span></a></span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">9</span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspect
+-&gt; Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Hole"><span class="hs-identifier hs-var">HP.Hole</span></a></span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2"><span class="hs-identifier hs-type">N2</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">10</span></span><span> </span><span id="local-6989586621681944083"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944083"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Aspect)
+-&gt; Arrows
+     (Constant Word32 (Domains (Text -&gt; Aspect)))
+     (R (CoDomain (Text -&gt; Aspect)))
+forall t.
+(VALU t (Arity t),
+ StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valuN"><span class="hs-identifier hs-var">valuN</span></a></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#URL"><span class="hs-identifier hs-var">HP.URL</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944083"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><a href="#local-6989586621681943999"><span class="hs-identifier hs-var">valu</span></a></span><span> </span><span class="annot"><span class="annottext">Node
+</span><span class="hs-identifier">_</span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">R Aspect
+Arrows (Constant Word32 (Domains Aspect)) (R (CoDomain Aspect))
+forall a. HasCallStack =&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#malformed"><span class="hs-identifier hs-var">malformed</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681944087"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#OtherAspect"><span class="hs-identifier hs-type">HP.OtherAspect</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-83"></span><span>  </span><span id="local-6989586621681944129"><span class="annot"><span class="annottext">icod_ :: OtherAspect -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Error"><span class="hs-identifier hs-var">HP.Error</span></a></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-84"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#ErrorWarning"><span class="hs-identifier hs-var">HP.ErrorWarning</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#DottedPattern"><span class="hs-identifier hs-var">HP.DottedPattern</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">2</span></span><span>
+</span><span id="line-86"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#UnsolvedMeta"><span class="hs-identifier hs-var">HP.UnsolvedMeta</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">3</span></span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#TerminationProblem"><span class="hs-identifier hs-var">HP.TerminationProblem</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">4</span></span><span>
+</span><span id="line-88"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#IncompletePattern"><span class="hs-identifier hs-var">HP.IncompletePattern</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">5</span></span><span>
+</span><span id="line-89"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#TypeChecks"><span class="hs-identifier hs-var">HP.TypeChecks</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">6</span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#UnsolvedConstraint"><span class="hs-identifier hs-var">HP.UnsolvedConstraint</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">7</span></span><span>
+</span><span id="line-91"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#PositivityProblem"><span class="hs-identifier hs-var">HP.PositivityProblem</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">8</span></span><span>
+</span><span id="line-92"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Deadcode"><span class="hs-identifier hs-var">HP.Deadcode</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">9</span></span><span>
+</span><span id="line-93"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#CoverageProblem"><span class="hs-identifier hs-var">HP.CoverageProblem</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">10</span></span><span>
+</span><span id="line-94"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#CatchallClause"><span class="hs-identifier hs-var">HP.CatchallClause</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">11</span></span><span>
+</span><span id="line-95"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#ConfluenceProblem"><span class="hs-identifier hs-var">HP.ConfluenceProblem</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">12</span></span><span>
+</span><span id="line-96"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#MissingDefinition"><span class="hs-identifier hs-var">HP.MissingDefinition</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">13</span></span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#ShadowingInTelescope"><span class="hs-identifier hs-var">HP.ShadowingInTelescope</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">14</span></span><span>
+</span><span id="line-98"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#CosmeticProblem"><span class="hs-identifier hs-var">HP.CosmeticProblem</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">15</span></span><span>
+</span><span id="line-99"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#InstanceProblem"><span class="hs-identifier hs-var">HP.InstanceProblem</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">16</span></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span>  </span><span id="local-6989586621681944201"><span class="annot"><span class="annottext">value :: Word32 -&gt; R OtherAspect
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-102"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">0</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Error"><span class="hs-identifier hs-var">HP.Error</span></a></span><span>
+</span><span id="line-103"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#ErrorWarning"><span class="hs-identifier hs-var">HP.ErrorWarning</span></a></span><span>
+</span><span id="line-104"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">2</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#DottedPattern"><span class="hs-identifier hs-var">HP.DottedPattern</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">3</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#UnsolvedMeta"><span class="hs-identifier hs-var">HP.UnsolvedMeta</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">4</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#TerminationProblem"><span class="hs-identifier hs-var">HP.TerminationProblem</span></a></span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">5</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#IncompletePattern"><span class="hs-identifier hs-var">HP.IncompletePattern</span></a></span><span>
+</span><span id="line-108"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">6</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#TypeChecks"><span class="hs-identifier hs-var">HP.TypeChecks</span></a></span><span>
+</span><span id="line-109"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">7</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#UnsolvedConstraint"><span class="hs-identifier hs-var">HP.UnsolvedConstraint</span></a></span><span>
+</span><span id="line-110"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">8</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#PositivityProblem"><span class="hs-identifier hs-var">HP.PositivityProblem</span></a></span><span>
+</span><span id="line-111"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">9</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Deadcode"><span class="hs-identifier hs-var">HP.Deadcode</span></a></span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">10</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#CoverageProblem"><span class="hs-identifier hs-var">HP.CoverageProblem</span></a></span><span>
+</span><span id="line-113"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">11</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#CatchallClause"><span class="hs-identifier hs-var">HP.CatchallClause</span></a></span><span>
+</span><span id="line-114"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">12</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#ConfluenceProblem"><span class="hs-identifier hs-var">HP.ConfluenceProblem</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">13</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#MissingDefinition"><span class="hs-identifier hs-var">HP.MissingDefinition</span></a></span><span>
+</span><span id="line-116"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">14</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#ShadowingInTelescope"><span class="hs-identifier hs-var">HP.ShadowingInTelescope</span></a></span><span>
+</span><span id="line-117"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">15</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#CosmeticProblem"><span class="hs-identifier hs-var">HP.CosmeticProblem</span></a></span><span>
+</span><span id="line-118"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">16</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OtherAspect -&gt; R OtherAspect
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#InstanceProblem"><span class="hs-identifier hs-var">HP.InstanceProblem</span></a></span><span>
+</span><span id="line-119"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">R OtherAspect
+forall a. HasCallStack =&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#malformed"><span class="hs-identifier hs-var">malformed</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681944205"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">HP.Aspects</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621681944243"><span class="annot"><span class="annottext">icod_ :: Aspects -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">HP.Aspects</span></a></span><span> </span><span id="local-6989586621681944245"><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681944245"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681944246"><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681944246"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681944247"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681944247"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681944248"><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681944248"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681944249"><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681944249"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe Aspect
+ -&gt; Set OtherAspect
+ -&gt; String
+ -&gt; Maybe DefinitionSite
+ -&gt; TokenBased
+ -&gt; Aspects)
+-&gt; Arrows
+     (Domains
+        (Maybe Aspect
+         -&gt; Set OtherAspect
+         -&gt; String
+         -&gt; Maybe DefinitionSite
+         -&gt; TokenBased
+         -&gt; Aspects))
+     (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Aspect
+-&gt; Set OtherAspect
+-&gt; String
+-&gt; Maybe DefinitionSite
+-&gt; TokenBased
+-&gt; Aspects
+</span><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-var">HP.Aspects</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Aspect
+</span><a href="#local-6989586621681944245"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Set OtherAspect
+</span><a href="#local-6989586621681944246"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681944247"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe DefinitionSite
+</span><a href="#local-6989586621681944248"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681944249"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span>  </span><span id="local-6989586621681944272"><span class="annot"><span class="annottext">value :: Word32 -&gt; R Aspects
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe Aspect
+ -&gt; Set OtherAspect
+ -&gt; String
+ -&gt; Maybe DefinitionSite
+ -&gt; TokenBased
+ -&gt; Aspects)
+-&gt; Word32
+-&gt; R (CoDomain
+        (Maybe Aspect
+         -&gt; Set OtherAspect
+         -&gt; String
+         -&gt; Maybe DefinitionSite
+         -&gt; TokenBased
+         -&gt; Aspects))
+forall t.
+(VALU t (Arity t), All EmbPrj (CoDomain t : Domains t)) =&gt;
+t -&gt; Word32 -&gt; R (CoDomain t)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valueN"><span class="hs-identifier hs-var">valueN</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Aspect
+-&gt; Set OtherAspect
+-&gt; String
+-&gt; Maybe DefinitionSite
+-&gt; TokenBased
+-&gt; Aspects
+</span><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-var">HP.Aspects</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681944276"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">HP.DefinitionSite</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-127"></span><span>  </span><span id="local-6989586621681944303"><span class="annot"><span class="annottext">icod_ :: DefinitionSite -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">HP.DefinitionSite</span></a></span><span> </span><span id="local-6989586621681944305"><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681944305"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681944306"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944306"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681944307"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681944307"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681944308"><span class="annot"><span class="annottext">Maybe String
+</span><a href="#local-6989586621681944308"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName' Range
+ -&gt; Int -&gt; Bool -&gt; Maybe String -&gt; DefinitionSite)
+-&gt; Arrows
+     (Domains
+        (TopLevelModuleName' Range
+         -&gt; Int -&gt; Bool -&gt; Maybe String -&gt; DefinitionSite))
+     (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+-&gt; Int -&gt; Bool -&gt; Maybe String -&gt; DefinitionSite
+</span><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-var">HP.DefinitionSite</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681944305"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944306"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681944307"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe String
+</span><a href="#local-6989586621681944308"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span>  </span><span id="local-6989586621681944326"><span class="annot"><span class="annottext">value :: Word32 -&gt; R DefinitionSite
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName' Range
+ -&gt; Int -&gt; Bool -&gt; Maybe String -&gt; DefinitionSite)
+-&gt; Word32
+-&gt; R (CoDomain
+        (TopLevelModuleName' Range
+         -&gt; Int -&gt; Bool -&gt; Maybe String -&gt; DefinitionSite))
+forall t.
+(VALU t (Arity t), All EmbPrj (CoDomain t : Domains t)) =&gt;
+t -&gt; Word32 -&gt; R (CoDomain t)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valueN"><span class="hs-identifier hs-var">valueN</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+-&gt; Int -&gt; Bool -&gt; Maybe String -&gt; DefinitionSite
+</span><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-var">HP.DefinitionSite</span></a></span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">data</span><span> </span><span id="KVS"><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#KVS"><span class="hs-identifier hs-var">KVS</span></a></span></span><span> </span><span id="local-6989586621681943628"><span class="annot"><a href="#local-6989586621681943628"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Cons"><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Cons"><span class="hs-identifier hs-var">Cons</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="#local-6989586621681943628"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#KVS"><span class="hs-identifier hs-type">KVS</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943628"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Nil"><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Nil"><span class="hs-identifier hs-var">Nil</span></a></span></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span id="local-6989586621681943619"><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#toAscList%27"><span class="hs-identifier hs-type">toAscList'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RM.RangeMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943619"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#KVS"><span class="hs-identifier hs-type">KVS</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943619"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-134"></span><span id="toAscList%27"><span class="annot"><span class="annottext">toAscList' :: forall a. RangeMap a -&gt; KVS a
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#toAscList%27"><span class="hs-identifier hs-var hs-var">toAscList'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RM.RangeMap</span></a></span><span> </span><span id="local-6989586621681944331"><span class="annot"><span class="annottext">Map Int (PairInt a)
+</span><a href="#local-6989586621681944331"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-135"></span><span>  </span><span class="annot"><span class="annottext">(Int -&gt; PairInt a -&gt; KVS a -&gt; KVS a)
+-&gt; KVS a -&gt; Map Int (PairInt a) -&gt; KVS a
+forall k a b. (k -&gt; a -&gt; b -&gt; b) -&gt; b -&gt; Map k a -&gt; b
+</span><span class="hs-identifier hs-var">Map.foldrWithKey'</span></span><span>
+</span><span id="line-136"></span><span>    </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681944333"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944333"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681944334"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944334"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#%3A%21%3A"><span class="hs-operator hs-type">:!:</span></a></span><span> </span><span id="local-6989586621681944336"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944336"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681944337"><span class="annot"><span class="annottext">KVS a
+</span><a href="#local-6989586621681944337"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; a -&gt; KVS a -&gt; KVS a
+forall a. Int -&gt; Int -&gt; a -&gt; KVS a -&gt; KVS a
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Cons"><span class="hs-identifier hs-var">Cons</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944333"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944334"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944336"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">KVS a
+</span><a href="#local-6989586621681944337"><span class="hs-identifier hs-var">acc</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span>    </span><span class="annot"><span class="annottext">KVS a
+forall a. KVS a
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Nil"><span class="hs-identifier hs-var">Nil</span></a></span><span> </span><span class="annot"><span class="annottext">Map Int (PairInt a)
+</span><a href="#local-6989586621681944331"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="hs-pragma">{-# INLINABLE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#icodRM"><span class="hs-pragma hs-type">icodRM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-140"></span><span id="local-6989586621681943629"><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#icodRM"><span class="hs-identifier hs-type">icodRM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943629"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#KVS"><span class="hs-identifier hs-type">KVS</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943629"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span></span><span>
+</span><span id="line-141"></span><span id="icodRM"><span class="annot"><span class="annottext">icodRM :: forall a. EmbPrj a =&gt; KVS a -&gt; S Node
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#icodRM"><span class="hs-identifier hs-var hs-var">icodRM</span></a></span></span><span> </span><span id="local-6989586621681944364"><span class="annot"><span class="annottext">KVS a
+</span><a href="#local-6989586621681944364"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Dict -&gt; IO Node) -&gt; S Node
+forall r (m :: * -&gt; *) a. (r -&gt; m a) -&gt; ReaderT r m a
+</span><span class="hs-identifier hs-var">ReaderT</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681944366"><span class="annot"><span class="annottext">Dict
+</span><a href="#local-6989586621681944366"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">KVS a
+</span><a href="#local-6989586621681944364"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-142"></span><span>  </span><span class="annot"><span class="annottext">KVS a
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Nil"><span class="hs-identifier hs-var">Nil</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-143"></span><span>    </span><span class="annot"><span class="annottext">Node -&gt; IO Node
+forall a. a -&gt; IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Cons"><span class="hs-identifier hs-type">Cons</span></a></span><span> </span><span id="local-6989586621681944367"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944367"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681944368"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944368"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681944369"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944369"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="annottext">KVS a
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Nil"><span class="hs-identifier hs-var">Nil</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(S Node -&gt; Dict -&gt; IO Node) -&gt; Dict -&gt; S Node -&gt; IO Node
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">S Node -&gt; Dict -&gt; IO Node
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="annot"><span class="annottext">Dict
+</span><a href="#local-6989586621681944366"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">(S Node -&gt; IO Node) -&gt; S Node -&gt; IO Node
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-145"></span><span>    </span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-identifier hs-var">N3</span></a></span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; Word32 -&gt; Word32 -&gt; Node)
+-&gt; S Word32 -&gt; ReaderT Dict IO (Word32 -&gt; Word32 -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">&lt;$!&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944367"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT Dict IO (Word32 -&gt; Word32 -&gt; Node)
+-&gt; S Word32 -&gt; ReaderT Dict IO (Word32 -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944368"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT Dict IO (Word32 -&gt; Node) -&gt; S Word32 -&gt; S Node
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944369"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-146"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Cons"><span class="hs-identifier hs-type">Cons</span></a></span><span> </span><span id="local-6989586621681944375"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944375"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681944376"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944376"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681944377"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944377"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#Cons"><span class="hs-identifier hs-type">Cons</span></a></span><span> </span><span id="local-6989586621681944378"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944378"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681944379"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944379"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681944380"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944380"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681944381"><span class="annot"><span class="annottext">KVS a
+</span><a href="#local-6989586621681944381"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(S Node -&gt; Dict -&gt; IO Node) -&gt; Dict -&gt; S Node -&gt; IO Node
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">S Node -&gt; Dict -&gt; IO Node
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="annot"><span class="annottext">Dict
+</span><a href="#local-6989586621681944366"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">(S Node -&gt; IO Node) -&gt; S Node -&gt; IO Node
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-147"></span><span>    </span><span class="annot"><span class="annottext">Word32
+-&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N6"><span class="hs-identifier hs-var">N6</span></a></span><span> </span><span class="annot"><span class="annottext">(Word32
+ -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+-&gt; S Word32
+-&gt; ReaderT
+     Dict
+     IO
+     (Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">&lt;$!&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944375"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT
+  Dict
+  IO
+  (Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+-&gt; S Word32
+-&gt; ReaderT
+     Dict IO (Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944376"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT
+  Dict IO (Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+-&gt; S Word32
+-&gt; ReaderT Dict IO (Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944377"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-148"></span><span>       </span><span class="annot"><span class="annottext">ReaderT Dict IO (Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+-&gt; S Word32 -&gt; ReaderT Dict IO (Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944378"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT Dict IO (Word32 -&gt; Word32 -&gt; Node -&gt; Node)
+-&gt; S Word32 -&gt; ReaderT Dict IO (Word32 -&gt; Node -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681944379"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT Dict IO (Word32 -&gt; Node -&gt; Node)
+-&gt; S Word32 -&gt; ReaderT Dict IO (Node -&gt; Node)
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681944380"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT Dict IO (Node -&gt; Node) -&gt; S Node -&gt; S Node
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><a href="Agda.Utils.Monad.html#%3C%2A%21%3E"><span class="hs-operator hs-var">&lt;*!&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">KVS a -&gt; S Node
+forall a. EmbPrj a =&gt; KVS a -&gt; S Node
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#icodRM"><span class="hs-identifier hs-var">icodRM</span></a></span><span> </span><span class="annot"><span class="annottext">KVS a
+</span><a href="#local-6989586621681944381"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-pragma">{-# INLINABLE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#valueRM"><span class="hs-pragma hs-type">valueRM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-151"></span><span id="local-6989586621681943653"><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#valueRM"><span class="hs-identifier hs-type">valueRM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943653"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#R"><span class="hs-identifier hs-type">R</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#PairInt"><span class="hs-identifier hs-type">PairInt</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943653"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-152"></span><span id="valueRM"><span class="annot"><span class="annottext">valueRM :: forall a. EmbPrj a =&gt; Node -&gt; R [(Int, PairInt a)]
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#valueRM"><span class="hs-identifier hs-var hs-var">valueRM</span></a></span></span><span> </span><span id="local-6989586621681944411"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681944411"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Decode -&gt; IO [(Int, PairInt a)])
+-&gt; ReaderT Decode IO [(Int, PairInt a)]
+forall r (m :: * -&gt; *) a. (r -&gt; m a) -&gt; ReaderT r m a
+</span><span class="hs-identifier hs-var">ReaderT</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681944412"><span class="annot"><span class="annottext">Decode
+</span><a href="#local-6989586621681944412"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681944411"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-153"></span><span>  </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-154"></span><span>    </span><span class="annot"><span class="annottext">[(Int, PairInt a)] -&gt; IO [(Int, PairInt a)]
+forall a. a -&gt; IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-identifier hs-type">N3</span></a></span><span> </span><span id="local-6989586621681944413"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944413"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681944414"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944414"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681944415"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944415"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(ReaderT Decode IO [(Int, PairInt a)]
+ -&gt; Decode -&gt; IO [(Int, PairInt a)])
+-&gt; Decode
+-&gt; ReaderT Decode IO [(Int, PairInt a)]
+-&gt; IO [(Int, PairInt a)]
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">ReaderT Decode IO [(Int, PairInt a)]
+-&gt; Decode -&gt; IO [(Int, PairInt a)]
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="annot"><span class="annottext">Decode
+</span><a href="#local-6989586621681944412"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-156"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944416"><span class="annot"><a href="#local-6989586621681944416"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; R Int
+forall a. EmbPrj a =&gt; Word32 -&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944413"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-157"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944417"><span class="annot"><a href="#local-6989586621681944417"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-type">value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944414"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-158"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944418"><span class="annot"><a href="#local-6989586621681944418"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-type">value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944415"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-159"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681944416"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681944417"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#%3A%21%3A"><span class="hs-operator hs-type">:!:</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944418"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-160"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6"><span class="hs-identifier hs-type">N6</span></a></span><span> </span><span id="local-6989586621681944419"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944419"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681944420"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944420"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681944421"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944421"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681944422"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944422"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681944423"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944423"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681944424"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944424"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681944425"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681944425"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(ReaderT Decode IO [(Int, PairInt a)]
+ -&gt; Decode -&gt; IO [(Int, PairInt a)])
+-&gt; Decode
+-&gt; ReaderT Decode IO [(Int, PairInt a)]
+-&gt; IO [(Int, PairInt a)]
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">ReaderT Decode IO [(Int, PairInt a)]
+-&gt; Decode -&gt; IO [(Int, PairInt a)]
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="annot"><span class="annottext">Decode
+</span><a href="#local-6989586621681944412"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944426"><span class="annot"><a href="#local-6989586621681944426"><span class="hs-identifier hs-var">a</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; R Int
+forall a. EmbPrj a =&gt; Word32 -&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681944419"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-162"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944427"><span class="annot"><a href="#local-6989586621681944427"><span class="hs-identifier hs-var">b</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-type">value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944420"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-163"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944428"><span class="annot"><a href="#local-6989586621681944428"><span class="hs-identifier hs-var">c</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-type">value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944421"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-164"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944429"><span class="annot"><a href="#local-6989586621681944429"><span class="hs-identifier hs-var">d</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-type">value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944422"><span class="hs-identifier hs-type">d</span></a></span><span>
+</span><span id="line-165"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944430"><span class="annot"><a href="#local-6989586621681944430"><span class="hs-identifier hs-var">e</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-type">value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944423"><span class="hs-identifier hs-type">e</span></a></span><span>
+</span><span id="line-166"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944431"><span class="annot"><a href="#local-6989586621681944431"><span class="hs-identifier hs-var">f</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-type">value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944424"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-167"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621681944432"><span class="annot"><a href="#local-6989586621681944432"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#valueRM"><span class="hs-identifier hs-type">valueRM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944425"><span class="hs-keyword hs-type">as</span></a></span><span>
+</span><span id="line-168"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681944426"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681944427"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#%3A%21%3A"><span class="hs-operator hs-type">:!:</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944428"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681944429"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681944430"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#%3A%21%3A"><span class="hs-operator hs-type">:!:</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681944431"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><a href="#local-6989586621681944432"><span class="hs-keyword hs-type">as</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-169"></span><span>  </span><span class="annot"><span class="annottext">Node
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IO [(Int, PairInt a)]
+forall a. HasCallStack =&gt; IO a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#malformedIO"><span class="hs-identifier hs-var">malformedIO</span></a></span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- We serialize as a flat list of triples</span><span>
+</span><span id="line-172"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681943658"><span id="local-6989586621681944440"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943658"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RM.RangeMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681943658"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-173"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-pragma hs-type">icod_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-174"></span><span>  </span><span id="local-6989586621681944449"><span class="annot"><span class="annottext">icod_ :: RangeMap a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span id="local-6989586621681944450"><span class="annot"><span class="annottext">RangeMap a
+</span><a href="#local-6989586621681944450"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Node -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeNode"><span class="hs-identifier hs-var">icodeNode</span></a></span><span> </span><span class="annot"><span class="annottext">(Node -&gt; S Word32) -&gt; S Node -&gt; S Word32
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">KVS a -&gt; S Node
+forall a. EmbPrj a =&gt; KVS a -&gt; S Node
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#icodRM"><span class="hs-identifier hs-var">icodRM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangeMap a -&gt; KVS a
+forall a. RangeMap a -&gt; KVS a
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#toAscList%27"><span class="hs-identifier hs-var">toAscList'</span></a></span><span> </span><span class="annot"><span class="annottext">RangeMap a
+</span><a href="#local-6989586621681944450"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-175"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-pragma hs-type">value</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-176"></span><span>  </span><span id="local-6989586621681944457"><span class="annot"><span class="annottext">value :: Word32 -&gt; R (RangeMap a)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Node -&gt; R (RangeMap a)) -&gt; Word32 -&gt; R (RangeMap a)
+forall a. EmbPrj a =&gt; (Node -&gt; R a) -&gt; Word32 -&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#vcase"><span class="hs-identifier hs-var">vcase</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681944458"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681944458"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int (PairInt a) -&gt; RangeMap a
+forall a. Map Int (PairInt a) -&gt; RangeMap a
+</span><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-var">RM.RangeMap</span></a></span><span> </span><span class="annot"><span class="annottext">(Map Int (PairInt a) -&gt; RangeMap a)
+-&gt; ([(Int, PairInt a)] -&gt; Map Int (PairInt a))
+-&gt; [(Int, PairInt a)]
+-&gt; RangeMap a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[(Int, PairInt a)] -&gt; Map Int (PairInt a)
+forall k a. [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromDistinctAscList</span></span><span> </span><span class="annot"><span class="annottext">([(Int, PairInt a)] -&gt; RangeMap a)
+-&gt; ReaderT Decode IO [(Int, PairInt a)] -&gt; R (RangeMap a)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">&lt;$!&gt;</span></span><span> </span><span class="annot"><span class="annottext">Node -&gt; ReaderT Decode IO [(Int, PairInt a)]
+forall a. EmbPrj a =&gt; Node -&gt; R [(Int, PairInt a)]
+</span><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html#valueRM"><span class="hs-identifier hs-var">valueRM</span></a></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681944458"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681944464"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-type">HP.TokenBased</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-179"></span><span>  </span><span id="local-6989586621681944473"><span class="annot"><span class="annottext">icod_ :: TokenBased -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">HP.TokenBased</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-180"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#NotOnlyTokenBased"><span class="hs-identifier hs-var">HP.NotOnlyTokenBased</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; S Word32
+forall a. a -&gt; ReaderT Dict IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-181"></span><span>
+</span><span id="line-182"></span><span>  </span><span id="local-6989586621681944485"><span class="annot"><span class="annottext">value :: Word32 -&gt; R TokenBased
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-183"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TokenBased -&gt; R TokenBased
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">HP.TokenBased</span></a></span><span>
+</span><span id="line-184"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TokenBased -&gt; R TokenBased
+forall a. a -&gt; ReaderT Decode IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#NotOnlyTokenBased"><span class="hs-identifier hs-var">HP.NotOnlyTokenBased</span></a></span><span>
+</span><span id="line-185"></span><span>    </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">R TokenBased
+forall a. HasCallStack =&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#malformed"><span class="hs-identifier hs-var">malformed</span></a></span><span>
+</span><span id="line-186"></span></pre></body></html>

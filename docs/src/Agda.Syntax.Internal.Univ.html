@@ -1,0 +1,370 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621681693236"><span id="local-6989586621681693237"></span></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass             #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="annot"><span class="hs-comment">-- | Kinds of standard universes: @Prop@, @Type@, @SSet@.</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html"><span class="hs-identifier">Agda.Syntax.Internal.Univ</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">NFData</span></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Generic</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Boolean.html"><span class="hs-identifier">Agda.Utils.Boolean</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="annot"><span class="hs-comment">-- * Types</span></span><span>
+</span><span id="line-15"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="annot"><span class="hs-comment">-- | Flavor of standard universe (@Prop &lt; Type &lt; SSet@,).</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">data</span><span> </span><span id="Univ"><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-var">Univ</span></a></span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="UProp"><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#UProp"><span class="hs-identifier hs-var">UProp</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Fibrant universe of propositions.</span></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UType"><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#UType"><span class="hs-identifier hs-var">UType</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Fibrant universe.</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="USSet"><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Non-fibrant universe.</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681693244"><span id="local-6989586621681693249"><span class="annot"><span class="annottext">Univ -&gt; Univ -&gt; Bool
+(Univ -&gt; Univ -&gt; Bool) -&gt; (Univ -&gt; Univ -&gt; Bool) -&gt; Eq Univ
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Univ -&gt; Univ -&gt; Bool
+== :: Univ -&gt; Univ -&gt; Bool
+$c/= :: Univ -&gt; Univ -&gt; Bool
+/= :: Univ -&gt; Univ -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693255"><span id="local-6989586621681693259"><span id="local-6989586621681693263"><span id="local-6989586621681693267"><span id="local-6989586621681693270"><span id="local-6989586621681693273"><span id="local-6989586621681693276"><span class="annot"><span class="annottext">Eq Univ
+Eq Univ =&gt;
+(Univ -&gt; Univ -&gt; Ordering)
+-&gt; (Univ -&gt; Univ -&gt; Bool)
+-&gt; (Univ -&gt; Univ -&gt; Bool)
+-&gt; (Univ -&gt; Univ -&gt; Bool)
+-&gt; (Univ -&gt; Univ -&gt; Bool)
+-&gt; (Univ -&gt; Univ -&gt; Univ)
+-&gt; (Univ -&gt; Univ -&gt; Univ)
+-&gt; Ord Univ
+Univ -&gt; Univ -&gt; Bool
+Univ -&gt; Univ -&gt; Ordering
+Univ -&gt; Univ -&gt; Univ
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: Univ -&gt; Univ -&gt; Ordering
+compare :: Univ -&gt; Univ -&gt; Ordering
+$c&lt; :: Univ -&gt; Univ -&gt; Bool
+&lt; :: Univ -&gt; Univ -&gt; Bool
+$c&lt;= :: Univ -&gt; Univ -&gt; Bool
+&lt;= :: Univ -&gt; Univ -&gt; Bool
+$c&gt; :: Univ -&gt; Univ -&gt; Bool
+&gt; :: Univ -&gt; Univ -&gt; Bool
+$c&gt;= :: Univ -&gt; Univ -&gt; Bool
+&gt;= :: Univ -&gt; Univ -&gt; Bool
+$cmax :: Univ -&gt; Univ -&gt; Univ
+max :: Univ -&gt; Univ -&gt; Univ
+$cmin :: Univ -&gt; Univ -&gt; Univ
+min :: Univ -&gt; Univ -&gt; Univ
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693284"><span id="local-6989586621681693286"><span id="local-6989586621681693290"><span class="annot"><span class="annottext">Int -&gt; Univ -&gt; ShowS
+[Univ] -&gt; ShowS
+Univ -&gt; String
+(Int -&gt; Univ -&gt; ShowS)
+-&gt; (Univ -&gt; String) -&gt; ([Univ] -&gt; ShowS) -&gt; Show Univ
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Univ -&gt; ShowS
+showsPrec :: Int -&gt; Univ -&gt; ShowS
+$cshow :: Univ -&gt; String
+show :: Univ -&gt; String
+$cshowList :: [Univ] -&gt; ShowS
+showList :: [Univ] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693295"><span id="local-6989586621681693297"><span class="annot"><span class="annottext">Univ
+Univ -&gt; Univ -&gt; Bounded Univ
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: Univ
+minBound :: Univ
+$cmaxBound :: Univ
+maxBound :: Univ
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693303"><span id="local-6989586621681693310"><span id="local-6989586621681693315"><span id="local-6989586621681693321"><span id="local-6989586621681693324"><span id="local-6989586621681693329"><span id="local-6989586621681693336"><span id="local-6989586621681693340"><span class="annot"><span class="annottext">Int -&gt; Univ
+Univ -&gt; Int
+Univ -&gt; [Univ]
+Univ -&gt; Univ
+Univ -&gt; Univ -&gt; [Univ]
+Univ -&gt; Univ -&gt; Univ -&gt; [Univ]
+(Univ -&gt; Univ)
+-&gt; (Univ -&gt; Univ)
+-&gt; (Int -&gt; Univ)
+-&gt; (Univ -&gt; Int)
+-&gt; (Univ -&gt; [Univ])
+-&gt; (Univ -&gt; Univ -&gt; [Univ])
+-&gt; (Univ -&gt; Univ -&gt; [Univ])
+-&gt; (Univ -&gt; Univ -&gt; Univ -&gt; [Univ])
+-&gt; Enum Univ
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: Univ -&gt; Univ
+succ :: Univ -&gt; Univ
+$cpred :: Univ -&gt; Univ
+pred :: Univ -&gt; Univ
+$ctoEnum :: Int -&gt; Univ
+toEnum :: Int -&gt; Univ
+$cfromEnum :: Univ -&gt; Int
+fromEnum :: Univ -&gt; Int
+$cenumFrom :: Univ -&gt; [Univ]
+enumFrom :: Univ -&gt; [Univ]
+$cenumFromThen :: Univ -&gt; Univ -&gt; [Univ]
+enumFromThen :: Univ -&gt; Univ -&gt; [Univ]
+$cenumFromTo :: Univ -&gt; Univ -&gt; [Univ]
+enumFromTo :: Univ -&gt; Univ -&gt; [Univ]
+$cenumFromThenTo :: Univ -&gt; Univ -&gt; Univ -&gt; [Univ]
+enumFromThenTo :: Univ -&gt; Univ -&gt; Univ -&gt; [Univ]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693348"><span id="local-6989586621681693350"><span class="annot"><span class="annottext">(forall x. Univ -&gt; Rep Univ x)
+-&gt; (forall x. Rep Univ x -&gt; Univ) -&gt; Generic Univ
+forall x. Rep Univ x -&gt; Univ
+forall x. Univ -&gt; Rep Univ x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Univ -&gt; Rep Univ x
+from :: forall x. Univ -&gt; Rep Univ x
+$cto :: forall x. Rep Univ x -&gt; Univ
+to :: forall x. Rep Univ x -&gt; Univ
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">anyclass</span></span><span> </span><span id="local-6989586621681693356"><span class="annot"><span class="annottext">Univ -&gt; ()
+(Univ -&gt; ()) -&gt; NFData Univ
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: Univ -&gt; ()
+rnf :: Univ -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-comment">-- NB: for deriving Ord, keep ordering UProp &lt; UType &lt; USSet!</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- | We have @IsFibrant &lt; IsStrict@.</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="IsFibrant"><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-var">IsFibrant</span></a></span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="IsFibrant"><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-var">IsFibrant</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Fibrant universe.</span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="IsStrict"><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#IsStrict"><span class="hs-identifier hs-var">IsStrict</span></a></span></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ Non-fibrant universe.</span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681693375"><span id="local-6989586621681693377"><span id="local-6989586621681693381"><span class="annot"><span class="annottext">Int -&gt; IsFibrant -&gt; ShowS
+[IsFibrant] -&gt; ShowS
+IsFibrant -&gt; String
+(Int -&gt; IsFibrant -&gt; ShowS)
+-&gt; (IsFibrant -&gt; String)
+-&gt; ([IsFibrant] -&gt; ShowS)
+-&gt; Show IsFibrant
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; IsFibrant -&gt; ShowS
+showsPrec :: Int -&gt; IsFibrant -&gt; ShowS
+$cshow :: IsFibrant -&gt; String
+show :: IsFibrant -&gt; String
+$cshowList :: [IsFibrant] -&gt; ShowS
+showList :: [IsFibrant] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693384"><span id="local-6989586621681693388"><span class="annot"><span class="annottext">IsFibrant -&gt; IsFibrant -&gt; Bool
+(IsFibrant -&gt; IsFibrant -&gt; Bool)
+-&gt; (IsFibrant -&gt; IsFibrant -&gt; Bool) -&gt; Eq IsFibrant
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: IsFibrant -&gt; IsFibrant -&gt; Bool
+== :: IsFibrant -&gt; IsFibrant -&gt; Bool
+$c/= :: IsFibrant -&gt; IsFibrant -&gt; Bool
+/= :: IsFibrant -&gt; IsFibrant -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693394"><span id="local-6989586621681693396"><span id="local-6989586621681693398"><span id="local-6989586621681693402"><span id="local-6989586621681693405"><span id="local-6989586621681693408"><span id="local-6989586621681693411"><span class="annot"><span class="annottext">Eq IsFibrant
+Eq IsFibrant =&gt;
+(IsFibrant -&gt; IsFibrant -&gt; Ordering)
+-&gt; (IsFibrant -&gt; IsFibrant -&gt; Bool)
+-&gt; (IsFibrant -&gt; IsFibrant -&gt; Bool)
+-&gt; (IsFibrant -&gt; IsFibrant -&gt; Bool)
+-&gt; (IsFibrant -&gt; IsFibrant -&gt; Bool)
+-&gt; (IsFibrant -&gt; IsFibrant -&gt; IsFibrant)
+-&gt; (IsFibrant -&gt; IsFibrant -&gt; IsFibrant)
+-&gt; Ord IsFibrant
+IsFibrant -&gt; IsFibrant -&gt; Bool
+IsFibrant -&gt; IsFibrant -&gt; Ordering
+IsFibrant -&gt; IsFibrant -&gt; IsFibrant
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: IsFibrant -&gt; IsFibrant -&gt; Ordering
+compare :: IsFibrant -&gt; IsFibrant -&gt; Ordering
+$c&lt; :: IsFibrant -&gt; IsFibrant -&gt; Bool
+&lt; :: IsFibrant -&gt; IsFibrant -&gt; Bool
+$c&lt;= :: IsFibrant -&gt; IsFibrant -&gt; Bool
+&lt;= :: IsFibrant -&gt; IsFibrant -&gt; Bool
+$c&gt; :: IsFibrant -&gt; IsFibrant -&gt; Bool
+&gt; :: IsFibrant -&gt; IsFibrant -&gt; Bool
+$c&gt;= :: IsFibrant -&gt; IsFibrant -&gt; Bool
+&gt;= :: IsFibrant -&gt; IsFibrant -&gt; Bool
+$cmax :: IsFibrant -&gt; IsFibrant -&gt; IsFibrant
+max :: IsFibrant -&gt; IsFibrant -&gt; IsFibrant
+$cmin :: IsFibrant -&gt; IsFibrant -&gt; IsFibrant
+min :: IsFibrant -&gt; IsFibrant -&gt; IsFibrant
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693414"><span id="local-6989586621681693416"><span class="annot"><span class="annottext">(forall x. IsFibrant -&gt; Rep IsFibrant x)
+-&gt; (forall x. Rep IsFibrant x -&gt; IsFibrant) -&gt; Generic IsFibrant
+forall x. Rep IsFibrant x -&gt; IsFibrant
+forall x. IsFibrant -&gt; Rep IsFibrant x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. IsFibrant -&gt; Rep IsFibrant x
+from :: forall x. IsFibrant -&gt; Rep IsFibrant x
+$cto :: forall x. Rep IsFibrant x -&gt; IsFibrant
+to :: forall x. Rep IsFibrant x -&gt; IsFibrant
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-comment">-- NB: for deriving Ord, keep ordering IsFibrant &lt; IsStrict!</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681693420"><span id="local-6989586621681693424"><span id="local-6989586621681693427"><span id="local-6989586621681693432"><span id="local-6989586621681693436"><span id="local-6989586621681693440"><span id="local-6989586621681693443"><span class="annot"><a href="Agda.Utils.Boolean.html#Boolean"><span class="hs-identifier hs-type">Boolean</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-type">IsFibrant</span></a></span></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>  </span><span id="local-6989586621681693446"><span class="annot"><span class="annottext">fromBool :: Bool -&gt; IsFibrant
+</span><a href="#local-6989586621681693446"><span class="hs-identifier hs-var hs-var hs-var">fromBool</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-var">IsFibrant</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#IsStrict"><span class="hs-identifier hs-var">IsStrict</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681693454"><span id="local-6989586621681693457"><span id="local-6989586621681693460"><span class="annot"><a href="Agda.Utils.Boolean.html#IsBool"><span class="hs-identifier hs-type">IsBool</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-type">IsFibrant</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681693463"><span class="annot"><span class="annottext">toBool :: IsFibrant -&gt; Bool
+</span><a href="#local-6989586621681693463"><span class="hs-identifier hs-var hs-var hs-var">toBool</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><span class="annottext">IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-var">IsFibrant</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="annottext">IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#IsStrict"><span class="hs-identifier hs-var">IsStrict</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- * Universe kind arithmetic</span></span><span>
+</span><span id="line-44"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><span class="hs-comment">-- | The successor universe type of a universe.</span></span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#univUniv"><span class="hs-identifier hs-type">univUniv</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span>
+</span><span id="line-48"></span><span id="univUniv"><span class="annot"><span class="annottext">univUniv :: Univ -&gt; Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#univUniv"><span class="hs-identifier hs-var hs-var">univUniv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UProp"><span class="hs-identifier hs-var">UProp</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UType"><span class="hs-identifier hs-var">UType</span></a></span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UType"><span class="hs-identifier hs-var">UType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UType"><span class="hs-identifier hs-var">UType</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><span class="hs-comment">-- | Compute the universe type of a function space from the universe types of domain and codomain.</span></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#funUniv"><span class="hs-identifier hs-type">funUniv</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span>
+</span><span id="line-55"></span><span id="funUniv"><span class="annot"><span class="annottext">funUniv :: Univ -&gt; Univ -&gt; Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#funUniv"><span class="hs-identifier hs-var hs-var">funUniv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Univ, Univ) -&gt; Univ) -&gt; Univ -&gt; Univ -&gt; Univ
+forall a b c. ((a, b) -&gt; c) -&gt; a -&gt; b -&gt; c
+</span><span class="hs-identifier hs-var">curry</span></span><span> </span><span class="annot"><span class="annottext">(((Univ, Univ) -&gt; Univ) -&gt; Univ -&gt; Univ -&gt; Univ)
+-&gt; ((Univ, Univ) -&gt; Univ) -&gt; Univ -&gt; Univ -&gt; Univ
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693468"><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681693468"><span class="hs-identifier hs-var">u</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681693468"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="annot"><span class="hs-comment">-- ** Inverting 'funUniv'</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><span class="hs-comment">-- | Conclude @u1@ from @funUniv u1 u2@ and @u2@.</span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#domainUniv"><span class="hs-identifier hs-type">domainUniv</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-65"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Have 'UProp'?</span></span><span>
+</span><span id="line-66"></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ 'Univ' kind of the 'funSort'.</span></span><span>
+</span><span id="line-67"></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ 'Univ' kind of the codomain.</span></span><span>
+</span><span id="line-68"></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="annot"><span class="hs-comment">-- ^ 'Univ' kind of the domain, if unique.</span></span><span>
+</span><span id="line-69"></span><span id="domainUniv"><span class="annot"><span class="annottext">domainUniv :: Bool -&gt; Univ -&gt; Univ -&gt; Maybe Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#domainUniv"><span class="hs-identifier hs-var hs-var">domainUniv</span></a></span></span><span> </span><span id="local-6989586621681693470"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681693470"><span class="hs-identifier hs-var">propEnabled</span></a></span></span><span> </span><span id="local-6989586621681693471"><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681693471"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-70"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Univ
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-71"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681693471"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Univ -&gt; Univ -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ -&gt; Maybe Univ
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span>
+</span><span id="line-72"></span><span>     </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681693470"><span class="hs-identifier hs-var">propEnabled</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Univ
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-73"></span><span>     </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ -&gt; Maybe Univ
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UType"><span class="hs-identifier hs-var">UType</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="annot"><span class="hs-comment">-- | Conclude @u2@ from @funUniv u1 u2@ and @u1@.</span></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#codomainUniv"><span class="hs-identifier hs-type">codomainUniv</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-78"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ 'Univ' kind of the 'funSort'.</span></span><span>
+</span><span id="line-79"></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ 'Univ' kind of the domain.</span></span><span>
+</span><span id="line-80"></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="annot"><span class="hs-comment">-- ^ 'Univ' kind of the codomain, if uniquely exists.</span></span><span>
+</span><span id="line-81"></span><span id="codomainUniv"><span class="annot"><span class="annottext">codomainUniv :: Univ -&gt; Univ -&gt; Maybe Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#codomainUniv"><span class="hs-identifier hs-var hs-var">codomainUniv</span></a></span></span><span> </span><span id="local-6989586621681693473"><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681693473"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Univ
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-83"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ -&gt; Maybe Univ
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681693473"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><span class="hs-comment">-- * Fibrancy</span></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="annot"><span class="hs-comment">-- | Fibrancy of standard universes.</span></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#univFibrancy"><span class="hs-identifier hs-type">univFibrancy</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-type">IsFibrant</span></a></span><span>
+</span><span id="line-90"></span><span id="univFibrancy"><span class="annot"><span class="annottext">univFibrancy :: Univ -&gt; IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#univFibrancy"><span class="hs-identifier hs-var hs-var">univFibrancy</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-91"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UProp"><span class="hs-identifier hs-var">UProp</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-var">IsFibrant</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UType"><span class="hs-identifier hs-var">UType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#IsFibrant"><span class="hs-identifier hs-var">IsFibrant</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsFibrant
+</span><a href="Agda.Syntax.Internal.Univ.html#IsStrict"><span class="hs-identifier hs-var">IsStrict</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="annot"><span class="hs-comment">-- * Printing</span></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="annot"><span class="hs-comment">-- | Hacky showing of standard universes, does not take actual names into account.</span></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#showUniv"><span class="hs-identifier hs-type">showUniv</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Univ.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-100"></span><span id="showUniv"><span class="annot"><span class="annottext">showUniv :: Univ -&gt; String
+</span><a href="Agda.Syntax.Internal.Univ.html#showUniv"><span class="hs-identifier hs-var hs-var">showUniv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-101"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UProp"><span class="hs-identifier hs-var">UProp</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Prop&quot;</span></span><span>
+</span><span id="line-102"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#UType"><span class="hs-identifier hs-var">UType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Set&quot;</span></span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">Univ
+</span><a href="Agda.Syntax.Internal.Univ.html#USSet"><span class="hs-identifier hs-var">USSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SSet&quot;</span></span><span>
+</span><span id="line-104"></span></pre></body></html>

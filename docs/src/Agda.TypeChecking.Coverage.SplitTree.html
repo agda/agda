@@ -1,0 +1,529 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="annot"><span class="hs-comment">{-| Split tree for transforming pattern clauses into case trees.
+
+The coverage checker generates a split tree from the clauses.
+The clause compiler uses it to transform clauses to case trees.
+
+The initial problem is a set of clauses.  The root node designates
+on which argument to split and has subtrees for all the constructors.
+Splitting continues until there is only a single clause left at
+each leaf of the split tree.
+
+-}</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html"><span class="hs-identifier">Agda.TypeChecking.Coverage.SplitTree</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Tree</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Pretty.html"><span class="hs-identifier">Agda.Syntax.Concrete.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">--instance only</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Literal.html"><span class="hs-identifier">Agda.Syntax.Literal</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">type</span><span> </span><span id="SplitTree"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree"><span class="hs-identifier hs-var">SplitTree</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree%27"><span class="hs-identifier hs-type">SplitTree'</span></a></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTag"><span class="hs-identifier hs-type">SplitTag</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">type</span><span> </span><span id="SplitTrees"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTrees"><span class="hs-identifier hs-var">SplitTrees</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTrees%27"><span class="hs-identifier hs-type">SplitTrees'</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTag"><span class="hs-identifier hs-type">SplitTag</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="annot"><span class="hs-comment">-- | Abstract case tree shape.</span></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">data</span><span> </span><span id="SplitTree%27"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree%27"><span class="hs-identifier hs-var">SplitTree'</span></a></span></span><span> </span><span id="local-6989586621681824056"><span class="annot"><a href="#local-6989586621681824056"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-comment">-- | No more splits coming. We are at a single, all-variable</span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-comment">-- clause.</span><span>
+</span><span id="line-41"></span><span>    </span><span id="SplittingDone"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplittingDone"><span class="hs-identifier hs-var">SplittingDone</span></a></span></span><span>
+</span><span id="line-42"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="splitBindings"><span class="annot"><span class="annottext">forall a. SplitTree' a -&gt; Int
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#splitBindings"><span class="hs-identifier hs-var hs-var">splitBindings</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>       </span><span class="annot"><span class="hs-comment">-- ^  The number of variables bound in the clause</span></span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-comment">-- | A split is necessary.</span></span><span>
+</span><span id="line-45"></span><span>    </span><span id="SplitAt"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitAt"><span class="hs-identifier hs-var">SplitAt</span></a></span></span><span>
+</span><span id="line-46"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="splitArg"><span class="annot"><span class="annottext">forall a. SplitTree' a -&gt; Arg Int
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#splitArg"><span class="hs-identifier hs-var hs-var">splitArg</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Arg. no to split at.</span></span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="splitLazy"><span class="annot"><span class="annottext">forall a. SplitTree' a -&gt; LazySplit
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#splitLazy"><span class="hs-identifier hs-var hs-var">splitLazy</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#LazySplit"><span class="hs-identifier hs-type">LazySplit</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="splitTrees"><span class="annot"><span class="annottext">forall a. SplitTree' a -&gt; SplitTrees' a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#splitTrees"><span class="hs-identifier hs-var hs-var">splitTrees</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTrees%27"><span class="hs-identifier hs-type">SplitTrees'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824056"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-comment">-- ^ Sub split trees.</span></span><span>
+</span><span id="line-49"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681824195"><span id="local-6989586621681824209"><span id="local-6989586621681824213"><span class="annot"><span class="annottext">Int -&gt; SplitTree' a -&gt; ShowS
+[SplitTree' a] -&gt; ShowS
+SplitTree' a -&gt; String
+(Int -&gt; SplitTree' a -&gt; ShowS)
+-&gt; (SplitTree' a -&gt; String)
+-&gt; ([SplitTree' a] -&gt; ShowS)
+-&gt; Show (SplitTree' a)
+forall a. Show a =&gt; Int -&gt; SplitTree' a -&gt; ShowS
+forall a. Show a =&gt; [SplitTree' a] -&gt; ShowS
+forall a. Show a =&gt; SplitTree' a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; SplitTree' a -&gt; ShowS
+showsPrec :: Int -&gt; SplitTree' a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; SplitTree' a -&gt; String
+show :: SplitTree' a -&gt; String
+$cshowList :: forall a. Show a =&gt; [SplitTree' a] -&gt; ShowS
+showList :: [SplitTree' a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681824220"><span id="local-6989586621681824222"><span class="annot"><span class="annottext">(forall x. SplitTree' a -&gt; Rep (SplitTree' a) x)
+-&gt; (forall x. Rep (SplitTree' a) x -&gt; SplitTree' a)
+-&gt; Generic (SplitTree' a)
+forall x. Rep (SplitTree' a) x -&gt; SplitTree' a
+forall x. SplitTree' a -&gt; Rep (SplitTree' a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (SplitTree' a) x -&gt; SplitTree' a
+forall a x. SplitTree' a -&gt; Rep (SplitTree' a) x
+$cfrom :: forall a x. SplitTree' a -&gt; Rep (SplitTree' a) x
+from :: forall x. SplitTree' a -&gt; Rep (SplitTree' a) x
+$cto :: forall a x. Rep (SplitTree' a) x -&gt; SplitTree' a
+to :: forall x. Rep (SplitTree' a) x -&gt; SplitTree' a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">data</span><span> </span><span id="LazySplit"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#LazySplit"><span class="hs-identifier hs-var">LazySplit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LazySplit"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#LazySplit"><span class="hs-identifier hs-var">LazySplit</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="StrictSplit"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#StrictSplit"><span class="hs-identifier hs-var">StrictSplit</span></a></span></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681824230"><span id="local-6989586621681824232"><span id="local-6989586621681824235"><span class="annot"><span class="annottext">Int -&gt; LazySplit -&gt; ShowS
+[LazySplit] -&gt; ShowS
+LazySplit -&gt; String
+(Int -&gt; LazySplit -&gt; ShowS)
+-&gt; (LazySplit -&gt; String)
+-&gt; ([LazySplit] -&gt; ShowS)
+-&gt; Show LazySplit
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; LazySplit -&gt; ShowS
+showsPrec :: Int -&gt; LazySplit -&gt; ShowS
+$cshow :: LazySplit -&gt; String
+show :: LazySplit -&gt; String
+$cshowList :: [LazySplit] -&gt; ShowS
+showList :: [LazySplit] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681824238"><span id="local-6989586621681824243"><span class="annot"><span class="annottext">LazySplit -&gt; LazySplit -&gt; Bool
+(LazySplit -&gt; LazySplit -&gt; Bool)
+-&gt; (LazySplit -&gt; LazySplit -&gt; Bool) -&gt; Eq LazySplit
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: LazySplit -&gt; LazySplit -&gt; Bool
+== :: LazySplit -&gt; LazySplit -&gt; Bool
+$c/= :: LazySplit -&gt; LazySplit -&gt; Bool
+/= :: LazySplit -&gt; LazySplit -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681824250"><span id="local-6989586621681824252"><span id="local-6989586621681824254"><span id="local-6989586621681824258"><span id="local-6989586621681824261"><span id="local-6989586621681824264"><span id="local-6989586621681824267"><span class="annot"><span class="annottext">Eq LazySplit
+Eq LazySplit =&gt;
+(LazySplit -&gt; LazySplit -&gt; Ordering)
+-&gt; (LazySplit -&gt; LazySplit -&gt; Bool)
+-&gt; (LazySplit -&gt; LazySplit -&gt; Bool)
+-&gt; (LazySplit -&gt; LazySplit -&gt; Bool)
+-&gt; (LazySplit -&gt; LazySplit -&gt; Bool)
+-&gt; (LazySplit -&gt; LazySplit -&gt; LazySplit)
+-&gt; (LazySplit -&gt; LazySplit -&gt; LazySplit)
+-&gt; Ord LazySplit
+LazySplit -&gt; LazySplit -&gt; Bool
+LazySplit -&gt; LazySplit -&gt; Ordering
+LazySplit -&gt; LazySplit -&gt; LazySplit
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: LazySplit -&gt; LazySplit -&gt; Ordering
+compare :: LazySplit -&gt; LazySplit -&gt; Ordering
+$c&lt; :: LazySplit -&gt; LazySplit -&gt; Bool
+&lt; :: LazySplit -&gt; LazySplit -&gt; Bool
+$c&lt;= :: LazySplit -&gt; LazySplit -&gt; Bool
+&lt;= :: LazySplit -&gt; LazySplit -&gt; Bool
+$c&gt; :: LazySplit -&gt; LazySplit -&gt; Bool
+&gt; :: LazySplit -&gt; LazySplit -&gt; Bool
+$c&gt;= :: LazySplit -&gt; LazySplit -&gt; Bool
+&gt;= :: LazySplit -&gt; LazySplit -&gt; Bool
+$cmax :: LazySplit -&gt; LazySplit -&gt; LazySplit
+max :: LazySplit -&gt; LazySplit -&gt; LazySplit
+$cmin :: LazySplit -&gt; LazySplit -&gt; LazySplit
+min :: LazySplit -&gt; LazySplit -&gt; LazySplit
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681824275"><span id="local-6989586621681824277"><span class="annot"><span class="annottext">(forall x. LazySplit -&gt; Rep LazySplit x)
+-&gt; (forall x. Rep LazySplit x -&gt; LazySplit) -&gt; Generic LazySplit
+forall x. Rep LazySplit x -&gt; LazySplit
+forall x. LazySplit -&gt; Rep LazySplit x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. LazySplit -&gt; Rep LazySplit x
+from :: forall x. LazySplit -&gt; Rep LazySplit x
+$cto :: forall x. Rep LazySplit x -&gt; LazySplit
+to :: forall x. Rep LazySplit x -&gt; LazySplit
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Split tree branching.  A finite map from constructor names to splittrees</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   A list representation seems appropriate, since we are expecting not</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   so many constructors per data type, and there is no need for</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   random access.</span><span>
+</span><span id="line-59"></span><span class="hs-keyword">type</span><span> </span><span id="SplitTrees%27"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTrees%27"><span class="hs-identifier hs-var">SplitTrees'</span></a></span></span><span> </span><span id="local-6989586621681824279"><span class="annot"><a href="#local-6989586621681824279"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681824279"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree%27"><span class="hs-identifier hs-type">SplitTree'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824279"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- | Tag for labeling branches of a split tree. Each branch is associated to</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--   either a constructor or a literal, or is a catchall branch (currently</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--   only used for splitting on a literal type).</span><span>
+</span><span id="line-64"></span><span class="hs-keyword">data</span><span> </span><span id="SplitTag"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTag"><span class="hs-identifier hs-var">SplitTag</span></a></span></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="SplitCon"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCon"><span class="hs-identifier hs-var">SplitCon</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="SplitLit"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitLit"><span class="hs-identifier hs-var">SplitLit</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Literal.html#Literal"><span class="hs-identifier hs-type">Literal</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="SplitCatchall"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCatchall"><span class="hs-identifier hs-var">SplitCatchall</span></a></span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681824284"><span id="local-6989586621681824292"><span id="local-6989586621681824296"><span class="annot"><span class="annottext">Int -&gt; SplitTag -&gt; ShowS
+[SplitTag] -&gt; ShowS
+SplitTag -&gt; String
+(Int -&gt; SplitTag -&gt; ShowS)
+-&gt; (SplitTag -&gt; String) -&gt; ([SplitTag] -&gt; ShowS) -&gt; Show SplitTag
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SplitTag -&gt; ShowS
+showsPrec :: Int -&gt; SplitTag -&gt; ShowS
+$cshow :: SplitTag -&gt; String
+show :: SplitTag -&gt; String
+$cshowList :: [SplitTag] -&gt; ShowS
+showList :: [SplitTag] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681824299"><span id="local-6989586621681824307"><span class="annot"><span class="annottext">SplitTag -&gt; SplitTag -&gt; Bool
+(SplitTag -&gt; SplitTag -&gt; Bool)
+-&gt; (SplitTag -&gt; SplitTag -&gt; Bool) -&gt; Eq SplitTag
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SplitTag -&gt; SplitTag -&gt; Bool
+== :: SplitTag -&gt; SplitTag -&gt; Bool
+$c/= :: SplitTag -&gt; SplitTag -&gt; Bool
+/= :: SplitTag -&gt; SplitTag -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681824313"><span id="local-6989586621681824319"><span id="local-6989586621681824323"><span id="local-6989586621681824327"><span id="local-6989586621681824330"><span id="local-6989586621681824333"><span id="local-6989586621681824336"><span class="annot"><span class="annottext">Eq SplitTag
+Eq SplitTag =&gt;
+(SplitTag -&gt; SplitTag -&gt; Ordering)
+-&gt; (SplitTag -&gt; SplitTag -&gt; Bool)
+-&gt; (SplitTag -&gt; SplitTag -&gt; Bool)
+-&gt; (SplitTag -&gt; SplitTag -&gt; Bool)
+-&gt; (SplitTag -&gt; SplitTag -&gt; Bool)
+-&gt; (SplitTag -&gt; SplitTag -&gt; SplitTag)
+-&gt; (SplitTag -&gt; SplitTag -&gt; SplitTag)
+-&gt; Ord SplitTag
+SplitTag -&gt; SplitTag -&gt; Bool
+SplitTag -&gt; SplitTag -&gt; Ordering
+SplitTag -&gt; SplitTag -&gt; SplitTag
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: SplitTag -&gt; SplitTag -&gt; Ordering
+compare :: SplitTag -&gt; SplitTag -&gt; Ordering
+$c&lt; :: SplitTag -&gt; SplitTag -&gt; Bool
+&lt; :: SplitTag -&gt; SplitTag -&gt; Bool
+$c&lt;= :: SplitTag -&gt; SplitTag -&gt; Bool
+&lt;= :: SplitTag -&gt; SplitTag -&gt; Bool
+$c&gt; :: SplitTag -&gt; SplitTag -&gt; Bool
+&gt; :: SplitTag -&gt; SplitTag -&gt; Bool
+$c&gt;= :: SplitTag -&gt; SplitTag -&gt; Bool
+&gt;= :: SplitTag -&gt; SplitTag -&gt; Bool
+$cmax :: SplitTag -&gt; SplitTag -&gt; SplitTag
+max :: SplitTag -&gt; SplitTag -&gt; SplitTag
+$cmin :: SplitTag -&gt; SplitTag -&gt; SplitTag
+min :: SplitTag -&gt; SplitTag -&gt; SplitTag
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681824339"><span id="local-6989586621681824341"><span class="annot"><span class="annottext">(forall x. SplitTag -&gt; Rep SplitTag x)
+-&gt; (forall x. Rep SplitTag x -&gt; SplitTag) -&gt; Generic SplitTag
+forall x. Rep SplitTag x -&gt; SplitTag
+forall x. SplitTag -&gt; Rep SplitTag x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. SplitTag -&gt; Rep SplitTag x
+from :: forall x. SplitTag -&gt; Rep SplitTag x
+$cto :: forall x. Rep SplitTag x -&gt; SplitTag
+to :: forall x. Rep SplitTag x -&gt; SplitTag
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681824345"><span id="local-6989586621681824349"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTag"><span class="hs-identifier hs-type">SplitTag</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>  </span><span id="local-6989586621681824358"><span class="annot"><span class="annottext">pretty :: SplitTag -&gt; Doc
+</span><a href="#local-6989586621681824358"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCon"><span class="hs-identifier hs-type">SplitCon</span></a></span><span> </span><span id="local-6989586621681824360"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681824360"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681824360"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitLit"><span class="hs-identifier hs-type">SplitLit</span></a></span><span> </span><span id="local-6989586621681824361"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681824361"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Literal -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681824361"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">SplitTag
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCatchall"><span class="hs-identifier hs-var">SplitCatchall</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc
+forall a. Underscore a =&gt; a
+</span><a href="Agda.Syntax.Common.html#underscore"><span class="hs-identifier hs-var">underscore</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="annot"><span class="hs-comment">-- * Printing a split tree</span></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">data</span><span> </span><span id="SplitTreeLabel"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-var">SplitTreeLabel</span></a></span></span><span> </span><span id="local-6989586621681824090"><span class="annot"><a href="#local-6989586621681824090"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SplitTreeLabel"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-var">SplitTreeLabel</span></a></span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="lblConstructorName"><span class="annot"><span class="annottext">forall a. SplitTreeLabel a -&gt; Maybe a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#lblConstructorName"><span class="hs-identifier hs-var hs-var">lblConstructorName</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681824090"><span class="hs-identifier hs-type">a</span></a></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ 'Nothing' for root of split tree</span></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lblSplitArg"><span class="annot"><span class="annottext">forall a. SplitTreeLabel a -&gt; Maybe (Arg Int)
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#lblSplitArg"><span class="hs-identifier hs-var hs-var">lblSplitArg</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lblLazy"><span class="annot"><span class="annottext">forall a. SplitTreeLabel a -&gt; LazySplit
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#lblLazy"><span class="hs-identifier hs-var hs-var">lblLazy</span></a></span></span><span>            </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#LazySplit"><span class="hs-identifier hs-type">LazySplit</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lblBindings"><span class="annot"><span class="annottext">forall a. SplitTreeLabel a -&gt; Maybe Int
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#lblBindings"><span class="hs-identifier hs-var hs-var">lblBindings</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-83"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681824097"><span id="local-6989586621681824371"><span id="local-6989586621681824375"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824097"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824097"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-84"></span><span>  </span><span id="local-6989586621681824400"><span class="annot"><span class="annottext">pretty :: SplitTreeLabel a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-85"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Maybe (Arg Int)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>   </span><span class="annot"><span class="annottext">LazySplit
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681824401"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824401"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;done, &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824401"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; bindings&quot;</span></span><span>
+</span><span id="line-86"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681824404"><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824404"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span>  </span><span id="local-6989586621681824405"><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824405"><span class="hs-identifier hs-var">lz</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LazySplit -&gt; Doc
+forall {a}. (IsString a, Null a) =&gt; LazySplit -&gt; a
+</span><a href="#local-6989586621681824406"><span class="hs-identifier hs-var">lzp</span></a></span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824405"><span class="hs-identifier hs-var">lz</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;split at &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Arg Int -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824404"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681824408"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681824408"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe (Arg Int)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>  </span><span class="annot"><span class="annottext">LazySplit
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681824409"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824409"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681824408"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;-&gt; done, &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824409"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; bindings&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681824410"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681824410"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681824411"><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824411"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681824412"><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824412"><span class="hs-identifier hs-var">lz</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681824410"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;-&gt;&quot;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">LazySplit -&gt; Doc
+forall {a}. (IsString a, Null a) =&gt; LazySplit -&gt; a
+</span><a href="#local-6989586621681824406"><span class="hs-identifier hs-var">lzp</span></a></span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824412"><span class="hs-identifier hs-var">lz</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;split at &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Arg Int -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824411"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="annottext">SplitTreeLabel a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Doc
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-90"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681824406"><span class="annot"><span class="annottext">lzp :: LazySplit -&gt; a
+</span><a href="#local-6989586621681824406"><span class="hs-identifier hs-var hs-var">lzp</span></a></span></span><span> </span><span id="local-6989586621681824419"><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824419"><span class="hs-identifier hs-var">lz</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824419"><span class="hs-identifier hs-var">lz</span></a></span><span> </span><span class="annot"><span class="annottext">LazySplit -&gt; LazySplit -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#LazySplit"><span class="hs-identifier hs-var">LazySplit</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-string">&quot;lazy&quot;</span></span><span>
+</span><span id="line-91"></span><span>                 </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="annot"><span class="hs-comment">-- | Convert a split tree into a 'Data.Tree' (for printing).</span></span><span>
+</span><span id="line-94"></span><span id="local-6989586621681824120"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#toTree"><span class="hs-identifier hs-type">toTree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree%27"><span class="hs-identifier hs-type">SplitTree'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824120"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824120"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-95"></span><span id="toTree"><span class="annot"><span class="annottext">toTree :: forall a. SplitTree' a -&gt; Tree (SplitTreeLabel a)
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#toTree"><span class="hs-identifier hs-var hs-var">toTree</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-96"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplittingDone"><span class="hs-identifier hs-type">SplittingDone</span></a></span><span> </span><span id="local-6989586621681824422"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824422"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SplitTreeLabel a
+-&gt; [Tree (SplitTreeLabel a)] -&gt; Tree (SplitTreeLabel a)
+forall a. a -&gt; [Tree a] -&gt; Tree a
+</span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a
+-&gt; Maybe (Arg Int) -&gt; LazySplit -&gt; Maybe Int -&gt; SplitTreeLabel a
+forall a.
+Maybe a
+-&gt; Maybe (Arg Int) -&gt; LazySplit -&gt; Maybe Int -&gt; SplitTreeLabel a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-var">SplitTreeLabel</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Maybe (Arg Int)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#StrictSplit"><span class="hs-identifier hs-var">StrictSplit</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824422"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitAt"><span class="hs-identifier hs-type">SplitAt</span></a></span><span> </span><span id="local-6989586621681824424"><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824424"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681824425"><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824425"><span class="hs-identifier hs-var">lz</span></a></span></span><span> </span><span id="local-6989586621681824426"><span class="annot"><span class="annottext">SplitTrees' a
+</span><a href="#local-6989586621681824426"><span class="hs-identifier hs-var">ts</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SplitTreeLabel a
+-&gt; [Tree (SplitTreeLabel a)] -&gt; Tree (SplitTreeLabel a)
+forall a. a -&gt; [Tree a] -&gt; Tree a
+</span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a
+-&gt; Maybe (Arg Int) -&gt; LazySplit -&gt; Maybe Int -&gt; SplitTreeLabel a
+forall a.
+Maybe a
+-&gt; Maybe (Arg Int) -&gt; LazySplit -&gt; Maybe Int -&gt; SplitTreeLabel a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-var">SplitTreeLabel</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg Int -&gt; Maybe (Arg Int)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824424"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824425"><span class="hs-identifier hs-var">lz</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Tree (SplitTreeLabel a)] -&gt; Tree (SplitTreeLabel a))
+-&gt; [Tree (SplitTreeLabel a)] -&gt; Tree (SplitTreeLabel a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SplitTrees' a -&gt; [Tree (SplitTreeLabel a)]
+forall a. SplitTrees' a -&gt; Forest (SplitTreeLabel a)
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#toTrees"><span class="hs-identifier hs-var">toTrees</span></a></span><span> </span><span class="annot"><span class="annottext">SplitTrees' a
+</span><a href="#local-6989586621681824426"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span id="local-6989586621681824124"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#toTrees"><span class="hs-identifier hs-type">toTrees</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTrees%27"><span class="hs-identifier hs-type">SplitTrees'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824124"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Forest</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824124"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-100"></span><span id="toTrees"><span class="annot"><span class="annottext">toTrees :: forall a. SplitTrees' a -&gt; Forest (SplitTreeLabel a)
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#toTrees"><span class="hs-identifier hs-var hs-var">toTrees</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a, SplitTree' a) -&gt; Tree (SplitTreeLabel a))
+-&gt; [(a, SplitTree' a)] -&gt; [Tree (SplitTreeLabel a)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681824428"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681824428"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681824429"><span class="annot"><span class="annottext">SplitTree' a
+</span><a href="#local-6989586621681824429"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Tree (SplitTreeLabel a) -&gt; Tree (SplitTreeLabel a)
+forall a. a -&gt; Tree (SplitTreeLabel a) -&gt; Tree (SplitTreeLabel a)
+</span><a href="#local-6989586621681824430"><span class="hs-identifier hs-var">setCons</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681824428"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">(Tree (SplitTreeLabel a) -&gt; Tree (SplitTreeLabel a))
+-&gt; Tree (SplitTreeLabel a) -&gt; Tree (SplitTreeLabel a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SplitTree' a -&gt; Tree (SplitTreeLabel a)
+forall a. SplitTree' a -&gt; Tree (SplitTreeLabel a)
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#toTree"><span class="hs-identifier hs-var">toTree</span></a></span><span> </span><span class="annot"><span class="annottext">SplitTree' a
+</span><a href="#local-6989586621681824429"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-102"></span><span>    </span><span id="local-6989586621681824129"><span class="annot"><a href="#local-6989586621681824430"><span class="hs-identifier hs-type">setCons</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681824129"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824129"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTreeLabel"><span class="hs-identifier hs-type">SplitTreeLabel</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824129"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-103"></span><span>    </span><span id="local-6989586621681824430"><span class="annot"><span class="annottext">setCons :: forall a. a -&gt; Tree (SplitTreeLabel a) -&gt; Tree (SplitTreeLabel a)
+</span><a href="#local-6989586621681824430"><span class="hs-identifier hs-var hs-var">setCons</span></a></span></span><span> </span><span id="local-6989586621681824431"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681824431"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621681824432"><span class="annot"><span class="annottext">SplitTreeLabel a
+</span><a href="#local-6989586621681824432"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681824433"><span class="annot"><span class="annottext">[Tree (SplitTreeLabel a)]
+</span><a href="#local-6989586621681824433"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SplitTreeLabel a
+-&gt; [Tree (SplitTreeLabel a)] -&gt; Tree (SplitTreeLabel a)
+forall a. a -&gt; [Tree a] -&gt; Tree a
+</span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SplitTreeLabel a
+</span><a href="#local-6989586621681824432"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#lblConstructorName"><span class="hs-identifier hs-var">lblConstructorName</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="#local-6989586621681824431"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree (SplitTreeLabel a)]
+</span><a href="#local-6989586621681824433"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681824132"><span id="local-6989586621681824437"><span id="local-6989586621681824441"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824132"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree%27"><span class="hs-identifier hs-type">SplitTree'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824132"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-106"></span><span>  </span><span id="local-6989586621681824446"><span class="annot"><span class="annottext">pretty :: SplitTree' a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; (SplitTree' a -&gt; String) -&gt; SplitTree' a -&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Tree String -&gt; String
+</span><span class="hs-identifier hs-var">drawTree</span></span><span> </span><span class="annot"><span class="annottext">(Tree String -&gt; String)
+-&gt; (SplitTree' a -&gt; Tree String) -&gt; SplitTree' a -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(SplitTreeLabel a -&gt; String)
+-&gt; Tree (SplitTreeLabel a) -&gt; Tree String
+forall a b. (a -&gt; b) -&gt; Tree a -&gt; Tree b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">SplitTreeLabel a -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">(Tree (SplitTreeLabel a) -&gt; Tree String)
+-&gt; (SplitTree' a -&gt; Tree (SplitTreeLabel a))
+-&gt; SplitTree' a
+-&gt; Tree String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SplitTree' a -&gt; Tree (SplitTreeLabel a)
+forall a. SplitTree' a -&gt; Tree (SplitTreeLabel a)
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#toTree"><span class="hs-identifier hs-var">toTree</span></a></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTag"><span class="hs-identifier hs-type">SplitTag</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-109"></span><span>  </span><span id="local-6989586621681824476"><span class="annot"><span class="annottext">killRange :: SplitTag -&gt; SplitTag
+</span><a href="#local-6989586621681824476"><span class="hs-identifier hs-var hs-var hs-var">killRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-110"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCon"><span class="hs-identifier hs-type">SplitCon</span></a></span><span> </span><span id="local-6989586621681824478"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681824478"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; SplitTag) -&gt; QName -&gt; SplitTag
+forall t (b :: Bool).
+(KILLRANGE t b, IsBase t ~ b, All KillRange (Domains t)) =&gt;
+t -&gt; t
+</span><a href="Agda.Syntax.Position.html#killRangeN"><span class="hs-identifier hs-var">killRangeN</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; SplitTag
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCon"><span class="hs-identifier hs-var">SplitCon</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681824478"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-111"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitLit"><span class="hs-identifier hs-type">SplitLit</span></a></span><span> </span><span id="local-6989586621681824480"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681824480"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Literal -&gt; SplitTag) -&gt; Literal -&gt; SplitTag
+forall t (b :: Bool).
+(KILLRANGE t b, IsBase t ~ b, All KillRange (Domains t)) =&gt;
+t -&gt; t
+</span><a href="Agda.Syntax.Position.html#killRangeN"><span class="hs-identifier hs-var">killRangeN</span></a></span><span> </span><span class="annot"><span class="annottext">Literal -&gt; SplitTag
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitLit"><span class="hs-identifier hs-var">SplitLit</span></a></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681824480"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><span class="annottext">SplitTag
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCatchall"><span class="hs-identifier hs-var">SplitCatchall</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SplitTag
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitCatchall"><span class="hs-identifier hs-var">SplitCatchall</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681824156"><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824156"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree%27"><span class="hs-identifier hs-type">SplitTree'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824156"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-115"></span><span>  </span><span id="local-6989586621681824500"><span class="annot"><span class="annottext">killRange :: KillRangeT (SplitTree' a)
+</span><a href="Agda.Syntax.Position.html#killRange"><span class="hs-identifier hs-var hs-var hs-var">killRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-116"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplittingDone"><span class="hs-identifier hs-type">SplittingDone</span></a></span><span> </span><span id="local-6989586621681824501"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824501"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; SplitTree' a
+forall a. Int -&gt; SplitTree' a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplittingDone"><span class="hs-identifier hs-var">SplittingDone</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681824501"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-117"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitAt"><span class="hs-identifier hs-type">SplitAt</span></a></span><span> </span><span id="local-6989586621681824502"><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824502"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681824503"><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824503"><span class="hs-identifier hs-var">lz</span></a></span></span><span> </span><span id="local-6989586621681824504"><span class="annot"><span class="annottext">SplitTrees' a
+</span><a href="#local-6989586621681824504"><span class="hs-identifier hs-var">ts</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(SplitTrees' a -&gt; SplitTree' a) -&gt; SplitTrees' a -&gt; SplitTree' a
+forall t (b :: Bool).
+(KILLRANGE t b, IsBase t ~ b, All KillRange (Domains t)) =&gt;
+t -&gt; t
+</span><a href="Agda.Syntax.Position.html#killRangeN"><span class="hs-identifier hs-var">killRangeN</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg Int -&gt; LazySplit -&gt; SplitTrees' a -&gt; SplitTree' a
+forall a. Arg Int -&gt; LazySplit -&gt; SplitTrees' a -&gt; SplitTree' a
+</span><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitAt"><span class="hs-identifier hs-var">SplitAt</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Int
+</span><a href="#local-6989586621681824502"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">LazySplit
+</span><a href="#local-6989586621681824503"><span class="hs-identifier hs-var">lz</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SplitTrees' a
+</span><a href="#local-6989586621681824504"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681824183"><span id="local-6989586621681824507"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681824183"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree%27"><span class="hs-identifier hs-type">SplitTree'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681824183"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-120"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681824542"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#LazySplit"><span class="hs-identifier hs-type">LazySplit</span></a></span></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681824553"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTag"><span class="hs-identifier hs-type">SplitTag</span></a></span></span><span>
+</span><span id="line-122"></span></pre></body></html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="annot"><span class="hs-comment">-- | Ranges.</span></span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html"><span class="hs-identifier">Agda.Utils.Range</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier">Range</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#rangeInvariant"><span class="hs-identifier">rangeInvariant</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier">Ranges</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#rangesInvariant"><span class="hs-identifier">rangesInvariant</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#overlapping"><span class="hs-identifier">overlapping</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#overlappings"><span class="hs-identifier">overlappings</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier">empty</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#rangeToPositions"><span class="hs-identifier">rangeToPositions</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#rangesToPositions"><span class="hs-identifier">rangesToPositions</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#minus"><span class="hs-identifier">minus</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- | Character ranges. The first character in the file has position 1.</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- Note that the 'to' position is considered to be outside of the</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- range.</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- Invariant: @'from' '&lt;=' 'to'@.</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="Range"><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-var">Range</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Range"><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-var">Range</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="from"><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var hs-var">from</span></a></span></span><span class="hs-special">,</span><span> </span><span id="to"><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var hs-var">to</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-32"></span><span>             </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681710993"><span id="local-6989586621681710998"><span class="annot"><span class="annottext">Range -&gt; Range -&gt; Bool
+(Range -&gt; Range -&gt; Bool) -&gt; (Range -&gt; Range -&gt; Bool) -&gt; Eq Range
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Range -&gt; Range -&gt; Bool
+== :: Range -&gt; Range -&gt; Bool
+$c/= :: Range -&gt; Range -&gt; Bool
+/= :: Range -&gt; Range -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681711005"><span id="local-6989586621681711009"><span id="local-6989586621681711013"><span id="local-6989586621681711017"><span id="local-6989586621681711020"><span id="local-6989586621681711023"><span id="local-6989586621681711026"><span class="annot"><span class="annottext">Eq Range
+Eq Range =&gt;
+(Range -&gt; Range -&gt; Ordering)
+-&gt; (Range -&gt; Range -&gt; Bool)
+-&gt; (Range -&gt; Range -&gt; Bool)
+-&gt; (Range -&gt; Range -&gt; Bool)
+-&gt; (Range -&gt; Range -&gt; Bool)
+-&gt; (Range -&gt; Range -&gt; Range)
+-&gt; (Range -&gt; Range -&gt; Range)
+-&gt; Ord Range
+Range -&gt; Range -&gt; Bool
+Range -&gt; Range -&gt; Ordering
+Range -&gt; Range -&gt; Range
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: Range -&gt; Range -&gt; Ordering
+compare :: Range -&gt; Range -&gt; Ordering
+$c&lt; :: Range -&gt; Range -&gt; Bool
+&lt; :: Range -&gt; Range -&gt; Bool
+$c&lt;= :: Range -&gt; Range -&gt; Bool
+&lt;= :: Range -&gt; Range -&gt; Bool
+$c&gt; :: Range -&gt; Range -&gt; Bool
+&gt; :: Range -&gt; Range -&gt; Bool
+$c&gt;= :: Range -&gt; Range -&gt; Bool
+&gt;= :: Range -&gt; Range -&gt; Bool
+$cmax :: Range -&gt; Range -&gt; Range
+max :: Range -&gt; Range -&gt; Range
+$cmin :: Range -&gt; Range -&gt; Range
+min :: Range -&gt; Range -&gt; Range
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681711033"><span id="local-6989586621681711039"><span id="local-6989586621681711043"><span class="annot"><span class="annottext">Int -&gt; Range -&gt; ShowS
+[Range] -&gt; ShowS
+Range -&gt; String
+(Int -&gt; Range -&gt; ShowS)
+-&gt; (Range -&gt; String) -&gt; ([Range] -&gt; ShowS) -&gt; Show Range
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Range -&gt; ShowS
+showsPrec :: Int -&gt; Range -&gt; ShowS
+$cshow :: Range -&gt; String
+show :: Range -&gt; String
+$cshowList :: [Range] -&gt; ShowS
+showList :: [Range] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-35"></span><span>  </span><span id="local-6989586621681711051"><span class="annot"><span class="annottext">empty :: Range
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Range
+</span><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-var">Range</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-36"></span><span>  </span><span id="local-6989586621681711053"><span class="annot"><span class="annottext">null :: Range -&gt; Bool
+</span><a href="#local-6989586621681711053"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span id="local-6989586621681711055"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711055"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711055"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711055"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681711059"><span class="annot"><span class="annottext">rnf :: Range -&gt; ()
+</span><a href="#local-6989586621681711059"><span class="hs-identifier hs-var hs-var hs-var">rnf</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><span class="hs-comment">-- | The 'Range' invariant.</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><a href="Agda.Utils.Range.html#rangeInvariant"><span class="hs-identifier hs-type">rangeInvariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-44"></span><span id="rangeInvariant"><span class="annot"><span class="annottext">rangeInvariant :: Range -&gt; Bool
+</span><a href="Agda.Utils.Range.html#rangeInvariant"><span class="hs-identifier hs-var hs-var">rangeInvariant</span></a></span></span><span> </span><span id="local-6989586621681711061"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711061"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711061"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711061"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><span class="hs-comment">-- | Zero or more consecutive and separated ranges.</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">newtype</span><span> </span><span id="Ranges"><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-var">Ranges</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Ranges"><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-var">Ranges</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681711064"><span id="local-6989586621681711070"><span class="annot"><span class="annottext">Ranges -&gt; Ranges -&gt; Bool
+(Ranges -&gt; Ranges -&gt; Bool)
+-&gt; (Ranges -&gt; Ranges -&gt; Bool) -&gt; Eq Ranges
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Ranges -&gt; Ranges -&gt; Bool
+== :: Ranges -&gt; Ranges -&gt; Bool
+$c/= :: Ranges -&gt; Ranges -&gt; Bool
+/= :: Ranges -&gt; Ranges -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681711077"><span id="local-6989586621681711083"><span id="local-6989586621681711087"><span class="annot"><span class="annottext">Int -&gt; Ranges -&gt; ShowS
+[Ranges] -&gt; ShowS
+Ranges -&gt; String
+(Int -&gt; Ranges -&gt; ShowS)
+-&gt; (Ranges -&gt; String) -&gt; ([Ranges] -&gt; ShowS) -&gt; Show Ranges
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Ranges -&gt; ShowS
+showsPrec :: Int -&gt; Ranges -&gt; ShowS
+$cshow :: Ranges -&gt; String
+show :: Ranges -&gt; String
+$cshowList :: [Ranges] -&gt; ShowS
+showList :: [Ranges] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681711090"><span class="annot"><span class="annottext">Ranges -&gt; ()
+(Ranges -&gt; ()) -&gt; NFData Ranges
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: Ranges -&gt; ()
+rnf :: Ranges -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="annot"><span class="hs-comment">-- | The 'Ranges' invariant.</span></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Agda.Utils.Range.html#rangesInvariant"><span class="hs-identifier hs-type">rangesInvariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-54"></span><span id="rangesInvariant"><span class="annot"><span class="annottext">rangesInvariant :: Ranges -&gt; Bool
+</span><a href="Agda.Utils.Range.html#rangesInvariant"><span class="hs-identifier hs-var hs-var">rangesInvariant</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span id="local-6989586621681711096"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711096"><span class="hs-identifier hs-var">rs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Range -&gt; Range -&gt; Bool) -&gt; [Range] -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; [a] -&gt; Bool
+</span><a href="Agda.Utils.List.html#allConsecutive"><span class="hs-identifier hs-var">allConsecutive</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681711098"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711098"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681711099"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711099"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711098"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711099"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711096"><span class="hs-identifier hs-var">rs</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- Queries</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | 'True' iff the ranges overlap.</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- The ranges are assumed to be well-formed.</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="annot"><a href="Agda.Utils.Range.html#overlapping"><span class="hs-identifier hs-type">overlapping</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-64"></span><span id="overlapping"><span class="annot"><span class="annottext">overlapping :: Range -&gt; Range -&gt; Bool
+</span><a href="Agda.Utils.Range.html#overlapping"><span class="hs-identifier hs-var hs-var">overlapping</span></a></span></span><span> </span><span id="local-6989586621681711100"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711100"><span class="hs-identifier hs-var">r1</span></a></span></span><span> </span><span id="local-6989586621681711101"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711101"><span class="hs-identifier hs-var">r2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711100"><span class="hs-identifier hs-var">r1</span></a></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Range -&gt; Bool
+</span><a href="Agda.Utils.Range.html#isLeftOf"><span class="hs-operator hs-var">`isLeftOf`</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711101"><span class="hs-identifier hs-var">r2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711101"><span class="hs-identifier hs-var">r2</span></a></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Range -&gt; Bool
+</span><a href="Agda.Utils.Range.html#isLeftOf"><span class="hs-operator hs-var">`isLeftOf`</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711100"><span class="hs-identifier hs-var">r1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="annot"><a href="Agda.Utils.Range.html#isLeftOf"><span class="hs-identifier hs-type">isLeftOf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-67"></span><span id="isLeftOf"><span class="annot"><span class="annottext">isLeftOf :: Range -&gt; Range -&gt; Bool
+</span><a href="Agda.Utils.Range.html#isLeftOf"><span class="hs-identifier hs-var hs-var">isLeftOf</span></a></span></span><span> </span><span id="local-6989586621681711105"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711105"><span class="hs-identifier hs-var">r1</span></a></span></span><span> </span><span id="local-6989586621681711106"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711106"><span class="hs-identifier hs-var">r2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711105"><span class="hs-identifier hs-var">r1</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711106"><span class="hs-identifier hs-var">r2</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Agda.Utils.Range.html#overlappings"><span class="hs-identifier hs-type">overlappings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- specification: overlappings (Ranges r1s) (Ranges r2s) = or [ overlapping r1 r2 | r1 &lt;- r1s, r2 &lt;- r2s ]</span><span>
+</span><span id="line-71"></span><span id="overlappings"><span class="annot"><span class="annottext">overlappings :: Ranges -&gt; Ranges -&gt; Bool
+</span><a href="Agda.Utils.Range.html#overlappings"><span class="hs-identifier hs-var hs-var">overlappings</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span id="local-6989586621681711107"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711107"><span class="hs-identifier hs-var">r1s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span id="local-6989586621681711108"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711108"><span class="hs-identifier hs-var">r2s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><span class="annottext">Maybe [Range] -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNothing</span></span><span> </span><span class="annot"><span class="annottext">(Maybe [Range] -&gt; Bool) -&gt; Maybe [Range] -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; Range -&gt; Bool) -&gt; [Range] -&gt; [Range] -&gt; Maybe [Range]
+forall a. (a -&gt; a -&gt; Bool) -&gt; [a] -&gt; [a] -&gt; Maybe [a]
+</span><a href="Agda.Utils.List.html#mergeStrictlyOrderedBy"><span class="hs-identifier hs-var">mergeStrictlyOrderedBy</span></a></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Range -&gt; Bool
+</span><a href="Agda.Utils.Range.html#isLeftOf"><span class="hs-identifier hs-var">isLeftOf</span></a></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711107"><span class="hs-identifier hs-var">r1s</span></a></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711108"><span class="hs-identifier hs-var">r2s</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Conversion</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="annot"><span class="hs-comment">-- | Converts a range to a list of positions.</span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Agda.Utils.Range.html#rangeToPositions"><span class="hs-identifier hs-type">rangeToPositions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span>
+</span><span id="line-80"></span><span id="rangeToPositions"><span class="annot"><span class="annottext">rangeToPositions :: Range -&gt; [Int]
+</span><a href="Agda.Utils.Range.html#rangeToPositions"><span class="hs-identifier hs-var hs-var">rangeToPositions</span></a></span></span><span> </span><span id="local-6989586621681711111"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711111"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711111"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711111"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><span class="hs-comment">-- | Converts several ranges to a list of positions.</span></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="annot"><a href="Agda.Utils.Range.html#rangesToPositions"><span class="hs-identifier hs-type">rangesToPositions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span>
+</span><span id="line-85"></span><span id="rangesToPositions"><span class="annot"><span class="annottext">rangesToPositions :: Ranges -&gt; [Int]
+</span><a href="Agda.Utils.Range.html#rangesToPositions"><span class="hs-identifier hs-var hs-var">rangesToPositions</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span id="local-6989586621681711112"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711112"><span class="hs-identifier hs-var">rs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Range -&gt; [Int]) -&gt; [Range] -&gt; [Int]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; [Int]
+</span><a href="Agda.Utils.Range.html#rangeToPositions"><span class="hs-identifier hs-var">rangeToPositions</span></a></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711112"><span class="hs-identifier hs-var">rs</span></a></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- Operations</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- | @minus xs ys@ computes the difference between @xs@ and @ys@: the</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- result contains those positions which are present in @xs@ but not</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- in @ys@.</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- Linear in the lengths of the input ranges.</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="annot"><a href="Agda.Utils.Range.html#minus"><span class="hs-identifier hs-type">minus</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span>
+</span><span id="line-97"></span><span id="minus"><span class="annot"><span class="annottext">minus :: Ranges -&gt; Ranges -&gt; Ranges
+</span><a href="Agda.Utils.Range.html#minus"><span class="hs-identifier hs-var hs-var">minus</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span id="local-6989586621681711114"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711114"><span class="hs-identifier hs-var">rs1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span id="local-6989586621681711115"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711115"><span class="hs-identifier hs-var">rs2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Range] -&gt; Ranges
+</span><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-var">Ranges</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711114"><span class="hs-identifier hs-var">rs1</span></a></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711115"><span class="hs-identifier hs-var">rs2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621681711116"><span class="annot"><span class="annottext">m :: [Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var hs-var">m</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="annot"><span class="annottext">[Range]
+</span><span class="hs-identifier">_</span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-100"></span><span>  </span><span class="annot"><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span id="local-6989586621681711122"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711122"><span class="hs-identifier hs-var">xs</span></a></span></span><span>     </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711122"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span class="annot"><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681711123"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681711124"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711124"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681711125"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681711126"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711126"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711124"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711126"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-103"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711124"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711126"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711124"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711126"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">from :: Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">to :: Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-106"></span><span>                        </span><span class="annot"><span class="annottext">[Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">from :: Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">to :: Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711124"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711126"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">from :: Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">to :: Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711123"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711124"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711126"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Range] -&gt; [Range] -&gt; [Range]
+</span><a href="#local-6989586621681711116"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711124"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681711125"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">Range -&gt; [Range] -&gt; [Range]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681711126"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span></pre></body></html>

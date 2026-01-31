@@ -1,0 +1,426 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html"><span class="hs-identifier">Agda.TypeChecking.Empty</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#isEmptyType"><span class="hs-identifier">isEmptyType</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#isEmptyTel"><span class="hs-identifier">isEmptyTel</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#ensureEmptyType"><span class="hs-identifier">ensureEmptyType</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#checkEmptyTel"><span class="hs-identifier">checkEmptyTel</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadError</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.MetaVars.html"><span class="hs-identifier">Agda.Syntax.Internal.MetaVars</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.html"><span class="hs-identifier">Agda.TypeChecking.Coverage</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitPattern.html"><span class="hs-identifier">Agda.TypeChecking.Coverage.SplitPattern</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitPattern.html#fromSplitPatterns"><span class="hs-identifier">fromSplitPatterns</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Records.html"><span class="hs-identifier">Agda.TypeChecking.Records</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Reduce</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#instantiateFull"><span class="hs-identifier">instantiateFull</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Telescope.html"><span class="hs-identifier">Agda.TypeChecking.Telescope</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html"><span class="hs-identifier">Agda.Utils.Either</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="ErrorNonEmpty"><span class="annot"><a href="Agda.TypeChecking.Empty.html#ErrorNonEmpty"><span class="hs-identifier hs-var">ErrorNonEmpty</span></a></span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Fail"><span class="annot"><a href="Agda.TypeChecking.Empty.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span></span><span>               </span><span class="annot"><span class="hs-comment">-- ^ Generic failure</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="FailBecause"><span class="annot"><a href="Agda.TypeChecking.Empty.html#FailBecause"><span class="hs-identifier hs-var">FailBecause</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCErr"><span class="hs-identifier hs-type">TCErr</span></a></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Failure with informative error</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="DontKnow"><span class="annot"><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-var">DontKnow</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ Emptyness check blocked</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682198862"><span id="local-6989586621682198866"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#ErrorNonEmpty"><span class="hs-identifier hs-type">ErrorNonEmpty</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-type">DontKnow</span></a></span><span> </span><span id="local-6989586621682198871"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198871"><span class="hs-identifier hs-var">u1</span></a></span></span><span>     </span><span id="local-6989586621682198872"><span class="annot"><span class="annottext">&lt;&gt; :: ErrorNonEmpty -&gt; ErrorNonEmpty -&gt; ErrorNonEmpty
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-type">DontKnow</span></a></span><span> </span><span id="local-6989586621682198873"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198873"><span class="hs-identifier hs-var">u2</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-var">DontKnow</span></a></span><span> </span><span class="annot"><span class="annottext">(Blocker -&gt; ErrorNonEmpty) -&gt; Blocker -&gt; ErrorNonEmpty
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Blocker -&gt; Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#unblockOnBoth"><span class="hs-identifier hs-var">unblockOnBoth</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198871"><span class="hs-identifier hs-var">u1</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198873"><span class="hs-identifier hs-var">u2</span></a></span><span>  </span><span class="hs-comment">-- Both must unblock for this to proceed</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621682198875"><span class="annot"><span class="annottext">e :: ErrorNonEmpty
+</span><a href="#local-6989586621682198875"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-type">DontKnow</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><span class="hs-identifier">_</span></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="#local-6989586621682198875"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><span class="hs-identifier">_</span></span><span>               </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span id="local-6989586621682198876"><span class="annot"><span class="annottext">e :: ErrorNonEmpty
+</span><a href="#local-6989586621682198876"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-type">DontKnow</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="#local-6989586621682198876"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#FailBecause"><span class="hs-identifier hs-type">FailBecause</span></a></span><span> </span><span id="local-6989586621682198877"><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621682198877"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><span class="hs-identifier">_</span></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCErr -&gt; ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#FailBecause"><span class="hs-identifier hs-var">FailBecause</span></a></span><span> </span><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621682198877"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-41"></span><span>  </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span>            </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span id="local-6989586621682198878"><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="#local-6989586621682198878"><span class="hs-identifier hs-var">err</span></a></span></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="#local-6989586621682198878"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682198883"><span id="local-6989586621682198886"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#ErrorNonEmpty"><span class="hs-identifier hs-type">ErrorNonEmpty</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>  </span><span id="local-6989586621682198889"><span class="annot"><span class="annottext">mempty :: ErrorNonEmpty
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | Ensure that a type is empty.</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--   This check may be postponed as emptiness constraint.</span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Agda.TypeChecking.Empty.html#ensureEmptyType"><span class="hs-identifier hs-type">ensureEmptyType</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="annot"><span class="hs-comment">-- ^ Range of the absurd pattern.</span></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Type that should be empty (empty data type or iterated product of such).</span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span id="ensureEmptyType"><span class="annot"><span class="annottext">ensureEmptyType :: Range -&gt; Type -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Empty.html#ensureEmptyType"><span class="hs-identifier hs-var hs-var">ensureEmptyType</span></a></span></span><span> </span><span id="local-6989586621682198890"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682198890"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621682198891"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198891"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCMT IO (Either ErrorNonEmpty ())
+-&gt; (ErrorNonEmpty -&gt; TCM ()) -&gt; (() -&gt; TCM ()) -&gt; TCM ()
+forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+m (Either a b) -&gt; (a -&gt; m c) -&gt; (b -&gt; m c) -&gt; m c
+</span><a href="Agda.Utils.Either.html#caseEitherM"><span class="hs-identifier hs-var">caseEitherM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; Type -&gt; TCMT IO (Either ErrorNonEmpty ())
+</span><a href="Agda.TypeChecking.Empty.html#checkEmptyType"><span class="hs-identifier hs-var">checkEmptyType</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682198890"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198891"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty -&gt; TCM ()
+</span><a href="#local-6989586621682198894"><span class="hs-identifier hs-var">failure</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; TCM ()
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-54"></span><span>  </span><span id="local-6989586621682198894"><span class="annot"><span class="annottext">failure :: ErrorNonEmpty -&gt; TCM ()
+</span><a href="#local-6989586621682198894"><span class="hs-identifier hs-var hs-var">failure</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-type">DontKnow</span></a></span><span> </span><span id="local-6989586621682198895"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198895"><span class="hs-identifier hs-var">u</span></a></span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Constraint -&gt; TCM ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+Blocker -&gt; Constraint -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraint"><span class="hs-identifier hs-var">addConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198895"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">(Constraint -&gt; TCM ()) -&gt; Constraint -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Type -&gt; Constraint
+</span><a href="Agda.TypeChecking.Monad.Base.html#IsEmpty"><span class="hs-identifier hs-var">IsEmpty</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682198890"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198891"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><a href="#local-6989586621682198894"><span class="hs-identifier hs-var">failure</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Empty.html#FailBecause"><span class="hs-identifier hs-type">FailBecause</span></a></span><span> </span><span id="local-6989586621682198898"><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621682198898"><span class="hs-identifier hs-var">err</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCErr -&gt; TCM ()
+forall a. TCErr -&gt; TCMT IO a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621682198898"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><a href="#local-6989586621682198894"><span class="hs-identifier hs-var">failure</span></a></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCM ()) -&gt; TypeError -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Type -&gt; [DeBruijnPattern] -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#ShouldBeEmpty"><span class="hs-identifier hs-var">ShouldBeEmpty</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198891"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="annot"><span class="hs-comment">-- | Check whether a type is empty.</span></span><span>
+</span><span id="line-59"></span><span id="local-6989586621682198675"><span class="annot"><a href="Agda.TypeChecking.Empty.html#isEmptyType"><span class="hs-identifier hs-type">isEmptyType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCM"><span class="hs-identifier hs-type">MonadTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682198675"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682198675"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-60"></span><span id="isEmptyType"><span class="annot"><span class="annottext">isEmptyType :: forall (tcm :: * -&gt; *). MonadTCM tcm =&gt; Type -&gt; tcm Bool
+</span><a href="Agda.TypeChecking.Empty.html#isEmptyType"><span class="hs-identifier hs-var hs-var">isEmptyType</span></a></span></span><span> </span><span id="local-6989586621682198905"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198905"><span class="hs-identifier hs-var">ty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCM Bool -&gt; tcm Bool
+forall a. TCM a -&gt; tcm a
+forall (tcm :: * -&gt; *) a. MonadTCM tcm =&gt; TCM a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Base.html#liftTCM"><span class="hs-identifier hs-var">liftTCM</span></a></span><span> </span><span class="annot"><span class="annottext">(TCM Bool -&gt; tcm Bool) -&gt; TCM Bool -&gt; tcm Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Either ErrorNonEmpty () -&gt; Bool
+forall a b. Either a b -&gt; Bool
+</span><span class="hs-identifier hs-var">isRight</span></span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty () -&gt; Bool)
+-&gt; TCMT IO (Either ErrorNonEmpty ()) -&gt; TCM Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Type -&gt; TCMT IO (Either ErrorNonEmpty ())
+</span><a href="Agda.TypeChecking.Empty.html#checkEmptyType"><span class="hs-identifier hs-var">checkEmptyType</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+forall a. Range' a
+</span><a href="Agda.Syntax.Position.html#noRange"><span class="hs-identifier hs-var">noRange</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198905"><span class="hs-identifier hs-var">ty</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><span class="hs-comment">-- | Check whether some type in a telescope is empty.</span></span><span>
+</span><span id="line-63"></span><span id="local-6989586621682198687"><span class="annot"><a href="Agda.TypeChecking.Empty.html#isEmptyTel"><span class="hs-identifier hs-type">isEmptyTel</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCM"><span class="hs-identifier hs-type">MonadTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682198687"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682198687"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-64"></span><span id="isEmptyTel"><span class="annot"><span class="annottext">isEmptyTel :: forall (tcm :: * -&gt; *).
+MonadTCM tcm =&gt;
+Tele (Dom' Term Type) -&gt; tcm Bool
+</span><a href="Agda.TypeChecking.Empty.html#isEmptyTel"><span class="hs-identifier hs-var hs-var">isEmptyTel</span></a></span></span><span> </span><span id="local-6989586621682198914"><span class="annot"><span class="annottext">Tele (Dom' Term Type)
+</span><a href="#local-6989586621682198914"><span class="hs-identifier hs-var">tel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCM Bool -&gt; tcm Bool
+forall a. TCM a -&gt; tcm a
+forall (tcm :: * -&gt; *) a. MonadTCM tcm =&gt; TCM a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Base.html#liftTCM"><span class="hs-identifier hs-var">liftTCM</span></a></span><span> </span><span class="annot"><span class="annottext">(TCM Bool -&gt; tcm Bool) -&gt; TCM Bool -&gt; tcm Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Either ErrorNonEmpty Int -&gt; Bool
+forall a b. Either a b -&gt; Bool
+</span><span class="hs-identifier hs-var">isRight</span></span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty Int -&gt; Bool)
+-&gt; TCMT IO (Either ErrorNonEmpty Int) -&gt; TCM Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Range
+-&gt; Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int)
+</span><a href="Agda.TypeChecking.Empty.html#checkEmptyTel"><span class="hs-identifier hs-var">checkEmptyTel</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+forall a. Range' a
+</span><a href="Agda.Syntax.Position.html#noRange"><span class="hs-identifier hs-var">noRange</span></a></span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type)
+</span><a href="#local-6989586621682198914"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- Either the type is possibly non-empty (Left err) or it is really empty</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- (Right ()).</span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Agda.TypeChecking.Empty.html#checkEmptyType"><span class="hs-identifier hs-type">checkEmptyType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#ErrorNonEmpty"><span class="hs-identifier hs-type">ErrorNonEmpty</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span id="checkEmptyType"><span class="annot"><span class="annottext">checkEmptyType :: Range -&gt; Type -&gt; TCMT IO (Either ErrorNonEmpty ())
+</span><a href="Agda.TypeChecking.Empty.html#checkEmptyType"><span class="hs-identifier hs-var hs-var">checkEmptyType</span></a></span></span><span> </span><span id="local-6989586621682198915"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682198915"><span class="hs-identifier hs-var">range</span></a></span></span><span> </span><span id="local-6989586621682198916"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198916"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-70"></span><span>  </span><span id="local-6989586621682198917"><span class="annot"><a href="#local-6989586621682198917"><span class="hs-identifier hs-var">mr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Type -&gt; TCMT IO (Either (Blocked Type) (QName, Args, RecordData))
+forall (m :: * -&gt; *).
+(HasCallStack, PureTCM m) =&gt;
+Type -&gt; m (Either (Blocked Type) (QName, Args, RecordData))
+</span><a href="Agda.TypeChecking.Records.html#tryRecordType"><span class="hs-identifier hs-var">tryRecordType</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198916"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621682198917"><span class="hs-identifier hs-type">mr</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-comment">-- If t is blocked or a meta, we cannot decide emptiness now.  Postpone.</span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocked"><span class="hs-identifier hs-type">Blocked</span></a></span><span> </span><span id="local-6989586621682198920"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198920"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621682198921"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198921"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ()))
+-&gt; Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty -&gt; Either ErrorNonEmpty ()
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Blocker -&gt; ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-var">DontKnow</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682198920"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-comment">-- If t is not a record type, try to split</span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#NotBlocked"><span class="hs-identifier hs-type">NotBlocked</span></a></span><span> </span><span id="local-6989586621682198923"><span class="annot"><span class="annottext">NotBlocked' Term
+</span><a href="#local-6989586621682198923"><span class="hs-identifier hs-var">nb</span></a></span></span><span> </span><span id="local-6989586621682198924"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198924"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-78"></span><span>      </span><span class="hs-comment">-- from the current context xs:ts, create a pattern list</span><span>
+</span><span id="line-79"></span><span>      </span><span class="hs-comment">-- xs _ : ts t and try to split on _ (the last variable)</span><span>
+</span><span id="line-80"></span><span>      </span><span id="local-6989586621682198925"><span class="annot"><a href="#local-6989586621682198925"><span class="hs-identifier hs-var">tel0</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO (Tele (Dom' Term Type))
+forall (m :: * -&gt; *). MonadTCEnv m =&gt; m (Tele (Dom' Term Type))
+</span><a href="Agda.TypeChecking.Monad.Context.html#getContextTelescope"><span class="hs-identifier hs-var">getContextTelescope</span></a></span><span>
+</span><span id="line-81"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682198927"><span class="annot"><a href="#local-6989586621682198927"><span class="hs-identifier hs-var hs-var">gamma</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type) -&gt; [Dom (ArgName, Type)]
+forall t. Tele (Dom t) -&gt; [Dom (ArgName, t)]
+</span><a href="Agda.Syntax.Internal.html#telToList"><span class="hs-identifier hs-var">telToList</span></a></span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type)
+</span><a href="#local-6989586621682198925"><span class="hs-identifier hs-var">tel0</span></a></span><span> </span><span class="annot"><span class="annottext">[Dom (ArgName, Type)]
+-&gt; [Dom (ArgName, Type)] -&gt; [Dom (ArgName, Type)]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Arg (ArgName, Type) -&gt; Dom (ArgName, Type)
+forall a. Arg a -&gt; Dom a
+</span><a href="Agda.Syntax.Internal.html#domFromArg"><span class="hs-identifier hs-var">domFromArg</span></a></span><span> </span><span class="annot"><span class="annottext">(Arg (ArgName, Type) -&gt; Dom (ArgName, Type))
+-&gt; Arg (ArgName, Type) -&gt; Dom (ArgName, Type)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(ArgName, Type) -&gt; Arg (ArgName, Type)
+forall a. a -&gt; Arg a
+</span><a href="Agda.Syntax.Common.html#defaultArg"><span class="hs-identifier hs-var">defaultArg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ArgName
+forall a. Underscore a =&gt; a
+</span><a href="Agda.Syntax.Common.html#underscore"><span class="hs-identifier hs-var">underscore</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198924"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-82"></span><span>          </span><span id="local-6989586621682198932"><span class="annot"><a href="#local-6989586621682198932"><span class="hs-identifier hs-var hs-var">tel</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Dom (ArgName, Type)] -&gt; Tele (Dom' Term Type)
+</span><a href="Agda.Syntax.Internal.html#telFromList"><span class="hs-identifier hs-var">telFromList</span></a></span><span> </span><span class="annot"><span class="annottext">[Dom (ArgName, Type)]
+</span><a href="#local-6989586621682198927"><span class="hs-identifier hs-var">gamma</span></a></span><span>
+</span><span id="line-83"></span><span>          </span><span id="local-6989586621682198934"><span class="annot"><a href="#local-6989586621682198934"><span class="hs-identifier hs-var hs-var">ps</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type) -&gt; [NamedArg DeBruijnPattern]
+forall a t. DeBruijn a =&gt; Tele (Dom t) -&gt; [NamedArg a]
+</span><a href="Agda.TypeChecking.Telescope.html#teleNamedArgs"><span class="hs-identifier hs-var">teleNamedArgs</span></a></span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type)
+</span><a href="#local-6989586621682198932"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Monad.MetaVars.html#dontAssignMetas"><span class="hs-identifier hs-type">dontAssignMetas</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>        </span><span id="local-6989586621682198937"><span class="annot"><a href="#local-6989586621682198937"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.html#splitLast"><span class="hs-identifier hs-type">splitLast</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Inductive"><span class="hs-identifier hs-type">Inductive</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682198932"><span class="hs-identifier hs-type">tel</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682198934"><span class="hs-identifier hs-type">ps</span></a></span><span>
+</span><span id="line-87"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621682198937"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-88"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#UnificationStuck"><span class="hs-identifier hs-type">UnificationStuck</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-89"></span><span>            </span><span id="local-6989586621682198941"><span class="annot"><a href="#local-6989586621682198941"><span class="hs-identifier hs-var">blocker</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type) -&gt; Blocker
+forall t. AllMetas t =&gt; t -&gt; Blocker
+</span><a href="Agda.Syntax.Internal.MetaVars.html#unblockOnAnyMetaIn"><span class="hs-identifier hs-var">unblockOnAnyMetaIn</span></a></span><span> </span><span class="annot"><span class="annottext">(Tele (Dom' Term Type) -&gt; Blocker)
+-&gt; TCMT IO (Tele (Dom' Term Type)) -&gt; TCMT IO Blocker
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type) -&gt; TCMT IO (Tele (Dom' Term Type))
+forall a (m :: * -&gt; *).
+(InstantiateFull a, MonadReduce m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Reduce.html#instantiateFull"><span class="hs-identifier hs-var">instantiateFull</span></a></span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type)
+</span><a href="#local-6989586621682198932"><span class="hs-identifier hs-var">tel</span></a></span><span> </span><span class="hs-comment">-- TODO Jesper: get proper blocking information from unification</span><span>
+</span><span id="line-90"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#DontKnow"><span class="hs-identifier hs-type">DontKnow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682198941"><span class="hs-identifier hs-type">blocker</span></a></span><span>
+</span><span id="line-91"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><span class="annottext">SplitError
+</span><span class="hs-identifier">_</span></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ()))
+-&gt; Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty -&gt; Either ErrorNonEmpty ()
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span>
+</span><span id="line-92"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621682198943"><span class="annot"><span class="annottext">Covering
+</span><a href="#local-6989586621682198943"><span class="hs-identifier hs-var">cov</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-93"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682198944"><span class="annot"><span class="annottext">ps :: [DeBruijnPattern]
+</span><a href="#local-6989586621682198944"><span class="hs-identifier hs-var hs-var">ps</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SplitClause -&gt; DeBruijnPattern)
+-&gt; [SplitClause] -&gt; [DeBruijnPattern]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NamedArg DeBruijnPattern -&gt; DeBruijnPattern
+forall a. NamedArg a -&gt; a
+</span><a href="Agda.Syntax.Common.html#namedArg"><span class="hs-identifier hs-var">namedArg</span></a></span><span> </span><span class="annot"><span class="annottext">(NamedArg DeBruijnPattern -&gt; DeBruijnPattern)
+-&gt; (SplitClause -&gt; NamedArg DeBruijnPattern)
+-&gt; SplitClause
+-&gt; DeBruijnPattern
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NamedArg DeBruijnPattern
+-&gt; [NamedArg DeBruijnPattern] -&gt; NamedArg DeBruijnPattern
+forall a. a -&gt; [a] -&gt; a
+</span><a href="Agda.Utils.List.html#lastWithDefault"><span class="hs-identifier hs-var">lastWithDefault</span></a></span><span> </span><span class="annot"><span class="annottext">NamedArg DeBruijnPattern
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">([NamedArg DeBruijnPattern] -&gt; NamedArg DeBruijnPattern)
+-&gt; (SplitClause -&gt; [NamedArg DeBruijnPattern])
+-&gt; SplitClause
+-&gt; NamedArg DeBruijnPattern
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[NamedArg SplitPattern] -&gt; [NamedArg DeBruijnPattern]
+</span><a href="Agda.TypeChecking.Coverage.SplitPattern.html#fromSplitPatterns"><span class="hs-identifier hs-var">fromSplitPatterns</span></a></span><span> </span><span class="annot"><span class="annottext">([NamedArg SplitPattern] -&gt; [NamedArg DeBruijnPattern])
+-&gt; (SplitClause -&gt; [NamedArg SplitPattern])
+-&gt; SplitClause
+-&gt; [NamedArg DeBruijnPattern]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SplitClause -&gt; [NamedArg SplitPattern]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scPats"><span class="hs-identifier hs-var">scPats</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([SplitClause] -&gt; [DeBruijnPattern])
+-&gt; [SplitClause] -&gt; [DeBruijnPattern]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Covering -&gt; [SplitClause]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#splitClauses"><span class="hs-identifier hs-var">splitClauses</span></a></span><span> </span><span class="annot"><span class="annottext">Covering
+</span><a href="#local-6989586621682198943"><span class="hs-identifier hs-var">cov</span></a></span><span>
+</span><span id="line-94"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[DeBruijnPattern] -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[DeBruijnPattern]
+</span><a href="#local-6989586621682198944"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; Either ErrorNonEmpty ()
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span>
+</span><span id="line-95"></span><span>              </span><span class="annot"><span class="annottext">ErrorNonEmpty -&gt; Either ErrorNonEmpty ()
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(ErrorNonEmpty -&gt; Either ErrorNonEmpty ())
+-&gt; (TCErr -&gt; ErrorNonEmpty) -&gt; TCErr -&gt; Either ErrorNonEmpty ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCErr -&gt; ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#FailBecause"><span class="hs-identifier hs-var">FailBecause</span></a></span><span> </span><span class="annot"><span class="annottext">(TCErr -&gt; Either ErrorNonEmpty ())
+-&gt; TCMT IO TCErr -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCMT IO TCErr
+forall (m :: * -&gt; *).
+(HasCallStack, MonadTCEnv m, ReadTCState m) =&gt;
+TypeError -&gt; m TCErr
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError_"><span class="hs-identifier hs-var">typeError_</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCMT IO TCErr) -&gt; TypeError -&gt; TCMT IO TCErr
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Type -&gt; [DeBruijnPattern] -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#ShouldBeEmpty"><span class="hs-identifier hs-var">ShouldBeEmpty</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682198924"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">[DeBruijnPattern]
+</span><a href="#local-6989586621682198944"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span>    </span><span class="hs-comment">-- If t is a record type, see if any of the field types is empty</span><span>
+</span><span id="line-98"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682198953"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682198953"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682198954"><span class="annot"><span class="annottext">Args
+</span><a href="#local-6989586621682198954"><span class="hs-identifier hs-var">pars</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682198955"><span class="annot"><span class="annottext">RecordData
+</span><a href="#local-6989586621682198955"><span class="hs-identifier hs-var">def</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-99"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RecordData -&gt; Bool
+</span><a href="Agda.TypeChecking.Records.html#isEtaRecordDef"><span class="hs-identifier hs-var">isEtaRecordDef</span></a></span><span> </span><span class="annot"><span class="annottext">RecordData
+</span><a href="#local-6989586621682198955"><span class="hs-identifier hs-var">def</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ()))
+-&gt; Either ErrorNonEmpty () -&gt; TCMT IO (Either ErrorNonEmpty ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty -&gt; Either ErrorNonEmpty ()
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span> </span><span class="hs-keyword">else</span><span>
+</span><span id="line-100"></span><span>         </span><span class="annot"><span class="annottext">Either ErrorNonEmpty Int -&gt; Either ErrorNonEmpty ()
+forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty Int -&gt; Either ErrorNonEmpty ())
+-&gt; TCMT IO (Either ErrorNonEmpty Int)
+-&gt; TCMT IO (Either ErrorNonEmpty ())
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">Range
+-&gt; Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int)
+</span><a href="Agda.TypeChecking.Empty.html#checkEmptyTel"><span class="hs-identifier hs-var">checkEmptyTel</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682198915"><span class="hs-identifier hs-var">range</span></a></span><span> </span><span class="annot"><span class="annottext">(Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int))
+-&gt; Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">RecordData -&gt; Tele (Dom' Term Type)
+</span><a href="Agda.TypeChecking.Monad.Base.html#_recTel"><span class="hs-identifier hs-var">_recTel</span></a></span><span> </span><span class="annot"><span class="annottext">RecordData
+</span><a href="#local-6989586621682198955"><span class="hs-identifier hs-var">def</span></a></span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type) -&gt; Args -&gt; Tele (Dom' Term Type)
+forall t. Apply t =&gt; t -&gt; Args -&gt; t
+</span><a href="Agda.TypeChecking.Substitute.Class.html#apply"><span class="hs-operator hs-var">`apply`</span></a></span><span> </span><span class="annot"><span class="annottext">Args
+</span><a href="#local-6989586621682198954"><span class="hs-identifier hs-var">pars</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- | Check whether one of the types in the given telescope is constructor-less</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--   and if yes, return its index in the telescope (0 = leftmost).</span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Agda.TypeChecking.Empty.html#checkEmptyTel"><span class="hs-identifier hs-type">checkEmptyTel</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Empty.html#ErrorNonEmpty"><span class="hs-identifier hs-type">ErrorNonEmpty</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span id="checkEmptyTel"><span class="annot"><span class="annottext">checkEmptyTel :: Range
+-&gt; Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int)
+</span><a href="Agda.TypeChecking.Empty.html#checkEmptyTel"><span class="hs-identifier hs-var hs-var">checkEmptyTel</span></a></span></span><span> </span><span id="local-6989586621682198961"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682198961"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int)
+</span><a href="#local-6989586621682198962"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-107"></span><span>  </span><span id="local-6989586621682198962"><span class="annot"><span class="annottext">loop :: Int -&gt; Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int)
+</span><a href="#local-6989586621682198962"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621682198963"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682198963"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="annot"><span class="annottext">Tele (Dom' Term Type)
+</span><a href="Agda.Syntax.Internal.html#EmptyTel"><span class="hs-identifier hs-var">EmptyTel</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Either ErrorNonEmpty Int -&gt; TCMT IO (Either ErrorNonEmpty Int)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty Int -&gt; TCMT IO (Either ErrorNonEmpty Int))
+-&gt; Either ErrorNonEmpty Int -&gt; TCMT IO (Either ErrorNonEmpty Int)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty -&gt; Either ErrorNonEmpty Int
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">ErrorNonEmpty
+</span><a href="Agda.TypeChecking.Empty.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="annot"><a href="#local-6989586621682198962"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span id="local-6989586621682198965"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682198965"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#ExtendTel"><span class="hs-identifier hs-type">ExtendTel</span></a></span><span> </span><span id="local-6989586621682198967"><span class="annot"><span class="annottext">Dom' Term Type
+</span><a href="#local-6989586621682198967"><span class="hs-identifier hs-var">dom</span></a></span></span><span> </span><span id="local-6989586621682198968"><span class="annot"><span class="annottext">Abs (Tele (Dom' Term Type))
+</span><a href="#local-6989586621682198968"><span class="hs-identifier hs-var">tel</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[TCMT IO (Either ErrorNonEmpty Int)]
+-&gt; TCMT IO (Either ErrorNonEmpty Int)
+forall e (m :: * -&gt; *) b.
+(Monoid e, Monad m, Functor m) =&gt;
+[m (Either e b)] -&gt; m (Either e b)
+</span><a href="Agda.Utils.Monad.html#orEitherM"><span class="hs-identifier hs-var">orEitherM</span></a></span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682198965"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Either ErrorNonEmpty () -&gt; Either ErrorNonEmpty Int
+forall a b. a -&gt; Either ErrorNonEmpty b -&gt; Either ErrorNonEmpty a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Either ErrorNonEmpty () -&gt; Either ErrorNonEmpty Int)
+-&gt; TCMT IO (Either ErrorNonEmpty ())
+-&gt; TCMT IO (Either ErrorNonEmpty Int)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Type -&gt; TCMT IO (Either ErrorNonEmpty ())
+</span><a href="Agda.TypeChecking.Empty.html#checkEmptyType"><span class="hs-identifier hs-var">checkEmptyType</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682198961"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Dom' Term Type -&gt; Type
+forall t e. Dom' t e -&gt; e
+</span><a href="Agda.Syntax.Internal.html#unDom"><span class="hs-identifier hs-var">unDom</span></a></span><span> </span><span class="annot"><span class="annottext">Dom' Term Type
+</span><a href="#local-6989586621682198967"><span class="hs-identifier hs-var">dom</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Dom' Term Type
+-&gt; Abs (Tele (Dom' Term Type))
+-&gt; (Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int))
+-&gt; TCMT IO (Either ErrorNonEmpty Int)
+forall a (m :: * -&gt; *) b.
+(Subst a, MonadAddContext m) =&gt;
+Dom' Term Type -&gt; Abs a -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.TypeChecking.Monad.Context.html#underAbstraction"><span class="hs-identifier hs-var">underAbstraction</span></a></span><span> </span><span class="annot"><span class="annottext">Dom' Term Type
+</span><a href="#local-6989586621682198967"><span class="hs-identifier hs-var">dom</span></a></span><span> </span><span class="annot"><span class="annottext">Abs (Tele (Dom' Term Type))
+</span><a href="#local-6989586621682198968"><span class="hs-identifier hs-var">tel</span></a></span><span> </span><span class="annot"><span class="annottext">((Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int))
+ -&gt; TCMT IO (Either ErrorNonEmpty Int))
+-&gt; (Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int))
+-&gt; TCMT IO (Either ErrorNonEmpty Int)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Tele (Dom' Term Type) -&gt; TCMT IO (Either ErrorNonEmpty Int)
+</span><a href="#local-6989586621682198962"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Int
+forall a. Enum a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">succ</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682198965"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-112"></span></pre></body></html>

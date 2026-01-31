@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Definitions and tools for arguments of command-line options.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html"><span class="hs-identifier">Agda.Interaction.Options.Arguments</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html"><span class="hs-identifier">Agda.Interaction.Options.Help</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Help.html#allHelpTopics"><span class="hs-identifier">allHelpTopics</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html"><span class="hs-identifier">Agda.Interaction.Options.ProfileOptions</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#validProfileOptionStrings"><span class="hs-identifier">validProfileOptionStrings</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html"><span class="hs-identifier">Agda.Interaction.Options.Warnings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#warningNameToString"><span class="hs-identifier">warningNameToString</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#warningSets"><span class="hs-identifier">warningSets</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Setup.EmacsMode.html"><span class="hs-identifier">Agda.Setup.EmacsMode</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">EmacsMode</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Setup.EmacsMode.html#setupFlag"><span class="hs-identifier">setupFlag</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Setup.EmacsMode.html#compileFlag"><span class="hs-identifier">compileFlag</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Setup.EmacsMode.html#locateFlag"><span class="hs-identifier">locateFlag</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="annot"><span class="hs-comment">-- * Names of the arguments of options that have a finite enumeration.</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="annot"><span class="hs-comment">-- | Print the possible values of an argument of the given type.</span></span><span>
+</span><span id="line-16"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#optionValues"><span class="hs-identifier hs-type">optionValues</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-17"></span><span id="optionValues"><span class="annot"><span class="annottext">optionValues :: Map [Char] [[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#optionValues"><span class="hs-identifier hs-var hs-var">optionValues</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[([Char], [[Char]])] -&gt; Map [Char] [[Char]]
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span> </span><span class="annot"><span class="annottext">([([Char], [[Char]])] -&gt; Map [Char] [[Char]])
+-&gt; [([Char], [[Char]])] -&gt; Map [Char] [[Char]]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#colorArg"><span class="hs-identifier hs-var">colorArg</span></a></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#colorValues"><span class="hs-identifier hs-var">colorValues</span></a></span><span>        </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [[Char]]) -&gt; [([Char], [[Char]])] -&gt; [([Char], [[Char]])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#emacsModeArg"><span class="hs-identifier hs-var">emacsModeArg</span></a></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#emacsModeValues"><span class="hs-identifier hs-var">emacsModeValues</span></a></span><span>    </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [[Char]]) -&gt; [([Char], [[Char]])] -&gt; [([Char], [[Char]])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#helpArg"><span class="hs-identifier hs-var">helpArg</span></a></span><span>         </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#helpValues"><span class="hs-identifier hs-var">helpValues</span></a></span><span>         </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [[Char]]) -&gt; [([Char], [[Char]])] -&gt; [([Char], [[Char]])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#profileArg"><span class="hs-identifier hs-var">profileArg</span></a></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#profileValues"><span class="hs-identifier hs-var">profileValues</span></a></span><span>      </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [[Char]]) -&gt; [([Char], [[Char]])] -&gt; [([Char], [[Char]])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#traceImportsArg"><span class="hs-identifier hs-var">traceImportsArg</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#traceImportsValues"><span class="hs-identifier hs-var">traceImportsValues</span></a></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [[Char]]) -&gt; [([Char], [[Char]])] -&gt; [([Char], [[Char]])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#warningArg"><span class="hs-identifier hs-var">warningArg</span></a></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#warningValues"><span class="hs-identifier hs-var">warningValues</span></a></span><span>      </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [[Char]]) -&gt; [([Char], [[Char]])] -&gt; [([Char], [[Char]])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- ** @--color@</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="annot"><span class="hs-comment">-- | Argument to @--color@.</span></span><span>
+</span><span id="line-29"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#colorArg"><span class="hs-identifier hs-type">colorArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-30"></span><span id="colorArg"><span class="annot"><span class="annottext">colorArg :: [Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#colorArg"><span class="hs-identifier hs-var hs-var">colorArg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;COLOR_MODE&quot;</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="annot"><span class="hs-comment">-- | Possible values for @--color@.</span></span><span>
+</span><span id="line-33"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#colorValues"><span class="hs-identifier hs-type">colorValues</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-34"></span><span id="colorValues"><span class="annot"><span class="annottext">colorValues :: [[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#colorValues"><span class="hs-identifier hs-var hs-var">colorValues</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;always&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;auto&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;never&quot;</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="annot"><span class="hs-comment">-- ** @--emacs-mode@</span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="annot"><span class="hs-comment">-- | Argument to @--emacs-mode@.</span></span><span>
+</span><span id="line-39"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#emacsModeArg"><span class="hs-identifier hs-type">emacsModeArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-40"></span><span id="emacsModeArg"><span class="annot"><span class="annottext">emacsModeArg :: [Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#emacsModeArg"><span class="hs-identifier hs-var hs-var">emacsModeArg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;EMACS_MODE_COMMAND&quot;</span></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="annot"><span class="hs-comment">-- | Possible values for @--emacs-mode@.</span></span><span>
+</span><span id="line-43"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#emacsModeValues"><span class="hs-identifier hs-type">emacsModeValues</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-44"></span><span id="emacsModeValues"><span class="annot"><span class="annottext">emacsModeValues :: [[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#emacsModeValues"><span class="hs-identifier hs-var hs-var">emacsModeValues</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Setup.EmacsMode.html#setupFlag"><span class="hs-identifier hs-var">EmacsMode.setupFlag</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Setup.EmacsMode.html#compileFlag"><span class="hs-identifier hs-var">EmacsMode.compileFlag</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Setup.EmacsMode.html#locateFlag"><span class="hs-identifier hs-var">EmacsMode.locateFlag</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><span class="hs-comment">-- ** @--help@</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><span class="hs-comment">-- | Argument to @--help@.</span></span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#helpArg"><span class="hs-identifier hs-type">helpArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-50"></span><span id="helpArg"><span class="annot"><span class="annottext">helpArg :: [Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#helpArg"><span class="hs-identifier hs-var hs-var">helpArg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;HELP_TOPIC&quot;</span></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="annot"><span class="hs-comment">-- | Possible values for @--help@.</span></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#helpValues"><span class="hs-identifier hs-type">helpValues</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-54"></span><span id="helpValues"><span class="annot"><span class="annottext">helpValues :: [[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#helpValues"><span class="hs-identifier hs-var hs-var">helpValues</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(([Char], HelpTopic) -&gt; [Char])
+-&gt; [([Char], HelpTopic)] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">([Char], HelpTopic) -&gt; [Char]
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[([Char], HelpTopic)]
+</span><a href="Agda.Interaction.Options.Help.html#allHelpTopics"><span class="hs-identifier hs-var">allHelpTopics</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="annot"><span class="hs-comment">-- ** @--profile@</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="annot"><span class="hs-comment">-- | Argument to @--profile@.</span></span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#profileArg"><span class="hs-identifier hs-type">profileArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-60"></span><span id="profileArg"><span class="annot"><span class="annottext">profileArg :: [Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#profileArg"><span class="hs-identifier hs-var hs-var">profileArg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;TO_PROFILE&quot;</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><span class="hs-comment">-- | Possible values for @--profile@.</span></span><span>
+</span><span id="line-63"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#profileValues"><span class="hs-identifier hs-type">profileValues</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-64"></span><span id="profileValues"><span class="annot"><span class="annottext">profileValues :: [[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#profileValues"><span class="hs-identifier hs-var hs-var">profileValues</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#validProfileOptionStrings"><span class="hs-identifier hs-var">validProfileOptionStrings</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="annot"><span class="hs-comment">-- ** @--trace-imports@</span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><span class="hs-comment">-- | Argument to @--trace-imports@.</span></span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#traceImportsArg"><span class="hs-identifier hs-type">traceImportsArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-70"></span><span id="traceImportsArg"><span class="annot"><span class="annottext">traceImportsArg :: [Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#traceImportsArg"><span class="hs-identifier hs-var hs-var">traceImportsArg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;IMPORT_TRACING_LEVEL&quot;</span></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><span class="hs-comment">-- | Possible values for @--trace-imports@.</span></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#traceImportsValues"><span class="hs-identifier hs-type">traceImportsValues</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-74"></span><span id="traceImportsValues"><span class="annot"><span class="annottext">traceImportsValues :: [[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#traceImportsValues"><span class="hs-identifier hs-var hs-var">traceImportsValues</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681814322"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681814322"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681814322"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">3</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><span class="hs-comment">-- ** @--warning@</span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="annot"><span class="hs-comment">-- | Argument to @--warning@.</span></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#warningArg"><span class="hs-identifier hs-type">warningArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-80"></span><span id="warningArg"><span class="annot"><span class="annottext">warningArg :: [Char]
+</span><a href="Agda.Interaction.Options.Arguments.html#warningArg"><span class="hs-identifier hs-var hs-var">warningArg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;WARNING&quot;</span></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><span class="hs-comment">-- | Possible values for @--warning@.</span></span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#warningValues"><span class="hs-identifier hs-type">warningValues</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-84"></span><span id="warningValues"><span class="annot"><span class="annottext">warningValues :: [[Char]]
+</span><a href="Agda.Interaction.Options.Arguments.html#warningValues"><span class="hs-identifier hs-var hs-var">warningValues</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[[[Char]]] -&gt; [[Char]]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="annot"><span class="annottext">([[[Char]]] -&gt; [[Char]]) -&gt; [[[Char]]] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="annot"><span class="annottext">(([Char], (Set WarningName, [Char])) -&gt; [Char])
+-&gt; [([Char], (Set WarningName, [Char]))] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">([Char], (Set WarningName, [Char])) -&gt; [Char]
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[([Char], (Set WarningName, [Char]))]
+</span><a href="Agda.Interaction.Options.Warnings.html#warningSets"><span class="hs-identifier hs-var">warningSets</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; [[[Char]]] -&gt; [[[Char]]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-86"></span><span>  </span><span class="annot"><span class="annottext">([Char] -&gt; [[Char]]) -&gt; [[Char]] -&gt; [[[Char]]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681814324"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681814324"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681814324"><span class="hs-identifier hs-var">w</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;no&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681814324"><span class="hs-identifier hs-var">w</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681814325"><span class="hs-identifier hs-var">ws</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-88"></span><span>    </span><span id="local-6989586621681814325"><span class="annot"><span class="annottext">ws :: [[Char]]
+</span><a href="#local-6989586621681814325"><span class="hs-identifier hs-var hs-var">ws</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;error&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(WarningName -&gt; [Char]) -&gt; [WarningName] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">WarningName -&gt; [Char]
+</span><a href="Agda.Interaction.Options.Warnings.html#warningNameToString"><span class="hs-identifier hs-var">warningNameToString</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">WarningName
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">WarningName
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
+</span><span id="line-89"></span></pre></body></html>

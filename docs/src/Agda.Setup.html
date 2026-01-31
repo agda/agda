@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="annot"><span class="hs-comment">-- | Agda's self-setup.</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Setup.html"><span class="hs-identifier">Agda.Setup</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Setup.html#getAgdaAppDir"><span class="hs-identifier">getAgdaAppDir</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Setup.html#getDataDir"><span class="hs-identifier">getDataDir</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Setup.html#getDataFileName"><span class="hs-identifier">getDataFileName</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Setup.html#setup"><span class="hs-identifier">setup</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>              </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">forM_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">unless</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">when</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span>            </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">ByteString</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span>            </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">BS</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Functor</span></span><span>               </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span>                  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">intercalate</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Language.Haskell.TH.Syntax</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">qAddDependentFile</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runIO</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- Import instance Lift ByteString if not supplied by bytestring.</span><span class="hs-cpp">
+#if !MIN_VERSION_bytestring(0,11,2)
+</span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Instances.TH.Lift</span><span>          </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.Directory</span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">XdgDirectory</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">canonicalizePath</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">createDirectoryIfMissing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">doesDirectoryExist</span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getAppUserDataDirectory</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getXdgDirectory</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.Environment</span></span><span>         </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">lookupEnv</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span>            </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(&lt;/&gt;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">splitFileName</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.IO</span></span><span>                  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">hPutStrLn</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">stderr</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Setup.DataFiles.html"><span class="hs-identifier">Agda.Setup.DataFiles</span></a></span><span>       </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Setup.DataFiles.html#dataFiles"><span class="hs-identifier">dataFiles</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Setup.DataFiles.html#dataPath"><span class="hs-identifier">dataPath</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Setup.LockFile.html"><span class="hs-identifier">Agda.Setup.LockFile</span></a></span><span>        </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Setup.LockFile.html#withLockFile"><span class="hs-identifier">withLockFile</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.VersionCommit.html"><span class="hs-identifier">Agda.VersionCommit</span></a></span><span>         </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.VersionCommit.html#versionWithCommitInfo"><span class="hs-identifier">versionWithCommitInfo</span></a></span><span> </span><span class="hs-special">)</span><span class="hs-cpp">
+
+#ifndef USE_XDG_DATA_HOME
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Paths_Agda.html"><span class="hs-identifier">Paths_Agda</span></a></span><span>                 </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Paths</span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-46"></span><span class="annot"><span class="hs-comment">-- | Given the `Agda_datadir`, what should the Agda data dir be?</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Agda.Setup.html#mkDataDir"><span class="hs-identifier hs-type">mkDataDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-49"></span><span id="mkDataDir"><span class="annot"><span class="annottext">mkDataDir :: String -&gt; String
+</span><a href="Agda.Setup.html#mkDataDir"><span class="hs-identifier hs-var hs-var">mkDataDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span class="hs-cpp">
+#ifdef USE_XDG_DATA_HOME
+</span><span>  </span><span class="hs-special">(</span><span class="hs-operator">&lt;/&gt;</span><span> </span><span class="hs-identifier">versionWithCommitInfo</span><span class="hs-special">)</span><span class="hs-cpp">
+#else
+</span><span>  </span><span class="annot"><span class="annottext">String -&gt; String
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- Tell TH that all the dataFiles are needed for compilation.</span><span>
+</span><span id="line-57"></span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-operator">&lt;$</span><span> </span><span class="hs-identifier">mapM_</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">qAddDependentFile</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">dataPath</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">dataFiles</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | The embedded contents of the Agda data directory,</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--   generated by Template Haskell at compile time.</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Agda.Setup.html#embeddedDataDir"><span class="hs-identifier hs-type">embeddedDataDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span id="embeddedDataDir"><span class="annot"><span class="annottext">embeddedDataDir :: [(String, ByteString)]
+</span><a href="Agda.Setup.html#embeddedDataDir"><span class="hs-identifier hs-var hs-var">embeddedDataDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">$</span><span class="hs-special">(</span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-comment">-- Load all the dataFiles.</span><span>
+</span><span id="line-66"></span><span>    </span><span id="local-6989586621681813730"><span class="annot"><a href="#local-6989586621681813730"><span class="hs-identifier hs-var">contents</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">runIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">mapM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">BS.readFile</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Setup.DataFiles.html#dataPath"><span class="hs-identifier hs-type">dataPath</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Setup.DataFiles.html#dataFiles"><span class="hs-identifier hs-type">dataFiles</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-comment">-- Return the association list as Exp.</span><span>
+</span><span id="line-69"></span><span>    </span><span class="hs-special">[|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">zip</span></span><span> </span><span class="annot"><a href="Agda.Setup.DataFiles.html#dataFiles"><span class="hs-identifier hs-type">dataFiles</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681813730"><span class="hs-identifier hs-type">contents</span></a></span><span> </span><span class="hs-special">|]</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- | Get the path to @~/.agda@ (system-specific).</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--   Can be overwritten by the @AGDA_DIR@ environment variable.</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--   (This is not to be confused with the directory 'getDataDir' for the data files</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   that Agda needs (e.g. the primitive modules).)</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--</span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Agda.Setup.html#getAgdaAppDir"><span class="hs-identifier hs-type">getAgdaAppDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-79"></span><span id="getAgdaAppDir"><span class="annot"><span class="annottext">getAgdaAppDir :: IO String
+</span><a href="Agda.Setup.html#getAgdaAppDir"><span class="hs-identifier hs-var hs-var">getAgdaAppDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-comment">-- The default can be overwritten by setting the AGDA_DIR environment variable</span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO (Maybe String)
+</span><span class="hs-identifier hs-var">lookupEnv</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDA_DIR&quot;</span></span><span> </span><span class="annot"><span class="annottext">IO (Maybe String) -&gt; (Maybe String -&gt; IO String) -&gt; IO String
+forall a b. IO a -&gt; (a -&gt; IO b) -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><span class="annottext">Maybe String
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IO String
+</span><a href="#local-6989586621681813734"><span class="hs-identifier hs-var">agdaDir</span></a></span><span>
+</span><span id="line-83"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681813735"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813735"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesDirectoryExist</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813735"><span class="hs-identifier hs-var">dir</span></a></span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; (Bool -&gt; IO String) -&gt; IO String
+forall a b. IO a -&gt; (a -&gt; IO b) -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-84"></span><span>      </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813735"><span class="hs-identifier hs-var">dir</span></a></span><span>
+</span><span id="line-85"></span><span>      </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>        </span><span id="local-6989586621681813736"><span class="annot"><a href="#local-6989586621681813736"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO String
+</span><a href="#local-6989586621681813734"><span class="hs-identifier hs-var">agdaDir</span></a></span><span>
+</span><span id="line-87"></span><span>        </span><span class="annot"><a href="Agda.Setup.html#inform"><span class="hs-identifier hs-type">inform</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Warning: Environment variable AGDA_DIR points to non-existing directory &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span> </span><span class="annot"><a href="#local-6989586621681813735"><span class="hs-identifier hs-type">dir</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, using &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span> </span><span class="annot"><a href="#local-6989586621681813736"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot; instead.&quot;</span></span><span>
+</span><span id="line-88"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681813736"><span class="hs-identifier hs-type">d</span></a></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-90"></span><span>    </span><span class="hs-comment">-- System-specific command to build the path to ~/.agda (Unix) or %APPDATA%\agda (Win)</span><span>
+</span><span id="line-91"></span><span>    </span><span id="local-6989586621681813734"><span class="annot"><span class="annottext">agdaDir :: IO String
+</span><a href="#local-6989586621681813734"><span class="hs-identifier hs-var hs-var">agdaDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-92"></span><span>      </span><span id="local-6989586621681813742"><span class="annot"><a href="#local-6989586621681813742"><span class="hs-identifier hs-var">legacyAgdaDir</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><span class="hs-identifier hs-var">getAppUserDataDirectory</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;agda&quot;</span></span><span>
+</span><span id="line-93"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">doesDirectoryExist</span></span><span> </span><span class="annot"><a href="#local-6989586621681813742"><span class="hs-identifier hs-type">legacyAgdaDir</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-94"></span><span>        </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813742"><span class="hs-identifier hs-var">legacyAgdaDir</span></a></span><span>
+</span><span id="line-95"></span><span>        </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">XdgDirectory -&gt; String -&gt; IO String
+</span><span class="hs-identifier hs-var">getXdgDirectory</span></span><span> </span><span class="annot"><span class="annottext">XdgDirectory
+</span><span class="hs-identifier hs-var">XdgConfig</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;agda&quot;</span></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | This overrides the 'getDataDir' from ''Paths_Agda''.</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--   See the documentation for the @--print-agda-data-dir@ flag.</span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.Setup.html#getDataDir"><span class="hs-identifier hs-type">getDataDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-101"></span><span id="getDataDir"><span class="annot"><span class="annottext">getDataDir :: IO String
+</span><a href="Agda.Setup.html#getDataDir"><span class="hs-identifier hs-var hs-var">getDataDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Setup.html#mkDataDir"><span class="hs-identifier hs-var">mkDataDir</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; IO String -&gt; IO String
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO String
+</span><a href="Agda.Setup.html#getBaseDataDir"><span class="hs-identifier hs-var">getBaseDataDir</span></a></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="annot"><a href="Agda.Setup.html#getBaseDataDir"><span class="hs-identifier hs-type">getBaseDataDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-104"></span><span id="getBaseDataDir"><span class="annot"><span class="annottext">getBaseDataDir :: IO String
+</span><a href="Agda.Setup.html#getBaseDataDir"><span class="hs-identifier hs-var hs-var">getBaseDataDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO (Maybe String)
+</span><span class="hs-identifier hs-var">lookupEnv</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Agda_datadir&quot;</span></span><span> </span><span class="annot"><span class="annottext">IO (Maybe String) -&gt; (Maybe String -&gt; IO String) -&gt; IO String
+forall a b. IO a -&gt; (a -&gt; IO b) -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681813746"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813746"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesDirectoryExist</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813746"><span class="hs-identifier hs-var">dir</span></a></span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; (Bool -&gt; IO String) -&gt; IO String
+forall a b. IO a -&gt; (a -&gt; IO b) -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-107"></span><span>      </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813746"><span class="hs-identifier hs-var">dir</span></a></span><span>
+</span><span id="line-108"></span><span>      </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-109"></span><span>        </span><span id="local-6989586621681813747"><span class="annot"><a href="#local-6989586621681813747"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO String
+</span><a href="Agda.Setup.html#defaultBaseDataDir"><span class="hs-identifier hs-var">defaultBaseDataDir</span></a></span><span>
+</span><span id="line-110"></span><span>        </span><span class="annot"><a href="Agda.Setup.html#inform"><span class="hs-identifier hs-type">inform</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Warning: Environment variable Agda_datadir points to non-existing directory &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span> </span><span class="annot"><a href="#local-6989586621681813746"><span class="hs-identifier hs-type">dir</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, using &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span> </span><span class="annot"><a href="#local-6989586621681813747"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot; instead.&quot;</span></span><span>
+</span><span id="line-111"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681813747"><span class="hs-identifier hs-type">d</span></a></span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><span class="annottext">Maybe String
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IO String
+</span><a href="Agda.Setup.html#defaultBaseDataDir"><span class="hs-identifier hs-var">defaultBaseDataDir</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="annot"><a href="Agda.Setup.html#defaultBaseDataDir"><span class="hs-identifier hs-type">defaultBaseDataDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-115"></span><span id="defaultBaseDataDir"><span class="annot"><span class="annottext">defaultBaseDataDir :: IO String
+</span><a href="Agda.Setup.html#defaultBaseDataDir"><span class="hs-identifier hs-var hs-var">defaultBaseDataDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span class="hs-cpp">
+#ifdef USE_XDG_DATA_HOME
+</span><span>  </span><span class="hs-identifier">getXdgDirectory</span><span> </span><span class="hs-identifier">XdgData</span><span> </span><span class="hs-string">&quot;agda&quot;</span><span class="hs-cpp">
+#else
+</span><span>  </span><span class="annot"><a href="Paths_Agda.html#getDataDir"><span class="hs-identifier hs-type">Paths.getDataDir</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-122"></span><span class="annot"><span class="hs-comment">-- | This overrides the 'getDataFileName' from ''Paths_Agda''.</span></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="annot"><a href="Agda.Setup.html#getDataFileName"><span class="hs-identifier hs-type">getDataFileName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-125"></span><span id="getDataFileName"><span class="annot"><span class="annottext">getDataFileName :: String -&gt; IO String
+</span><a href="Agda.Setup.html#getDataFileName"><span class="hs-identifier hs-var hs-var">getDataFileName</span></a></span></span><span> </span><span id="local-6989586621681813750"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813750"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO String
+</span><a href="Agda.Setup.html#getDataDir"><span class="hs-identifier hs-var">getDataDir</span></a></span><span> </span><span class="annot"><span class="annottext">IO String -&gt; (String -&gt; String) -&gt; IO String
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813750"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- | @False@: Check whether we need to setup Agda.</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--   This function can be called when starting up Agda.</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- @True@: force a setup e.g. when passing Agda option @--setup@.</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- Copies the embedded data files to the designated data directory.</span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="annot"><a href="Agda.Setup.html#setup"><span class="hs-identifier hs-type">setup</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span id="setup"><span class="annot"><span class="annottext">setup :: Bool -&gt; IO ()
+</span><a href="Agda.Setup.html#setup"><span class="hs-identifier hs-var hs-var">setup</span></a></span></span><span> </span><span id="local-6989586621681813751"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681813751"><span class="hs-identifier hs-var">force</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-136"></span><span>  </span><span id="local-6989586621681813752"><span class="annot"><a href="#local-6989586621681813752"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO String
+</span><a href="Agda.Setup.html#getBaseDataDir"><span class="hs-identifier hs-var">getBaseDataDir</span></a></span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681813753"><span class="annot"><a href="#local-6989586621681813753"><span class="hs-identifier hs-var hs-var">doSetup</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; String -&gt; IO ()
+</span><a href="Agda.Setup.html#dumpDataDir"><span class="hs-identifier hs-var">dumpDataDir</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681813751"><span class="hs-identifier hs-var">force</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813752"><span class="hs-identifier hs-var">dir</span></a></span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621681813751"><span class="hs-identifier hs-type">force</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><a href="#local-6989586621681813753"><span class="hs-identifier hs-type">doSetup</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-140"></span><span>    </span><span id="local-6989586621681813755"><span class="annot"><a href="#local-6989586621681813755"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">doesDirectoryExist</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Setup.html#mkDataDir"><span class="hs-identifier hs-type">mkDataDir</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681813752"><span class="hs-identifier hs-type">dir</span></a></span><span>
+</span><span id="line-141"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">unless</span></span><span> </span><span class="annot"><a href="#local-6989586621681813755"><span class="hs-identifier hs-type">ex</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681813753"><span class="hs-identifier hs-type">doSetup</span></a></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- | Spit out the embedded files into Agda data directory relative to the given directory.</span><span>
+</span><span id="line-145"></span><span class="hs-comment">--   Lock the directory while doing so.</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="annot"><a href="Agda.Setup.html#dumpDataDir"><span class="hs-identifier hs-type">dumpDataDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span id="dumpDataDir"><span class="annot"><span class="annottext">dumpDataDir :: Bool -&gt; String -&gt; IO ()
+</span><a href="Agda.Setup.html#dumpDataDir"><span class="hs-identifier hs-var hs-var">dumpDataDir</span></a></span></span><span> </span><span id="local-6989586621681813756"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681813756"><span class="hs-identifier hs-var">verbose</span></a></span></span><span> </span><span id="local-6989586621681813757"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813757"><span class="hs-identifier hs-var">baseDataDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681813758"><span class="annot"><span class="annottext">dataDir :: String
+</span><a href="#local-6989586621681813758"><span class="hs-identifier hs-var hs-var hs-var">dataDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Setup.html#mkDataDir"><span class="hs-identifier hs-var">mkDataDir</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813757"><span class="hs-identifier hs-var">baseDataDir</span></a></span><span>
+</span><span id="line-150"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; String -&gt; IO ()
+</span><span class="hs-identifier hs-var">createDirectoryIfMissing</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813758"><span class="hs-identifier hs-var">dataDir</span></a></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span>  </span><span class="hs-comment">-- Create a file lock to prevent races caused by the dataDir already created</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-comment">-- but not filled with its contents.</span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681813759"><span class="annot"><span class="annottext">lock :: String
+</span><a href="#local-6989586621681813759"><span class="hs-identifier hs-var hs-var">lock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813757"><span class="hs-identifier hs-var">baseDataDir</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; String
+forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">intercalate</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;-&quot;</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;.lock&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.VersionCommit.html#versionWithCommitInfo"><span class="hs-identifier hs-var">versionWithCommitInfo</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO () -&gt; IO ()
+forall a. String -&gt; IO a -&gt; IO a
+</span><a href="Agda.Setup.LockFile.html#withLockFile"><span class="hs-identifier hs-var">withLockFile</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813759"><span class="hs-identifier hs-var">lock</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-156"></span><span>    </span><span class="annot"><span class="annottext">[(String, ByteString)] -&gt; ((String, ByteString) -&gt; IO ()) -&gt; IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+t a -&gt; (a -&gt; m b) -&gt; m ()
+</span><span class="hs-identifier hs-var">forM_</span></span><span> </span><span class="annot"><span class="annottext">[(String, ByteString)]
+</span><a href="Agda.Setup.html#embeddedDataDir"><span class="hs-identifier hs-var">embeddedDataDir</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681813760"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813760"><span class="hs-identifier hs-var">relativePath</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681813761"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681813761"><span class="hs-identifier hs-var">content</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span>      </span><span class="hs-comment">-- Make sure we also create the directories along the way.</span><span>
+</span><span id="line-159"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681813762"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813762"><span class="hs-identifier hs-var hs-var">relativeDir</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681813763"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813763"><span class="hs-identifier hs-var hs-var">file</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; (String, String)
+</span><span class="hs-identifier hs-var">splitFileName</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813760"><span class="hs-identifier hs-var">relativePath</span></a></span><span>
+</span><span id="line-160"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681813764"><span class="annot"><span class="annottext">dir :: String
+</span><a href="#local-6989586621681813764"><span class="hs-identifier hs-var hs-var hs-var">dir</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813758"><span class="hs-identifier hs-var">dataDir</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813762"><span class="hs-identifier hs-var">relativeDir</span></a></span><span>
+</span><span id="line-161"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; String -&gt; IO ()
+</span><span class="hs-identifier hs-var">createDirectoryIfMissing</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813764"><span class="hs-identifier hs-var">dir</span></a></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span>      </span><span class="hs-comment">-- Write out the file contents.</span><span>
+</span><span id="line-164"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681813765"><span class="annot"><span class="annottext">path :: String
+</span><a href="#local-6989586621681813765"><span class="hs-identifier hs-var hs-var hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813764"><span class="hs-identifier hs-var">dir</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813763"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-165"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; IO () -&gt; IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681813756"><span class="hs-identifier hs-var">verbose</span></a></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; IO ()) -&gt; IO () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><a href="Agda.Setup.html#inform"><span class="hs-identifier hs-var">inform</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Writing &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813765"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-166"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; ByteString -&gt; IO ()
+</span><span class="hs-identifier hs-var">BS.writeFile</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681813765"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681813761"><span class="hs-identifier hs-var">content</span></a></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="annot"><span class="hs-comment">-- | Dump line of warning or information to stderr.</span></span><span>
+</span><span id="line-169"></span><span class="annot"><a href="Agda.Setup.html#inform"><span class="hs-identifier hs-type">inform</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-170"></span><span id="inform"><span class="annot"><span class="annottext">inform :: String -&gt; IO ()
+</span><a href="Agda.Setup.html#inform"><span class="hs-identifier hs-var hs-var">inform</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Handle -&gt; String -&gt; IO ()
+</span><span class="hs-identifier hs-var">hPutStrLn</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stderr</span></span><span>
+</span><span id="line-171"></span></pre></body></html>

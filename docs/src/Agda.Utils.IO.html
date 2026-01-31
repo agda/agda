@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Auxiliary functions for the IO monad.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html"><span class="hs-identifier">Agda.Utils.IO</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List.html#dropFrom"><span class="hs-identifier">dropFrom</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.String.html"><span class="hs-identifier">Agda.Utils.String</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.String.html#rtrim"><span class="hs-identifier">rtrim</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- | Catch 'Exception's in an extension of the 'IO' monad.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">class</span><span> </span><span id="CatchIO"><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-var">CatchIO</span></a></span></span><span> </span><span id="local-6989586621681712749"><span class="annot"><a href="#local-6989586621681712749"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>  </span><span id="catchIO"><span class="annot"><a href="Agda.Utils.IO.html#catchIO"><span class="hs-identifier hs-type">catchIO</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681712745"><span id="local-6989586621681712747"><span class="annot"><span class="hs-identifier hs-type">Exception</span></span><span> </span><span class="annot"><a href="#local-6989586621681712745"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681712749"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712747"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681712745"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681712749"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712747"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681712749"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712747"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- | Alias of 'catch' for the IO monad.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-type">CatchIO</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-23"></span><span>  </span><span id="local-6989586621681712812"><span class="annot"><span class="annottext">catchIO :: forall e a. Exception e =&gt; IO a -&gt; (e -&gt; IO a) -&gt; IO a
+</span><a href="Agda.Utils.IO.html#catchIO"><span class="hs-identifier hs-var hs-var hs-var">catchIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO a -&gt; (e -&gt; IO a) -&gt; IO a
+forall e a. Exception e =&gt; IO a -&gt; (e -&gt; IO a) -&gt; IO a
+</span><span class="hs-identifier hs-var">catch</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><span class="hs-comment">-- | Upon exception, the error is lost.</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681712755"><span id="local-6989586621681712756"><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-type">CatchIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712755"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-type">CatchIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="#local-6989586621681712756"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712755"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-28"></span><span>  </span><span id="local-6989586621681712819"><span class="annot"><span class="annottext">catchIO :: forall e a.
+Exception e =&gt;
+ExceptT e m a -&gt; (e -&gt; ExceptT e m a) -&gt; ExceptT e m a
+</span><a href="Agda.Utils.IO.html#catchIO"><span class="hs-identifier hs-var hs-var hs-var">catchIO</span></a></span></span><span> </span><span id="local-6989586621681712820"><span class="annot"><span class="annottext">ExceptT e m a
+</span><a href="#local-6989586621681712820"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681712821"><span class="annot"><span class="annottext">e -&gt; ExceptT e m a
+</span><a href="#local-6989586621681712821"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Either e a) -&gt; ExceptT e m a
+forall e (m :: * -&gt; *) a. m (Either e a) -&gt; ExceptT e m a
+</span><span class="hs-identifier hs-var">ExceptT</span></span><span> </span><span class="annot"><span class="annottext">(m (Either e a) -&gt; ExceptT e m a)
+-&gt; m (Either e a) -&gt; ExceptT e m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ExceptT e m a -&gt; m (Either e a)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="annot"><span class="annottext">ExceptT e m a
+</span><a href="#local-6989586621681712820"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">m (Either e a) -&gt; (e -&gt; m (Either e a)) -&gt; m (Either e a)
+forall e a. Exception e =&gt; m a -&gt; (e -&gt; m a) -&gt; m a
+forall (m :: * -&gt; *) e a.
+(CatchIO m, Exception e) =&gt;
+m a -&gt; (e -&gt; m a) -&gt; m a
+</span><a href="Agda.Utils.IO.html#catchIO"><span class="hs-operator hs-var">`catchIO`</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681712824"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681712824"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ExceptT e m a -&gt; m (Either e a)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">e -&gt; ExceptT e m a
+</span><a href="#local-6989586621681712821"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681712824"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- | Upon exception, the written output is lost.</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681712772"><span id="local-6989586621681712773"><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-type">CatchIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712772"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-type">CatchIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="annot"><a href="#local-6989586621681712773"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712772"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>  </span><span id="local-6989586621681712831"><span class="annot"><span class="annottext">catchIO :: forall e a.
+Exception e =&gt;
+WriterT w m a -&gt; (e -&gt; WriterT w m a) -&gt; WriterT w m a
+</span><a href="Agda.Utils.IO.html#catchIO"><span class="hs-identifier hs-var hs-var hs-var">catchIO</span></a></span></span><span> </span><span id="local-6989586621681712832"><span class="annot"><span class="annottext">WriterT w m a
+</span><a href="#local-6989586621681712832"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681712833"><span class="annot"><span class="annottext">e -&gt; WriterT w m a
+</span><a href="#local-6989586621681712833"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (a, w) -&gt; WriterT w m a
+forall w (m :: * -&gt; *) a. m (a, w) -&gt; WriterT w m a
+</span><span class="hs-identifier hs-var">WriterT</span></span><span> </span><span class="annot"><span class="annottext">(m (a, w) -&gt; WriterT w m a) -&gt; m (a, w) -&gt; WriterT w m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">WriterT w m a -&gt; m (a, w)
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var">runWriterT</span></span><span> </span><span class="annot"><span class="annottext">WriterT w m a
+</span><a href="#local-6989586621681712832"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">m (a, w) -&gt; (e -&gt; m (a, w)) -&gt; m (a, w)
+forall e a. Exception e =&gt; m a -&gt; (e -&gt; m a) -&gt; m a
+forall (m :: * -&gt; *) e a.
+(CatchIO m, Exception e) =&gt;
+m a -&gt; (e -&gt; m a) -&gt; m a
+</span><a href="Agda.Utils.IO.html#catchIO"><span class="hs-operator hs-var">`catchIO`</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681712836"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681712836"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">WriterT w m a -&gt; m (a, w)
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var">runWriterT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">e -&gt; WriterT w m a
+</span><a href="#local-6989586621681712833"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681712836"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | Upon exception, the state is reset.</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681712785"><span id="local-6989586621681712786"><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-type">CatchIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712785"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html#CatchIO"><span class="hs-identifier hs-type">CatchIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="#local-6989586621681712786"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681712785"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681712843"><span class="annot"><span class="annottext">catchIO :: forall e a.
+Exception e =&gt;
+StateT s m a -&gt; (e -&gt; StateT s m a) -&gt; StateT s m a
+</span><a href="Agda.Utils.IO.html#catchIO"><span class="hs-identifier hs-var hs-var hs-var">catchIO</span></a></span></span><span> </span><span id="local-6989586621681712844"><span class="annot"><span class="annottext">StateT s m a
+</span><a href="#local-6989586621681712844"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681712845"><span class="annot"><span class="annottext">e -&gt; StateT s m a
+</span><a href="#local-6989586621681712845"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(s -&gt; m (a, s)) -&gt; StateT s m a
+forall s (m :: * -&gt; *) a. (s -&gt; m (a, s)) -&gt; StateT s m a
+</span><span class="hs-identifier hs-var">StateT</span></span><span> </span><span class="annot"><span class="annottext">((s -&gt; m (a, s)) -&gt; StateT s m a)
+-&gt; (s -&gt; m (a, s)) -&gt; StateT s m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681712847"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621681712847"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">StateT s m a -&gt; s -&gt; m (a, s)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="annot"><span class="annottext">StateT s m a
+</span><a href="#local-6989586621681712844"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621681712847"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">m (a, s) -&gt; (e -&gt; m (a, s)) -&gt; m (a, s)
+forall e a. Exception e =&gt; m a -&gt; (e -&gt; m a) -&gt; m a
+forall (m :: * -&gt; *) e a.
+(CatchIO m, Exception e) =&gt;
+m a -&gt; (e -&gt; m a) -&gt; m a
+</span><a href="Agda.Utils.IO.html#catchIO"><span class="hs-operator hs-var">`catchIO`</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681712849"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681712849"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">StateT s m a -&gt; s -&gt; m (a, s)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">e -&gt; StateT s m a
+</span><a href="#local-6989586621681712845"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681712849"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621681712847"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | Print an 'IOException' without the call stack.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span id="local-6989586621681712795"><span class="annot"><a href="Agda.Utils.IO.html#showIOException"><span class="hs-identifier hs-type">showIOException</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Exception</span></span><span> </span><span class="annot"><a href="#local-6989586621681712795"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681712795"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-43"></span><span id="showIOException"><span class="annot"><span class="annottext">showIOException :: forall e. Exception e =&gt; e -&gt; String
+</span><a href="Agda.Utils.IO.html#showIOException"><span class="hs-identifier hs-var hs-var">showIOException</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Utils.String.html#rtrim"><span class="hs-identifier hs-var">rtrim</span></a></span><span class="hs-cpp">
+#if MIN_VERSION_base(4,20,0)
+</span><span>  </span><span class="hs-comment">-- Andreas, 2024-07-05, issue #7299.</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-comment">-- Ugly hack to drop call stack (introduced in GHC 9.10) from IOException.</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-comment">-- If you have a better solution, please update this.</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; (e -&gt; String) -&gt; e -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">List1 Char -&gt; String -&gt; String
+forall a. Eq a =&gt; List1 a -&gt; [a] -&gt; [a]
+</span><a href="Agda.Utils.List.html#dropFrom"><span class="hs-identifier hs-var">dropFrom</span></a></span><span> </span><span class="annot"><span class="annottext">List1 Char
+</span><span class="hs-string">&quot;HasCallStack&quot;</span></span><span class="hs-cpp">
+#endif
+</span><span>  </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; (e -&gt; String) -&gt; e -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">e -&gt; String
+forall e. Exception e =&gt; e -&gt; String
+</span><span class="hs-identifier hs-var">displayException</span></span><span>
+</span><span id="line-52"></span></pre></body></html>

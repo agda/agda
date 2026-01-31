@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Types related to warnings raised by Agda.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base.Warning</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>       </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier">Range</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html"><span class="hs-identifier">Agda.Syntax.Concrete.Name</span></a></span><span>  </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>           </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">data</span><span> </span><span id="RecordFieldWarning"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#RecordFieldWarning"><span class="hs-identifier hs-var">RecordFieldWarning</span></a></span></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="DuplicateFields"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#DuplicateFields"><span class="hs-identifier hs-var">DuplicateFields</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Each redundant field comes with ranges of associated dead code.</span></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="TooManyFields"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#TooManyFields"><span class="hs-identifier hs-var">TooManyFields</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>      </span><span class="hs-comment">-- ^ Record type, fields not supplied by user, non-fields but supplied.</span><span>
+</span><span id="line-19"></span><span>      </span><span class="hs-comment">--   The redundant fields come with a range of associated dead code.</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681766731"><span id="local-6989586621681766746"><span id="local-6989586621681766750"><span class="annot"><span class="annottext">Int -&gt; RecordFieldWarning -&gt; ShowS
+[RecordFieldWarning] -&gt; ShowS
+RecordFieldWarning -&gt; String
+(Int -&gt; RecordFieldWarning -&gt; ShowS)
+-&gt; (RecordFieldWarning -&gt; String)
+-&gt; ([RecordFieldWarning] -&gt; ShowS)
+-&gt; Show RecordFieldWarning
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; RecordFieldWarning -&gt; ShowS
+showsPrec :: Int -&gt; RecordFieldWarning -&gt; ShowS
+$cshow :: RecordFieldWarning -&gt; String
+show :: RecordFieldWarning -&gt; String
+$cshowList :: [RecordFieldWarning] -&gt; ShowS
+showList :: [RecordFieldWarning] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681766764"><span id="local-6989586621681766766"><span class="annot"><span class="annottext">(forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x)
+-&gt; (forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning)
+-&gt; Generic RecordFieldWarning
+forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning
+forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x
+from :: forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x
+$cto :: forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning
+to :: forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="UselessPublicReason"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#UselessPublicReason"><span class="hs-identifier hs-var">UselessPublicReason</span></a></span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="UselessPublicPreamble"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#UselessPublicPreamble"><span class="hs-identifier hs-var">UselessPublicPreamble</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UselessPublicLet"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#UselessPublicLet"><span class="hs-identifier hs-var">UselessPublicLet</span></a></span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UselessPublicNoOpen"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#UselessPublicNoOpen"><span class="hs-identifier hs-var">UselessPublicNoOpen</span></a></span></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UselessPublicAnonymousModule"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#UselessPublicAnonymousModule"><span class="hs-identifier hs-var">UselessPublicAnonymousModule</span></a></span></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681766776"><span id="local-6989586621681766778"><span id="local-6989586621681766782"><span class="annot"><span class="annottext">Int -&gt; UselessPublicReason -&gt; ShowS
+[UselessPublicReason] -&gt; ShowS
+UselessPublicReason -&gt; String
+(Int -&gt; UselessPublicReason -&gt; ShowS)
+-&gt; (UselessPublicReason -&gt; String)
+-&gt; ([UselessPublicReason] -&gt; ShowS)
+-&gt; Show UselessPublicReason
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; UselessPublicReason -&gt; ShowS
+showsPrec :: Int -&gt; UselessPublicReason -&gt; ShowS
+$cshow :: UselessPublicReason -&gt; String
+show :: UselessPublicReason -&gt; String
+$cshowList :: [UselessPublicReason] -&gt; ShowS
+showList :: [UselessPublicReason] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681766785"><span id="local-6989586621681766787"><span class="annot"><span class="annottext">(forall x. UselessPublicReason -&gt; Rep UselessPublicReason x)
+-&gt; (forall x. Rep UselessPublicReason x -&gt; UselessPublicReason)
+-&gt; Generic UselessPublicReason
+forall x. Rep UselessPublicReason x -&gt; UselessPublicReason
+forall x. UselessPublicReason -&gt; Rep UselessPublicReason x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. UselessPublicReason -&gt; Rep UselessPublicReason x
+from :: forall x. UselessPublicReason -&gt; Rep UselessPublicReason x
+$cto :: forall x. Rep UselessPublicReason x -&gt; UselessPublicReason
+to :: forall x. Rep UselessPublicReason x -&gt; UselessPublicReason
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681766790"><span id="local-6989586621681766798"><span id="local-6989586621681766803"><span id="local-6989586621681766809"><span id="local-6989586621681766812"><span id="local-6989586621681766817"><span id="local-6989586621681766823"><span id="local-6989586621681766827"><span class="annot"><span class="annottext">Int -&gt; UselessPublicReason
+UselessPublicReason -&gt; Int
+UselessPublicReason -&gt; [UselessPublicReason]
+UselessPublicReason -&gt; UselessPublicReason
+UselessPublicReason -&gt; UselessPublicReason -&gt; [UselessPublicReason]
+UselessPublicReason
+-&gt; UselessPublicReason
+-&gt; UselessPublicReason
+-&gt; [UselessPublicReason]
+(UselessPublicReason -&gt; UselessPublicReason)
+-&gt; (UselessPublicReason -&gt; UselessPublicReason)
+-&gt; (Int -&gt; UselessPublicReason)
+-&gt; (UselessPublicReason -&gt; Int)
+-&gt; (UselessPublicReason -&gt; [UselessPublicReason])
+-&gt; (UselessPublicReason
+    -&gt; UselessPublicReason -&gt; [UselessPublicReason])
+-&gt; (UselessPublicReason
+    -&gt; UselessPublicReason -&gt; [UselessPublicReason])
+-&gt; (UselessPublicReason
+    -&gt; UselessPublicReason
+    -&gt; UselessPublicReason
+    -&gt; [UselessPublicReason])
+-&gt; Enum UselessPublicReason
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: UselessPublicReason -&gt; UselessPublicReason
+succ :: UselessPublicReason -&gt; UselessPublicReason
+$cpred :: UselessPublicReason -&gt; UselessPublicReason
+pred :: UselessPublicReason -&gt; UselessPublicReason
+$ctoEnum :: Int -&gt; UselessPublicReason
+toEnum :: Int -&gt; UselessPublicReason
+$cfromEnum :: UselessPublicReason -&gt; Int
+fromEnum :: UselessPublicReason -&gt; Int
+$cenumFrom :: UselessPublicReason -&gt; [UselessPublicReason]
+enumFrom :: UselessPublicReason -&gt; [UselessPublicReason]
+$cenumFromThen :: UselessPublicReason -&gt; UselessPublicReason -&gt; [UselessPublicReason]
+enumFromThen :: UselessPublicReason -&gt; UselessPublicReason -&gt; [UselessPublicReason]
+$cenumFromTo :: UselessPublicReason -&gt; UselessPublicReason -&gt; [UselessPublicReason]
+enumFromTo :: UselessPublicReason -&gt; UselessPublicReason -&gt; [UselessPublicReason]
+$cenumFromThenTo :: UselessPublicReason
+-&gt; UselessPublicReason
+-&gt; UselessPublicReason
+-&gt; [UselessPublicReason]
+enumFromThenTo :: UselessPublicReason
+-&gt; UselessPublicReason
+-&gt; UselessPublicReason
+-&gt; [UselessPublicReason]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681766835"><span id="local-6989586621681766837"><span class="annot"><span class="annottext">UselessPublicReason
+UselessPublicReason
+-&gt; UselessPublicReason -&gt; Bounded UselessPublicReason
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: UselessPublicReason
+minBound :: UselessPublicReason
+$cmaxBound :: UselessPublicReason
+maxBound :: UselessPublicReason
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681766843"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#UselessPublicReason"><span class="hs-identifier hs-type">UselessPublicReason</span></a></span></span><span>
+</span><span id="line-30"></span></pre></body></html>

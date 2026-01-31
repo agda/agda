@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Semirings.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html"><span class="hs-identifier">Agda.Termination.Semiring</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#HasZero"><span class="hs-identifier">HasZero</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier">Semiring</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#integerSemiring"><span class="hs-identifier">integerSemiring</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#intSemiring"><span class="hs-identifier">intSemiring</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#boolSemiring"><span class="hs-identifier">boolSemiring</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- | @HasZero@ is needed for sparse matrices, to tell which is the element</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--   that does not have to be stored.</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--   It is a cut-down version of @SemiRing@ which is definable</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--   without the implicit @?cutoff@.</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="#local-6989586621681692753"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="HasZero"><span class="annot"><a href="Agda.Termination.Semiring.html#HasZero"><span class="hs-identifier hs-var">HasZero</span></a></span></span><span> </span><span id="local-6989586621681692753"><span class="annot"><a href="#local-6989586621681692753"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>  </span><span id="zeroElement"><span class="annot"><a href="Agda.Termination.Semiring.html#zeroElement"><span class="hs-identifier hs-type">zeroElement</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681692753"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="annot"><span class="hs-comment">-- | Semirings.</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">data</span><span> </span><span id="Semiring"><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-var">Semiring</span></a></span></span><span> </span><span id="local-6989586621681692755"><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Semiring"><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-var">Semiring</span></a></span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="add"><span class="annot"><span class="annottext">forall a. Semiring a -&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Termination.Semiring.html#add"><span class="hs-identifier hs-var hs-var">add</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Addition.</span></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="mul"><span class="annot"><span class="annottext">forall a. Semiring a -&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Termination.Semiring.html#mul"><span class="hs-identifier hs-var hs-var">mul</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Multiplication.</span></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="zero"><span class="annot"><span class="annottext">forall a. Semiring a -&gt; a
+</span><a href="Agda.Termination.Semiring.html#zero"><span class="hs-identifier hs-var hs-var">zero</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681692755"><span class="hs-identifier hs-type">a</span></a></span><span>            </span><span class="hs-comment">-- ^ Zero.</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-comment">-- The one is never used in matrix multiplication</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-comment">-- , one  :: a            -- ^ One.</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- Specific semirings</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="annot"><span class="hs-comment">-- | The standard semiring on 'Integer's.</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#HasZero"><span class="hs-identifier hs-type">HasZero</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681692784"><span class="annot"><span class="annottext">zeroElement :: Integer
+</span><a href="Agda.Termination.Semiring.html#zeroElement"><span class="hs-identifier hs-var hs-var hs-var">zeroElement</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Agda.Termination.Semiring.html#integerSemiring"><span class="hs-identifier hs-type">integerSemiring</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-type">Semiring</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-41"></span><span id="integerSemiring"><span class="annot"><span class="annottext">integerSemiring :: Semiring Integer
+</span><a href="Agda.Termination.Semiring.html#integerSemiring"><span class="hs-identifier hs-var hs-var">integerSemiring</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-type">Semiring</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">add :: Integer -&gt; Integer -&gt; Integer
+</span><a href="Agda.Termination.Semiring.html#add"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">mul :: Integer -&gt; Integer -&gt; Integer
+</span><a href="Agda.Termination.Semiring.html#mul"><span class="hs-identifier hs-var">mul</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(*)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">zero :: Integer
+</span><a href="Agda.Termination.Semiring.html#zero"><span class="hs-identifier hs-var">zero</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-comment">-- , one = 1 }</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- | The standard semiring on 'Int's.</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#HasZero"><span class="hs-identifier hs-type">HasZero</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-46"></span><span>  </span><span id="local-6989586621681692792"><span class="annot"><span class="annottext">zeroElement :: Int
+</span><a href="Agda.Termination.Semiring.html#zeroElement"><span class="hs-identifier hs-var hs-var hs-var">zeroElement</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Agda.Termination.Semiring.html#intSemiring"><span class="hs-identifier hs-type">intSemiring</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-type">Semiring</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-49"></span><span id="intSemiring"><span class="annot"><span class="annottext">intSemiring :: Semiring Int
+</span><a href="Agda.Termination.Semiring.html#intSemiring"><span class="hs-identifier hs-var hs-var">intSemiring</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-type">Semiring</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">add :: Int -&gt; Int -&gt; Int
+</span><a href="Agda.Termination.Semiring.html#add"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">mul :: Int -&gt; Int -&gt; Int
+</span><a href="Agda.Termination.Semiring.html#mul"><span class="hs-identifier hs-var">mul</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(*)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">zero :: Int
+</span><a href="Agda.Termination.Semiring.html#zero"><span class="hs-identifier hs-var">zero</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-comment">-- , one = 1 }</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="annot"><span class="hs-comment">-- | The standard semiring on 'Bool's.</span></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Agda.Termination.Semiring.html#boolSemiring"><span class="hs-identifier hs-type">boolSemiring</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-type">Semiring</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-54"></span><span id="boolSemiring"><span class="annot"><span class="annottext">boolSemiring :: Semiring Bool
+</span><a href="Agda.Termination.Semiring.html#boolSemiring"><span class="hs-identifier hs-var hs-var">boolSemiring</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><a href="Agda.Termination.Semiring.html#Semiring"><span class="hs-identifier hs-type">Semiring</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">add :: Bool -&gt; Bool -&gt; Bool
+</span><a href="Agda.Termination.Semiring.html#add"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">(||)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">mul :: Bool -&gt; Bool -&gt; Bool
+</span><a href="Agda.Termination.Semiring.html#mul"><span class="hs-identifier hs-var">mul</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">(&amp;&amp;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">zero :: Bool
+</span><a href="Agda.Termination.Semiring.html#zero"><span class="hs-identifier hs-var">zero</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-comment">--, one = True }</span><span>
+</span><span id="line-56"></span></pre></body></html>

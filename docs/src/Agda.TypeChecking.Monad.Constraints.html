@@ -1,0 +1,978 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Constraints</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Fold</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html"><span class="hs-identifier">Agda.Interaction.Options.Base</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Closure.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Closure</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&amp;&amp;&amp;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span id="local-6989586621681936315"><span id="local-6989586621681936318"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#solvingProblem"><span class="hs-identifier hs-type">solvingProblem</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936315"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936315"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936318"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936315"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936318"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-23"></span><span id="solvingProblem"><span class="annot"><span class="annottext">solvingProblem :: forall (m :: * -&gt; *) a.
+MonadConstraint m =&gt;
+ProblemId -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solvingProblem"><span class="hs-identifier hs-var hs-var">solvingProblem</span></a></span></span><span> </span><span id="local-6989586621681936544"><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936544"><span class="hs-identifier hs-var">pid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set ProblemId -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadConstraint m =&gt;
+Set ProblemId -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solvingProblems"><span class="hs-identifier hs-var">solvingProblems</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProblemId -&gt; Set ProblemId
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936544"><span class="hs-identifier hs-var">pid</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span id="local-6989586621681936322"><span id="local-6989586621681936323"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#solvingProblems"><span class="hs-identifier hs-type">solvingProblems</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936323"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936323"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-26"></span><span id="solvingProblems"><span class="annot"><span class="annottext">solvingProblems :: forall (m :: * -&gt; *) a.
+MonadConstraint m =&gt;
+Set ProblemId -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solvingProblems"><span class="hs-identifier hs-var hs-var">solvingProblems</span></a></span></span><span> </span><span id="local-6989586621681936584"><span class="annot"><span class="annottext">Set ProblemId
+</span><a href="#local-6989586621681936584"><span class="hs-identifier hs-var">pids</span></a></span></span><span> </span><span id="local-6989586621681936585"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681936585"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m a -&gt; m a
+forall a. [Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadDebug m =&gt;
+[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Debug.html#verboseBracket"><span class="hs-identifier hs-var">verboseBracket</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;tc.constr.solve&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">50</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;working on problems &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[ProblemId] -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set ProblemId -&gt; [ProblemId]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set ProblemId
+</span><a href="#local-6989586621681936584"><span class="hs-identifier hs-var">pids</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; m a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-27"></span><span>  </span><span id="local-6989586621681936589"><span class="annot"><a href="#local-6989586621681936589"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall a. (TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681936591"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936591"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936591"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envActiveProblems"><span class="hs-identifier hs-var">envActiveProblems</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681936584"><span class="hs-identifier hs-type">pids</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">`Set.union`</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envActiveProblems"><span class="hs-identifier hs-var">envActiveProblems</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936591"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681936585"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Fold.forM_</span></span><span> </span><span class="annot"><a href="#local-6989586621681936584"><span class="hs-identifier hs-type">pids</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681936595"><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936595"><span class="hs-identifier hs-var">pid</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="annottext">m Bool -&gt; m () -&gt; m () -&gt; m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifNotM"><span class="hs-identifier hs-var">ifNotM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProblemId -&gt; m Bool
+forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+ProblemId -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemSolved"><span class="hs-identifier hs-var">isProblemSolved</span></a></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936595"><span class="hs-identifier hs-var">pid</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-var">reportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;tc.constr.solve&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">50</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; m ()) -&gt; [Char] -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;problem &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">ProblemId -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936595"><span class="hs-identifier hs-var">pid</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; was not solved.&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>      </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-comment">{- else -}</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-32"></span><span>        </span><span class="annot"><span class="annottext">[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-var">reportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;tc.constr.solve&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">50</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; m ()) -&gt; [Char] -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;problem &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">ProblemId -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936595"><span class="hs-identifier hs-var">pid</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; was solved!&quot;</span></span><span>
+</span><span id="line-33"></span><span>        </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; WakeUp) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; WakeUp) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#wakeConstraints"><span class="hs-identifier hs-var">wakeConstraints</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProblemId -&gt; Blocker -&gt; WakeUp
+</span><a href="Agda.Syntax.Internal.Blockers.html#wakeIfBlockedOnProblem"><span class="hs-identifier hs-var">wakeIfBlockedOnProblem</span></a></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936595"><span class="hs-identifier hs-var">pid</span></a></span><span> </span><span class="annot"><span class="annottext">(Blocker -&gt; WakeUp)
+-&gt; (ProblemConstraint -&gt; Blocker) -&gt; ProblemConstraint -&gt; WakeUp
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Blocker
+</span><a href="Agda.TypeChecking.Monad.Base.html#constraintUnblocker"><span class="hs-identifier hs-var">constraintUnblocker</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681936589"><span class="hs-identifier hs-type">x</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span id="local-6989586621681936355"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemSolved"><span class="hs-identifier hs-type">isProblemSolved</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936355"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936355"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936355"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-37"></span><span id="isProblemSolved"><span class="annot"><span class="annottext">isProblemSolved :: forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+ProblemId -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemSolved"><span class="hs-identifier hs-var hs-var">isProblemSolved</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; ProblemId -&gt; m Bool
+forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+Bool -&gt; ProblemId -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemSolved%27"><span class="hs-identifier hs-var">isProblemSolved'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span id="local-6989586621681936608"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemCompletelySolved"><span class="hs-identifier hs-type">isProblemCompletelySolved</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936608"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936608"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936608"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-40"></span><span id="isProblemCompletelySolved"><span class="annot"><span class="annottext">isProblemCompletelySolved :: forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+ProblemId -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemCompletelySolved"><span class="hs-identifier hs-var hs-var">isProblemCompletelySolved</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; ProblemId -&gt; m Bool
+forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+Bool -&gt; ProblemId -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemSolved%27"><span class="hs-identifier hs-var">isProblemSolved'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span id="local-6989586621681936366"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemSolved%27"><span class="hs-identifier hs-type">isProblemSolved'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936366"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936366"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936366"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-43"></span><span id="isProblemSolved%27"><span class="annot"><span class="annottext">isProblemSolved' :: forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+Bool -&gt; ProblemId -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isProblemSolved%27"><span class="hs-identifier hs-var hs-var">isProblemSolved'</span></a></span></span><span> </span><span id="local-6989586621681936630"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681936630"><span class="hs-identifier hs-var">completely</span></a></span></span><span> </span><span id="local-6989586621681936631"><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936631"><span class="hs-identifier hs-var">pid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><span class="annottext">m Bool -&gt; m Bool -&gt; m Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#and2M"><span class="hs-identifier hs-var">and2M</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (Set ProblemId -&gt; Bool) -&gt; Set ProblemId -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ProblemId -&gt; Set ProblemId -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936631"><span class="hs-identifier hs-var">pid</span></a></span><span> </span><span class="annot"><span class="annottext">(Set ProblemId -&gt; Bool) -&gt; m (Set ProblemId) -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; Set ProblemId) -&gt; m (Set ProblemId)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; (TCEnv -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#asksTC"><span class="hs-identifier hs-var">asksTC</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Set ProblemId
+</span><a href="Agda.TypeChecking.Monad.Base.html#envActiveProblems"><span class="hs-identifier hs-var">envActiveProblems</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool)
+-&gt; ([ProblemConstraint] -&gt; Bool) -&gt; [ProblemConstraint] -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool) -&gt; [ProblemConstraint] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936638"><span class="hs-identifier hs-var">belongsToUs</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; Bool) -&gt; m [ProblemConstraint] -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m [ProblemConstraint]
+forall (m :: * -&gt; *). ReadTCState m =&gt; m [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#getAllConstraints"><span class="hs-identifier hs-var">getAllConstraints</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>    </span><span id="local-6989586621681936638"><span class="annot"><span class="annottext">belongsToUs :: ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936638"><span class="hs-identifier hs-var hs-var">belongsToUs</span></a></span></span><span> </span><span id="local-6989586621681936640"><span class="annot"><span class="annottext">ProblemConstraint
+</span><a href="#local-6989586621681936640"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-48"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">ProblemId -&gt; Set ProblemId -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.notMember</span></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936631"><span class="hs-identifier hs-var">pid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Set ProblemId
+</span><a href="Agda.TypeChecking.Monad.Base.html#constraintProblems"><span class="hs-identifier hs-var">constraintProblems</span></a></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint
+</span><a href="#local-6989586621681936640"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-49"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Constraint -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isBlockingConstraint"><span class="hs-identifier hs-var">isBlockingConstraint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Closure Constraint -&gt; Constraint
+forall a. Closure a -&gt; a
+</span><a href="Agda.TypeChecking.Monad.Base.html#clValue"><span class="hs-identifier hs-var">clValue</span></a></span><span> </span><span class="annot"><span class="annottext">(Closure Constraint -&gt; Constraint)
+-&gt; Closure Constraint -&gt; Constraint
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Closure Constraint
+</span><a href="Agda.TypeChecking.Monad.Base.html#theConstraint"><span class="hs-identifier hs-var">theConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint
+</span><a href="#local-6989586621681936640"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-50"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>                                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681936630"><span class="hs-identifier hs-var">completely</span></a></span><span> </span><span class="hs-comment">-- Ignore non-blocking unless `completely`</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#getConstraintsForProblem"><span class="hs-pragma hs-type">getConstraintsForProblem</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-pragma hs-type">ProblemId</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-pragma hs-type">Constraints</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-53"></span><span id="local-6989586621681936383"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#getConstraintsForProblem"><span class="hs-identifier hs-type">getConstraintsForProblem</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936383"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936383"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span></span><span>
+</span><span id="line-54"></span><span id="getConstraintsForProblem"><span class="annot"><span class="annottext">getConstraintsForProblem :: forall (m :: * -&gt; *).
+ReadTCState m =&gt;
+ProblemId -&gt; m [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#getConstraintsForProblem"><span class="hs-identifier hs-var hs-var">getConstraintsForProblem</span></a></span></span><span> </span><span id="local-6989586621681936656"><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936656"><span class="hs-identifier hs-var">pid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool)
+-&gt; [ProblemConstraint] -&gt; [ProblemConstraint]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProblemId -&gt; Set ProblemId -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621681936656"><span class="hs-identifier hs-var">pid</span></a></span><span> </span><span class="annot"><span class="annottext">(Set ProblemId -&gt; Bool)
+-&gt; (ProblemConstraint -&gt; Set ProblemId)
+-&gt; ProblemConstraint
+-&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Set ProblemId
+</span><a href="Agda.TypeChecking.Monad.Base.html#constraintProblems"><span class="hs-identifier hs-var">constraintProblems</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; [ProblemConstraint])
+-&gt; m [ProblemConstraint] -&gt; m [ProblemConstraint]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m [ProblemConstraint]
+forall (m :: * -&gt; *). ReadTCState m =&gt; m [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#getAllConstraints"><span class="hs-identifier hs-var">getAllConstraints</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="annot"><span class="hs-comment">-- | Get the awake constraints</span></span><span>
+</span><span id="line-57"></span><span id="local-6989586621681936657"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#getAwakeConstraints"><span class="hs-identifier hs-type">getAwakeConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936657"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936657"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span></span><span>
+</span><span id="line-58"></span><span id="getAwakeConstraints"><span class="annot"><span class="annottext">getAwakeConstraints :: forall (m :: * -&gt; *). ReadTCState m =&gt; m [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#getAwakeConstraints"><span class="hs-identifier hs-var hs-var">getAwakeConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint] -&gt; m [ProblemConstraint]
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-var">stAwakeConstraints</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- danger...</span><span>
+</span><span id="line-61"></span><span id="local-6989586621681936393"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#dropConstraints"><span class="hs-identifier hs-type">dropConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936393"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936393"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-62"></span><span id="dropConstraints"><span class="annot"><span class="annottext">dropConstraints :: forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; Bool) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#dropConstraints"><span class="hs-identifier hs-var hs-var">dropConstraints</span></a></span></span><span> </span><span id="local-6989586621681936672"><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936672"><span class="hs-identifier hs-var">crit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681936673"><span class="annot"><span class="annottext">filt :: [ProblemConstraint] -&gt; [ProblemConstraint]
+</span><a href="#local-6989586621681936673"><span class="hs-identifier hs-var hs-var hs-var">filt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool)
+-&gt; [ProblemConstraint] -&gt; [ProblemConstraint]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.filter</span></span><span> </span><span class="annot"><span class="annottext">((ProblemConstraint -&gt; Bool)
+ -&gt; [ProblemConstraint] -&gt; [ProblemConstraint])
+-&gt; (ProblemConstraint -&gt; Bool)
+-&gt; [ProblemConstraint]
+-&gt; [ProblemConstraint]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool)
+-&gt; (ProblemConstraint -&gt; Bool) -&gt; ProblemConstraint -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936672"><span class="hs-identifier hs-var">crit</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#modifySleepingConstraints"><span class="hs-identifier hs-var">modifySleepingConstraints</span></a></span><span> </span><span class="annot"><span class="annottext">[ProblemConstraint] -&gt; [ProblemConstraint]
+</span><a href="#local-6989586621681936673"><span class="hs-identifier hs-var">filt</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#modifyAwakeConstraints"><span class="hs-identifier hs-var">modifyAwakeConstraints</span></a></span><span>    </span><span class="annot"><span class="annottext">[ProblemConstraint] -&gt; [ProblemConstraint]
+</span><a href="#local-6989586621681936673"><span class="hs-identifier hs-var">filt</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- | Takes out all constraints matching given filter.</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--   Danger!  The taken constraints need to be solved or put back at some point.</span><span>
+</span><span id="line-69"></span><span id="local-6989586621681936395"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#takeConstraints"><span class="hs-identifier hs-type">takeConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936395"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936395"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span></span><span>
+</span><span id="line-70"></span><span id="takeConstraints"><span class="annot"><span class="annottext">takeConstraints :: forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; Bool) -&gt; m [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#takeConstraints"><span class="hs-identifier hs-var hs-var">takeConstraints</span></a></span></span><span> </span><span id="local-6989586621681936696"><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936696"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681936697"><span class="annot"><a href="#local-6989586621681936697"><span class="hs-identifier hs-var">takeAwake</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936698"><span class="annot"><a href="#local-6989586621681936698"><span class="hs-identifier hs-var">keepAwake</span></a></span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool)
+-&gt; [ProblemConstraint]
+-&gt; ([ProblemConstraint], [ProblemConstraint])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">List.partition</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936696"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; ([ProblemConstraint], [ProblemConstraint]))
+-&gt; m [ProblemConstraint]
+-&gt; m ([ProblemConstraint], [ProblemConstraint])
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint] -&gt; m [ProblemConstraint]
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-var">stAwakeConstraints</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681936703"><span class="annot"><a href="#local-6989586621681936703"><span class="hs-identifier hs-var">takeAsleep</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936704"><span class="annot"><a href="#local-6989586621681936704"><span class="hs-identifier hs-var">keepAsleep</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">List.partition</span></span><span> </span><span class="annot"><a href="#local-6989586621681936696"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stSleepingConstraints"><span class="hs-identifier hs-type">stSleepingConstraints</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#modifyAwakeConstraints"><span class="hs-identifier hs-type">modifyAwakeConstraints</span></a></span><span>    </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">const</span></span><span> </span><span class="annot"><a href="#local-6989586621681936698"><span class="hs-identifier hs-type">keepAwake</span></a></span><span>
+</span><span id="line-74"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#modifySleepingConstraints"><span class="hs-identifier hs-type">modifySleepingConstraints</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">const</span></span><span> </span><span class="annot"><a href="#local-6989586621681936704"><span class="hs-identifier hs-type">keepAsleep</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681936697"><span class="hs-identifier hs-type">takeAwake</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="#local-6989586621681936703"><span class="hs-identifier hs-type">takeAsleep</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span id="local-6989586621681936709"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#putConstraintsToSleep"><span class="hs-identifier hs-type">putConstraintsToSleep</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936709"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936709"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-78"></span><span id="putConstraintsToSleep"><span class="annot"><span class="annottext">putConstraintsToSleep :: forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; Bool) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#putConstraintsToSleep"><span class="hs-identifier hs-var hs-var">putConstraintsToSleep</span></a></span></span><span> </span><span id="local-6989586621681936720"><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936720"><span class="hs-identifier hs-var">sleepy</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-79"></span><span>  </span><span id="local-6989586621681936721"><span class="annot"><a href="#local-6989586621681936721"><span class="hs-identifier hs-var">awakeOnes</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint] -&gt; m [ProblemConstraint]
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-var">stAwakeConstraints</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681936724"><span class="annot"><a href="#local-6989586621681936724"><span class="hs-identifier hs-var">gotoSleep</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936725"><span class="annot"><a href="#local-6989586621681936725"><span class="hs-identifier hs-var">stayAwake</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">List.partition</span></span><span> </span><span class="annot"><a href="#local-6989586621681936720"><span class="hs-identifier hs-type">sleepy</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936721"><span class="hs-identifier hs-type">awakeOnes</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#modifySleepingConstraints"><span class="hs-identifier hs-type">modifySleepingConstraints</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">++</span></span><span> </span><span class="annot"><span class="hs-identifier">gotoSleep</span></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#modifyAwakeConstraints"><span class="hs-identifier hs-type">modifyAwakeConstraints</span></a></span><span>    </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">const</span></span><span> </span><span class="annot"><a href="#local-6989586621681936725"><span class="hs-identifier hs-type">stayAwake</span></a></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span id="local-6989586621681936406"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#putAllConstraintsToSleep"><span class="hs-identifier hs-type">putAllConstraintsToSleep</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936406"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936406"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-85"></span><span id="putAllConstraintsToSleep"><span class="annot"><span class="annottext">putAllConstraintsToSleep :: forall (m :: * -&gt; *). MonadConstraint m =&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#putAllConstraintsToSleep"><span class="hs-identifier hs-var hs-var">putAllConstraintsToSleep</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; Bool) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#putConstraintsToSleep"><span class="hs-identifier hs-var">putConstraintsToSleep</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; ProblemConstraint -&gt; Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-keyword">data</span><span> </span><span id="ConstraintStatus"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#ConstraintStatus"><span class="hs-identifier hs-var">ConstraintStatus</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="AwakeConstraint"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#AwakeConstraint"><span class="hs-identifier hs-var">AwakeConstraint</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="SleepingConstraint"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#SleepingConstraint"><span class="hs-identifier hs-var">SleepingConstraint</span></a></span></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681936732"><span id="local-6989586621681936737"><span class="annot"><span class="annottext">ConstraintStatus -&gt; ConstraintStatus -&gt; Bool
+(ConstraintStatus -&gt; ConstraintStatus -&gt; Bool)
+-&gt; (ConstraintStatus -&gt; ConstraintStatus -&gt; Bool)
+-&gt; Eq ConstraintStatus
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ConstraintStatus -&gt; ConstraintStatus -&gt; Bool
+== :: ConstraintStatus -&gt; ConstraintStatus -&gt; Bool
+$c/= :: ConstraintStatus -&gt; ConstraintStatus -&gt; Bool
+/= :: ConstraintStatus -&gt; ConstraintStatus -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936742"><span id="local-6989586621681936744"><span id="local-6989586621681936748"><span class="annot"><span class="annottext">VerboseLevel -&gt; ConstraintStatus -&gt; [Char] -&gt; [Char]
+[ConstraintStatus] -&gt; [Char] -&gt; [Char]
+ConstraintStatus -&gt; [Char]
+(VerboseLevel -&gt; ConstraintStatus -&gt; [Char] -&gt; [Char])
+-&gt; (ConstraintStatus -&gt; [Char])
+-&gt; ([ConstraintStatus] -&gt; [Char] -&gt; [Char])
+-&gt; Show ConstraintStatus
+forall a.
+(VerboseLevel -&gt; a -&gt; [Char] -&gt; [Char])
+-&gt; (a -&gt; [Char]) -&gt; ([a] -&gt; [Char] -&gt; [Char]) -&gt; Show a
+$cshowsPrec :: VerboseLevel -&gt; ConstraintStatus -&gt; [Char] -&gt; [Char]
+showsPrec :: VerboseLevel -&gt; ConstraintStatus -&gt; [Char] -&gt; [Char]
+$cshow :: ConstraintStatus -&gt; [Char]
+show :: ConstraintStatus -&gt; [Char]
+$cshowList :: [ConstraintStatus] -&gt; [Char] -&gt; [Char]
+showList :: [ConstraintStatus] -&gt; [Char] -&gt; [Char]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- | Suspend constraints matching the predicate during the execution of the</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--   second argument. Caution: held sleeping constraints will not be woken up</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--   by events that would normally trigger a wakeup call.</span><span>
+</span><span id="line-93"></span><span id="local-6989586621681936412"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#holdConstraints"><span class="hs-identifier hs-type">holdConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#ConstraintStatus"><span class="hs-identifier hs-type">ConstraintStatus</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936412"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936412"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-94"></span><span id="holdConstraints"><span class="annot"><span class="annottext">holdConstraints :: forall a.
+(ConstraintStatus -&gt; ProblemConstraint -&gt; Bool) -&gt; TCM a -&gt; TCM a
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#holdConstraints"><span class="hs-identifier hs-var hs-var">holdConstraints</span></a></span></span><span> </span><span id="local-6989586621681936779"><span class="annot"><span class="annottext">ConstraintStatus -&gt; ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936779"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681936780"><span class="annot"><span class="annottext">TCM a
+</span><a href="#local-6989586621681936780"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681936781"><span class="annot"><a href="#local-6989586621681936781"><span class="hs-identifier hs-var">holdAwake</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936782"><span class="annot"><a href="#local-6989586621681936782"><span class="hs-identifier hs-var">stillAwake</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool)
+-&gt; [ProblemConstraint]
+-&gt; ([ProblemConstraint], [ProblemConstraint])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">List.partition</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ConstraintStatus -&gt; ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936779"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">ConstraintStatus
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#AwakeConstraint"><span class="hs-identifier hs-var">AwakeConstraint</span></a></span><span class="hs-special">)</span><span>    </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; ([ProblemConstraint], [ProblemConstraint]))
+-&gt; TCMT IO [ProblemConstraint]
+-&gt; TCMT IO ([ProblemConstraint], [ProblemConstraint])
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint] -&gt; TCMT IO [ProblemConstraint]
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-var">stAwakeConstraints</span></a></span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681936785"><span class="annot"><a href="#local-6989586621681936785"><span class="hs-identifier hs-var">holdAsleep</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936786"><span class="annot"><a href="#local-6989586621681936786"><span class="hs-identifier hs-var">stillAsleep</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">List.partition</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681936779"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#SleepingConstraint"><span class="hs-identifier hs-type">SleepingConstraint</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stSleepingConstraints"><span class="hs-identifier hs-type">stSleepingConstraints</span></a></span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-type">stAwakeConstraints</span></a></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-operator hs-type">`setTCLens`</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936782"><span class="hs-identifier hs-type">stillAwake</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stSleepingConstraints"><span class="hs-identifier hs-type">stSleepingConstraints</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-operator hs-type">`setTCLens`</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936786"><span class="hs-identifier hs-type">stillAsleep</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681936794"><span class="annot"><a href="#local-6989586621681936794"><span class="hs-identifier hs-var hs-var">restore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-100"></span><span>        </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-var">stAwakeConstraints</span></a></span><span>    </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint]
+-&gt; ([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; TCMT IO ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-var">`modifyTCLens`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[ProblemConstraint]
+</span><a href="#local-6989586621681936781"><span class="hs-identifier hs-var">holdAwake</span></a></span><span> </span><span class="annot"><span class="annottext">[ProblemConstraint] -&gt; [ProblemConstraint] -&gt; [ProblemConstraint]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>        </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stSleepingConstraints"><span class="hs-identifier hs-var">stSleepingConstraints</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint]
+-&gt; ([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; TCMT IO ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-var">`modifyTCLens`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[ProblemConstraint]
+</span><a href="#local-6989586621681936785"><span class="hs-identifier hs-var">holdAsleep</span></a></span><span> </span><span class="annot"><span class="annottext">[ProblemConstraint] -&gt; [ProblemConstraint] -&gt; [ProblemConstraint]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">catchError</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681936780"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;*</span></span><span> </span><span class="annot"><a href="#local-6989586621681936794"><span class="hs-identifier hs-type">restore</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681936802"><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621681936802"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCMT IO ()
+</span><a href="#local-6989586621681936794"><span class="hs-identifier hs-var">restore</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO () -&gt; TCM a -&gt; TCM a
+forall a b. TCMT IO a -&gt; TCMT IO b -&gt; TCMT IO b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">TCErr -&gt; TCM a
+forall a. TCErr -&gt; TCMT IO a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621681936802"><span class="hs-identifier hs-var">err</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span id="local-6989586621681936439"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#takeAwakeConstraint"><span class="hs-identifier hs-type">takeAwakeConstraint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936439"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936439"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-105"></span><span id="takeAwakeConstraint"><span class="annot"><span class="annottext">takeAwakeConstraint :: forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+m (Maybe ProblemConstraint)
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#takeAwakeConstraint"><span class="hs-identifier hs-var hs-var">takeAwakeConstraint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool) -&gt; m (Maybe ProblemConstraint)
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; Bool) -&gt; m (Maybe ProblemConstraint)
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#takeAwakeConstraint%27"><span class="hs-identifier hs-var">takeAwakeConstraint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; ProblemConstraint -&gt; Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span id="local-6989586621681936441"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#takeAwakeConstraint%27"><span class="hs-identifier hs-type">takeAwakeConstraint'</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936441"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936441"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-110"></span><span id="takeAwakeConstraint%27"><span class="annot"><span class="annottext">takeAwakeConstraint' :: forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; Bool) -&gt; m (Maybe ProblemConstraint)
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#takeAwakeConstraint%27"><span class="hs-identifier hs-var hs-var">takeAwakeConstraint'</span></a></span></span><span> </span><span id="local-6989586621681936818"><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><a href="#local-6989586621681936818"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621681936819"><span class="annot"><a href="#local-6989586621681936819"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m [ProblemConstraint]
+forall (m :: * -&gt; *). ReadTCState m =&gt; m [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#getAwakeConstraints"><span class="hs-identifier hs-var">getAwakeConstraints</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="hs-identifier hs-type">break</span></span><span> </span><span class="annot"><a href="#local-6989586621681936818"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936819"><span class="hs-identifier hs-type">cs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-113"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[ProblemConstraint]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe ProblemConstraint -&gt; m (Maybe ProblemConstraint)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe ProblemConstraint
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-114"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681936821"><span class="annot"><span class="annottext">[ProblemConstraint]
+</span><a href="#local-6989586621681936821"><span class="hs-identifier hs-var">cs0</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936822"><span class="annot"><span class="annottext">ProblemConstraint
+</span><a href="#local-6989586621681936822"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681936823"><span class="annot"><span class="annottext">[ProblemConstraint]
+</span><a href="#local-6989586621681936823"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-115"></span><span>      </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#modifyAwakeConstraints"><span class="hs-identifier hs-var">modifyAwakeConstraints</span></a></span><span> </span><span class="annot"><span class="annottext">(([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ())
+-&gt; ([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[ProblemConstraint] -&gt; [ProblemConstraint] -&gt; [ProblemConstraint]
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[ProblemConstraint]
+</span><a href="#local-6989586621681936821"><span class="hs-identifier hs-var">cs0</span></a></span><span> </span><span class="annot"><span class="annottext">[ProblemConstraint] -&gt; [ProblemConstraint] -&gt; [ProblemConstraint]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[ProblemConstraint]
+</span><a href="#local-6989586621681936823"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-116"></span><span>      </span><span class="annot"><span class="annottext">Maybe ProblemConstraint -&gt; m (Maybe ProblemConstraint)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe ProblemConstraint -&gt; m (Maybe ProblemConstraint))
+-&gt; Maybe ProblemConstraint -&gt; m (Maybe ProblemConstraint)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Maybe ProblemConstraint
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint
+</span><a href="#local-6989586621681936822"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span id="local-6989586621681936379"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#getAllConstraints"><span class="hs-identifier hs-type">getAllConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936379"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936379"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span></span><span>
+</span><span id="line-119"></span><span id="getAllConstraints"><span class="annot"><span class="annottext">getAllConstraints :: forall (m :: * -&gt; *). ReadTCState m =&gt; m [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#getAllConstraints"><span class="hs-identifier hs-var hs-var">getAllConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-120"></span><span>  </span><span id="local-6989586621681936829"><span class="annot"><a href="#local-6989586621681936829"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m TCState
+forall (m :: * -&gt; *). ReadTCState m =&gt; m TCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#getTCState"><span class="hs-identifier hs-var">getTCState</span></a></span><span>
+</span><span id="line-121"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681936829"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-type">^.</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-type">stAwakeConstraints</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="#local-6989586621681936829"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-type">^.</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stSleepingConstraints"><span class="hs-identifier hs-type">stSleepingConstraints</span></a></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span id="local-6989586621681936448"><span id="local-6989586621681936449"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#withConstraint"><span class="hs-identifier hs-type">withConstraint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936448"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936448"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936449"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936448"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936449"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-124"></span><span id="withConstraint"><span class="annot"><span class="annottext">withConstraint :: forall (m :: * -&gt; *) a.
+MonadConstraint m =&gt;
+(Constraint -&gt; m a) -&gt; ProblemConstraint -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#withConstraint"><span class="hs-identifier hs-var hs-var">withConstraint</span></a></span></span><span> </span><span id="local-6989586621681936851"><span class="annot"><span class="annottext">Constraint -&gt; m a
+</span><a href="#local-6989586621681936851"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PConstr"><span class="hs-identifier hs-type">PConstr</span></a></span><span> </span><span id="local-6989586621681936853"><span class="annot"><span class="annottext">Set ProblemId
+</span><a href="#local-6989586621681936853"><span class="hs-identifier hs-var">pids</span></a></span></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681936854"><span class="annot"><span class="annottext">Closure Constraint
+</span><a href="#local-6989586621681936854"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-comment">-- We should preserve the problem stack and the isSolvingConstraint flag</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681936855"><span class="annot"><a href="#local-6989586621681936855"><span class="hs-identifier hs-var">pids'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681936856"><span class="annot"><a href="#local-6989586621681936856"><span class="hs-identifier hs-var">isSolving</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; (Set ProblemId, Bool)) -&gt; m (Set ProblemId, Bool)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; (TCEnv -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#asksTC"><span class="hs-identifier hs-var">asksTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCEnv -&gt; (Set ProblemId, Bool)) -&gt; m (Set ProblemId, Bool))
+-&gt; (TCEnv -&gt; (Set ProblemId, Bool)) -&gt; m (Set ProblemId, Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Set ProblemId
+</span><a href="Agda.TypeChecking.Monad.Base.html#envActiveProblems"><span class="hs-identifier hs-var">envActiveProblems</span></a></span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; Set ProblemId)
+-&gt; (TCEnv -&gt; Bool) -&gt; TCEnv -&gt; (Set ProblemId, Bool)
+forall b c c'. (b -&gt; c) -&gt; (b -&gt; c') -&gt; b -&gt; (c, c')
+forall (a :: * -&gt; * -&gt; *) b c c'.
+Arrow a =&gt;
+a b c -&gt; a b c' -&gt; a b (c, c')
+</span><span class="hs-operator hs-var">&amp;&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Base.html#envSolvingConstraints"><span class="hs-identifier hs-var">envSolvingConstraints</span></a></span><span>
+</span><span id="line-127"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Closure.html#enterClosure"><span class="hs-identifier hs-type">enterClosure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936854"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681936859"><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681936859"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-128"></span><span>    </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall a. (TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681936860"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936860"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936860"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envActiveProblems"><span class="hs-identifier hs-var">envActiveProblems</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681936855"><span class="hs-identifier hs-type">pids'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envSolvingConstraints"><span class="hs-identifier hs-var">envSolvingConstraints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681936856"><span class="hs-identifier hs-type">isSolving</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; m a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-129"></span><span>    </span><span class="annot"><span class="annottext">Set ProblemId -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadConstraint m =&gt;
+Set ProblemId -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solvingProblems"><span class="hs-identifier hs-var">solvingProblems</span></a></span><span> </span><span class="annot"><span class="annottext">Set ProblemId
+</span><a href="#local-6989586621681936853"><span class="hs-identifier hs-var">pids</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Constraint -&gt; m a
+</span><a href="#local-6989586621681936851"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681936859"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span id="local-6989586621681936463"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#buildProblemConstraint"><span class="hs-identifier hs-type">buildProblemConstraint</span></a></span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936463"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936463"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936463"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span></span><span>
+</span><span id="line-134"></span><span id="buildProblemConstraint"><span class="annot"><span class="annottext">buildProblemConstraint :: forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+Set ProblemId -&gt; Blocker -&gt; Constraint -&gt; m ProblemConstraint
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#buildProblemConstraint"><span class="hs-identifier hs-var hs-var">buildProblemConstraint</span></a></span></span><span> </span><span id="local-6989586621681936870"><span class="annot"><span class="annottext">Set ProblemId
+</span><a href="#local-6989586621681936870"><span class="hs-identifier hs-var">pids</span></a></span></span><span> </span><span id="local-6989586621681936871"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621681936871"><span class="hs-identifier hs-var">unblock</span></a></span></span><span> </span><span id="local-6989586621681936872"><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681936872"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set ProblemId -&gt; Blocker -&gt; Closure Constraint -&gt; ProblemConstraint
+</span><a href="Agda.TypeChecking.Monad.Base.html#PConstr"><span class="hs-identifier hs-var">PConstr</span></a></span><span> </span><span class="annot"><span class="annottext">Set ProblemId
+</span><a href="#local-6989586621681936870"><span class="hs-identifier hs-var">pids</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621681936871"><span class="hs-identifier hs-var">unblock</span></a></span><span> </span><span class="annot"><span class="annottext">(Closure Constraint -&gt; ProblemConstraint)
+-&gt; m (Closure Constraint) -&gt; m ProblemConstraint
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Constraint -&gt; m (Closure Constraint)
+forall (m :: * -&gt; *) a.
+(MonadTCEnv m, ReadTCState m) =&gt;
+a -&gt; m (Closure a)
+</span><a href="Agda.TypeChecking.Monad.Base.html#buildClosure"><span class="hs-identifier hs-var">buildClosure</span></a></span><span> </span><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681936872"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span id="local-6989586621681936467"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#buildProblemConstraint_"><span class="hs-identifier hs-type">buildProblemConstraint_</span></a></span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936467"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936467"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-138"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936467"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span></span><span>
+</span><span id="line-139"></span><span id="buildProblemConstraint_"><span class="annot"><span class="annottext">buildProblemConstraint_ :: forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+Blocker -&gt; Constraint -&gt; m ProblemConstraint
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#buildProblemConstraint_"><span class="hs-identifier hs-var hs-var">buildProblemConstraint_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set ProblemId -&gt; Blocker -&gt; Constraint -&gt; m ProblemConstraint
+forall (m :: * -&gt; *).
+(MonadTCEnv m, ReadTCState m) =&gt;
+Set ProblemId -&gt; Blocker -&gt; Constraint -&gt; m ProblemConstraint
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#buildProblemConstraint"><span class="hs-identifier hs-var">buildProblemConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">Set ProblemId
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#buildConstraint"><span class="hs-identifier hs-type">buildConstraint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span>
+</span><span id="line-142"></span><span id="buildConstraint"><span class="annot"><span class="annottext">buildConstraint :: Blocker -&gt; Constraint -&gt; TCM ProblemConstraint
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#buildConstraint"><span class="hs-identifier hs-var hs-var">buildConstraint</span></a></span></span><span> </span><span id="local-6989586621681936881"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621681936881"><span class="hs-identifier hs-var">unblock</span></a></span></span><span> </span><span id="local-6989586621681936882"><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681936882"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-143"></span><span>  </span><span id="local-6989586621681936883"><span class="annot"><a href="#local-6989586621681936883"><span class="hs-identifier hs-var">pids</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; Set ProblemId) -&gt; TCMT IO (Set ProblemId)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; (TCEnv -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#asksTC"><span class="hs-identifier hs-var">asksTC</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Set ProblemId
+</span><a href="Agda.TypeChecking.Monad.Base.html#envActiveProblems"><span class="hs-identifier hs-var">envActiveProblems</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#buildProblemConstraint"><span class="hs-identifier hs-type">buildProblemConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936883"><span class="hs-identifier hs-type">pids</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936881"><span class="hs-identifier hs-type">unblock</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936882"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- | Monad service class containing methods for adding and solving</span><span>
+</span><span id="line-147"></span><span class="hs-comment">--   constraints</span><span>
+</span><span id="line-148"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-149"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-150"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCErr"><span class="hs-identifier hs-type">TCErr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-151"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadBlock"><span class="hs-identifier hs-type">MonadBlock</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-152"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-153"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-154"></span><span>      </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadConstraint"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-var">MonadConstraint</span></a></span></span><span> </span><span id="local-6989586621681936333"><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-comment">-- | Unconditionally add the constraint.</span><span>
+</span><span id="line-156"></span><span>  </span><span id="addConstraint"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraint"><span class="hs-identifier hs-type">addConstraint</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span>  </span><span class="hs-comment">-- | Add constraint as awake constraint.</span><span>
+</span><span id="line-159"></span><span>  </span><span id="addAwakeConstraint"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#addAwakeConstraint"><span class="hs-identifier hs-type">addAwakeConstraint</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span>  </span><span id="solveConstraint"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#solveConstraint"><span class="hs-identifier hs-type">solveConstraint</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span>  </span><span class="hs-comment">-- | Solve awake constraints matching the predicate. If the second argument is</span><span>
+</span><span id="line-164"></span><span>  </span><span class="hs-comment">--   True solve constraints even if already 'isSolvingConstraints'.</span><span>
+</span><span id="line-165"></span><span>  </span><span id="solveSomeAwakeConstraints"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#solveSomeAwakeConstraints"><span class="hs-identifier hs-type">solveSomeAwakeConstraints</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span>  </span><span id="wakeConstraints"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#wakeConstraints"><span class="hs-identifier hs-type">wakeConstraints</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#WakeUp"><span class="hs-identifier hs-type">WakeUp</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span>  </span><span id="stealConstraints"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#stealConstraints"><span class="hs-identifier hs-type">stealConstraints</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span>  </span><span id="modifyAwakeConstraints"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#modifyAwakeConstraints"><span class="hs-identifier hs-type">modifyAwakeConstraints</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span>  </span><span id="modifySleepingConstraints"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#modifySleepingConstraints"><span class="hs-identifier hs-type">modifySleepingConstraints</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936333"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681936487"><span id="local-6989586621681936488"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936487"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621681936488"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936487"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-176"></span><span>  </span><span id="local-6989586621681936931"><span class="annot"><span class="annottext">addConstraint :: Blocker -&gt; Constraint -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraint"><span class="hs-identifier hs-var hs-var hs-var">addConstraint</span></a></span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; (Constraint -&gt; m ()) -&gt; Constraint -&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Constraint -&gt; m ()) -&gt; Constraint -&gt; ReaderT e m ())
+-&gt; (Blocker -&gt; Constraint -&gt; m ())
+-&gt; Blocker
+-&gt; Constraint
+-&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Constraint -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+Blocker -&gt; Constraint -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraint"><span class="hs-identifier hs-var">addConstraint</span></a></span><span>
+</span><span id="line-177"></span><span>  </span><span id="local-6989586621681936936"><span class="annot"><span class="annottext">addAwakeConstraint :: Blocker -&gt; Constraint -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addAwakeConstraint"><span class="hs-identifier hs-var hs-var hs-var">addAwakeConstraint</span></a></span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; (Constraint -&gt; m ()) -&gt; Constraint -&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Constraint -&gt; m ()) -&gt; Constraint -&gt; ReaderT e m ())
+-&gt; (Blocker -&gt; Constraint -&gt; m ())
+-&gt; Blocker
+-&gt; Constraint
+-&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Constraint -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+Blocker -&gt; Constraint -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addAwakeConstraint"><span class="hs-identifier hs-var">addAwakeConstraint</span></a></span><span>
+</span><span id="line-178"></span><span>  </span><span id="local-6989586621681936940"><span class="annot"><span class="annottext">solveConstraint :: Constraint -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solveConstraint"><span class="hs-identifier hs-var hs-var hs-var">solveConstraint</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; (Constraint -&gt; m ()) -&gt; Constraint -&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Constraint -&gt; m ()
+forall (m :: * -&gt; *). MonadConstraint m =&gt; Constraint -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solveConstraint"><span class="hs-identifier hs-var">solveConstraint</span></a></span><span>
+</span><span id="line-179"></span><span>  </span><span id="local-6989586621681936944"><span class="annot"><span class="annottext">solveSomeAwakeConstraints :: (ProblemConstraint -&gt; Bool) -&gt; Bool -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solveSomeAwakeConstraints"><span class="hs-identifier hs-var hs-var hs-var">solveSomeAwakeConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; (Bool -&gt; m ()) -&gt; Bool -&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Bool -&gt; m ()) -&gt; Bool -&gt; ReaderT e m ())
+-&gt; ((ProblemConstraint -&gt; Bool) -&gt; Bool -&gt; m ())
+-&gt; (ProblemConstraint -&gt; Bool)
+-&gt; Bool
+-&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; Bool) -&gt; Bool -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; Bool) -&gt; Bool -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#solveSomeAwakeConstraints"><span class="hs-identifier hs-var">solveSomeAwakeConstraints</span></a></span><span>
+</span><span id="line-180"></span><span>  </span><span id="local-6989586621681936948"><span class="annot"><span class="annottext">stealConstraints :: ProblemId -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#stealConstraints"><span class="hs-identifier hs-var hs-var hs-var">stealConstraints</span></a></span></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; (ProblemId -&gt; m ()) -&gt; ProblemId -&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ProblemId -&gt; m ()
+forall (m :: * -&gt; *). MonadConstraint m =&gt; ProblemId -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#stealConstraints"><span class="hs-identifier hs-var">stealConstraints</span></a></span><span>
+</span><span id="line-181"></span><span>  </span><span id="local-6989586621681936952"><span class="annot"><span class="annottext">modifyAwakeConstraints :: ([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#modifyAwakeConstraints"><span class="hs-identifier hs-var hs-var hs-var">modifyAwakeConstraints</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; (([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ())
+-&gt; ([ProblemConstraint] -&gt; [ProblemConstraint])
+-&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#modifyAwakeConstraints"><span class="hs-identifier hs-var">modifyAwakeConstraints</span></a></span><span>
+</span><span id="line-182"></span><span>  </span><span id="local-6989586621681936956"><span class="annot"><span class="annottext">modifySleepingConstraints :: ([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#modifySleepingConstraints"><span class="hs-identifier hs-var hs-var hs-var">modifySleepingConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; (([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ())
+-&gt; ([ProblemConstraint] -&gt; [ProblemConstraint])
+-&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#modifySleepingConstraints"><span class="hs-identifier hs-var">modifySleepingConstraints</span></a></span><span>
+</span><span id="line-183"></span><span>  </span><span id="local-6989586621681936960"><span class="annot"><span class="annottext">wakeConstraints :: (ProblemConstraint -&gt; WakeUp) -&gt; ReaderT e m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#wakeConstraints"><span class="hs-identifier hs-var hs-var hs-var">wakeConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ReaderT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT e m ())
+-&gt; ((ProblemConstraint -&gt; WakeUp) -&gt; m ())
+-&gt; (ProblemConstraint -&gt; WakeUp)
+-&gt; ReaderT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(ProblemConstraint -&gt; WakeUp) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; WakeUp) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#wakeConstraints"><span class="hs-identifier hs-var">wakeConstraints</span></a></span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="annot"><span class="hs-comment">-- | Add new a constraint</span></span><span>
+</span><span id="line-186"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraint%27"><span class="hs-identifier hs-type">addConstraint'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-187"></span><span id="addConstraint%27"><span class="annot"><span class="annottext">addConstraint' :: Blocker -&gt; Constraint -&gt; TCMT IO ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraint%27"><span class="hs-identifier hs-var hs-var">addConstraint'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint]
+-&gt; Blocker -&gt; Constraint -&gt; TCMT IO ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraintTo"><span class="hs-identifier hs-var">addConstraintTo</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stSleepingConstraints"><span class="hs-identifier hs-var">stSleepingConstraints</span></a></span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#addAwakeConstraint%27"><span class="hs-identifier hs-type">addAwakeConstraint'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span id="addAwakeConstraint%27"><span class="annot"><span class="annottext">addAwakeConstraint' :: Blocker -&gt; Constraint -&gt; TCMT IO ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addAwakeConstraint%27"><span class="hs-identifier hs-var hs-var">addAwakeConstraint'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint]
+-&gt; Blocker -&gt; Constraint -&gt; TCMT IO ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraintTo"><span class="hs-identifier hs-var">addConstraintTo</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-var">stAwakeConstraints</span></a></span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraintTo"><span class="hs-identifier hs-type">addConstraintTo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-193"></span><span id="addConstraintTo"><span class="annot"><span class="annottext">addConstraintTo :: Lens' TCState [ProblemConstraint]
+-&gt; Blocker -&gt; Constraint -&gt; TCMT IO ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraintTo"><span class="hs-identifier hs-var hs-var">addConstraintTo</span></a></span></span><span> </span><span id="local-6989586621681936968"><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint]
+</span><a href="#local-6989586621681936968"><span class="hs-identifier hs-var">bucket</span></a></span></span><span> </span><span id="local-6989586621681936969"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621681936969"><span class="hs-identifier hs-var">unblock</span></a></span></span><span> </span><span id="local-6989586621681936970"><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681936970"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-194"></span><span>    </span><span id="local-6989586621681936971"><span class="annot"><a href="#local-6989586621681936971"><span class="hs-identifier hs-var">pc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Constraint -&gt; TCM ProblemConstraint
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#buildConstraint"><span class="hs-identifier hs-var">buildConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621681936969"><span class="hs-identifier hs-var">unblock</span></a></span><span> </span><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681936970"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-195"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stDirty"><span class="hs-identifier hs-type">stDirty</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-operator hs-type">`setTCLens`</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-196"></span><span>    </span><span class="annot"><a href="#local-6989586621681936968"><span class="hs-identifier hs-type">bucket</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-type">`modifyTCLens`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">pc</span></span><span> </span><span class="annot"><span class="hs-glyph">:</span></span><span class="hs-special">)</span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- | A problem is considered solved if there are no unsolved blocking constraints belonging to it.</span><span>
+</span><span id="line-199"></span><span class="hs-comment">--   There's no really good principle for what constraints are blocking and which are not, but the</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--   general idea is that nothing bad should happen if you assume a non-blocking constraint is</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--   solvable, but it turns out it isn't. For instance, assuming an equality constraint between two</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--   types that turns out to be false can lead to ill typed terms in places where we don't expect</span><span>
+</span><span id="line-203"></span><span class="hs-comment">--   them.</span><span>
+</span><span id="line-204"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#isBlockingConstraint"><span class="hs-identifier hs-type">isBlockingConstraint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-205"></span><span id="isBlockingConstraint"><span class="annot"><span class="annottext">isBlockingConstraint :: Constraint -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isBlockingConstraint"><span class="hs-identifier hs-var hs-var">isBlockingConstraint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-206"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#SortCmp"><span class="hs-identifier hs-type">SortCmp</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-207"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#LevelCmp"><span class="hs-identifier hs-type">LevelCmp</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-208"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#FindInstance"><span class="hs-identifier hs-type">FindInstance</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-209"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ResolveInstanceHead"><span class="hs-identifier hs-type">ResolveInstanceHead</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-210"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#HasBiggerSort"><span class="hs-identifier hs-type">HasBiggerSort</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-211"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#HasPTSRule"><span class="hs-identifier hs-type">HasPTSRule</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-212"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckDataSort"><span class="hs-identifier hs-type">CheckDataSort</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-213"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ValueCmp"><span class="hs-identifier hs-type">ValueCmp</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-214"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ValueCmpOnFace"><span class="hs-identifier hs-type">ValueCmpOnFace</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-215"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ElimCmp"><span class="hs-identifier hs-type">ElimCmp</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-216"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#UnBlock"><span class="hs-identifier hs-type">UnBlock</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-217"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#IsEmpty"><span class="hs-identifier hs-type">IsEmpty</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-218"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckSizeLtSat"><span class="hs-identifier hs-type">CheckSizeLtSat</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-219"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckFunDef"><span class="hs-identifier hs-type">CheckFunDef</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-220"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#UnquoteTactic"><span class="hs-identifier hs-type">UnquoteTactic</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-221"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckMetaInst"><span class="hs-identifier hs-type">CheckMetaInst</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-222"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckType"><span class="hs-identifier hs-type">CheckType</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-223"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckLockedVars"><span class="hs-identifier hs-type">CheckLockedVars</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-224"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#UsableAtModality"><span class="hs-identifier hs-type">UsableAtModality</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-225"></span><span>
+</span><span id="line-226"></span><span class="annot"><span class="hs-comment">-- | Start solving constraints</span></span><span>
+</span><span id="line-227"></span><span id="local-6989586621681936498"><span id="local-6989586621681936499"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#nowSolvingConstraints"><span class="hs-identifier hs-type">nowSolvingConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936498"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936498"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936499"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936498"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936499"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-228"></span><span id="nowSolvingConstraints"><span class="annot"><span class="annottext">nowSolvingConstraints :: forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#nowSolvingConstraints"><span class="hs-identifier hs-var hs-var">nowSolvingConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall a. (TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a) -&gt; (TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681936999"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936999"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936999"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envSolvingConstraints"><span class="hs-identifier hs-var">envSolvingConstraints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span id="local-6989586621681936502"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#isSolvingConstraints"><span class="hs-identifier hs-type">isSolvingConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936502"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936502"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-231"></span><span id="isSolvingConstraints"><span class="annot"><span class="annottext">isSolvingConstraints :: forall (m :: * -&gt; *). MonadTCEnv m =&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isSolvingConstraints"><span class="hs-identifier hs-var hs-var">isSolvingConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; Bool) -&gt; m Bool
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; (TCEnv -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#asksTC"><span class="hs-identifier hs-var">asksTC</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Base.html#envSolvingConstraints"><span class="hs-identifier hs-var">envSolvingConstraints</span></a></span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span class="annot"><span class="hs-comment">-- | Add constraint if the action raises a pattern violation</span></span><span>
+</span><span id="line-234"></span><span id="local-6989586621681936504"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#catchConstraint"><span class="hs-identifier hs-type">catchConstraint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936504"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936504"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936504"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-235"></span><span id="catchConstraint"><span class="annot"><span class="annottext">catchConstraint :: forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+Constraint -&gt; m () -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#catchConstraint"><span class="hs-identifier hs-var hs-var">catchConstraint</span></a></span></span><span> </span><span id="local-6989586621681937008"><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681937008"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Blocker -&gt; m ()) -&gt; m () -&gt; m ()
+forall a. (Blocker -&gt; m a) -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadBlock m =&gt;
+(Blocker -&gt; m a) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#catchPatternErr"><span class="hs-identifier hs-var">catchPatternErr</span></a></span><span> </span><span class="annot"><span class="annottext">((Blocker -&gt; m ()) -&gt; m () -&gt; m ())
+-&gt; (Blocker -&gt; m ()) -&gt; m () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681937010"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621681937010"><span class="hs-identifier hs-var">unblock</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Constraint -&gt; m ()
+forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+Blocker -&gt; Constraint -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#addConstraint"><span class="hs-identifier hs-var">addConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621681937010"><span class="hs-identifier hs-var">unblock</span></a></span><span> </span><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621681937008"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-236"></span><span>
+</span><span id="line-237"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#isInstanceConstraint"><span class="hs-identifier hs-type">isInstanceConstraint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraint"><span class="hs-identifier hs-type">Constraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-238"></span><span id="isInstanceConstraint"><span class="annot"><span class="annottext">isInstanceConstraint :: Constraint -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isInstanceConstraint"><span class="hs-identifier hs-var hs-var">isInstanceConstraint</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#FindInstance"><span class="hs-identifier hs-type">FindInstance</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-239"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#isInstanceConstraint"><span class="hs-identifier hs-var">isInstanceConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">Constraint
+</span><span class="hs-identifier">_</span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-240"></span><span>
+</span><span id="line-241"></span><span id="local-6989586621681936508"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#canDropRecursiveInstance"><span class="hs-identifier hs-type">canDropRecursiveInstance</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936508"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936508"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936508"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-242"></span><span id="canDropRecursiveInstance"><span class="annot"><span class="annottext">canDropRecursiveInstance :: forall (m :: * -&gt; *). (ReadTCState m, HasOptions m) =&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#canDropRecursiveInstance"><span class="hs-identifier hs-var hs-var">canDropRecursiveInstance</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-243"></span><span>  </span><span class="annot"><span class="annottext">m Bool -&gt; m Bool -&gt; m Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#and2M"><span class="hs-identifier hs-var">and2M</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">TCState -&gt; Lens' TCState Bool -&gt; Bool
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; f Bool) -&gt; TCState -&gt; f TCState
+Lens' TCState Bool
+</span><a href="Agda.TypeChecking.Monad.Base.html#stConsideringInstance"><span class="hs-identifier hs-var">stConsideringInstance</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; Bool) -&gt; m TCState -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m TCState
+forall (m :: * -&gt; *). ReadTCState m =&gt; m TCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#getTCState"><span class="hs-identifier hs-var">getTCState</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-244"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (PragmaOptions -&gt; Bool) -&gt; PragmaOptions -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optBacktrackingInstances"><span class="hs-identifier hs-var">optBacktrackingInstances</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool) -&gt; m PragmaOptions -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-245"></span><span>
+</span><span id="line-246"></span><span id="local-6989586621681937029"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#shouldPostponeInstanceSearch"><span class="hs-identifier hs-type">shouldPostponeInstanceSearch</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937029"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937029"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937029"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-247"></span><span id="shouldPostponeInstanceSearch"><span class="annot"><span class="annottext">shouldPostponeInstanceSearch :: forall (m :: * -&gt; *). (ReadTCState m, HasOptions m) =&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#shouldPostponeInstanceSearch"><span class="hs-identifier hs-var hs-var">shouldPostponeInstanceSearch</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m Bool
+forall (m :: * -&gt; *). (ReadTCState m, HasOptions m) =&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#canDropRecursiveInstance"><span class="hs-identifier hs-var">canDropRecursiveInstance</span></a></span><span> </span><span class="annot"><span class="annottext">m Bool -&gt; m Bool -&gt; m Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#or2M"><span class="hs-operator hs-var">`or2M`</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">TCState -&gt; Lens' TCState Bool -&gt; Bool
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; f Bool) -&gt; TCState -&gt; f TCState
+Lens' TCState Bool
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPostponeInstanceSearch"><span class="hs-identifier hs-var">stPostponeInstanceSearch</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; Bool) -&gt; m TCState -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m TCState
+forall (m :: * -&gt; *). ReadTCState m =&gt; m TCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#getTCState"><span class="hs-identifier hs-var">getTCState</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-248"></span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- | Wake constraints matching the given predicate (and aren't instance</span><span>
+</span><span id="line-250"></span><span class="hs-comment">--   constraints if 'shouldPostponeInstanceSearch').</span><span>
+</span><span id="line-251"></span><span id="local-6989586621681937046"><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#wakeConstraints%27"><span class="hs-identifier hs-type">wakeConstraints'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937046"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ProblemConstraint"><span class="hs-identifier hs-type">ProblemConstraint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#WakeUp"><span class="hs-identifier hs-type">WakeUp</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937046"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-252"></span><span id="wakeConstraints%27"><span class="annot"><span class="annottext">wakeConstraints' :: forall (m :: * -&gt; *).
+MonadConstraint m =&gt;
+(ProblemConstraint -&gt; WakeUp) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#wakeConstraints%27"><span class="hs-identifier hs-var hs-var">wakeConstraints'</span></a></span></span><span> </span><span id="local-6989586621681937057"><span class="annot"><span class="annottext">ProblemConstraint -&gt; WakeUp
+</span><a href="#local-6989586621681937057"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-253"></span><span>  </span><span id="local-6989586621681937058"><span class="annot"><a href="#local-6989586621681937058"><span class="hs-identifier hs-var">skipInstance</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m Bool
+forall (m :: * -&gt; *). (ReadTCState m, HasOptions m) =&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#shouldPostponeInstanceSearch"><span class="hs-identifier hs-var">shouldPostponeInstanceSearch</span></a></span><span>
+</span><span id="line-254"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681937059"><span class="annot"><a href="#local-6989586621681937059"><span class="hs-identifier hs-var hs-var">skip</span></a></span></span><span> </span><span id="local-6989586621681937060"><span class="annot"><span class="annottext">ProblemConstraint
+</span><a href="#local-6989586621681937060"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681937058"><span class="hs-identifier hs-var">skipInstance</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Constraint -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#isInstanceConstraint"><span class="hs-identifier hs-var">isInstanceConstraint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Closure Constraint -&gt; Constraint
+forall a. Closure a -&gt; a
+</span><a href="Agda.TypeChecking.Monad.Base.html#clValue"><span class="hs-identifier hs-var">clValue</span></a></span><span> </span><span class="annot"><span class="annottext">(Closure Constraint -&gt; Constraint)
+-&gt; Closure Constraint -&gt; Constraint
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Closure Constraint
+</span><a href="Agda.TypeChecking.Monad.Base.html#theConstraint"><span class="hs-identifier hs-var">theConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint
+</span><a href="#local-6989586621681937060"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-255"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#wakeConstraints"><span class="hs-identifier hs-type">wakeConstraints</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#wakeUpWhen"><span class="hs-identifier hs-type">wakeUpWhen</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">not</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="#local-6989586621681937059"><span class="hs-identifier hs-type">skip</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681937057"><span class="hs-identifier hs-type">p</span></a></span><span>
+</span><span id="line-256"></span><span>
+</span><span id="line-257"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-258"></span><span class="annot"><span class="hs-comment">-- * Lenses</span></span><span>
+</span><span id="line-259"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-260"></span><span>
+</span><span id="line-261"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#mapAwakeConstraints"><span class="hs-identifier hs-type">mapAwakeConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span>
+</span><span id="line-262"></span><span id="mapAwakeConstraints"><span class="annot"><span class="annottext">mapAwakeConstraints :: ([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; TCState -&gt; TCState
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#mapAwakeConstraints"><span class="hs-identifier hs-var hs-var">mapAwakeConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint]
+-&gt; ([ProblemConstraint] -&gt; [ProblemConstraint])
+-&gt; TCState
+-&gt; TCState
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stAwakeConstraints"><span class="hs-identifier hs-var">stAwakeConstraints</span></a></span><span>
+</span><span id="line-263"></span><span>
+</span><span id="line-264"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#mapSleepingConstraints"><span class="hs-identifier hs-type">mapSleepingConstraints</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Constraints"><span class="hs-identifier hs-type">Constraints</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span>
+</span><span id="line-265"></span><span id="mapSleepingConstraints"><span class="annot"><span class="annottext">mapSleepingConstraints :: ([ProblemConstraint] -&gt; [ProblemConstraint]) -&gt; TCState -&gt; TCState
+</span><a href="Agda.TypeChecking.Monad.Constraints.html#mapSleepingConstraints"><span class="hs-identifier hs-var hs-var">mapSleepingConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState [ProblemConstraint]
+-&gt; ([ProblemConstraint] -&gt; [ProblemConstraint])
+-&gt; TCState
+-&gt; TCState
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">([ProblemConstraint] -&gt; f [ProblemConstraint])
+-&gt; TCState -&gt; f TCState
+Lens' TCState [ProblemConstraint]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stSleepingConstraints"><span class="hs-identifier hs-var">stSleepingConstraints</span></a></span><span>
+</span><span id="line-266"></span></pre></body></html>

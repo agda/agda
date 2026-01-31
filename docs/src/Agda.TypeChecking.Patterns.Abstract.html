@@ -1,0 +1,287 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-comment">-- | Tools to manipulate patterns in abstract syntax</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--   in the TCM (type checking monad).</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html"><span class="hs-identifier">Agda.TypeChecking.Patterns.Abstract</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Void</span></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html"><span class="hs-identifier">Agda.Syntax.Abstract</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Pattern.html"><span class="hs-identifier">Agda.Syntax.Abstract.Pattern</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#FieldAssignment%27"><span class="hs-identifier">FieldAssignment'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Info.html"><span class="hs-identifier">Agda.Syntax.Info</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">I</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Literal.html"><span class="hs-identifier">Agda.Syntax.Literal</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html"><span class="hs-identifier">Agda.TypeChecking.Pretty</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html"><span class="hs-identifier">Agda.TypeChecking.Warnings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#raiseWarningsOnUsage"><span class="hs-identifier">raiseWarningsOnUsage</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- | Expand literal integer pattern into suc/zero constructor patterns.</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span id="local-6989586621682028969"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#expandLitPattern"><span class="hs-identifier hs-type">expandLitPattern</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCErr"><span class="hs-identifier hs-type">TCErr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682028969"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682028969"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682028969"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Builtin.html#HasBuiltins"><span class="hs-identifier hs-type">HasBuiltins</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682028969"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern"><span class="hs-identifier hs-type">A.Pattern</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682028969"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern"><span class="hs-identifier hs-type">A.Pattern</span></a></span></span><span>
+</span><span id="line-33"></span><span id="expandLitPattern"><span class="annot"><span class="annottext">expandLitPattern :: forall (m :: * -&gt; *).
+(MonadError TCErr m, MonadTCEnv m, ReadTCState m, HasBuiltins m) =&gt;
+Pattern -&gt; m Pattern
+</span><a href="Agda.TypeChecking.Patterns.Abstract.html#expandLitPattern"><span class="hs-identifier hs-var hs-var">expandLitPattern</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LitP"><span class="hs-identifier hs-type">A.LitP</span></a></span><span> </span><span id="local-6989586621682029171"><span class="annot"><span class="annottext">PatInfo
+</span><a href="#local-6989586621682029171"><span class="hs-identifier hs-var">info</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Literal.html#LitNat"><span class="hs-identifier hs-type">LitNat</span></a></span><span> </span><span id="local-6989586621682029173"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621682029173"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621682029173"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; m Pattern
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#NegativeLiteralInPattern"><span class="hs-identifier hs-var">NegativeLiteralInPattern</span></a></span><span>  </span><span class="hs-comment">-- Andreas, issue #2365, negative literals not yet supported.</span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621682029173"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">20</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; m Pattern
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#LiteralTooBig"><span class="hs-identifier hs-var">LiteralTooBig</span></a></span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-38"></span><span>      </span><span id="local-6989586621682029179"><span class="annot"><a href="#local-6989586621682029179"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">BuiltinId -&gt; m QName
+forall (m :: * -&gt; *).
+(HasBuiltins m, MonadTCError m) =&gt;
+BuiltinId -&gt; m QName
+</span><a href="Agda.TypeChecking.Monad.Builtin.html#getBuiltinName_"><span class="hs-identifier hs-var">getBuiltinName_</span></a></span><span> </span><span class="annot"><span class="annottext">BuiltinId
+</span><a href="Agda.Syntax.Builtin.html#builtinZero"><span class="hs-identifier hs-var">builtinZero</span></a></span><span>
+</span><span id="line-39"></span><span>      </span><span id="local-6989586621682029182"><span class="annot"><a href="#local-6989586621682029182"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Builtin.html#getBuiltinName_"><span class="hs-identifier hs-type">getBuiltinName_</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSuc"><span class="hs-identifier hs-type">builtinSuc</span></a></span><span>
+</span><span id="line-40"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682029184"><span class="annot"><a href="#local-6989586621682029184"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PatInfo -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><a href="#local-6989586621682029171"><span class="hs-identifier hs-var">info</span></a></span><span>
+</span><span id="line-41"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682029186"><span class="annot"><a href="#local-6989586621682029186"><span class="hs-identifier hs-var hs-var">zero</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ConPatInfo -&gt; AmbiguousQName -&gt; NAPs Expr -&gt; Pattern
+forall e. ConPatInfo -&gt; AmbiguousQName -&gt; NAPs e -&gt; Pattern' e
+</span><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-var">A.ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><a href="#local-6989586621682029188"><span class="hs-identifier hs-var">cinfo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; AmbiguousQName
+</span><a href="Agda.Syntax.Abstract.Name.html#unambiguous"><span class="hs-identifier hs-var">unambiguous</span></a></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; AmbiguousQName) -&gt; QName -&gt; AmbiguousQName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; QName -&gt; QName
+forall a. SetRange a =&gt; Range -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var">setRange</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682029184"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682029179"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-42"></span><span>          </span><span id="local-6989586621682029191"><span class="annot"><a href="#local-6989586621682029191"><span class="hs-identifier hs-var hs-var">suc</span></a></span></span><span> </span><span id="local-6989586621682029192"><span class="annot"><span class="annottext">Pattern
+</span><a href="#local-6989586621682029192"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ConPatInfo -&gt; AmbiguousQName -&gt; NAPs Expr -&gt; Pattern
+forall e. ConPatInfo -&gt; AmbiguousQName -&gt; NAPs e -&gt; Pattern' e
+</span><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-var">A.ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><a href="#local-6989586621682029188"><span class="hs-identifier hs-var">cinfo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; AmbiguousQName
+</span><a href="Agda.Syntax.Abstract.Name.html#unambiguous"><span class="hs-identifier hs-var">unambiguous</span></a></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; AmbiguousQName) -&gt; QName -&gt; AmbiguousQName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; QName -&gt; QName
+forall a. SetRange a =&gt; Range -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var">setRange</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682029184"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682029182"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Pattern -&gt; NamedArg Pattern
+forall a. a -&gt; NamedArg a
+</span><a href="Agda.Syntax.Common.html#defaultNamedArg"><span class="hs-identifier hs-var">defaultNamedArg</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern
+</span><a href="#local-6989586621682029192"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-43"></span><span>          </span><span id="local-6989586621682029188"><span class="annot"><a href="#local-6989586621682029188"><span class="hs-identifier hs-var hs-var">cinfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ConOrigin -&gt; PatInfo -&gt; ConPatLazy -&gt; ConPatInfo
+</span><a href="Agda.Syntax.Info.html#ConPatInfo"><span class="hs-identifier hs-var">A.ConPatInfo</span></a></span><span> </span><span class="annot"><span class="annottext">ConOrigin
+</span><a href="Agda.Syntax.Common.html#ConOCon"><span class="hs-identifier hs-var">ConOCon</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><a href="#local-6989586621682029171"><span class="hs-identifier hs-var">info</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatLazy
+</span><a href="Agda.Syntax.Info.html#ConPatEager"><span class="hs-identifier hs-var">ConPatEager</span></a></span><span>
+</span><span id="line-44"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">foldr</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">($)</span></span><span> </span><span class="annot"><a href="#local-6989586621682029186"><span class="hs-identifier hs-type">zero</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">List.genericReplicate</span></span><span> </span><span class="annot"><a href="#local-6989586621682029173"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029191"><span class="hs-identifier hs-type">suc</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span id="local-6989586621682029199"><span class="annot"><span class="annottext">Pattern
+</span><a href="#local-6989586621682029199"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pattern -&gt; m Pattern
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Pattern
+</span><a href="#local-6989586621682029199"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><span class="hs-comment">-- | Expand away (deeply) all pattern synonyms in a pattern.</span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- Unfortunately, the more general type signature</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--   expandPatternSynonyms :: forall a p . APatternLike a p =&gt; p -&gt; TCM p</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- is rejected by GHC 7.10</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   Could not deduce (APatternLike A.Expr p)</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--     arising from a use of &#8216;postTraverseAPatternM&#8217;</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- I am mystified (Andreas, 2017-07-27)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- expandPatternSynonyms :: forall a p . APatternLike a p =&gt; p -&gt; TCM p</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- As a workaround, we define this function only for a = A.Exp, p = A.Pattern'</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- and keep the type class ExpandPatternSynonyms (which would otherwise be superfluous).</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms%27"><span class="hs-identifier hs-type">expandPatternSynonyms'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621682029019"><span class="annot"><a href="#local-6989586621682029019"><span class="hs-identifier hs-type">e</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">A.Pattern'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029019"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">A.Pattern'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029019"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span id="expandPatternSynonyms%27"><span class="annot"><span class="annottext">expandPatternSynonyms' :: forall e. Pattern' e -&gt; TCM (Pattern' e)
+</span><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms%27"><span class="hs-identifier hs-var hs-var">expandPatternSynonyms'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Pattern' (ADotT (Pattern' e))
+ -&gt; TCMT IO (Pattern' (ADotT (Pattern' e))))
+-&gt; Pattern' e -&gt; TCMT IO (Pattern' e)
+forall p (m :: * -&gt; *).
+(APatternLike p, Monad m) =&gt;
+(Pattern' (ADotT p) -&gt; m (Pattern' (ADotT p))) -&gt; p -&gt; m p
+</span><a href="Agda.Syntax.Abstract.Pattern.html#postTraverseAPatternM"><span class="hs-identifier hs-var">postTraverseAPatternM</span></a></span><span> </span><span class="annot"><span class="annottext">((Pattern' (ADotT (Pattern' e))
+  -&gt; TCMT IO (Pattern' (ADotT (Pattern' e))))
+ -&gt; Pattern' e -&gt; TCMT IO (Pattern' e))
+-&gt; (Pattern' (ADotT (Pattern' e))
+    -&gt; TCMT IO (Pattern' (ADotT (Pattern' e))))
+-&gt; Pattern' e
+-&gt; TCMT IO (Pattern' e)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynP"><span class="hs-identifier hs-type">A.PatternSynP</span></a></span><span> </span><span id="local-6989586621682029308"><span class="annot"><span class="annottext">PatInfo
+</span><a href="#local-6989586621682029308"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621682029309"><span class="annot"><span class="annottext">AmbiguousQName
+</span><a href="#local-6989586621682029309"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621682029310"><span class="annot"><span class="annottext">NAPs (ADotT (Pattern' e))
+</span><a href="#local-6989586621682029310"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PatInfo
+-&gt; TCMT IO (Pattern' (ADotT (Pattern' e)))
+-&gt; TCMT IO (Pattern' (ADotT (Pattern' e)))
+forall (m :: * -&gt; *) x a.
+(MonadTrace m, HasRange x) =&gt;
+x -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Trace.html#setCurrentRange"><span class="hs-identifier hs-var">setCurrentRange</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><a href="#local-6989586621682029308"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO (Pattern' (ADotT (Pattern' e)))
+ -&gt; TCMT IO (Pattern' (ADotT (Pattern' e))))
+-&gt; TCMT IO (Pattern' (ADotT (Pattern' e)))
+-&gt; TCMT IO (Pattern' (ADotT (Pattern' e)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621682029312"><span class="annot"><a href="#local-6989586621682029312"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682029313"><span class="annot"><a href="#local-6989586621682029313"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">KillRangeT PatternSynDefn
+forall a. KillRange a =&gt; KillRangeT a
+</span><a href="Agda.Syntax.Position.html#killRange"><span class="hs-identifier hs-var">killRange</span></a></span><span> </span><span class="annot"><span class="annottext">KillRangeT PatternSynDefn
+-&gt; TCMT IO PatternSynDefn -&gt; TCMT IO PatternSynDefn
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName -&gt; TCMT IO PatternSynDefn
+</span><a href="Agda.TypeChecking.Monad.State.html#lookupPatternSyn"><span class="hs-identifier hs-var">lookupPatternSyn</span></a></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName
+</span><a href="#local-6989586621682029309"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-comment">-- Andreas, 2020-02-11, issue #3734</span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-comment">-- If lookup of ambiguous pattern synonym was successful,</span><span>
+</span><span id="line-74"></span><span>    </span><span class="hs-comment">-- we are justified to complain if one of the definitions</span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-comment">-- involved in the resolution is tagged with a warning.</span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-comment">-- This is less than optimal, since we do not rule out</span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-comment">-- the invalid alternatives by typing, but we cannot do</span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-comment">-- better here.</span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">mapM_</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#raiseWarningsOnUsage"><span class="hs-identifier hs-type">raiseWarningsOnUsage</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#unAmbQ"><span class="hs-identifier hs-var">A.unAmbQ</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029309"><span class="hs-identifier hs-type">x</span></a></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span>    </span><span class="hs-comment">-- Must expand arguments before instantiating otherwise pattern</span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-comment">-- synonyms could get into dot patterns (which is __IMPOSSIBLE__).</span><span>
+</span><span id="line-83"></span><span>    </span><span id="local-6989586621682029319"><span class="annot"><a href="#local-6989586621682029319"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms%27"><span class="hs-identifier hs-type">expandPatternSynonyms'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">vacuous</span></span><span> </span><span class="annot"><a href="#local-6989586621682029313"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">A.Pattern'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029019"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;scope.patsyn&quot;</span></span><span> </span><span class="annot"><span class="hs-number">80</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#vcat"><span class="hs-identifier hs-type">vcat</span></a></span><span>
+</span><span id="line-86"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;calling insertImplicitPatSynArgs&quot;</span></span><span>
+</span><span id="line-87"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;- patsyn parameters: &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#killRange"><span class="hs-identifier hs-type">killRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029312"><span class="hs-identifier hs-type">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;- patsyn arguments:  &quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-type">&lt;+&gt;</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">void</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682029310"><span class="hs-keyword hs-type">as</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-90"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#insertImplicitPatSynArgs"><span class="hs-identifier hs-type">A.insertImplicitPatSynArgs</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682029329"><span class="annot"><span class="annottext">Hiding
+</span><a href="#local-6989586621682029329"><span class="hs-identifier hs-var">_h</span></a></span></span><span> </span><span id="local-6989586621682029330"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682029330"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PatInfo -&gt; Pattern' e
+forall e. PatInfo -&gt; Pattern' e
+</span><a href="Agda.Syntax.Abstract.html#WildP"><span class="hs-identifier hs-var">A.WildP</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; PatInfo
+</span><a href="Agda.Syntax.Info.html#PatRange"><span class="hs-identifier hs-var">PatRange</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621682029330"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-type">getRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029309"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682029312"><span class="hs-identifier hs-type">ns</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029310"><span class="hs-keyword hs-type">as</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-91"></span><span>      </span><span class="annot"><span class="annottext">Maybe ([(Name, Pattern' e)], [WithHiding Name])
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCMT IO (Pattern' e)
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCMT IO (Pattern' e))
+-&gt; TypeError -&gt; TCMT IO (Pattern' e)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#BadArgumentsToPatternSynonym"><span class="hs-identifier hs-var">BadArgumentsToPatternSynonym</span></a></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName
+</span><a href="#local-6989586621682029309"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-92"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(Name, Pattern' e)]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">WithHiding Name
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[WithHiding Name]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCMT IO (Pattern' e)
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCMT IO (Pattern' e))
+-&gt; TypeError -&gt; TCMT IO (Pattern' e)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#TooFewArgumentsToPatternSynonym"><span class="hs-identifier hs-var">TooFewArgumentsToPatternSynonym</span></a></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName
+</span><a href="#local-6989586621682029309"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-93"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682029335"><span class="annot"><span class="annottext">[(Name, Pattern' e)]
+</span><a href="#local-6989586621682029335"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-94"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682029338"><span class="annot"><span class="annottext">subE :: p -&gt; a
+</span><a href="#local-6989586621682029338"><span class="hs-identifier hs-var hs-var">subE</span></a></span></span><span> </span><span class="annot"><span class="annottext">p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>   </span><span class="hs-comment">-- No dot patterns in p</span><span>
+</span><span id="line-95"></span><span>        </span><span class="annot"><span class="annottext">Pattern' e -&gt; TCMT IO (Pattern' e)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Pattern' e -&gt; TCMT IO (Pattern' e))
+-&gt; Pattern' e -&gt; TCMT IO (Pattern' e)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Pattern' e -&gt; Pattern' e
+forall a. SetRange a =&gt; Range -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var">setRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PatInfo -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><a href="#local-6989586621682029308"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Pattern' e -&gt; Pattern' e) -&gt; Pattern' e -&gt; Pattern' e
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(e -&gt; e) -&gt; [(Name, Pattern' e)] -&gt; Pattern' e -&gt; Pattern' e
+forall e.
+(e -&gt; e) -&gt; [(Name, Pattern' e)] -&gt; Pattern' e -&gt; Pattern' e
+</span><a href="Agda.Syntax.Abstract.Pattern.html#substPattern%27"><span class="hs-identifier hs-var">substPattern'</span></a></span><span> </span><span class="annot"><span class="annottext">e -&gt; e
+forall {p} {a}. p -&gt; a
+</span><a href="#local-6989586621682029338"><span class="hs-identifier hs-var">subE</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, Pattern' e)]
+</span><a href="#local-6989586621682029335"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621682029319"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span>  </span><span id="local-6989586621682029341"><span class="annot"><span class="annottext">Pattern' (ADotT (Pattern' e))
+</span><a href="#local-6989586621682029341"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pattern' e -&gt; TCMT IO (Pattern' e)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+Pattern' (ADotT (Pattern' e))
+</span><a href="#local-6989586621682029341"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-keyword">class</span><span> </span><span id="ExpandPatternSynonyms"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-var">ExpandPatternSynonyms</span></a></span></span><span> </span><span id="local-6989586621682029109"><span class="annot"><a href="#local-6989586621682029109"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-100"></span><span>  </span><span id="expandPatternSynonyms"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms"><span class="hs-identifier hs-type">expandPatternSynonyms</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621682029109"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029109"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="expandPatternSynonyms"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms"><span class="hs-identifier hs-type">expandPatternSynonyms</span></a></span></span><span>
+</span><span id="line-103"></span><span>    </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621682029106"><span id="local-6989586621682029107"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Traversable</span></span><span> </span><span class="annot"><a href="#local-6989586621682029106"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029107"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682029106"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029107"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621682029109"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682029109"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029109"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621682029344"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms"><span class="hs-identifier hs-var hs-var">expandPatternSynonyms</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; TCMT IO b) -&gt; f b -&gt; TCMT IO (f b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; f a -&gt; f (f b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; TCMT IO b
+forall a. ExpandPatternSynonyms a =&gt; a -&gt; TCM a
+</span><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms"><span class="hs-identifier hs-var">expandPatternSynonyms</span></a></span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682029118"><span id="local-6989586621682029357"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029118"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621682029118"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682029120"><span id="local-6989586621682029367"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029120"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621682029120"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-108"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682029122"><span id="local-6989586621682029376"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029122"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029122"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-109"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682029126"><span id="local-6989586621682029127"><span id="local-6989586621682029385"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029126"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Named"><span class="hs-identifier hs-type">Named</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029127"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029126"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-110"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682029130"><span id="local-6989586621682029394"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029130"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#FieldAssignment%27"><span class="hs-identifier hs-type">FieldAssignment'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029130"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682029132"><span class="annot"><a href="Agda.TypeChecking.Patterns.Abstract.html#ExpandPatternSynonyms"><span class="hs-identifier hs-type">ExpandPatternSynonyms</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">A.Pattern'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029132"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621682029403"><span class="annot"><span class="annottext">expandPatternSynonyms :: Pattern' e -&gt; TCM (Pattern' e)
+</span><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms"><span class="hs-identifier hs-var hs-var hs-var">expandPatternSynonyms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pattern' e -&gt; TCM (Pattern' e)
+forall e. Pattern' e -&gt; TCM (Pattern' e)
+</span><a href="Agda.TypeChecking.Patterns.Abstract.html#expandPatternSynonyms%27"><span class="hs-identifier hs-var">expandPatternSynonyms'</span></a></span><span>
+</span><span id="line-114"></span></pre></body></html>

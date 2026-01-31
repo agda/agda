@@ -1,0 +1,504 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE GeneralizedNewtypeDeriving, UndecidableInstances, MagicHash, UnboxedTuples #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html"><span class="hs-identifier">Agda.Utils.MinimalArray.Lifted</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Arr</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">GHC</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Primitive.Array</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Primitive</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html"><span class="hs-identifier">Agda.Utils.Serialize</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html"><span class="hs-identifier">Agda.Utils.Serialize</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Ser</span></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">newtype</span><span> </span><span id="Array"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-var">Array</span></a></span></span><span> </span><span id="local-6989586621681703511"><span class="annot"><a href="#local-6989586621681703511"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Array"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-var">Array</span></a></span></span><span> </span><span class="hs-special">{</span><span id="unwrap"><span class="annot"><span class="annottext">forall a. Array a -&gt; Array a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#unwrap"><span class="hs-identifier hs-var hs-var">unwrap</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">A.Array</span></span><span> </span><span class="annot"><a href="#local-6989586621681703511"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681703643"><span id="local-6989586621681703648"><span class="annot"><span class="annottext">Array a -&gt; Array a -&gt; Bool
+(Array a -&gt; Array a -&gt; Bool)
+-&gt; (Array a -&gt; Array a -&gt; Bool) -&gt; Eq (Array a)
+forall a. Eq a =&gt; Array a -&gt; Array a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; Array a -&gt; Array a -&gt; Bool
+== :: Array a -&gt; Array a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; Array a -&gt; Array a -&gt; Bool
+/= :: Array a -&gt; Array a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703656"><span id="local-6989586621681703662"><span id="local-6989586621681703666"><span class="annot"><span class="annottext">Int -&gt; Array a -&gt; ShowS
+[Array a] -&gt; ShowS
+Array a -&gt; String
+(Int -&gt; Array a -&gt; ShowS)
+-&gt; (Array a -&gt; String) -&gt; ([Array a] -&gt; ShowS) -&gt; Show (Array a)
+forall a. Show a =&gt; Int -&gt; Array a -&gt; ShowS
+forall a. Show a =&gt; [Array a] -&gt; ShowS
+forall a. Show a =&gt; Array a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Array a -&gt; ShowS
+showsPrec :: Int -&gt; Array a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Array a -&gt; String
+show :: Array a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Array a] -&gt; ShowS
+showList :: [Array a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703671"><span id="local-6989586621681703677"><span id="local-6989586621681703682"><span class="annot"><span class="annottext">Int -&gt; [Item (Array a)] -&gt; Array a
+[Item (Array a)] -&gt; Array a
+Array a -&gt; [Item (Array a)]
+([Item (Array a)] -&gt; Array a)
+-&gt; (Int -&gt; [Item (Array a)] -&gt; Array a)
+-&gt; (Array a -&gt; [Item (Array a)])
+-&gt; IsList (Array a)
+forall a. Int -&gt; [Item (Array a)] -&gt; Array a
+forall a. [Item (Array a)] -&gt; Array a
+forall a. Array a -&gt; [Item (Array a)]
+forall l.
+([Item l] -&gt; l)
+-&gt; (Int -&gt; [Item l] -&gt; l) -&gt; (l -&gt; [Item l]) -&gt; IsList l
+$cfromList :: forall a. [Item (Array a)] -&gt; Array a
+fromList :: [Item (Array a)] -&gt; Array a
+$cfromListN :: forall a. Int -&gt; [Item (Array a)] -&gt; Array a
+fromListN :: Int -&gt; [Item (Array a)] -&gt; Array a
+$ctoList :: forall a. Array a -&gt; [Item (Array a)]
+toList :: Array a -&gt; [Item (Array a)]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">IsList</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703689"><span id="local-6989586621681703694"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Array a -&gt; Array b)
+-&gt; (forall a b. a -&gt; Array b -&gt; Array a) -&gt; Functor Array
+forall a b. a -&gt; Array b -&gt; Array a
+forall a b. (a -&gt; b) -&gt; Array a -&gt; Array b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Array a -&gt; Array b
+fmap :: forall a b. (a -&gt; b) -&gt; Array a -&gt; Array b
+$c&lt;$ :: forall a b. a -&gt; Array b -&gt; Array a
+&lt;$ :: forall a b. a -&gt; Array b -&gt; Array a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703701"><span id="local-6989586621681703708"><span id="local-6989586621681703714"><span id="local-6989586621681703720"><span id="local-6989586621681703724"><span id="local-6989586621681703728"><span id="local-6989586621681703732"><span id="local-6989586621681703736"><span id="local-6989586621681703740"><span id="local-6989586621681703744"><span id="local-6989586621681703748"><span id="local-6989586621681703752"><span id="local-6989586621681703756"><span id="local-6989586621681703762"><span id="local-6989586621681703768"><span id="local-6989586621681703774"><span id="local-6989586621681703780"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; Array m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Array a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Array a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Array a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Array a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Array a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Array a -&gt; a)
+-&gt; (forall a. Array a -&gt; [a])
+-&gt; (forall a. Array a -&gt; Bool)
+-&gt; (forall a. Array a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; Array a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; Array a -&gt; a)
+-&gt; (forall a. Ord a =&gt; Array a -&gt; a)
+-&gt; (forall a. Num a =&gt; Array a -&gt; a)
+-&gt; (forall a. Num a =&gt; Array a -&gt; a)
+-&gt; Foldable Array
+forall a. Eq a =&gt; a -&gt; Array a -&gt; Bool
+forall a. Num a =&gt; Array a -&gt; a
+forall a. Ord a =&gt; Array a -&gt; a
+forall m. Monoid m =&gt; Array m -&gt; m
+forall a. Array a -&gt; Bool
+forall a. Array a -&gt; Int
+forall a. Array a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; Array a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Array a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Array a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall m. Monoid m =&gt; Array m -&gt; m
+fold :: forall m. Monoid m =&gt; Array m -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Array a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Array a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Array a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Array a -&gt; m
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Array a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Array a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Array a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Array a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Array a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Array a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Array a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Array a -&gt; a
+$ctoList :: forall a. Array a -&gt; [a]
+toList :: forall a. Array a -&gt; [a]
+$cnull :: forall a. Array a -&gt; Bool
+null :: forall a. Array a -&gt; Bool
+$clength :: forall a. Array a -&gt; Int
+length :: forall a. Array a -&gt; Int
+$celem :: forall a. Eq a =&gt; a -&gt; Array a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; Array a -&gt; Bool
+$cmaximum :: forall a. Ord a =&gt; Array a -&gt; a
+maximum :: forall a. Ord a =&gt; Array a -&gt; a
+$cminimum :: forall a. Ord a =&gt; Array a -&gt; a
+minimum :: forall a. Ord a =&gt; Array a -&gt; a
+$csum :: forall a. Num a =&gt; Array a -&gt; a
+sum :: forall a. Num a =&gt; Array a -&gt; a
+$cproduct :: forall a. Num a =&gt; Array a -&gt; a
+product :: forall a. Num a =&gt; Array a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703809"><span id="local-6989586621681703817"><span id="local-6989586621681703823"><span id="local-6989586621681703828"><span class="annot"><span class="annottext">Functor Array
+Foldable Array
+(Functor Array, Foldable Array) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; Array a -&gt; f (Array b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    Array (f a) -&gt; f (Array a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; Array a -&gt; m (Array b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; Array (m a) -&gt; m (Array a))
+-&gt; Traversable Array
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; Array (m a) -&gt; m (Array a)
+forall (f :: * -&gt; *) a. Applicative f =&gt; Array (f a) -&gt; f (Array a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Array a -&gt; m (Array b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Array a -&gt; f (Array b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Array a -&gt; f (Array b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Array a -&gt; f (Array b)
+$csequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; Array (f a) -&gt; f (Array a)
+sequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; Array (f a) -&gt; f (Array a)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Array a -&gt; m (Array b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Array a -&gt; m (Array b)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; Array (m a) -&gt; m (Array a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; Array (m a) -&gt; m (Array a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#size"><span class="hs-pragma hs-type">size</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-21"></span><span id="local-6989586621681703836"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#size"><span class="hs-identifier hs-type">size</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703836"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-22"></span><span id="size"><span class="annot"><span class="annottext">size :: forall a. Array a -&gt; Int
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#size"><span class="hs-identifier hs-var hs-var">size</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span id="local-6989586621681703837"><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703837"><span class="hs-identifier hs-var">arr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Array a -&gt; Int
+forall a. Array a -&gt; Int
+</span><span class="hs-identifier hs-var">A.sizeofArray</span></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703837"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#unsafeIndex"><span class="hs-pragma hs-type">unsafeIndex</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-25"></span><span id="local-6989586621681703597"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#unsafeIndex"><span class="hs-identifier hs-type">unsafeIndex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703597"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681703597"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-26"></span><span id="unsafeIndex"><span class="annot"><span class="annottext">unsafeIndex :: forall a. Array a -&gt; Int -&gt; a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#unsafeIndex"><span class="hs-identifier hs-var hs-var">unsafeIndex</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span id="local-6989586621681703840"><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703840"><span class="hs-identifier hs-var">arr</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681703841"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703841"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Array a -&gt; Int -&gt; a
+forall a. Array a -&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">A.indexArray</span></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703840"><span class="hs-identifier hs-var">arr</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703841"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#index"><span class="hs-pragma hs-type">index</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-29"></span><span id="local-6989586621681703844"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#index"><span class="hs-identifier hs-type">index</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703844"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681703844"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-30"></span><span id="index"><span class="annot"><span class="annottext">index :: forall a. Array a -&gt; Int -&gt; a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#index"><span class="hs-identifier hs-var hs-var">index</span></a></span></span><span> </span><span id="local-6989586621681703851"><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703851"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span id="local-6989586621681703852"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703852"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703852"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703852"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Array a -&gt; Int
+forall a. Array a -&gt; Int
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#size"><span class="hs-identifier hs-var">Agda.Utils.MinimalArray.Lifted.size</span></a></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703851"><span class="hs-identifier hs-var">arr</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><span class="annottext">Array a -&gt; Int -&gt; a
+forall a. Array a -&gt; Int -&gt; a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#unsafeIndex"><span class="hs-identifier hs-var">unsafeIndex</span></a></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703851"><span class="hs-identifier hs-var">arr</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703852"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-32"></span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#index"><span class="hs-identifier hs-var">index</span></a></span><span> </span><span id="local-6989586621681703856"><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703856"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span id="local-6989586621681703857"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703857"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; a
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Array: out of bounds&quot;</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span id="local-6989586621681703859"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#toList"><span class="hs-identifier hs-type">toList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703859"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681703859"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-35"></span><span id="toList"><span class="annot"><span class="annottext">toList :: forall a. Array a -&gt; [a]
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#toList"><span class="hs-identifier hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Array a -&gt; [a]
+Array a -&gt; [Item (Array a)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">GHC.Exts.toList</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span id="local-6989586621681703607"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681703607"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703607"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-38"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: forall a. [a] -&gt; Array a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#fromList"><span class="hs-identifier hs-var hs-var">fromList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Array a
+[Item (Array a)] -&gt; Array a
+forall l. IsList l =&gt; [Item l] -&gt; l
+</span><span class="hs-identifier hs-var">GHC.Exts.fromList</span></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span id="local-6989586621681703609"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#fromListN"><span class="hs-identifier hs-type">fromListN</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681703609"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703609"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-41"></span><span id="fromListN"><span class="annot"><span class="annottext">fromListN :: forall a. Int -&gt; [a] -&gt; Array a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#fromListN"><span class="hs-identifier hs-var hs-var">fromListN</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [a] -&gt; Array a
+Int -&gt; [Item (Array a)] -&gt; Array a
+forall l. IsList l =&gt; Int -&gt; [Item l] -&gt; l
+</span><span class="hs-identifier hs-var">GHC.Exts.fromListN</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span id="local-6989586621681703611"><span id="local-6989586621681703612"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#fromGHCArray"><span class="hs-identifier hs-type">fromGHCArray</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GHC.Array</span></span><span> </span><span class="annot"><a href="#local-6989586621681703611"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703612"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703612"><span class="hs-identifier hs-type">e</span></a></span></span></span><span>
+</span><span id="line-44"></span><span id="fromGHCArray"><span class="annot"><span class="annottext">fromGHCArray :: forall i e. Array i e -&gt; Array e
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#fromGHCArray"><span class="hs-identifier hs-var hs-var">fromGHCArray</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">GHC.Array</span></span><span> </span><span class="annot"><span class="annottext">i
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">i
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681703868"><span class="annot"><span class="annottext">Array# e
+</span><a href="#local-6989586621681703868"><span class="hs-identifier hs-var">arr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Array e -&gt; Array e
+forall a. Array a -&gt; Array a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-var">Array</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Array# e -&gt; Array e
+forall a. Array# a -&gt; Array a
+</span><span class="hs-identifier hs-var">A.Array</span></span><span> </span><span class="annot"><span class="annottext">Array# e
+</span><a href="#local-6989586621681703868"><span class="hs-identifier hs-var">arr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681703622"><span class="annot"><a href="Agda.Utils.Serialize.html#Serialize"><span class="hs-identifier hs-type">Serialize</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703622"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#Serialize"><span class="hs-identifier hs-type">Serialize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703622"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>  </span><span id="local-6989586621681703881"><span class="annot"><span class="annottext">size :: Array a -&gt; Int
+</span><a href="#local-6989586621681703881"><span class="hs-identifier hs-var hs-var hs-var">size</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Int -&gt; a -&gt; Int) -&gt; Int -&gt; Array a -&gt; Int
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Array a -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">Data.Foldable.foldl'</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681703883"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703883"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681703884"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681703884"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Int
+forall a. Serialize a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.Serialize.html#size"><span class="hs-identifier hs-var">Ser.size</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681703884"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681703883"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Int
+forall a. Serialize a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.Serialize.html#size"><span class="hs-identifier hs-var">Ser.size</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-glyph">::</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>  </span><span id="local-6989586621681703888"><span class="annot"><span class="annottext">put :: Array a -&gt; Put
+</span><a href="#local-6989586621681703888"><span class="hs-identifier hs-var hs-var hs-var">put</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">A.Array</span></span><span> </span><span id="local-6989586621681703890"><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703890"><span class="hs-identifier hs-var">arr</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Addr# -&gt; RW -&gt; (# Addr#, RW #)) -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#Put"><span class="hs-identifier hs-var">Put</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681703892"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703892"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681703893"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703893"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-50"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span class="annot"><a href="#local-6989586621681703894"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">State#</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealWorld</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span>
+</span><span id="line-51"></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Array#</span></span><span> </span><span class="annot"><a href="#local-6989586621681703622"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">State#</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealWorld</span></span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-52"></span><span>        </span><span id="local-6989586621681703894"><span class="annot"><span class="annottext">go :: Addr# -&gt; RW -&gt; Int# -&gt; Int# -&gt; Array# a -&gt; (# Addr#, RW #)
+</span><a href="#local-6989586621681703894"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681703895"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703895"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681703896"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703896"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681703897"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703897"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681703898"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703898"><span class="hs-identifier hs-var">sz</span></a></span></span><span> </span><span id="local-6989586621681703899"><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703899"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703897"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">==#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703898"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-53"></span><span>          </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703895"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703896"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-54"></span><span>          </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Array# a -&gt; Int# -&gt; (# a #)
+forall a. Array# a -&gt; Int# -&gt; (# a #)
+</span><span class="hs-identifier hs-var">indexArray#</span></span><span> </span><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703899"><span class="hs-identifier hs-var">arr</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703897"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-55"></span><span>            </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681703900"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681703900"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681703900"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703895"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703896"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-56"></span><span>              </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681703902"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703902"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703903"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703903"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; RW -&gt; Int# -&gt; Int# -&gt; Array# a -&gt; (# Addr#, RW #)
+</span><a href="#local-6989586621681703894"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703902"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703903"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703897"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">+#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703898"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703899"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-57"></span><span>        </span><span id="local-6989586621681703904"><span class="annot"><span class="annottext">sz :: Int#
+</span><a href="#local-6989586621681703904"><span class="hs-identifier hs-var hs-var">sz</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Array# a -&gt; Int#
+forall a. Array# a -&gt; Int#
+</span><span class="hs-identifier hs-var">sizeofArray#</span></span><span> </span><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703890"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int# -&gt; Int
+</span><span class="hs-identifier hs-var">I#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703904"><span class="hs-identifier hs-var">sz</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703892"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703893"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-59"></span><span>      </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681703905"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703905"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703906"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703906"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; RW -&gt; Int# -&gt; Int# -&gt; Array# a -&gt; (# Addr#, RW #)
+</span><a href="#local-6989586621681703894"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703905"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703906"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703904"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703890"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>  </span><span id="local-6989586621681703913"><span class="annot"><span class="annottext">get :: Get (Array a)
+</span><a href="#local-6989586621681703913"><span class="hs-identifier hs-var hs-var hs-var">get</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">I#</span></span><span> </span><span id="local-6989586621681703915"><span class="annot"><a href="#local-6989586621681703915"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a. Serialize a =&gt; Get a
+</span><a href="Agda.Utils.Serialize.html#get"><span class="hs-identifier hs-var">get</span></a></span><span> </span><span class="hs-glyph">@</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><a href="Agda.Utils.Serialize.html#Get"><span class="hs-identifier hs-type">Get</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681703917"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703917"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681703918"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703918"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681703919"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703919"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-64"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span class="annot"><a href="#local-6989586621681703920"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">State#</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealWorld</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MutableArray#</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealWorld</span></span><span> </span><span class="annot"><a href="#local-6989586621681703622"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-65"></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">State#</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealWorld</span></span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-66"></span><span>          </span><span id="local-6989586621681703920"><span class="annot"><span class="annottext">go :: Addr#
+-&gt; Addr#
+-&gt; RW
+-&gt; MutableArray# RealWorld a
+-&gt; Int#
+-&gt; Int#
+-&gt; (# Addr#, RW #)
+</span><a href="#local-6989586621681703920"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681703921"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703921"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681703922"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703922"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681703923"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703923"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681703924"><span class="annot"><span class="annottext">MutableArray# RealWorld a
+</span><a href="#local-6989586621681703924"><span class="hs-identifier hs-var">marr</span></a></span></span><span> </span><span id="local-6989586621681703925"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703925"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681703926"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703926"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703925"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">==#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703926"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-67"></span><span>            </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703922"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703923"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-68"></span><span>            </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Serialize a =&gt; Get a
+</span><a href="Agda.Utils.Serialize.html#get"><span class="hs-identifier hs-var">get</span></a></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681703622"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703921"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703922"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703923"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-69"></span><span>              </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681703928"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703928"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703929"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703929"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703930"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681703930"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">MutableArray# RealWorld a -&gt; Int# -&gt; a -&gt; RW -&gt; RW
+forall d a. MutableArray# d a -&gt; Int# -&gt; a -&gt; State# d -&gt; State# d
+</span><span class="hs-identifier hs-var">writeArray#</span></span><span> </span><span class="annot"><span class="annottext">MutableArray# RealWorld a
+</span><a href="#local-6989586621681703924"><span class="hs-identifier hs-var">marr</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703925"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681703930"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703929"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-70"></span><span>                </span><span id="local-6989586621681703931"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703931"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Addr#
+-&gt; Addr#
+-&gt; RW
+-&gt; MutableArray# RealWorld a
+-&gt; Int#
+-&gt; Int#
+-&gt; (# Addr#, RW #)
+</span><a href="#local-6989586621681703920"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703921"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703928"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703931"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">MutableArray# RealWorld a
+</span><a href="#local-6989586621681703924"><span class="hs-identifier hs-var">marr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703925"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">+#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703926"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-71"></span><span>      </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; a -&gt; RW -&gt; (# RW, MutableArray# RealWorld a #)
+forall a d.
+Int# -&gt; a -&gt; State# d -&gt; (# State# d, MutableArray# d a #)
+</span><span class="hs-identifier hs-var">newArray#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703915"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">a
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703919"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-72"></span><span>        </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681703933"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703933"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703934"><span class="annot"><span class="annottext">MutableArray# RealWorld a
+</span><a href="#local-6989586621681703934"><span class="hs-identifier hs-var">marr</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Addr#
+-&gt; Addr#
+-&gt; RW
+-&gt; MutableArray# RealWorld a
+-&gt; Int#
+-&gt; Int#
+-&gt; (# Addr#, RW #)
+</span><a href="#local-6989586621681703920"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703917"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703918"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703933"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">MutableArray# RealWorld a
+</span><a href="#local-6989586621681703934"><span class="hs-identifier hs-var">marr</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681703915"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-73"></span><span>          </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681703935"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703935"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703936"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703936"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">MutableArray# RealWorld a -&gt; RW -&gt; (# RW, Array# a #)
+forall d a.
+MutableArray# d a -&gt; State# d -&gt; (# State# d, Array# a #)
+</span><span class="hs-identifier hs-var">unsafeFreezeArray#</span></span><span> </span><span class="annot"><span class="annottext">MutableArray# RealWorld a
+</span><a href="#local-6989586621681703934"><span class="hs-identifier hs-var">marr</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703936"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-74"></span><span>            </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681703937"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703937"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681703938"><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703938"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681703935"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681703937"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Array a -&gt; Array a
+forall a. Array a -&gt; Array a
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-var">Array</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Array# a -&gt; Array a
+forall a. Array# a -&gt; Array a
+</span><span class="hs-identifier hs-var">A.Array</span></span><span> </span><span class="annot"><span class="annottext">Array# a
+</span><a href="#local-6989586621681703938"><span class="hs-identifier hs-var">arr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><span class="hs-comment">-- | Strict traversal.</span></span><span>
+</span><span id="line-77"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#traverseIO%27"><span class="hs-pragma hs-type">traverseIO'</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-78"></span><span id="local-6989586621681703630"><span id="local-6989586621681703631"><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#traverseIO%27"><span class="hs-identifier hs-type">traverseIO'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681703630"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681703631"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703630"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703631"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-79"></span><span id="traverseIO%27"><span class="annot"><span class="annottext">traverseIO' :: forall a b. (a -&gt; IO b) -&gt; Array a -&gt; IO (Array b)
+</span><a href="Agda.Utils.MinimalArray.Lifted.html#traverseIO%27"><span class="hs-identifier hs-var hs-var">traverseIO'</span></a></span></span><span> </span><span id="local-6989586621681703946"><span class="annot"><span class="annottext">a -&gt; IO b
+</span><a href="#local-6989586621681703946"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span id="local-6989586621681703947"><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703947"><span class="hs-identifier hs-var">arr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-glyph">!</span><span id="local-6989586621681703948"><span class="annot"><a href="#local-6989586621681703948"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(a -&gt; IO b) -&gt; Array a -&gt; IO (Array b)
+forall (m :: * -&gt; *) a b.
+PrimMonad m =&gt;
+(a -&gt; m b) -&gt; Array a -&gt; m (Array b)
+</span><span class="hs-identifier hs-var">A.traverseArrayP</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; IO b
+</span><a href="#local-6989586621681703946"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621681703947"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.MinimalArray.Lifted.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681703948"><span class="hs-identifier hs-type">arr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span></pre></body></html>

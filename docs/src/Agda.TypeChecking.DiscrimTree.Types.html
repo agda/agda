@@ -1,0 +1,438 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html"><span class="hs-identifier">Agda.TypeChecking.DiscrimTree.Types</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">data</span><span> </span><span id="Key"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#Key"><span class="hs-identifier hs-var">Key</span></a></span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="RigidK"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#RigidK"><span class="hs-identifier hs-var">RigidK</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-comment">-- ^ Rigid symbols (constructors, data types, record types,</span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-comment">-- postulates) identified by a QName.</span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="LocalK"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#LocalK"><span class="hs-identifier hs-var">LocalK</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Local variables.</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="PiK"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#PiK"><span class="hs-identifier hs-var">PiK</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Hiding"><span class="hs-identifier hs-type">Hiding</span></a></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-comment">-- ^ Dependent function types. The domain will be represented</span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-comment">-- accurately, for the case of a genuine dependent function type,</span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-comment">-- the codomain will be a dummy.</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ConstK"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#ConstK"><span class="hs-identifier hs-var">ConstK</span></a></span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Constant lambdas.</span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="SortK"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#SortK"><span class="hs-identifier hs-var">SortK</span></a></span></span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Universes.</span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="FlexK"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#FlexK"><span class="hs-identifier hs-var">FlexK</span></a></span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Anything else.</span></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681779529"><span id="local-6989586621681779543"><span id="local-6989586621681779547"><span class="annot"><span class="annottext">Int -&gt; Key -&gt; ShowS
+[Key] -&gt; ShowS
+Key -&gt; String
+(Int -&gt; Key -&gt; ShowS)
+-&gt; (Key -&gt; String) -&gt; ([Key] -&gt; ShowS) -&gt; Show Key
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Key -&gt; ShowS
+showsPrec :: Int -&gt; Key -&gt; ShowS
+$cshow :: Key -&gt; String
+show :: Key -&gt; String
+$cshowList :: [Key] -&gt; ShowS
+showList :: [Key] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681779552"><span id="local-6989586621681779565"><span class="annot"><span class="annottext">Key -&gt; Key -&gt; Bool
+(Key -&gt; Key -&gt; Bool) -&gt; (Key -&gt; Key -&gt; Bool) -&gt; Eq Key
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Key -&gt; Key -&gt; Bool
+== :: Key -&gt; Key -&gt; Bool
+$c/= :: Key -&gt; Key -&gt; Bool
+/= :: Key -&gt; Key -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681779572"><span id="local-6989586621681779584"><span id="local-6989586621681779588"><span id="local-6989586621681779591"><span id="local-6989586621681779594"><span id="local-6989586621681779597"><span id="local-6989586621681779600"><span class="annot"><span class="annottext">Eq Key
+Eq Key =&gt;
+(Key -&gt; Key -&gt; Ordering)
+-&gt; (Key -&gt; Key -&gt; Bool)
+-&gt; (Key -&gt; Key -&gt; Bool)
+-&gt; (Key -&gt; Key -&gt; Bool)
+-&gt; (Key -&gt; Key -&gt; Bool)
+-&gt; (Key -&gt; Key -&gt; Key)
+-&gt; (Key -&gt; Key -&gt; Key)
+-&gt; Ord Key
+Key -&gt; Key -&gt; Bool
+Key -&gt; Key -&gt; Ordering
+Key -&gt; Key -&gt; Key
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: Key -&gt; Key -&gt; Ordering
+compare :: Key -&gt; Key -&gt; Ordering
+$c&lt; :: Key -&gt; Key -&gt; Bool
+&lt; :: Key -&gt; Key -&gt; Bool
+$c&lt;= :: Key -&gt; Key -&gt; Bool
+&lt;= :: Key -&gt; Key -&gt; Bool
+$c&gt; :: Key -&gt; Key -&gt; Bool
+&gt; :: Key -&gt; Key -&gt; Bool
+$c&gt;= :: Key -&gt; Key -&gt; Bool
+&gt;= :: Key -&gt; Key -&gt; Bool
+$cmax :: Key -&gt; Key -&gt; Key
+max :: Key -&gt; Key -&gt; Key
+$cmin :: Key -&gt; Key -&gt; Key
+min :: Key -&gt; Key -&gt; Key
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681779605"><span id="local-6989586621681779607"><span class="annot"><span class="annottext">(forall x. Key -&gt; Rep Key x)
+-&gt; (forall x. Rep Key x -&gt; Key) -&gt; Generic Key
+forall x. Rep Key x -&gt; Key
+forall x. Key -&gt; Rep Key x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Key -&gt; Rep Key x
+from :: forall x. Key -&gt; Rep Key x
+$cto :: forall x. Rep Key x -&gt; Key
+to :: forall x. Rep Key x -&gt; Key
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681779613"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#Key"><span class="hs-identifier hs-type">Key</span></a></span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | A 'Term'-indexed associative data structure supporting</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- /approximate/ (conservative) lookup. Rather than using a @Trie@ keyed</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- by 'Key' directly, a 'DiscrimTree' is instead represented more like a</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- /case/ tree.</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- This allows us to exploit the fact that instance selection often</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- focuses on a small part of the term: Only that critical chain is</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- represented in the tree. As an example, level parameters are unlikely</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- to contribute to narrowing a search problem, so it would be wasteful</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- to have an indirection in the tree for every 'FlexK' standing for a</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- level parameter.</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">data</span><span> </span><span id="DiscrimTree"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-var">DiscrimTree</span></a></span></span><span> </span><span id="local-6989586621681779492"><span class="annot"><a href="#local-6989586621681779492"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="EmptyDT"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span></span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ The empty discrimination tree.</span></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="DoneDT"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-var">DoneDT</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="#local-6989586621681779492"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Succeed with a given set of values.</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CaseDT"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span></span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-comment">-- ^ Do case analysis on a term. 'CaseDT' is scoped in the same way</span><span>
+</span><span id="line-62"></span><span>    </span><span class="hs-comment">-- as fast case trees for the abstract machine: When matching</span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-comment">-- actually succeeds, the variable that was matched gets replaced by</span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-comment">-- its arguments directly in the context.</span><span>
+</span><span id="line-65"></span><span>      </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The variable to case on.</span></span><span>
+</span><span id="line-66"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#Key"><span class="hs-identifier hs-type">Key</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779492"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-comment">-- ^ The proper branches.</span></span><span>
+</span><span id="line-67"></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779492"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>           </span><span class="annot"><span class="hs-comment">-- ^ A further tree, which should always be explored.</span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681779656"><span id="local-6989586621681779658"><span class="annot"><span class="annottext">(forall x. DiscrimTree a -&gt; Rep (DiscrimTree a) x)
+-&gt; (forall x. Rep (DiscrimTree a) x -&gt; DiscrimTree a)
+-&gt; Generic (DiscrimTree a)
+forall x. Rep (DiscrimTree a) x -&gt; DiscrimTree a
+forall x. DiscrimTree a -&gt; Rep (DiscrimTree a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (DiscrimTree a) x -&gt; DiscrimTree a
+forall a x. DiscrimTree a -&gt; Rep (DiscrimTree a) x
+$cfrom :: forall a x. DiscrimTree a -&gt; Rep (DiscrimTree a) x
+from :: forall x. DiscrimTree a -&gt; Rep (DiscrimTree a) x
+$cto :: forall a x. Rep (DiscrimTree a) x -&gt; DiscrimTree a
+to :: forall x. Rep (DiscrimTree a) x -&gt; DiscrimTree a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681779662"><span id="local-6989586621681779674"><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; Bool
+(DiscrimTree a -&gt; DiscrimTree a -&gt; Bool)
+-&gt; (DiscrimTree a -&gt; DiscrimTree a -&gt; Bool) -&gt; Eq (DiscrimTree a)
+forall a. Eq a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; Bool
+== :: DiscrimTree a -&gt; DiscrimTree a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; Bool
+/= :: DiscrimTree a -&gt; DiscrimTree a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681779679"><span id="local-6989586621681779691"><span id="local-6989586621681779695"><span class="annot"><span class="annottext">Int -&gt; DiscrimTree a -&gt; ShowS
+[DiscrimTree a] -&gt; ShowS
+DiscrimTree a -&gt; String
+(Int -&gt; DiscrimTree a -&gt; ShowS)
+-&gt; (DiscrimTree a -&gt; String)
+-&gt; ([DiscrimTree a] -&gt; ShowS)
+-&gt; Show (DiscrimTree a)
+forall a. Show a =&gt; Int -&gt; DiscrimTree a -&gt; ShowS
+forall a. Show a =&gt; [DiscrimTree a] -&gt; ShowS
+forall a. Show a =&gt; DiscrimTree a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; DiscrimTree a -&gt; ShowS
+showsPrec :: Int -&gt; DiscrimTree a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; DiscrimTree a -&gt; String
+show :: DiscrimTree a -&gt; String
+$cshowList :: forall a. Show a =&gt; [DiscrimTree a] -&gt; ShowS
+showList :: [DiscrimTree a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">{-
+The extra continuation to CaseDT is used to represent instance tables
+which have non-trivial overlap, e.g.
+
+  instance
+    a : Foo X ?
+    b : Foo ? X
+
+If we commited to the {a} branch of the discrimination tree, then we
+would miss {b} entirely. Note that an &quot;obvious&quot; overlap like
+
+  instance
+    a : Bar X
+    b : Bar X
+
+would be represented as
+
+  case 0 of
+    Bar &#8594; case 0 of
+      X &#8594; done {a, b}
+
+and the extra continuation would be empty.
+-}</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681779469"><span id="local-6989586621681779699"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681779469"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779469"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681779474"><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779474"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681779474"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779474"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-97"></span><span>  </span><span id="local-6989586621681779765"><span class="annot"><span class="annottext">killRange :: KillRangeT (DiscrimTree a)
+</span><a href="#local-6989586621681779765"><span class="hs-identifier hs-var hs-var hs-var">killRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-98"></span><span>    </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+forall a. DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>
+</span><span id="line-99"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-type">DoneDT</span></a></span><span> </span><span id="local-6989586621681779767"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779767"><span class="hs-identifier hs-var">s</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; DiscrimTree a) -&gt; Set a -&gt; DiscrimTree a
+forall t (b :: Bool).
+(KILLRANGE t b, IsBase t ~ b, All KillRange (Domains t)) =&gt;
+t -&gt; t
+</span><a href="Agda.Syntax.Position.html#killRangeN"><span class="hs-identifier hs-var">killRangeN</span></a></span><span> </span><span class="annot"><span class="annottext">Set a -&gt; DiscrimTree a
+forall a. Set a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-var">DoneDT</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779767"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-100"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-type">CaseDT</span></a></span><span> </span><span id="local-6989586621681779769"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779769"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681779770"><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779770"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681779771"><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779771"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Map Key (DiscrimTree a) -&gt; KillRangeT (DiscrimTree a))
+-&gt; Int -&gt; Map Key (DiscrimTree a) -&gt; KillRangeT (DiscrimTree a)
+forall t (b :: Bool).
+(KILLRANGE t b, IsBase t ~ b, All KillRange (Domains t)) =&gt;
+t -&gt; t
+</span><a href="Agda.Syntax.Position.html#killRangeN"><span class="hs-identifier hs-var">killRangeN</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; KillRangeT (DiscrimTree a)
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779769"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779770"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779771"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681779498"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779498"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span id="local-6989586621681779776"><span class="annot"><span class="annottext">empty :: DiscrimTree a
+</span><a href="#local-6989586621681779776"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+forall a. DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621681779778"><span class="annot"><span class="annottext">null :: DiscrimTree a -&gt; Bool
+</span><a href="#local-6989586621681779778"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-105"></span><span>    </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><span class="hs-identifier">_</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- | Merge a pair of discrimination trees. This function tries to build</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- the minimal discrimination tree that yields the union of the inputs'</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- results, though it does so slightly na&#239;vely, without considerable</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- optimisations (e.g. it does not turn single-alternative 'CaseDT's</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- into 'DoneDT's).</span><span>
+</span><span id="line-113"></span><span id="local-6989586621681779499"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-type">mergeDT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681779499"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779499"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779499"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779499"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-114"></span><span id="mergeDT"><span class="annot"><span class="annottext">mergeDT :: forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var hs-var">mergeDT</span></a></span></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>    </span><span id="local-6989586621681779792"><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779792"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779792"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-type">DoneDT</span></a></span><span> </span><span id="local-6989586621681779793"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779793"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681779794"><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779794"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779794"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-116"></span><span>  </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Set a -&gt; DiscrimTree a
+forall a. Set a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-var">DoneDT</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779793"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-type">DoneDT</span></a></span><span> </span><span id="local-6989586621681779795"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779795"><span class="hs-identifier hs-var">s'</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Set a -&gt; DiscrimTree a
+forall a. Set a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-var">DoneDT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779793"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Set a -&gt; Set a -&gt; Set a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779795"><span class="hs-identifier hs-var">s'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-type">CaseDT</span></a></span><span> </span><span id="local-6989586621681779796"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779796"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681779797"><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779797"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621681779798"><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779798"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779796"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779797"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set a -&gt; DiscrimTree a
+forall a. Set a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-var">DoneDT</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779793"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779798"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-type">CaseDT</span></a></span><span> </span><span id="local-6989586621681779799"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779799"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681779800"><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779800"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621681779801"><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779801"><span class="hs-identifier hs-var">els</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681779802"><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779802"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779802"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-120"></span><span>  </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779799"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779800"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779801"><span class="hs-identifier hs-var">els</span></a></span><span>
+</span><span id="line-121"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-type">DoneDT</span></a></span><span> </span><span id="local-6989586621681779803"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779803"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779799"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779800"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set a -&gt; DiscrimTree a
+forall a. Set a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-var">DoneDT</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681779803"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779801"><span class="hs-identifier hs-var">els</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-type">CaseDT</span></a></span><span> </span><span id="local-6989586621681779804"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779804"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span id="local-6989586621681779805"><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779805"><span class="hs-identifier hs-var">bs'</span></a></span></span><span> </span><span id="local-6989586621681779806"><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779806"><span class="hs-identifier hs-var">els'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779799"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779804"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-123"></span><span>    </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779804"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a)
+-&gt; Map Key (DiscrimTree a)
+-&gt; Map Key (DiscrimTree a)
+-&gt; Map Key (DiscrimTree a)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionWith</span></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779800"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779805"><span class="hs-identifier hs-var">bs'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779801"><span class="hs-identifier hs-var">els</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779806"><span class="hs-identifier hs-var">els'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span>    </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779799"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779800"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779801"><span class="hs-identifier hs-var">els</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779804"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779805"><span class="hs-identifier hs-var">bs'</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779806"><span class="hs-identifier hs-var">els'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779804"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779805"><span class="hs-identifier hs-var">bs'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779806"><span class="hs-identifier hs-var">els'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779799"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Map Key (DiscrimTree a)
+</span><a href="#local-6989586621681779800"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+</span><a href="#local-6989586621681779801"><span class="hs-identifier hs-var">els</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681779508"><span id="local-6989586621681779811"><span id="local-6989586621681779815"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681779508"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779508"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-128"></span><span>  </span><span id="local-6989586621681779821"><span class="annot"><span class="annottext">&lt;&gt; :: DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><span class="hs-operator hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a. Ord a =&gt; DiscrimTree a -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#mergeDT"><span class="hs-identifier hs-var">mergeDT</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681779511"><span id="local-6989586621681779827"><span id="local-6989586621681779831"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681779511"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779511"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621681779834"><span class="annot"><span class="annottext">mempty :: DiscrimTree a
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+forall a. DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- | Construct the case tree corresponding to only performing proper</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- matches on the given key. In this context, a &quot;proper match&quot; is any</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- 'Key' that is not 'FlexK'.</span><span>
+</span><span id="line-136"></span><span id="local-6989586621681779512"><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#singletonDT"><span class="hs-identifier hs-type">singletonDT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#Key"><span class="hs-identifier hs-type">Key</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681779512"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.DiscrimTree.Types.html#DiscrimTree"><span class="hs-identifier hs-type">DiscrimTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779512"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-137"></span><span id="singletonDT"><span class="annot"><span class="annottext">singletonDT :: forall a. [Key] -&gt; a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#singletonDT"><span class="hs-identifier hs-var hs-var">singletonDT</span></a></span></span><span> </span><span id="local-6989586621681779840"><span class="annot"><span class="annottext">[Key]
+</span><a href="#local-6989586621681779840"><span class="hs-identifier hs-var">key</span></a></span></span><span> </span><span id="local-6989586621681779841"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681779841"><span class="hs-identifier hs-var">val</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Key] -&gt; DiscrimTree a
+</span><a href="#local-6989586621681779842"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">[Key]
+</span><a href="#local-6989586621681779840"><span class="hs-identifier hs-var">key</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-138"></span><span>  </span><span id="local-6989586621681779842"><span class="annot"><span class="annottext">go :: Int -&gt; [Key] -&gt; DiscrimTree a
+</span><a href="#local-6989586621681779842"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681779843"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779843"><span class="hs-identifier hs-var">focus</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set a -&gt; DiscrimTree a
+forall a. Set a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#DoneDT"><span class="hs-identifier hs-var">DoneDT</span></a></span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; DiscrimTree a) -&gt; Set a -&gt; DiscrimTree a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Set a
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681779841"><span class="hs-identifier hs-var">val</span></a></span><span>
+</span><span id="line-139"></span><span>  </span><span class="annot"><a href="#local-6989586621681779842"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681779845"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779845"><span class="hs-identifier hs-var">focus</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Key
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#FlexK"><span class="hs-identifier hs-var">FlexK</span></a></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681779846"><span class="annot"><span class="annottext">[Key]
+</span><a href="#local-6989586621681779846"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Key] -&gt; DiscrimTree a
+</span><a href="#local-6989586621681779842"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779845"><span class="hs-identifier hs-var">focus</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Key]
+</span><a href="#local-6989586621681779846"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span class="annot"><a href="#local-6989586621681779842"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681779848"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779848"><span class="hs-identifier hs-var">focus</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681779849"><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621681779849"><span class="hs-identifier hs-var">t</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681779850"><span class="annot"><span class="annottext">[Key]
+</span><a href="#local-6989586621681779850"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+forall a.
+Int -&gt; Map Key (DiscrimTree a) -&gt; DiscrimTree a -&gt; DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#CaseDT"><span class="hs-identifier hs-var">CaseDT</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779848"><span class="hs-identifier hs-var">focus</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Key -&gt; DiscrimTree a -&gt; Map Key (DiscrimTree a)
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span> </span><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621681779849"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; [Key] -&gt; DiscrimTree a
+</span><a href="#local-6989586621681779842"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681779848"><span class="hs-identifier hs-var">focus</span></a></span><span> </span><span class="annot"><span class="annottext">[Key]
+</span><a href="#local-6989586621681779850"><span class="hs-identifier hs-var">ts</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">DiscrimTree a
+forall a. DiscrimTree a
+</span><a href="Agda.TypeChecking.DiscrimTree.Types.html#EmptyDT"><span class="hs-identifier hs-var">EmptyDT</span></a></span><span>
+</span><span id="line-141"></span></pre></body></html>

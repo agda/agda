@@ -1,0 +1,872 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Types used for precise syntax highlighting.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html"><span class="hs-identifier">Agda.Interaction.Highlighting.Precise</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-comment">-- * Highlighting information</span></span><span>
+</span><span id="line-5"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspect"><span class="hs-identifier">Aspect</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NameKind"><span class="hs-identifier">NameKind</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#OtherAspect"><span class="hs-identifier">OtherAspect</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier">Aspects</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier">DefinitionSite</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier">TokenBased</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier">RangePair</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#rangePairInvariant"><span class="hs-identifier">rangePairInvariant</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier">PositionMap</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier">DelayedMerge</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#delayedMergeInvariant"><span class="hs-identifier">delayedMergeInvariant</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#HighlightingInfo"><span class="hs-identifier">HighlightingInfo</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#highlightingInfoInvariant"><span class="hs-identifier">highlightingInfoInvariant</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#HighlightingInfoBuilder"><span class="hs-identifier">HighlightingInfoBuilder</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#highlightingInfoBuilderInvariant"><span class="hs-identifier">highlightingInfoBuilderInvariant</span></a></span><span>
+</span><span id="line-20"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Operations</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#parserBased"><span class="hs-identifier">parserBased</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#kindOfNameToNameKind"><span class="hs-identifier">kindOfNameToNameKind</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#IsBasicRangeMap"><span class="hs-identifier">IsBasicRangeMap</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#several"><span class="hs-identifier">RangeMap.several</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier">Convert</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#insideAndOutside"><span class="hs-identifier">RangeMap.insideAndOutside</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#restrictTo"><span class="hs-identifier">RangeMap.restrictTo</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Endo</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>   </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Common</span></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html"><span class="hs-identifier">Agda.Syntax.Scope.Base</span></a></span><span>                   </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#KindOfName"><span class="hs-identifier">KindOfName</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html"><span class="hs-identifier">Agda.Utils.Range</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html"><span class="hs-identifier">Agda.Utils.RangeMap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier">RangeMap</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#IsBasicRangeMap"><span class="hs-identifier">IsBasicRangeMap</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html"><span class="hs-identifier">Agda.Utils.RangeMap</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">RangeMap</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html"><span class="hs-identifier">Agda.Syntax.Common.Aspect</span></a></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.String.html"><span class="hs-identifier">Agda.Utils.String</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- | A limited kind of syntax highlighting information: a pair</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- consisting of 'Ranges' and 'Aspects'.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- Note the invariant which 'RangePair's should satisfy</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- ('rangePairInvariant').</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">newtype</span><span> </span><span id="RangePair"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-var">RangePair</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RangePair"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-var">RangePair</span></a></span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="rangePair"><span class="annot"><span class="annottext">RangePair -&gt; (Ranges, Aspects)
+</span><a href="Agda.Interaction.Highlighting.Precise.html#rangePair"><span class="hs-identifier hs-var hs-var">rangePair</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681809973"><span id="local-6989586621681809981"><span id="local-6989586621681809985"><span class="annot"><span class="annottext">Int -&gt; RangePair -&gt; ShowS
+[RangePair] -&gt; ShowS
+RangePair -&gt; String
+(Int -&gt; RangePair -&gt; ShowS)
+-&gt; (RangePair -&gt; String)
+-&gt; ([RangePair] -&gt; ShowS)
+-&gt; Show RangePair
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; RangePair -&gt; ShowS
+showsPrec :: Int -&gt; RangePair -&gt; ShowS
+$cshow :: RangePair -&gt; String
+show :: RangePair -&gt; String
+$cshowList :: [RangePair] -&gt; ShowS
+showList :: [RangePair] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681809992"><span class="annot"><span class="annottext">RangePair -&gt; ()
+(RangePair -&gt; ()) -&gt; NFData RangePair
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: RangePair -&gt; ()
+rnf :: RangePair -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><span class="hs-comment">-- | Invariant for 'RangePair'.</span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#rangePairInvariant"><span class="hs-identifier hs-type">rangePairInvariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-75"></span><span id="rangePairInvariant"><span class="annot"><span class="annottext">rangePairInvariant :: RangePair -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.Precise.html#rangePairInvariant"><span class="hs-identifier hs-var hs-var">rangePairInvariant</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810003"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810003"><span class="hs-identifier hs-var">rs</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><span class="annottext">Ranges -&gt; Bool
+</span><a href="Agda.Utils.Range.html#rangesInvariant"><span class="hs-identifier hs-var">rangesInvariant</span></a></span><span> </span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810003"><span class="hs-identifier hs-var">rs</span></a></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- | Syntax highlighting information, represented by maps from</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- positions to 'Aspects'.</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- The first position in the file has number 1.</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">newtype</span><span> </span><span id="PositionMap"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-var">PositionMap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="PositionMap"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-var">PositionMap</span></a></span></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="positionMap"><span class="annot"><span class="annottext">PositionMap -&gt; IntMap Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#positionMap"><span class="hs-identifier hs-var hs-var">positionMap</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810008"><span id="local-6989586621681810014"><span id="local-6989586621681810018"><span class="annot"><span class="annottext">Int -&gt; PositionMap -&gt; ShowS
+[PositionMap] -&gt; ShowS
+PositionMap -&gt; String
+(Int -&gt; PositionMap -&gt; ShowS)
+-&gt; (PositionMap -&gt; String)
+-&gt; ([PositionMap] -&gt; ShowS)
+-&gt; Show PositionMap
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; PositionMap -&gt; ShowS
+showsPrec :: Int -&gt; PositionMap -&gt; ShowS
+$cshow :: PositionMap -&gt; String
+show :: PositionMap -&gt; String
+$cshowList :: [PositionMap] -&gt; ShowS
+showList :: [PositionMap] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810021"><span class="annot"><span class="annottext">PositionMap -&gt; ()
+(PositionMap -&gt; ()) -&gt; NFData PositionMap
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: PositionMap -&gt; ()
+rnf :: PositionMap -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- | Highlighting info with delayed merging.</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- Merging large sets of highlighting info repeatedly might be costly.</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- The idea of this type is to accumulate small pieces of highlighting</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- information, and then to merge them all at the end.</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- Note the invariant which values of this type should satisfy</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- ('delayedMergeInvariant').</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-keyword">newtype</span><span> </span><span id="DelayedMerge"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-var">DelayedMerge</span></a></span></span><span> </span><span id="local-6989586621681809887"><span class="annot"><a href="#local-6989586621681809887"><span class="hs-identifier hs-type">hl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="DelayedMerge"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-var">DelayedMerge</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Endo</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681809887"><span class="hs-identifier hs-type">hl</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810029"><span id="local-6989586621681810034"><span id="local-6989586621681810038"><span class="annot"><span class="annottext">NonEmpty (DelayedMerge hl) -&gt; DelayedMerge hl
+DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+(DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl)
+-&gt; (NonEmpty (DelayedMerge hl) -&gt; DelayedMerge hl)
+-&gt; (forall b.
+    Integral b =&gt;
+    b -&gt; DelayedMerge hl -&gt; DelayedMerge hl)
+-&gt; Semigroup (DelayedMerge hl)
+forall b. Integral b =&gt; b -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+forall hl. NonEmpty (DelayedMerge hl) -&gt; DelayedMerge hl
+forall hl. DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+forall hl b. Integral b =&gt; b -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+$c&lt;&gt; :: forall hl. DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+&lt;&gt; :: DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+$csconcat :: forall hl. NonEmpty (DelayedMerge hl) -&gt; DelayedMerge hl
+sconcat :: NonEmpty (DelayedMerge hl) -&gt; DelayedMerge hl
+$cstimes :: forall hl b. Integral b =&gt; b -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+stimes :: forall b. Integral b =&gt; b -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810050"><span id="local-6989586621681810055"><span id="local-6989586621681810059"><span class="annot"><span class="annottext">Semigroup (DelayedMerge hl)
+DelayedMerge hl
+Semigroup (DelayedMerge hl) =&gt;
+DelayedMerge hl
+-&gt; (DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl)
+-&gt; ([DelayedMerge hl] -&gt; DelayedMerge hl)
+-&gt; Monoid (DelayedMerge hl)
+[DelayedMerge hl] -&gt; DelayedMerge hl
+DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+forall hl. Semigroup (DelayedMerge hl)
+forall hl. DelayedMerge hl
+forall a.
+Semigroup a =&gt;
+a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+forall hl. [DelayedMerge hl] -&gt; DelayedMerge hl
+forall hl. DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+$cmempty :: forall hl. DelayedMerge hl
+mempty :: DelayedMerge hl
+$cmappend :: forall hl. DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+mappend :: DelayedMerge hl -&gt; DelayedMerge hl -&gt; DelayedMerge hl
+$cmconcat :: forall hl. [DelayedMerge hl] -&gt; DelayedMerge hl
+mconcat :: [DelayedMerge hl] -&gt; DelayedMerge hl
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681809860"><span id="local-6989586621681810067"><span id="local-6989586621681810071"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681809860"><span class="hs-identifier hs-type">hl</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681809860"><span class="hs-identifier hs-type">hl</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-101"></span><span>  </span><span id="local-6989586621681810075"><span class="annot"><span class="annottext">showsPrec :: Int -&gt; DelayedMerge hl -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var">showsPrec</span></span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span id="local-6989586621681810076"><span class="annot"><span class="annottext">Endo [hl]
+</span><a href="#local-6989586621681810076"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-102"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; ShowS
+</span><span class="hs-identifier hs-var">showString</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;DelayedMerge (Endo (&quot;</span></span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; ShowS -&gt; ShowS
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-103"></span><span>    </span><span class="annot"><span class="annottext">[hl] -&gt; ShowS
+forall a. Show a =&gt; a -&gt; ShowS
+</span><span class="hs-identifier hs-var">shows</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Endo [hl] -&gt; [hl] -&gt; [hl]
+forall a. Endo a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">appEndo</span></span><span> </span><span class="annot"><span class="annottext">Endo [hl]
+</span><a href="#local-6989586621681810076"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; ShowS -&gt; ShowS
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-104"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; ShowS
+</span><span class="hs-identifier hs-var">showString</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; ++))&quot;</span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- | Invariant for @'DelayedMerge' hl@, parametrised by the invariant</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- for @hl@.</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- Additionally the endofunction should be extensionally equal to @(fs</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- '++')@ for some list @fs@.</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span id="local-6989586621681809867"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#delayedMergeInvariant"><span class="hs-identifier hs-type">delayedMergeInvariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681809867"><span class="hs-identifier hs-type">hl</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681809867"><span class="hs-identifier hs-type">hl</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-113"></span><span id="delayedMergeInvariant"><span class="annot"><span class="annottext">delayedMergeInvariant :: forall hl. (hl -&gt; Bool) -&gt; DelayedMerge hl -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.Precise.html#delayedMergeInvariant"><span class="hs-identifier hs-var hs-var">delayedMergeInvariant</span></a></span></span><span> </span><span id="local-6989586621681810083"><span class="annot"><span class="annottext">hl -&gt; Bool
+</span><a href="#local-6989586621681810083"><span class="hs-identifier hs-var">inv</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span id="local-6989586621681810084"><span class="annot"><span class="annottext">Endo [hl]
+</span><a href="#local-6989586621681810084"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-114"></span><span>  </span><span class="annot"><span class="annottext">(hl -&gt; Bool) -&gt; [hl] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="annot"><span class="annottext">hl -&gt; Bool
+</span><a href="#local-6989586621681810083"><span class="hs-identifier hs-var">inv</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Endo [hl] -&gt; [hl] -&gt; [hl]
+forall a. Endo a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">appEndo</span></span><span> </span><span class="annot"><span class="annottext">Endo [hl]
+</span><a href="#local-6989586621681810084"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- | Highlighting information.</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- Note the invariant which values of this type should satisfy</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- ('highlightingInfoInvariant').</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- This is a type synonym in order to make it easy to change to</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- another representation.</span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-keyword">type</span><span> </span><span id="HighlightingInfo"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#HighlightingInfo"><span class="hs-identifier hs-var">HighlightingInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="annot"><span class="hs-comment">-- | The invariant for 'HighlightingInfo'.</span></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#highlightingInfoInvariant"><span class="hs-identifier hs-type">highlightingInfoInvariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#HighlightingInfo"><span class="hs-identifier hs-type">HighlightingInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-129"></span><span id="highlightingInfoInvariant"><span class="annot"><span class="annottext">highlightingInfoInvariant :: HighlightingInfo -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.Precise.html#highlightingInfoInvariant"><span class="hs-identifier hs-var hs-var">highlightingInfoInvariant</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HighlightingInfo -&gt; Bool
+forall a. RangeMap a -&gt; Bool
+</span><a href="Agda.Utils.RangeMap.html#rangeMapInvariant"><span class="hs-identifier hs-var">RangeMap.rangeMapInvariant</span></a></span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- | A type that is intended to be used when constructing highlighting</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- information.</span><span>
+</span><span id="line-133"></span><span class="hs-comment">--</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- Note the invariant which values of this type should satisfy</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- ('highlightingInfoBuilderInvariant').</span><span>
+</span><span id="line-136"></span><span class="hs-comment">--</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- This is a type synonym in order to make it easy to change to</span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- another representation.</span><span>
+</span><span id="line-139"></span><span class="hs-comment">--</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- The type should be an instance of @'IsBasicRangeMap' 'Aspects'@,</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- 'Semigroup' and 'Monoid', and there should be an instance of</span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- @'Convert' 'HighlightingInfoBuilder' 'HighlightingInfo'@.</span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span class="hs-keyword">type</span><span> </span><span id="HighlightingInfoBuilder"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#HighlightingInfoBuilder"><span class="hs-identifier hs-var">HighlightingInfoBuilder</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- | The invariant for 'HighlightingInfoBuilder'.</span><span>
+</span><span id="line-147"></span><span class="hs-comment">--</span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- Additionally the endofunction should be extensionally equal to @(fs</span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- '++')@ for some list @fs@.</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#highlightingInfoBuilderInvariant"><span class="hs-identifier hs-type">highlightingInfoBuilderInvariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#HighlightingInfoBuilder"><span class="hs-identifier hs-type">HighlightingInfoBuilder</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-152"></span><span id="highlightingInfoBuilderInvariant"><span class="annot"><span class="annottext">highlightingInfoBuilderInvariant :: HighlightingInfoBuilder -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.Precise.html#highlightingInfoBuilderInvariant"><span class="hs-identifier hs-var hs-var">highlightingInfoBuilderInvariant</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-153"></span><span>  </span><span class="annot"><span class="annottext">(RangePair -&gt; Bool) -&gt; HighlightingInfoBuilder -&gt; Bool
+forall hl. (hl -&gt; Bool) -&gt; DelayedMerge hl -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.Precise.html#delayedMergeInvariant"><span class="hs-identifier hs-var">delayedMergeInvariant</span></a></span><span> </span><span class="annot"><span class="annottext">RangePair -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.Precise.html#rangePairInvariant"><span class="hs-identifier hs-var">rangePairInvariant</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- Creation and conversion</span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- | A variant of 'mempty' with 'tokenBased' set to</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- 'NotOnlyTokenBased'.</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#parserBased"><span class="hs-identifier hs-type">parserBased</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span>
+</span><span id="line-162"></span><span id="parserBased"><span class="annot"><span class="annottext">parserBased :: Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#parserBased"><span class="hs-identifier hs-var hs-var">parserBased</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspects
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#tokenBased"><span class="hs-identifier hs-var">tokenBased</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NotOnlyTokenBased"><span class="hs-identifier hs-type">NotOnlyTokenBased</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span class="annot"><span class="hs-comment">-- | Conversion from classification of the scope checker.</span></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#kindOfNameToNameKind"><span class="hs-identifier hs-type">kindOfNameToNameKind</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#KindOfName"><span class="hs-identifier hs-type">KindOfName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#NameKind"><span class="hs-identifier hs-type">NameKind</span></a></span><span>
+</span><span id="line-167"></span><span id="kindOfNameToNameKind"><span class="annot"><span class="annottext">kindOfNameToNameKind :: KindOfName -&gt; NameKind
+</span><a href="Agda.Interaction.Highlighting.Precise.html#kindOfNameToNameKind"><span class="hs-identifier hs-var hs-var">kindOfNameToNameKind</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-comment">-- Inductive is Constructor default, overwritten by CoInductive</span><span>
+</span><span id="line-169"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#ConName"><span class="hs-identifier hs-var">ConName</span></a></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Induction -&gt; NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-var">Constructor</span></a></span><span> </span><span class="annot"><span class="annottext">Induction
+</span><a href="Agda.Syntax.Common.Aspect.html#Inductive"><span class="hs-identifier hs-var">Common.Inductive</span></a></span><span>
+</span><span id="line-170"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#CoConName"><span class="hs-identifier hs-var">CoConName</span></a></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Induction -&gt; NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-var">Constructor</span></a></span><span> </span><span class="annot"><span class="annottext">Induction
+</span><a href="Agda.Syntax.Common.Aspect.html#CoInductive"><span class="hs-identifier hs-var">Common.CoInductive</span></a></span><span>
+</span><span id="line-171"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#FldName"><span class="hs-identifier hs-var">FldName</span></a></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">Field</span></a></span><span>
+</span><span id="line-172"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#PatternSynName"><span class="hs-identifier hs-var">PatternSynName</span></a></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Induction -&gt; NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-var">Constructor</span></a></span><span> </span><span class="annot"><span class="annottext">Induction
+</span><a href="Agda.Syntax.Common.Aspect.html#Inductive"><span class="hs-identifier hs-var">Common.Inductive</span></a></span><span>
+</span><span id="line-173"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#GeneralizeName"><span class="hs-identifier hs-var">GeneralizeName</span></a></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Generalizable"><span class="hs-identifier hs-var">Generalizable</span></a></span><span>
+</span><span id="line-174"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#DisallowedGeneralizeName"><span class="hs-identifier hs-var">DisallowedGeneralizeName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Generalizable"><span class="hs-identifier hs-var">Generalizable</span></a></span><span>
+</span><span id="line-175"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#MacroName"><span class="hs-identifier hs-var">MacroName</span></a></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Macro"><span class="hs-identifier hs-var">Macro</span></a></span><span>
+</span><span id="line-176"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#QuotableName"><span class="hs-identifier hs-var">QuotableName</span></a></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Function"><span class="hs-identifier hs-var">Function</span></a></span><span>
+</span><span id="line-177"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#DataName"><span class="hs-identifier hs-var">DataName</span></a></span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Datatype"><span class="hs-identifier hs-var">Datatype</span></a></span><span>
+</span><span id="line-178"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#RecName"><span class="hs-identifier hs-var">RecName</span></a></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Record"><span class="hs-identifier hs-var">Record</span></a></span><span>
+</span><span id="line-179"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#FunName"><span class="hs-identifier hs-var">FunName</span></a></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Function"><span class="hs-identifier hs-var">Function</span></a></span><span>
+</span><span id="line-180"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#AxiomName"><span class="hs-identifier hs-var">AxiomName</span></a></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Postulate"><span class="hs-identifier hs-var">Postulate</span></a></span><span>
+</span><span id="line-181"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#PrimName"><span class="hs-identifier hs-var">PrimName</span></a></span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Primitive"><span class="hs-identifier hs-var">Primitive</span></a></span><span>
+</span><span id="line-182"></span><span>  </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#OtherDefName"><span class="hs-identifier hs-var">OtherDefName</span></a></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Function"><span class="hs-identifier hs-var">Function</span></a></span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810118"><span class="annot"><a href="Agda.Utils.RangeMap.html#IsBasicRangeMap"><span class="hs-identifier hs-type">IsBasicRangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-185"></span><span>  </span><span id="local-6989586621681810122"><span class="annot"><span class="annottext">singleton :: Ranges -&gt; Aspects -&gt; RangePair
+</span><a href="#local-6989586621681810122"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681810124"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810124"><span class="hs-identifier hs-var">rs</span></a></span></span><span> </span><span id="local-6989586621681810125"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810125"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Ranges, Aspects) -&gt; RangePair
+</span><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-var">RangePair</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810124"><span class="hs-identifier hs-var">rs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810125"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span>  </span><span id="local-6989586621681810128"><span class="annot"><span class="annottext">toList :: RangePair -&gt; [(Range, Aspects)]
+</span><a href="#local-6989586621681810128"><span class="hs-identifier hs-var hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span> </span><span id="local-6989586621681810130"><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681810130"><span class="hs-identifier hs-var">rs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810131"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810131"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-188"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681810132"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810131"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681810132"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681810132"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Range]
+</span><a href="#local-6989586621681810130"><span class="hs-identifier hs-var">rs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681810132"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span>  </span><span id="local-6989586621681810139"><span class="annot"><span class="annottext">toMap :: RangePair -&gt; IntMap Aspects
+</span><a href="#local-6989586621681810139"><span class="hs-identifier hs-var hs-var hs-var">toMap</span></a></span></span><span> </span><span id="local-6989586621681810141"><span class="annot"><span class="annottext">RangePair
+</span><a href="#local-6989586621681810141"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; IntMap Aspects
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; IntMap a
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var">toMap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HighlightingInfoBuilder -&gt; PositionMap
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Endo [RangePair] -&gt; HighlightingInfoBuilder
+forall hl. Endo [hl] -&gt; DelayedMerge hl
+</span><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-var">DelayedMerge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([RangePair] -&gt; [RangePair]) -&gt; Endo [RangePair]
+forall a. (a -&gt; a) -&gt; Endo a
+</span><span class="hs-identifier hs-var">Endo</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangePair
+</span><a href="#local-6989586621681810141"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">RangePair -&gt; [RangePair] -&gt; [RangePair]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810148"><span class="annot"><a href="Agda.Utils.RangeMap.html#IsBasicRangeMap"><span class="hs-identifier hs-type">IsBasicRangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-193"></span><span>  </span><span id="local-6989586621681810150"><span class="annot"><span class="annottext">singleton :: Ranges -&gt; Aspects -&gt; PositionMap
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681810151"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810151"><span class="hs-identifier hs-var">rs</span></a></span></span><span> </span><span id="local-6989586621681810152"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810152"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span>
+</span><span id="line-194"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">positionMap :: IntMap Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#positionMap"><span class="hs-identifier hs-var">positionMap</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-195"></span><span>      </span><span class="annot"><span class="annottext">[(Int, Aspects)] -&gt; IntMap Aspects
+forall a. [(Int, a)] -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.fromDistinctAscList</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681810154"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810152"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681810154"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681810154"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ranges -&gt; [Int]
+</span><a href="Agda.Utils.Range.html#rangesToPositions"><span class="hs-identifier hs-var">rangesToPositions</span></a></span><span> </span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810151"><span class="hs-identifier hs-var">rs</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-196"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span>  </span><span id="local-6989586621681810162"><span class="annot"><span class="annottext">toList :: PositionMap -&gt; [(Range, Aspects)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NonEmpty (Int, Aspects) -&gt; (Range, Aspects))
+-&gt; [NonEmpty (Int, Aspects)] -&gt; [(Range, Aspects)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Int, Aspects) -&gt; (Range, Aspects)
+forall {b}. NonEmpty (Int, b) -&gt; (Range, b)
+</span><a href="#local-6989586621681810163"><span class="hs-identifier hs-var">join</span></a></span><span> </span><span class="annot"><span class="annottext">([NonEmpty (Int, Aspects)] -&gt; [(Range, Aspects)])
+-&gt; (PositionMap -&gt; [NonEmpty (Int, Aspects)])
+-&gt; PositionMap
+-&gt; [(Range, Aspects)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((Int, Aspects) -&gt; (Int, Aspects) -&gt; Bool)
+-&gt; [(Int, Aspects)] -&gt; [NonEmpty (Int, Aspects)]
+forall a. (a -&gt; a -&gt; Bool) -&gt; [a] -&gt; [List1 a]
+</span><a href="Agda.Utils.List1.html#groupBy%27"><span class="hs-identifier hs-var">List1.groupBy'</span></a></span><span> </span><span class="annot"><span class="annottext">(Int, Aspects) -&gt; (Int, Aspects) -&gt; Bool
+forall {a} {a}. (Num a, Eq a, Eq a) =&gt; (a, a) -&gt; (a, a) -&gt; Bool
+</span><a href="#local-6989586621681810165"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">([(Int, Aspects)] -&gt; [NonEmpty (Int, Aspects)])
+-&gt; (PositionMap -&gt; [(Int, Aspects)])
+-&gt; PositionMap
+-&gt; [NonEmpty (Int, Aspects)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IntMap Aspects -&gt; [(Int, Aspects)]
+forall a. IntMap a -&gt; [(Int, a)]
+</span><span class="hs-identifier hs-var">IntMap.toAscList</span></span><span> </span><span class="annot"><span class="annottext">(IntMap Aspects -&gt; [(Int, Aspects)])
+-&gt; (PositionMap -&gt; IntMap Aspects)
+-&gt; PositionMap
+-&gt; [(Int, Aspects)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; IntMap Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#positionMap"><span class="hs-identifier hs-var">positionMap</span></a></span><span>
+</span><span id="line-199"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-200"></span><span>    </span><span id="local-6989586621681810165"><span class="annot"><span class="annottext">p :: (a, a) -&gt; (a, a) -&gt; Bool
+</span><a href="#local-6989586621681810165"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810174"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810174"><span class="hs-identifier hs-var">pos1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810175"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810175"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810176"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810176"><span class="hs-identifier hs-var">pos2</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810177"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810177"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810176"><span class="hs-identifier hs-var">pos2</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810174"><span class="hs-identifier hs-var">pos1</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810175"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810177"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-201"></span><span>    </span><span id="local-6989586621681810163"><span class="annot"><span class="annottext">join :: NonEmpty (Int, b) -&gt; (Range, b)
+</span><a href="#local-6989586621681810163"><span class="hs-identifier hs-var hs-var">join</span></a></span></span><span> </span><span id="local-6989586621681810184"><span class="annot"><span class="annottext">NonEmpty (Int, b)
+</span><a href="#local-6989586621681810184"><span class="hs-identifier hs-var">pms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">from :: Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty Int -&gt; Int
+forall a. NonEmpty a -&gt; a
+</span><span class="hs-identifier hs-var">List1.head</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty Int
+</span><a href="#local-6989586621681810188"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">to :: Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty Int -&gt; Int
+forall a. NonEmpty a -&gt; a
+</span><span class="hs-identifier hs-var">List1.last</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty Int
+</span><a href="#local-6989586621681810188"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-202"></span><span>               </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">NonEmpty b -&gt; b
+forall a. NonEmpty a -&gt; a
+</span><span class="hs-identifier hs-var">List1.head</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty b
+</span><a href="#local-6989586621681810191"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-203"></span><span>               </span><span class="hs-special">)</span><span>
+</span><span id="line-204"></span><span>      </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810188"><span class="annot"><span class="annottext">NonEmpty Int
+</span><a href="#local-6989586621681810188"><span class="hs-identifier hs-var">ps</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810191"><span class="annot"><span class="annottext">NonEmpty b
+</span><a href="#local-6989586621681810191"><span class="hs-identifier hs-var">ms</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty (Int, b) -&gt; (NonEmpty Int, NonEmpty b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; f (a, b) -&gt; (f a, f b)
+</span><span class="hs-identifier hs-var">List1.unzip</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Int, b)
+</span><a href="#local-6989586621681810184"><span class="hs-identifier hs-var">pms</span></a></span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span>  </span><span id="local-6989586621681810193"><span class="annot"><span class="annottext">toMap :: PositionMap -&gt; IntMap Aspects
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var hs-var hs-var">toMap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; IntMap Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#positionMap"><span class="hs-identifier hs-var">positionMap</span></a></span><span>
+</span><span id="line-207"></span><span>
+</span><span id="line-208"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681809905"><span id="local-6989586621681810199"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="#local-6989586621681809905"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-209"></span><span>         </span><span class="annot"><a href="Agda.Utils.RangeMap.html#IsBasicRangeMap"><span class="hs-identifier hs-type">IsBasicRangeMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681809905"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681809905"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-210"></span><span>  </span><span id="local-6989586621681810204"><span class="annot"><span class="annottext">singleton :: Ranges -&gt; a -&gt; DelayedMerge (RangeMap a)
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681810205"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810205"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681810206"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810206"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Endo [RangeMap a] -&gt; DelayedMerge (RangeMap a)
+forall hl. Endo [hl] -&gt; DelayedMerge hl
+</span><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-var">DelayedMerge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([RangeMap a] -&gt; [RangeMap a]) -&gt; Endo [RangeMap a]
+forall a. (a -&gt; a) -&gt; Endo a
+</span><span class="hs-identifier hs-var">Endo</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ranges -&gt; a -&gt; RangeMap a
+forall a m. IsBasicRangeMap a m =&gt; Ranges -&gt; a -&gt; m
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810205"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681810206"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">RangeMap a -&gt; [RangeMap a] -&gt; [RangeMap a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span>  </span><span id="local-6989586621681810212"><span class="annot"><span class="annottext">toMap :: DelayedMerge (RangeMap a) -&gt; IntMap a
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var hs-var hs-var">toMap</span></a></span></span><span>  </span><span id="local-6989586621681810213"><span class="annot"><span class="annottext">DelayedMerge (RangeMap a)
+</span><a href="#local-6989586621681810213"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RangeMap a -&gt; IntMap a
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; IntMap a
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var">toMap</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DelayedMerge (RangeMap a) -&gt; RangeMap a
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">DelayedMerge (RangeMap a)
+</span><a href="#local-6989586621681810213"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681809905"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-213"></span><span>  </span><span id="local-6989586621681810217"><span class="annot"><span class="annottext">toList :: DelayedMerge (RangeMap a) -&gt; [(Range, a)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var hs-var hs-var">toList</span></a></span></span><span> </span><span id="local-6989586621681810218"><span class="annot"><span class="annottext">DelayedMerge (RangeMap a)
+</span><a href="#local-6989586621681810218"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RangeMap a -&gt; [(Range, a)]
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; [(Range, a)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DelayedMerge (RangeMap a) -&gt; RangeMap a
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">DelayedMerge (RangeMap a)
+</span><a href="#local-6989586621681810218"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681809905"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810223"><span class="annot"><a href="Agda.Utils.RangeMap.html#IsBasicRangeMap"><span class="hs-identifier hs-type">IsBasicRangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-216"></span><span>  </span><span id="local-6989586621681810227"><span class="annot"><span class="annottext">singleton :: Ranges -&gt; Aspects -&gt; HighlightingInfoBuilder
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681810228"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810228"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681810229"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810229"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Endo [RangePair] -&gt; HighlightingInfoBuilder
+forall hl. Endo [hl] -&gt; DelayedMerge hl
+</span><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-var">DelayedMerge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([RangePair] -&gt; [RangePair]) -&gt; Endo [RangePair]
+forall a. (a -&gt; a) -&gt; Endo a
+</span><span class="hs-identifier hs-var">Endo</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ranges -&gt; Aspects -&gt; RangePair
+forall a m. IsBasicRangeMap a m =&gt; Ranges -&gt; a -&gt; m
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810228"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810229"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">RangePair -&gt; [RangePair] -&gt; [RangePair]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-217"></span><span>
+</span><span id="line-218"></span><span>  </span><span id="local-6989586621681810232"><span class="annot"><span class="annottext">toMap :: HighlightingInfoBuilder -&gt; IntMap Aspects
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var hs-var hs-var">toMap</span></a></span></span><span>  </span><span id="local-6989586621681810233"><span class="annot"><span class="annottext">HighlightingInfoBuilder
+</span><a href="#local-6989586621681810233"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; IntMap Aspects
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; IntMap a
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var">toMap</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HighlightingInfoBuilder -&gt; PositionMap
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">HighlightingInfoBuilder
+</span><a href="#local-6989586621681810233"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-219"></span><span>  </span><span id="local-6989586621681810237"><span class="annot"><span class="annottext">toList :: HighlightingInfoBuilder -&gt; [(Range, Aspects)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var hs-var hs-var">toList</span></a></span></span><span> </span><span id="local-6989586621681810238"><span class="annot"><span class="annottext">HighlightingInfoBuilder
+</span><a href="#local-6989586621681810238"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HighlightingInfo -&gt; [(Range, Aspects)]
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; [(Range, a)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HighlightingInfoBuilder -&gt; HighlightingInfo
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">HighlightingInfoBuilder
+</span><a href="#local-6989586621681810238"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810243"><span class="annot"><a href="Agda.Utils.RangeMap.html#IsBasicRangeMap"><span class="hs-identifier hs-type">IsBasicRangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-222"></span><span>  </span><span id="local-6989586621681810247"><span class="annot"><span class="annottext">singleton :: Ranges -&gt; Aspects -&gt; DelayedMerge PositionMap
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681810248"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810248"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681810249"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810249"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Endo [PositionMap] -&gt; DelayedMerge PositionMap
+forall hl. Endo [hl] -&gt; DelayedMerge hl
+</span><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-var">DelayedMerge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([PositionMap] -&gt; [PositionMap]) -&gt; Endo [PositionMap]
+forall a. (a -&gt; a) -&gt; Endo a
+</span><span class="hs-identifier hs-var">Endo</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ranges -&gt; Aspects -&gt; PositionMap
+forall a m. IsBasicRangeMap a m =&gt; Ranges -&gt; a -&gt; m
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810248"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810249"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; [PositionMap] -&gt; [PositionMap]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-223"></span><span>
+</span><span id="line-224"></span><span>  </span><span id="local-6989586621681810254"><span class="annot"><span class="annottext">toMap :: DelayedMerge PositionMap -&gt; IntMap Aspects
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var hs-var hs-var">toMap</span></a></span></span><span>  </span><span id="local-6989586621681810255"><span class="annot"><span class="annottext">DelayedMerge PositionMap
+</span><a href="#local-6989586621681810255"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; IntMap Aspects
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; IntMap a
+</span><a href="Agda.Utils.RangeMap.html#toMap"><span class="hs-identifier hs-var">toMap</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DelayedMerge PositionMap -&gt; PositionMap
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">DelayedMerge PositionMap
+</span><a href="#local-6989586621681810255"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-225"></span><span>  </span><span id="local-6989586621681810259"><span class="annot"><span class="annottext">toList :: DelayedMerge PositionMap -&gt; [(Range, Aspects)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var hs-var hs-var">toList</span></a></span></span><span> </span><span id="local-6989586621681810260"><span class="annot"><span class="annottext">DelayedMerge PositionMap
+</span><a href="#local-6989586621681810260"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; [(Range, Aspects)]
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; [(Range, a)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DelayedMerge PositionMap -&gt; PositionMap
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">DelayedMerge PositionMap
+</span><a href="#local-6989586621681810260"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span class="annot"><span class="hs-comment">-- | Conversion between different types.</span></span><span>
+</span><span id="line-228"></span><span>
+</span><span id="line-229"></span><span class="hs-keyword">class</span><span> </span><span id="Convert"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier hs-var">Convert</span></a></span></span><span> </span><span id="local-6989586621681809885"><span class="annot"><a href="#local-6989586621681809885"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681809886"><span class="annot"><a href="#local-6989586621681809886"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-230"></span><span>  </span><span id="convert"><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-type">convert</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681809885"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681809886"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-231"></span><span>
+</span><span id="line-232"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681809908"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681809908"><span class="hs-identifier hs-type">hl</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier hs-type">Convert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681809908"><span class="hs-identifier hs-type">hl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681809908"><span class="hs-identifier hs-type">hl</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-233"></span><span>  </span><span id="local-6989586621681810265"><span class="annot"><span class="annottext">convert :: DelayedMerge hl -&gt; hl
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var hs-var hs-var">convert</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span id="local-6989586621681810266"><span class="annot"><span class="annottext">Endo [hl]
+</span><a href="#local-6989586621681810266"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[hl] -&gt; hl
+forall a. Monoid a =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">mconcat</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Endo [hl] -&gt; [hl] -&gt; [hl]
+forall a. Endo a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">appEndo</span></span><span> </span><span class="annot"><span class="annottext">Endo [hl]
+</span><a href="#local-6989586621681810266"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-234"></span><span>
+</span><span id="line-235"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier hs-type">Convert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-236"></span><span>  </span><span id="local-6989586621681810269"><span class="annot"><span class="annottext">convert :: HighlightingInfo -&gt; HighlightingInfo
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var hs-var hs-var">convert</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HighlightingInfo -&gt; HighlightingInfo
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-237"></span><span>
+</span><span id="line-238"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier hs-type">Convert</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-239"></span><span>  </span><span id="local-6989586621681810274"><span class="annot"><span class="annottext">convert :: PositionMap -&gt; HighlightingInfo
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var hs-var hs-var">convert</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-240"></span><span>    </span><span class="annot"><span class="annottext">[(Range, Aspects)] -&gt; HighlightingInfo
+forall a. [(Range, a)] -&gt; RangeMap a
+</span><a href="Agda.Utils.RangeMap.html#fromNonOverlappingNonEmptyAscendingList"><span class="hs-identifier hs-var">RangeMap.fromNonOverlappingNonEmptyAscendingList</span></a></span><span> </span><span class="annot"><span class="annottext">([(Range, Aspects)] -&gt; HighlightingInfo)
+-&gt; (PositionMap -&gt; [(Range, Aspects)])
+-&gt; PositionMap
+-&gt; HighlightingInfo
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-241"></span><span>    </span><span class="annot"><span class="annottext">PositionMap -&gt; [(Range, Aspects)]
+forall a m. IsBasicRangeMap a m =&gt; m -&gt; [(Range, a)]
+</span><a href="Agda.Utils.RangeMap.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier hs-type">Convert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-244"></span><span>  </span><span id="local-6989586621681810281"><span class="annot"><span class="annottext">convert :: DelayedMerge PositionMap -&gt; HighlightingInfo
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var hs-var hs-var">convert</span></a></span></span><span> </span><span id="local-6989586621681810282"><span class="annot"><span class="annottext">DelayedMerge PositionMap
+</span><a href="#local-6989586621681810282"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; HighlightingInfo
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DelayedMerge PositionMap -&gt; PositionMap
+forall a b. Convert a b =&gt; a -&gt; b
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">DelayedMerge PositionMap
+</span><a href="#local-6989586621681810282"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-245"></span><span>
+</span><span id="line-246"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier hs-type">Convert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-247"></span><span>  </span><span id="local-6989586621681810286"><span class="annot"><span class="annottext">convert :: HighlightingInfoBuilder -&gt; PositionMap
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var hs-var hs-var">convert</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span id="local-6989586621681810287"><span class="annot"><span class="annottext">Endo [RangePair]
+</span><a href="#local-6989586621681810287"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-248"></span><span>    </span><span class="annot"><span class="annottext">IntMap Aspects -&gt; PositionMap
+</span><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-var">PositionMap</span></a></span><span> </span><span class="annot"><span class="annottext">(IntMap Aspects -&gt; PositionMap) -&gt; IntMap Aspects -&gt; PositionMap
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-249"></span><span>    </span><span class="annot"><span class="annottext">(Aspects -&gt; Aspects -&gt; Aspects)
+-&gt; [(Int, Aspects)] -&gt; IntMap Aspects
+forall a. (a -&gt; a -&gt; a) -&gt; [(Int, a)] -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.fromListWith</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Aspects -&gt; Aspects -&gt; Aspects) -&gt; Aspects -&gt; Aspects -&gt; Aspects
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Aspects -&gt; Aspects
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-250"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681810290"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810291"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-251"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810292"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810292"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810291"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810291"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Endo [RangePair] -&gt; [RangePair] -&gt; [RangePair]
+forall a. Endo a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">appEndo</span></span><span> </span><span class="annot"><span class="annottext">Endo [RangePair]
+</span><a href="#local-6989586621681810287"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-252"></span><span>      </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810290"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681810290"><span class="hs-identifier hs-var">p</span></a></span></span><span>                </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ranges -&gt; [Int]
+</span><a href="Agda.Utils.Range.html#rangesToPositions"><span class="hs-identifier hs-var">rangesToPositions</span></a></span><span> </span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810292"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-253"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-254"></span><span>
+</span><span id="line-255"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#Convert"><span class="hs-identifier hs-type">Convert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.RangeMap.html#RangeMap"><span class="hs-identifier hs-type">RangeMap</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-256"></span><span>  </span><span id="local-6989586621681810297"><span class="annot"><span class="annottext">convert :: HighlightingInfoBuilder -&gt; HighlightingInfo
+</span><a href="Agda.Interaction.Highlighting.Precise.html#convert"><span class="hs-identifier hs-var hs-var hs-var">convert</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#DelayedMerge"><span class="hs-identifier hs-type">DelayedMerge</span></a></span><span> </span><span id="local-6989586621681810298"><span class="annot"><span class="annottext">Endo [RangePair]
+</span><a href="#local-6989586621681810298"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-257"></span><span>    </span><span class="annot"><span class="annottext">[HighlightingInfo] -&gt; HighlightingInfo
+forall a. Monoid a =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">mconcat</span></span><span>
+</span><span id="line-258"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Ranges -&gt; Aspects -&gt; HighlightingInfo
+forall a m. IsBasicRangeMap a m =&gt; Ranges -&gt; a -&gt; m
+</span><a href="Agda.Utils.RangeMap.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810299"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810300"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-259"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#RangePair"><span class="hs-identifier hs-type">RangePair</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681810299"><span class="annot"><span class="annottext">Ranges
+</span><a href="#local-6989586621681810299"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810300"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810300"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Endo [RangePair] -&gt; [RangePair] -&gt; [RangePair]
+forall a. Endo a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">appEndo</span></span><span> </span><span class="annot"><span class="annottext">Endo [RangePair]
+</span><a href="#local-6989586621681810298"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-260"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-263"></span><span class="hs-comment">-- Merging</span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810303"><span id="local-6989586621681810306"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-type">TokenBased</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-266"></span><span>  </span><span id="local-6989586621681810310"><span class="annot"><span class="annottext">b1 :: TokenBased
+</span><a href="#local-6989586621681810310"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#NotOnlyTokenBased"><span class="hs-identifier hs-var">NotOnlyTokenBased</span></a></span><span> </span><span id="local-6989586621681810311"><span class="annot"><span class="annottext">&lt;&gt; :: TokenBased -&gt; TokenBased -&gt; TokenBased
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681810312"><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681810312"><span class="hs-identifier hs-var">b2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681810310"><span class="hs-identifier hs-var">b1</span></a></span><span>
+</span><span id="line-267"></span><span>  </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">TokenBased</span></a></span><span>           </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span id="local-6989586621681810314"><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681810314"><span class="hs-identifier hs-var">b2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="#local-6989586621681810314"><span class="hs-identifier hs-var">b2</span></a></span><span>
+</span><span id="line-268"></span><span>
+</span><span id="line-269"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810320"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-type">TokenBased</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-270"></span><span>  </span><span id="local-6989586621681810323"><span class="annot"><span class="annottext">mempty :: TokenBased
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#TokenBased"><span class="hs-identifier hs-var">TokenBased</span></a></span><span>
+</span><span id="line-271"></span><span>  </span><span id="local-6989586621681810325"><span class="annot"><span class="annottext">mappend :: TokenBased -&gt; TokenBased -&gt; TokenBased
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TokenBased -&gt; TokenBased -&gt; TokenBased
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-272"></span><span>
+</span><span id="line-273"></span><span>
+</span><span id="line-274"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810328"><span id="local-6989586621681810331"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#DefinitionSite"><span class="hs-identifier hs-type">DefinitionSite</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-275"></span><span>  </span><span id="local-6989586621681810337"><span class="annot"><span class="annottext">DefinitionSite
+</span><a href="#local-6989586621681810337"><span class="hs-identifier hs-var">d1</span></a></span></span><span> </span><span id="local-6989586621681810338"><span class="annot"><span class="annottext">&lt;&gt; :: DefinitionSite -&gt; DefinitionSite -&gt; DefinitionSite
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681810339"><span class="annot"><span class="annottext">DefinitionSite
+</span><a href="#local-6989586621681810339"><span class="hs-identifier hs-var">d2</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">DefinitionSite
+</span><a href="#local-6989586621681810337"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="annot"><span class="annottext">DefinitionSite -&gt; DefinitionSite -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">DefinitionSite
+</span><a href="#local-6989586621681810339"><span class="hs-identifier hs-var">d2</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DefinitionSite
+</span><a href="#local-6989586621681810337"><span class="hs-identifier hs-var">d1</span></a></span><span>
+</span><span id="line-276"></span><span>           </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DefinitionSite
+</span><a href="#local-6989586621681810337"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="hs-comment">-- TODO: __IMPOSSIBLE__</span><span>
+</span><span id="line-277"></span><span>
+</span><span id="line-278"></span><span class="annot"><span class="hs-comment">-- | Merges meta information.</span></span><span>
+</span><span id="line-279"></span><span>
+</span><span id="line-280"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#mergeAspects"><span class="hs-identifier hs-type">mergeAspects</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span>
+</span><span id="line-281"></span><span id="mergeAspects"><span class="annot"><span class="annottext">mergeAspects :: Aspects -&gt; Aspects -&gt; Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#mergeAspects"><span class="hs-identifier hs-var hs-var">mergeAspects</span></a></span></span><span> </span><span id="local-6989586621681810341"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810341"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621681810342"><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810342"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span>
+</span><span id="line-282"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">aspect :: Maybe Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#aspect"><span class="hs-identifier hs-var">aspect</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Aspect -&gt; Aspect -&gt; Aspect)
+-&gt; Maybe Aspect -&gt; Maybe Aspect -&gt; Maybe Aspect
+forall a. (a -&gt; a -&gt; a) -&gt; Maybe a -&gt; Maybe a -&gt; Maybe a
+</span><a href="Agda.Utils.Maybe.html#unionMaybeWith"><span class="hs-identifier hs-var">unionMaybeWith</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect -&gt; Aspect -&gt; Aspect
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Aspect -&gt; Maybe Aspect -&gt; Maybe Aspect)
+-&gt; (Aspects -&gt; Maybe Aspect) -&gt; Aspects -&gt; Aspects -&gt; Maybe Aspect
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Maybe Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#aspect"><span class="hs-identifier hs-var">aspect</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810341"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810342"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-283"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">otherAspects :: Set OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#otherAspects"><span class="hs-identifier hs-var">otherAspects</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set OtherAspect -&gt; Set OtherAspect -&gt; Set OtherAspect
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.union</span></span><span> </span><span class="annot"><span class="annottext">(Set OtherAspect -&gt; Set OtherAspect -&gt; Set OtherAspect)
+-&gt; (Aspects -&gt; Set OtherAspect)
+-&gt; Aspects
+-&gt; Aspects
+-&gt; Set OtherAspect
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Set OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#otherAspects"><span class="hs-identifier hs-var">otherAspects</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810341"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810342"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-284"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">note :: String
+</span><a href="Agda.Syntax.Common.Aspect.html#note"><span class="hs-identifier hs-var">note</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Aspects -&gt; String
+</span><a href="Agda.Syntax.Common.Aspect.html#note"><span class="hs-identifier hs-var">note</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810341"><span class="hs-identifier hs-var">m1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; String
+</span><a href="Agda.Syntax.Common.Aspect.html#note"><span class="hs-identifier hs-var">note</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810342"><span class="hs-identifier hs-var">m2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-285"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681810348"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810348"><span class="hs-identifier hs-var">n1</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810348"><span class="hs-identifier hs-var">n1</span></a></span><span>
+</span><span id="line-286"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810349"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810349"><span class="hs-identifier hs-var">n2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810349"><span class="hs-identifier hs-var">n2</span></a></span><span>
+</span><span id="line-287"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681810350"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810350"><span class="hs-identifier hs-var">n1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681810351"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810351"><span class="hs-identifier hs-var">n2</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-288"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810350"><span class="hs-identifier hs-var">n1</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810351"><span class="hs-identifier hs-var">n2</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810350"><span class="hs-identifier hs-var">n1</span></a></span><span>
+</span><span id="line-289"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><a href="Agda.Utils.String.html#addFinalNewLine"><span class="hs-identifier hs-var">addFinalNewLine</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810350"><span class="hs-identifier hs-var">n1</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;----\n&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681810351"><span class="hs-identifier hs-var">n2</span></a></span><span>
+</span><span id="line-290"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">definitionSite :: Maybe DefinitionSite
+</span><a href="Agda.Syntax.Common.Aspect.html#definitionSite"><span class="hs-identifier hs-var">definitionSite</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(DefinitionSite -&gt; DefinitionSite -&gt; DefinitionSite)
+-&gt; Maybe DefinitionSite
+-&gt; Maybe DefinitionSite
+-&gt; Maybe DefinitionSite
+forall a. (a -&gt; a -&gt; a) -&gt; Maybe a -&gt; Maybe a -&gt; Maybe a
+</span><a href="Agda.Utils.Maybe.html#unionMaybeWith"><span class="hs-identifier hs-var">unionMaybeWith</span></a></span><span> </span><span class="annot"><span class="annottext">DefinitionSite -&gt; DefinitionSite -&gt; DefinitionSite
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">(Maybe DefinitionSite
+ -&gt; Maybe DefinitionSite -&gt; Maybe DefinitionSite)
+-&gt; (Aspects -&gt; Maybe DefinitionSite)
+-&gt; Aspects
+-&gt; Aspects
+-&gt; Maybe DefinitionSite
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Maybe DefinitionSite
+</span><a href="Agda.Syntax.Common.Aspect.html#definitionSite"><span class="hs-identifier hs-var">definitionSite</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810341"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810342"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-291"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">tokenBased :: TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#tokenBased"><span class="hs-identifier hs-var">tokenBased</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#tokenBased"><span class="hs-identifier hs-var">tokenBased</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810341"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">TokenBased -&gt; TokenBased -&gt; TokenBased
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#tokenBased"><span class="hs-identifier hs-var">tokenBased</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><a href="#local-6989586621681810342"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-292"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-293"></span><span>
+</span><span id="line-294"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810356"><span id="local-6989586621681810359"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-295"></span><span>  </span><span id="local-6989586621681810363"><span class="annot"><span class="annottext">&lt;&gt; :: Aspects -&gt; Aspects -&gt; Aspects
+</span><span class="hs-operator hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Aspects -&gt; Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#mergeAspects"><span class="hs-identifier hs-var">mergeAspects</span></a></span><span>
+</span><span id="line-296"></span><span>
+</span><span id="line-297"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810369"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-298"></span><span>  </span><span id="local-6989586621681810372"><span class="annot"><span class="annottext">mempty :: Aspects
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspects"><span class="hs-identifier hs-type">Aspects</span></a></span><span>
+</span><span id="line-299"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">aspect :: Maybe Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#aspect"><span class="hs-identifier hs-var">aspect</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Aspect
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-300"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">otherAspects :: Set OtherAspect
+</span><a href="Agda.Syntax.Common.Aspect.html#otherAspects"><span class="hs-identifier hs-var">otherAspects</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set OtherAspect
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-301"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">note :: String
+</span><a href="Agda.Syntax.Common.Aspect.html#note"><span class="hs-identifier hs-var">note</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-302"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">definitionSite :: Maybe DefinitionSite
+</span><a href="Agda.Syntax.Common.Aspect.html#definitionSite"><span class="hs-identifier hs-var">definitionSite</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe DefinitionSite
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-303"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">tokenBased :: TokenBased
+</span><a href="Agda.Syntax.Common.Aspect.html#tokenBased"><span class="hs-identifier hs-var">tokenBased</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TokenBased
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-304"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-305"></span><span>  </span><span id="local-6989586621681810375"><span class="annot"><span class="annottext">mappend :: Aspects -&gt; Aspects -&gt; Aspects
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Aspects -&gt; Aspects
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-306"></span><span>
+</span><span id="line-307"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810378"><span id="local-6989586621681810382"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-308"></span><span>  </span><span id="local-6989586621681810387"><span class="annot"><span class="annottext">PositionMap
+</span><a href="#local-6989586621681810387"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681810388"><span class="annot"><span class="annottext">&lt;&gt; :: PositionMap -&gt; PositionMap -&gt; PositionMap
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681810389"><span class="annot"><span class="annottext">PositionMap
+</span><a href="#local-6989586621681810389"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span>
+</span><span id="line-309"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">positionMap :: IntMap Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#positionMap"><span class="hs-identifier hs-var">positionMap</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Aspects -&gt; Aspects -&gt; Aspects)
+-&gt; IntMap Aspects -&gt; IntMap Aspects -&gt; IntMap Aspects
+forall a. (a -&gt; a -&gt; a) -&gt; IntMap a -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.unionWith</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Aspects -&gt; Aspects
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">(IntMap Aspects -&gt; IntMap Aspects -&gt; IntMap Aspects)
+-&gt; (PositionMap -&gt; IntMap Aspects)
+-&gt; PositionMap
+-&gt; PositionMap
+-&gt; IntMap Aspects
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; IntMap Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#positionMap"><span class="hs-identifier hs-var">positionMap</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PositionMap
+</span><a href="#local-6989586621681810387"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">PositionMap
+</span><a href="#local-6989586621681810389"><span class="hs-identifier hs-var">f2</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-310"></span><span>
+</span><span id="line-311"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681810396"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-312"></span><span>  </span><span id="local-6989586621681810398"><span class="annot"><span class="annottext">mempty :: PositionMap
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Precise.html#PositionMap"><span class="hs-identifier hs-type">PositionMap</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">positionMap :: IntMap Aspects
+</span><a href="Agda.Interaction.Highlighting.Precise.html#positionMap"><span class="hs-identifier hs-var">positionMap</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap Aspects
+forall a. IntMap a
+</span><span class="hs-identifier hs-var">IntMap.empty</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-313"></span><span>  </span><span id="local-6989586621681810401"><span class="annot"><span class="annottext">mappend :: PositionMap -&gt; PositionMap -&gt; PositionMap
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionMap -&gt; PositionMap -&gt; PositionMap
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-314"></span></pre></body></html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE MagicHash #-}</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Unsafe.html"><span class="hs-identifier">Agda.Utils.Unsafe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Unsafe.html#unsafeComparePointers"><span class="hs-identifier">unsafeComparePointers</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">reallyUnsafePtrEquality#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isTrue#</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- | Checks if two arguments are equal as pointers in memory.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Please note, that this function is a hack, and it can worsen the behavior of compiler.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- See &lt;https://gitlab.haskell.org/ghc/ghc/-/blob/d151546e59a50158f25c3df6728b00d3c27bb4b9/compiler/GHC/Builtin/primops.txt.pp#L3455&gt;.</span><span>
+</span><span id="line-11"></span><span id="local-6989586621681706443"><span class="annot"><a href="Agda.Utils.Unsafe.html#unsafeComparePointers"><span class="hs-identifier hs-type">unsafeComparePointers</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681706443"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706443"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-12"></span><span id="unsafeComparePointers"><span class="annot"><span class="annottext">unsafeComparePointers :: forall a. a -&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Unsafe.html#unsafeComparePointers"><span class="hs-identifier hs-var hs-var">unsafeComparePointers</span></a></span></span><span> </span><span id="local-6989586621681706452"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706452"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681706453"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706453"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706452"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool -&gt; Bool
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706453"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool -&gt; Bool
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; Int#
+forall a b. a -&gt; b -&gt; Int#
+</span><span class="hs-identifier hs-var">reallyUnsafePtrEquality#</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706452"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706453"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span></pre></body></html>

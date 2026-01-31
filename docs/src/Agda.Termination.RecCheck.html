@@ -1,0 +1,454 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">{- | Checking for recursion:
+
+   - We detect truly (co)recursive definitions by computing the
+     dependency graph and checking for cycles.
+
+   - This is inexpensive and let us skip the termination check
+     when there's no (co)recursion
+
+   Original contribution by Andrea Vezzosi (sanzhiyan).
+   This implementation by Andreas.
+-}</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Termination.RecCheck.html"><span class="hs-identifier">Agda.Termination.RecCheck</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Termination.RecCheck.html#MutualNames"><span class="hs-identifier">MutualNames</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Termination.RecCheck.html#recursive"><span class="hs-identifier">recursive</span></a></span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier">anyDefs</span></a></span><span>
+</span><span id="line-20"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">forM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Graph</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MapS</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html"><span class="hs-identifier">Agda.Syntax.Internal.Defs</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier">prettyShow</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html"><span class="hs-identifier">Agda.TypeChecking.CompiledClause</span></a></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | The mutual block we are checking.</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   The functions are numbered according to their order of appearance</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   in this set.</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">type</span><span> </span><span id="MutualNames"><span class="annot"><a href="Agda.Termination.RecCheck.html#MutualNames"><span class="hs-identifier hs-var">MutualNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="annot"><span class="hs-comment">-- | We compute for each clause the set of potentially recursive names.</span></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">type</span><span> </span><span id="NamesPerClause"><span class="annot"><a href="Agda.Termination.RecCheck.html#NamesPerClause"><span class="hs-identifier hs-var">NamesPerClause</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | Given a list of formally mutually recursive functions,</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--   check for actual recursive calls in the bodies of these functions.</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--   Returns the actually recursive functions as strongly connected components.</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   As a side effect, update the 'clauseRecursive' field in the</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   clauses belonging to the given functions.</span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Agda.Termination.RecCheck.html#recursive"><span class="hs-identifier hs-type">recursive</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Termination.RecCheck.html#MutualNames"><span class="hs-identifier hs-type">MutualNames</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-60"></span><span id="recursive"><span class="annot"><span class="annottext">recursive :: Set QName -&gt; TCM [Set QName]
+</span><a href="Agda.Termination.RecCheck.html#recursive"><span class="hs-identifier hs-var hs-var">recursive</span></a></span></span><span> </span><span id="local-6989586621682013547"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013547"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013548"><span class="annot"><span class="annottext">names' :: [QName]
+</span><a href="#local-6989586621682013548"><span class="hs-identifier hs-var hs-var hs-var">names'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set QName -&gt; [QName]
+forall a. Set a -&gt; [a]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; [a]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013547"><span class="hs-identifier hs-var">names</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-comment">-- For each function, get names per clause and total.</span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621682013550"><span class="annot"><a href="#local-6989586621682013550"><span class="hs-identifier hs-var">perClauses</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682013551"><span class="annot"><a href="#local-6989586621682013551"><span class="hs-identifier hs-var">nss</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[(IntMap (Set QName), Set QName)]
+-&gt; ([IntMap (Set QName)], [Set QName])
+forall a b. [(a, b)] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">unzip</span></span><span> </span><span class="annot"><span class="annottext">([(IntMap (Set QName), Set QName)]
+ -&gt; ([IntMap (Set QName)], [Set QName]))
+-&gt; TCMT IO [(IntMap (Set QName), Set QName)]
+-&gt; TCMT IO ([IntMap (Set QName)], [Set QName])
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; TCMT IO (IntMap (Set QName), Set QName))
+-&gt; [QName] -&gt; TCMT IO [(IntMap (Set QName), Set QName)]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; QName -&gt; TCMT IO (IntMap (Set QName), Set QName)
+</span><a href="Agda.Termination.RecCheck.html#recDef"><span class="hs-identifier hs-var">recDef</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Set QName -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013547"><span class="hs-identifier hs-var">names</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621682013548"><span class="hs-identifier hs-var">names'</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-comment">-- Create graph suitable for stronglyConnComp.</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-comment">-- Nodes are identical to node keys.</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013557"><span class="annot"><a href="#local-6989586621682013557"><span class="hs-identifier hs-var hs-var">graph</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Set QName -&gt; (QName, QName, [QName]))
+-&gt; [QName] -&gt; [Set QName] -&gt; [(QName, QName, [QName])]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682013559"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013559"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621682013560"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013560"><span class="hs-identifier hs-var">ns</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013559"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013559"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Set QName -&gt; [QName]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013560"><span class="hs-identifier hs-var">ns</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621682013548"><span class="hs-identifier hs-var">names'</span></a></span><span> </span><span class="annot"><span class="annottext">[Set QName]
+</span><a href="#local-6989586621682013551"><span class="hs-identifier hs-var">nss</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013562"><span class="annot"><a href="#local-6989586621682013562"><span class="hs-identifier hs-var hs-var">sccs</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(QName, QName, [QName])] -&gt; [SCC QName]
+forall key node. Ord key =&gt; [(node, key, [key])] -&gt; [SCC node]
+</span><span class="hs-identifier hs-var">stronglyConnComp</span></span><span> </span><span class="annot"><span class="annottext">[(QName, QName, [QName])]
+</span><a href="#local-6989586621682013557"><span class="hs-identifier hs-var">graph</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013564"><span class="annot"><a href="#local-6989586621682013564"><span class="hs-identifier hs-var hs-var">nonRec</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SCC QName -&gt; Maybe QName) -&gt; [SCC QName] -&gt; [QName]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span> </span><span class="annot"><span class="hs-identifier hs-type">AcyclicSCC</span></span><span> </span><span id="local-6989586621682013567"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013567"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Maybe QName
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013567"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-69"></span><span>                               </span><span class="annot"><span class="annottext">SCC QName
+</span><span class="hs-identifier">_</span></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe QName
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>                 </span><span class="annot"><span class="annottext">[SCC QName]
+</span><a href="#local-6989586621682013562"><span class="hs-identifier hs-var">sccs</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013568"><span class="annot"><a href="#local-6989586621682013568"><span class="hs-identifier hs-var hs-var">recs</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SCC QName -&gt; Maybe (Set QName)) -&gt; [SCC QName] -&gt; [Set QName]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CyclicSCC</span></span><span> </span><span id="local-6989586621682013570"><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621682013570"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Set QName -&gt; Maybe (Set QName)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[QName] -&gt; Set QName
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621682013570"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>                               </span><span class="annot"><span class="annottext">SCC QName
+</span><span class="hs-identifier">_</span></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (Set QName)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>                 </span><span class="annot"><span class="annottext">[SCC QName]
+</span><a href="#local-6989586621682013562"><span class="hs-identifier hs-var">sccs</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-type">reportSLn</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;rec.graph&quot;</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span> </span><span class="annot"><a href="#local-6989586621682013557"><span class="hs-identifier hs-type">graph</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-comment">-- Mark all non-recursive functions and their clauses as such.</span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">mapM_</span></span><span> </span><span class="annot"><a href="Agda.Termination.RecCheck.html#markNonRecursive"><span class="hs-identifier hs-type">markNonRecursive</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013564"><span class="hs-identifier hs-type">nonRec</span></a></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-comment">-- Mark individual clauses of recursive functions:</span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-comment">--------------------------------------------------</span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-comment">-- Map names to clause numbers to sets of mentioned names.</span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013576"><span class="annot"><a href="#local-6989586621682013576"><span class="hs-identifier hs-var hs-var">clMap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(IntMap (Set QName) -&gt; IntMap (Set QName) -&gt; IntMap (Set QName))
+-&gt; [(QName, IntMap (Set QName))] -&gt; Map QName (IntMap (Set QName))
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">IntMap (Set QName) -&gt; IntMap (Set QName) -&gt; IntMap (Set QName)
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">([(QName, IntMap (Set QName))] -&gt; Map QName (IntMap (Set QName)))
+-&gt; [(QName, IntMap (Set QName))] -&gt; Map QName (IntMap (Set QName))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[QName] -&gt; [IntMap (Set QName)] -&gt; [(QName, IntMap (Set QName))]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621682013548"><span class="hs-identifier hs-var">names'</span></a></span><span> </span><span class="annot"><span class="annottext">[IntMap (Set QName)]
+</span><a href="#local-6989586621682013550"><span class="hs-identifier hs-var">perClauses</span></a></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-comment">-- Walk through SCCs.</span><span>
+</span><span id="line-85"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">forM_</span></span><span> </span><span class="annot"><a href="#local-6989586621682013568"><span class="hs-identifier hs-type">recs</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682013580"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013580"><span class="hs-identifier hs-var">scc</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-comment">-- Does a set of names have an overlap with the current scc?</span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013581"><span class="annot"><span class="annottext">overlap :: Set QName -&gt; Bool
+</span><a href="#local-6989586621682013581"><span class="hs-identifier hs-var hs-var">overlap</span></a></span></span><span> </span><span id="local-6989586621682013582"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013582"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; Set QName -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Set QName -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013582"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013580"><span class="hs-identifier hs-var">scc</span></a></span><span>
+</span><span id="line-88"></span><span>    </span><span class="hs-comment">-- Walk through members of SCC.</span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="annottext">Set QName -&gt; (QName -&gt; TCMT IO ()) -&gt; TCMT IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+t a -&gt; (a -&gt; m b) -&gt; m ()
+</span><span class="hs-identifier hs-var">forM_</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013580"><span class="hs-identifier hs-var">scc</span></a></span><span> </span><span class="annot"><span class="annottext">((QName -&gt; TCMT IO ()) -&gt; TCMT IO ())
+-&gt; (QName -&gt; TCMT IO ()) -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682013584"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013584"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-90"></span><span>      </span><span class="hs-comment">-- Get the NamesPerClause for the current function x.</span><span>
+</span><span id="line-91"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013585"><span class="annot"><span class="annottext">perClause :: IntMap (Set QName)
+</span><a href="#local-6989586621682013585"><span class="hs-identifier hs-var hs-var hs-var">perClause</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap (Set QName)
+-&gt; QName -&gt; Map QName (IntMap (Set QName)) -&gt; IntMap (Set QName)
+forall k a. Ord k =&gt; a -&gt; k -&gt; Map k a -&gt; a
+</span><span class="hs-identifier hs-var">Map.findWithDefault</span></span><span> </span><span class="annot"><span class="annottext">IntMap (Set QName)
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013584"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName (IntMap (Set QName))
+</span><a href="#local-6989586621682013576"><span class="hs-identifier hs-var">clMap</span></a></span><span>
+</span><span id="line-92"></span><span>      </span><span class="hs-comment">-- A clause is recursive if its calls overlap with its scc.</span><span>
+</span><span id="line-93"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013587"><span class="annot"><span class="annottext">recClause :: Key -&gt; Bool
+</span><a href="#local-6989586621682013587"><span class="hs-identifier hs-var hs-var">recClause</span></a></span></span><span> </span><span id="local-6989586621682013588"><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621682013588"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set QName -&gt; Bool
+</span><a href="#local-6989586621682013581"><span class="hs-identifier hs-var">overlap</span></a></span><span> </span><span class="annot"><span class="annottext">(Set QName -&gt; Bool) -&gt; Set QName -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set QName -&gt; Key -&gt; IntMap (Set QName) -&gt; Set QName
+forall a. a -&gt; Key -&gt; IntMap a -&gt; a
+</span><span class="hs-identifier hs-var">IntMap.findWithDefault</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621682013588"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap (Set QName)
+</span><a href="#local-6989586621682013585"><span class="hs-identifier hs-var">perClause</span></a></span><span>
+</span><span id="line-94"></span><span>      </span><span class="annot"><span class="annottext">(Key -&gt; Bool) -&gt; QName -&gt; TCMT IO ()
+</span><a href="Agda.Termination.RecCheck.html#markRecursive"><span class="hs-identifier hs-var">markRecursive</span></a></span><span> </span><span class="annot"><span class="annottext">Key -&gt; Bool
+</span><a href="#local-6989586621682013587"><span class="hs-identifier hs-var">recClause</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013584"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-comment">-- Return recursive SCCs.</span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682013568"><span class="hs-identifier hs-type">recs</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="annot"><span class="hs-comment">-- | Mark a function as terminating and all its clauses as non-recursive.</span></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.Termination.RecCheck.html#markNonRecursive"><span class="hs-identifier hs-type">markNonRecursive</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span id="markNonRecursive"><span class="annot"><span class="annottext">markNonRecursive :: QName -&gt; TCMT IO ()
+</span><a href="Agda.Termination.RecCheck.html#markNonRecursive"><span class="hs-identifier hs-var hs-var">markNonRecursive</span></a></span></span><span> </span><span id="local-6989586621682013591"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013591"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Signature -&gt; Signature) -&gt; TCMT IO ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(Signature -&gt; Signature) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.State.html#modifySignature"><span class="hs-identifier hs-var">modifySignature</span></a></span><span> </span><span class="annot"><span class="annottext">((Signature -&gt; Signature) -&gt; TCMT IO ())
+-&gt; (Signature -&gt; Signature) -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; (Definition -&gt; Definition) -&gt; Signature -&gt; Signature
+</span><a href="Agda.TypeChecking.Monad.State.html#updateDefinition"><span class="hs-identifier hs-var">updateDefinition</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013591"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">((Definition -&gt; Definition) -&gt; Signature -&gt; Signature)
+-&gt; (Definition -&gt; Definition) -&gt; Signature -&gt; Signature
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Defn -&gt; Defn) -&gt; Definition -&gt; Definition
+</span><a href="Agda.TypeChecking.Monad.State.html#updateTheDef"><span class="hs-identifier hs-var">updateTheDef</span></a></span><span> </span><span class="annot"><span class="annottext">((Defn -&gt; Defn) -&gt; Definition -&gt; Definition)
+-&gt; (Defn -&gt; Defn) -&gt; Definition -&gt; Definition
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-102"></span><span>  </span><span id="local-6989586621682013595"><span class="annot"><span class="annottext">def :: Defn
+</span><a href="#local-6989586621682013595"><span class="hs-identifier hs-var">def</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Function"><span class="hs-identifier hs-type">Function</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621682013595"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-103"></span><span>   </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funTerminates"><span class="hs-identifier hs-var">funTerminates</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-104"></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funClauses"><span class="hs-identifier hs-var">funClauses</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682013599"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013599"><span class="hs-identifier hs-var">cl</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013599"><span class="hs-identifier hs-var">cl</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#clauseRecursive"><span class="hs-identifier hs-var">clauseRecursive</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#NotRecursive"><span class="hs-identifier hs-type">NotRecursive</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funClauses"><span class="hs-identifier hs-var">funClauses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013595"><span class="hs-identifier hs-type">def</span></a></span><span>
+</span><span id="line-105"></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funCompiled"><span class="hs-identifier hs-var">funCompiled</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#mapDone"><span class="hs-identifier hs-type">mapDone</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682013603"><span class="annot"><span class="annottext">CCDone Term
+</span><a href="#local-6989586621682013603"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CCDone Term
+</span><a href="#local-6989586621682013603"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#ccClauseRecursive"><span class="hs-identifier hs-var">ccClauseRecursive</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#NotRecursive"><span class="hs-identifier hs-type">NotRecursive</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funCompiled"><span class="hs-identifier hs-var">funCompiled</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013595"><span class="hs-identifier hs-type">def</span></a></span><span>
+</span><span id="line-106"></span><span>   </span><span class="hs-special">}</span><span>
+</span><span id="line-107"></span><span>  </span><span id="local-6989586621682013605"><span class="annot"><span class="annottext">def :: Defn
+</span><a href="#local-6989586621682013605"><span class="hs-identifier hs-var">def</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Record"><span class="hs-identifier hs-type">Record</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621682013605"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-108"></span><span>   </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#recTerminates"><span class="hs-identifier hs-var">recTerminates</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-109"></span><span>   </span><span class="hs-special">}</span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621682013608"><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621682013608"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621682013608"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="annot"><span class="hs-comment">-- | Mark all clauses of a function as recursive or non-recursive.</span></span><span>
+</span><span id="line-113"></span><span class="annot"><a href="Agda.Termination.RecCheck.html#markRecursive"><span class="hs-identifier hs-type">markRecursive</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Which clauses are recursive?</span></span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-116"></span><span id="markRecursive"><span class="annot"><span class="annottext">markRecursive :: (Key -&gt; Bool) -&gt; QName -&gt; TCMT IO ()
+</span><a href="Agda.Termination.RecCheck.html#markRecursive"><span class="hs-identifier hs-var hs-var">markRecursive</span></a></span></span><span> </span><span id="local-6989586621682013609"><span class="annot"><span class="annottext">Key -&gt; Bool
+</span><a href="#local-6989586621682013609"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621682013610"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013610"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Signature -&gt; Signature) -&gt; TCMT IO ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(Signature -&gt; Signature) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.State.html#modifySignature"><span class="hs-identifier hs-var">modifySignature</span></a></span><span> </span><span class="annot"><span class="annottext">((Signature -&gt; Signature) -&gt; TCMT IO ())
+-&gt; (Signature -&gt; Signature) -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; (Definition -&gt; Definition) -&gt; Signature -&gt; Signature
+</span><a href="Agda.TypeChecking.Monad.State.html#updateDefinition"><span class="hs-identifier hs-var">updateDefinition</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013610"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">((Definition -&gt; Definition) -&gt; Signature -&gt; Signature)
+-&gt; (Definition -&gt; Definition) -&gt; Signature -&gt; Signature
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Defn -&gt; Defn) -&gt; Definition -&gt; Definition
+</span><a href="Agda.TypeChecking.Monad.State.html#updateTheDef"><span class="hs-identifier hs-var">updateTheDef</span></a></span><span> </span><span class="annot"><span class="annottext">((Defn -&gt; Defn) -&gt; Definition -&gt; Definition)
+-&gt; (Defn -&gt; Defn) -&gt; Definition -&gt; Definition
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-117"></span><span>  </span><span id="local-6989586621682013611"><span class="annot"><span class="annottext">def :: Defn
+</span><a href="#local-6989586621682013611"><span class="hs-identifier hs-var">def</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Function"><span class="hs-identifier hs-type">Function</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621682013611"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-118"></span><span>   </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funClauses"><span class="hs-identifier hs-var">funClauses</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682013612"><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621682013612"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621682013613"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013613"><span class="hs-identifier hs-var">cl</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013613"><span class="hs-identifier hs-var">cl</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#clauseRecursive"><span class="hs-identifier hs-var">clauseRecursive</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#decideRecursive"><span class="hs-identifier hs-type">decideRecursive</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621682013609"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013612"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funClauses"><span class="hs-identifier hs-var">funClauses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013611"><span class="hs-identifier hs-type">def</span></a></span><span>
+</span><span id="line-119"></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funCompiled"><span class="hs-identifier hs-var">funCompiled</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#mapDone"><span class="hs-identifier hs-type">mapDone</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682013615"><span class="annot"><span class="annottext">done :: CCDone Term
+</span><a href="#local-6989586621682013615"><span class="hs-identifier hs-var">done</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#CCDone"><span class="hs-identifier hs-type">CCDone</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">ccClauseNumber :: forall a. CCDone a -&gt; Key
+</span><a href="Agda.TypeChecking.CompiledClause.html#ccClauseNumber"><span class="hs-identifier hs-var">ccClauseNumber</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621682013618"><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621682013618"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CCDone Term
+</span><a href="#local-6989586621682013615"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#ccClauseRecursive"><span class="hs-identifier hs-var">ccClauseRecursive</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#decideRecursive"><span class="hs-identifier hs-type">decideRecursive</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621682013609"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013618"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funCompiled"><span class="hs-identifier hs-var">funCompiled</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013611"><span class="hs-identifier hs-type">def</span></a></span><span>
+</span><span id="line-120"></span><span>   </span><span class="hs-special">}</span><span>
+</span><span id="line-121"></span><span>  </span><span id="local-6989586621682013619"><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621682013619"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621682013619"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- | @recDef names name@ returns all definitions from @names@</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--   that are used in the type and body of @name@.</span><span>
+</span><span id="line-125"></span><span class="annot"><a href="Agda.Termination.RecCheck.html#recDef"><span class="hs-identifier hs-type">recDef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.RecCheck.html#NamesPerClause"><span class="hs-identifier hs-type">NamesPerClause</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span id="recDef"><span class="annot"><span class="annottext">recDef :: (QName -&gt; Bool) -&gt; QName -&gt; TCMT IO (IntMap (Set QName), Set QName)
+</span><a href="Agda.Termination.RecCheck.html#recDef"><span class="hs-identifier hs-var hs-var">recDef</span></a></span></span><span> </span><span id="local-6989586621682013620"><span class="annot"><span class="annottext">QName -&gt; Bool
+</span><a href="#local-6989586621682013620"><span class="hs-identifier hs-var">include</span></a></span></span><span> </span><span id="local-6989586621682013621"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013621"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-comment">-- Retrieve definition</span><span>
+</span><span id="line-128"></span><span>  </span><span id="local-6989586621682013622"><span class="annot"><a href="#local-6989586621682013622"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">QName -&gt; TCMT IO Definition
+forall (m :: * -&gt; *).
+(HasConstInfo m, HasCallStack) =&gt;
+QName -&gt; m Definition
+</span><a href="Agda.TypeChecking.Monad.Signature.html#getConstInfo"><span class="hs-identifier hs-var">getConstInfo</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013621"><span class="hs-identifier hs-var">name</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-comment">-- Get names in type</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621682013624"><span class="annot"><a href="#local-6989586621682013624"><span class="hs-identifier hs-var">ns1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier hs-type">anyDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013620"><span class="hs-identifier hs-type">include</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#defType"><span class="hs-identifier hs-var">defType</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013622"><span class="hs-identifier hs-type">def</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-comment">-- Get names in body</span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621682013626"><span class="annot"><a href="#local-6989586621682013626"><span class="hs-identifier hs-var">perClause</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682013627"><span class="annot"><a href="#local-6989586621682013627"><span class="hs-identifier hs-var">ns2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#theDef"><span class="hs-identifier hs-var">theDef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013622"><span class="hs-identifier hs-type">def</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Function"><span class="hs-identifier hs-type">Function</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">funClauses :: Defn -&gt; [Clause]
+</span><a href="Agda.TypeChecking.Monad.Base.html#funClauses"><span class="hs-identifier hs-var">funClauses</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621682013629"><span class="annot"><span class="annottext">[Clause]
+</span><a href="#local-6989586621682013629"><span class="hs-identifier hs-var">cls</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-137"></span><span>      </span><span id="local-6989586621682013630"><span class="annot"><a href="#local-6989586621682013630"><span class="hs-identifier hs-var">perClause</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-138"></span><span>        </span><span class="annot"><span class="annottext">[(Key, Clause)]
+-&gt; ((Key, Clause) -&gt; TCMT IO (Key, Set QName))
+-&gt; TCMT IO [(Key, Set QName)]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+t a -&gt; (a -&gt; m b) -&gt; m (t b)
+</span><span class="hs-identifier hs-var">forM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Key] -&gt; [Clause] -&gt; [(Key, Clause)]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Key
+</span><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Clause]
+</span><a href="#local-6989586621682013629"><span class="hs-identifier hs-var">cls</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(((Key, Clause) -&gt; TCMT IO (Key, Set QName))
+ -&gt; TCMT IO [(Key, Set QName)])
+-&gt; ((Key, Clause) -&gt; TCMT IO (Key, Set QName))
+-&gt; TCMT IO [(Key, Set QName)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621682013631"><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621682013631"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682013632"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013632"><span class="hs-identifier hs-var">cl</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-139"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Key
+</span><a href="#local-6989586621682013631"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Set QName -&gt; (Key, Set QName))
+-&gt; TCM (Set QName) -&gt; TCMT IO (Key, Set QName)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; Clause -&gt; TCM (Set QName)
+forall a. GetDefs a =&gt; (QName -&gt; Bool) -&gt; a -&gt; TCM (Set QName)
+</span><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier hs-var">anyDefs</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Bool
+</span><a href="#local-6989586621682013620"><span class="hs-identifier hs-var">include</span></a></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013632"><span class="hs-identifier hs-var">cl</span></a></span><span>
+</span><span id="line-140"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap.fromList</span></span><span> </span><span class="annot"><a href="#local-6989586621682013630"><span class="hs-identifier hs-type">perClause</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">mconcat</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">snd</span></span><span> </span><span class="annot"><a href="#local-6989586621682013630"><span class="hs-identifier hs-type">perClause</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Datatype"><span class="hs-identifier hs-type">Datatype</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">dataClause :: Defn -&gt; Maybe Clause
+</span><a href="Agda.TypeChecking.Monad.Base.html#dataClause"><span class="hs-identifier hs-var">dataClause</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682013637"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013637"><span class="hs-identifier hs-var">cl</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-143"></span><span>      </span><span id="local-6989586621682013638"><span class="annot"><a href="#local-6989586621682013638"><span class="hs-identifier hs-var">ns</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; Clause -&gt; TCM (Set QName)
+forall a. GetDefs a =&gt; (QName -&gt; Bool) -&gt; a -&gt; TCM (Set QName)
+</span><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier hs-var">anyDefs</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Bool
+</span><a href="#local-6989586621682013620"><span class="hs-identifier hs-var">include</span></a></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682013637"><span class="hs-identifier hs-var">cl</span></a></span><span>
+</span><span id="line-144"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap.singleton</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><a href="#local-6989586621682013638"><span class="hs-identifier hs-type">ns</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682013638"><span class="hs-identifier hs-type">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Record"><span class="hs-identifier hs-type">Record</span></a></span><span class="hs-special">{</span><span> </span><span id="local-6989586621682013640"><span class="annot"><span class="annottext">Maybe Clause
+recClause :: Maybe Clause
+recClause :: Defn -&gt; Maybe Clause
+</span><a href="#local-6989586621682013640"><span class="hs-identifier hs-var hs-var">recClause</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682013642"><span class="annot"><span class="annottext">Telescope
+recTel :: Telescope
+recTel :: Defn -&gt; Telescope
+</span><a href="#local-6989586621682013642"><span class="hs-identifier hs-var hs-var">recTel</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-147"></span><span>      </span><span id="local-6989586621682013644"><span class="annot"><a href="#local-6989586621682013644"><span class="hs-identifier hs-var">ns1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; Maybe Clause -&gt; TCM (Set QName)
+forall a. GetDefs a =&gt; (QName -&gt; Bool) -&gt; a -&gt; TCM (Set QName)
+</span><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier hs-var">anyDefs</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Bool
+</span><a href="#local-6989586621682013620"><span class="hs-identifier hs-var">include</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Clause
+</span><a href="#local-6989586621682013640"><span class="hs-identifier hs-var">recClause</span></a></span><span>
+</span><span id="line-148"></span><span>      </span><span id="local-6989586621682013645"><span class="annot"><a href="#local-6989586621682013645"><span class="hs-identifier hs-var">ns2</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier hs-type">anyDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013620"><span class="hs-identifier hs-type">include</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013642"><span class="hs-identifier hs-type">recTel</span></a></span><span>
+</span><span id="line-149"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013646"><span class="annot"><a href="#local-6989586621682013646"><span class="hs-identifier hs-var hs-var">ns</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013644"><span class="hs-identifier hs-var">ns1</span></a></span><span> </span><span class="annot"><span class="annottext">Set QName -&gt; Set QName -&gt; Set QName
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">`mappend`</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621682013645"><span class="hs-identifier hs-var">ns2</span></a></span><span>
+</span><span id="line-150"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap.singleton</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><a href="#local-6989586621682013646"><span class="hs-identifier hs-type">ns</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682013646"><span class="hs-identifier hs-type">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span>    </span><span class="annot"><span class="annottext">Defn
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(IntMap (Set QName), Set QName)
+-&gt; TCMT IO (IntMap (Set QName), Set QName)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntMap (Set QName)
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Set QName
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportS"><span class="hs-identifier hs-type">reportS</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;rec.graph&quot;</span></span><span> </span><span class="annot"><span class="hs-number">20</span></span><span>
+</span><span id="line-155"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;recDef &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013621"><span class="hs-identifier hs-type">name</span></a></span><span>
+</span><span id="line-156"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;  names in the type: &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013624"><span class="hs-identifier hs-type">ns1</span></a></span><span>
+</span><span id="line-157"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;  names in the def:  &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013627"><span class="hs-identifier hs-type">ns2</span></a></span><span>
+</span><span id="line-158"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-159"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621682013626"><span class="hs-identifier hs-type">perClause</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682013624"><span class="hs-identifier hs-type">ns1</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">`mappend`</span></span><span> </span><span class="annot"><a href="#local-6989586621682013627"><span class="hs-identifier hs-type">ns2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- | @anysDef names a@ returns all definitions from @names@</span><span>
+</span><span id="line-162"></span><span class="hs-comment">--   that are used in @a@.</span><span>
+</span><span id="line-163"></span><span id="local-6989586621682013389"><span class="annot"><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier hs-type">anyDefs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013389"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682013389"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-164"></span><span id="anyDefs"><span class="annot"><span class="annottext">anyDefs :: forall a. GetDefs a =&gt; (QName -&gt; Bool) -&gt; a -&gt; TCM (Set QName)
+</span><a href="Agda.Termination.RecCheck.html#anyDefs"><span class="hs-identifier hs-var hs-var">anyDefs</span></a></span></span><span> </span><span id="local-6989586621682013658"><span class="annot"><span class="annottext">QName -&gt; Bool
+</span><a href="#local-6989586621682013658"><span class="hs-identifier hs-var">include</span></a></span></span><span> </span><span id="local-6989586621682013659"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682013659"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-165"></span><span>  </span><span class="hs-comment">-- Prepare function to lookup metas outside of TCM</span><span>
+</span><span id="line-166"></span><span>  </span><span id="local-6989586621682013660"><span class="annot"><a href="#local-6989586621682013660"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCState (Map MetaId MetaVariable)
+-&gt; TCMT IO (Map MetaId MetaVariable)
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">(Map MetaId MetaVariable -&gt; f (Map MetaId MetaVariable))
+-&gt; TCState -&gt; f TCState
+Lens' TCState (Map MetaId MetaVariable)
+</span><a href="Agda.TypeChecking.Monad.Base.html#stSolvedMetaStore"><span class="hs-identifier hs-var">stSolvedMetaStore</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682013665"><span class="annot"><a href="#local-6989586621682013665"><span class="hs-identifier hs-var hs-var">lookup</span></a></span></span><span> </span><span id="local-6989586621682013666"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682013666"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MetaInstantiation -&gt; Term
+</span><a href="#local-6989586621682013667"><span class="hs-identifier hs-var">inst</span></a></span><span> </span><span class="annot"><span class="annottext">(MetaInstantiation -&gt; Term)
+-&gt; (MetaVariable -&gt; MetaInstantiation) -&gt; MetaVariable -&gt; Term
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">MetaVariable -&gt; MetaInstantiation
+</span><a href="Agda.TypeChecking.Monad.Base.html#mvInstantiation"><span class="hs-identifier hs-var">mvInstantiation</span></a></span><span> </span><span class="annot"><span class="annottext">(MetaVariable -&gt; Term) -&gt; Maybe MetaVariable -&gt; Maybe Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Map MetaId MetaVariable -&gt; Maybe MetaVariable
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">MapS.lookup</span></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682013666"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Map MetaId MetaVariable
+</span><a href="#local-6989586621682013660"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-168"></span><span>      </span><span class="hs-comment">-- we collect only those used definitions that are in @names@</span><span>
+</span><span id="line-169"></span><span>      </span><span id="local-6989586621682013671"><span class="annot"><a href="#local-6989586621682013671"><span class="hs-identifier hs-var hs-var">emb</span></a></span></span><span> </span><span id="local-6989586621682013672"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013672"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Bool
+</span><a href="#local-6989586621682013658"><span class="hs-identifier hs-var">include</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013672"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Set QName
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682013672"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Set QName
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-170"></span><span>  </span><span class="hs-comment">-- get all the Defs that are in names</span><span>
+</span><span id="line-171"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs%27"><span class="hs-identifier hs-type">getDefs'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013665"><span class="hs-identifier hs-type">lookup</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013671"><span class="hs-identifier hs-type">emb</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682013659"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-173"></span><span>  </span><span class="hs-comment">-- TODO: Is it bad to ignore the lambdas?</span><span>
+</span><span id="line-174"></span><span>  </span><span id="local-6989586621682013667"><span class="annot"><span class="annottext">inst :: MetaInstantiation -&gt; Term
+</span><a href="#local-6989586621682013667"><span class="hs-identifier hs-var hs-var">inst</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#InstV"><span class="hs-identifier hs-type">InstV</span></a></span><span> </span><span id="local-6989586621682013683"><span class="annot"><span class="annottext">Instantiation
+</span><a href="#local-6989586621682013683"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Instantiation -&gt; Term
+</span><a href="Agda.TypeChecking.Monad.Base.html#instBody"><span class="hs-identifier hs-var">instBody</span></a></span><span> </span><span class="annot"><span class="annottext">Instantiation
+</span><a href="#local-6989586621682013683"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-175"></span><span>  </span><span class="annot"><a href="#local-6989586621682013667"><span class="hs-identifier hs-var">inst</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpenMeta"><span class="hs-identifier hs-type">OpenMeta</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-176"></span><span>  </span><span class="annot"><a href="#local-6989586621682013667"><span class="hs-identifier hs-var">inst</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#BlockedConst"><span class="hs-identifier hs-type">BlockedConst</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-177"></span><span>  </span><span class="annot"><a href="#local-6989586621682013667"><span class="hs-identifier hs-var">inst</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PostponedTypeCheckingProblem"><span class="hs-identifier hs-type">PostponedTypeCheckingProblem</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-178"></span></pre></body></html>

@@ -1,0 +1,1061 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-comment">-- | Tools for benchmarking and accumulating results.</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--   Nothing Agda-specific in here.</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html"><span class="hs-identifier">Agda.Utils.Benchmark</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">E</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">evaluate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Text.PrettyPrint.Boxes</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Boxes</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html"><span class="hs-identifier">Agda.Utils.ListT</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Monad.html#finally"><span class="hs-identifier">finally</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html"><span class="hs-identifier">Agda.Utils.Maybe.Strict</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Strict</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html"><span class="hs-identifier">Agda.Utils.Time</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html"><span class="hs-identifier">Agda.Utils.Trie</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier">Trie</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html"><span class="hs-identifier">Agda.Utils.Trie</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trie</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="annot"><span class="hs-comment">-- * Benchmark trie</span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><span class="hs-comment">-- | Account we can bill computation time to.</span></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">type</span><span> </span><span id="Account"><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-var">Account</span></a></span></span><span> </span><span id="local-6989586621681730880"><span class="annot"><a href="#local-6989586621681730880"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681730880"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="annot"><span class="hs-comment">-- | Record when we started billing the current account.</span></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">type</span><span> </span><span id="CurrentAccount"><span class="annot"><a href="Agda.Utils.Benchmark.html#CurrentAccount"><span class="hs-identifier hs-var">CurrentAccount</span></a></span></span><span> </span><span id="local-6989586621681730881"><span class="annot"><a href="#local-6989586621681730881"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Strict.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730881"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">type</span><span> </span><span id="Timings"><span class="annot"><a href="Agda.Utils.Benchmark.html#Timings"><span class="hs-identifier hs-var">Timings</span></a></span></span><span>        </span><span id="local-6989586621681730882"><span class="annot"><a href="#local-6989586621681730882"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730882"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">data</span><span> </span><span id="BenchmarkOn"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-var">BenchmarkOn</span></a></span></span><span> </span><span id="local-6989586621681730629"><span class="annot"><a href="#local-6989586621681730629"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="BenchmarkOff"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOff"><span class="hs-identifier hs-var">BenchmarkOff</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="BenchmarkOn"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-var">BenchmarkOn</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="BenchmarkSome"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkSome"><span class="hs-identifier hs-var">BenchmarkSome</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730629"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681730887"><span id="local-6989586621681730889"><span class="annot"><span class="annottext">(forall x. BenchmarkOn a -&gt; Rep (BenchmarkOn a) x)
+-&gt; (forall x. Rep (BenchmarkOn a) x -&gt; BenchmarkOn a)
+-&gt; Generic (BenchmarkOn a)
+forall x. Rep (BenchmarkOn a) x -&gt; BenchmarkOn a
+forall x. BenchmarkOn a -&gt; Rep (BenchmarkOn a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (BenchmarkOn a) x -&gt; BenchmarkOn a
+forall a x. BenchmarkOn a -&gt; Rep (BenchmarkOn a) x
+$cfrom :: forall a x. BenchmarkOn a -&gt; Rep (BenchmarkOn a) x
+from :: forall x. BenchmarkOn a -&gt; Rep (BenchmarkOn a) x
+$cto :: forall a x. Rep (BenchmarkOn a) x -&gt; BenchmarkOn a
+to :: forall x. Rep (BenchmarkOn a) x -&gt; BenchmarkOn a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span id="local-6989586621681730610"><span class="annot"><a href="Agda.Utils.Benchmark.html#isBenchmarkOn"><span class="hs-identifier hs-type">isBenchmarkOn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730610"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-type">BenchmarkOn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730610"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-51"></span><span id="isBenchmarkOn"><span class="annot"><span class="annottext">isBenchmarkOn :: forall a. Account a -&gt; BenchmarkOn a -&gt; Bool
+</span><a href="Agda.Utils.Benchmark.html#isBenchmarkOn"><span class="hs-identifier hs-var hs-var">isBenchmarkOn</span></a></span></span><span> </span><span class="annot"><span class="annottext">Account a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkOff"><span class="hs-identifier hs-var">BenchmarkOff</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Agda.Utils.Benchmark.html#isBenchmarkOn"><span class="hs-identifier hs-var">isBenchmarkOn</span></a></span><span> </span><span class="annot"><span class="annottext">Account a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-var">BenchmarkOn</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Agda.Utils.Benchmark.html#isBenchmarkOn"><span class="hs-identifier hs-var">isBenchmarkOn</span></a></span><span> </span><span id="local-6989586621681730895"><span class="annot"><span class="annottext">Account a
+</span><a href="#local-6989586621681730895"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkSome"><span class="hs-identifier hs-type">BenchmarkSome</span></a></span><span> </span><span id="local-6989586621681730896"><span class="annot"><span class="annottext">Account a -&gt; Bool
+</span><a href="#local-6989586621681730896"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Account a -&gt; Bool
+</span><a href="#local-6989586621681730896"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Account a
+</span><a href="#local-6989586621681730895"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Benchmark structure is a trie, mapping accounts (phases and subphases)</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   to CPU time spent on their performance.</span><span>
+</span><span id="line-57"></span><span class="hs-keyword">data</span><span> </span><span id="Benchmark"><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-var">Benchmark</span></a></span></span><span> </span><span id="local-6989586621681730613"><span class="annot"><a href="#local-6989586621681730613"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Benchmark"><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-var">Benchmark</span></a></span></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="benchmarkOn"><span class="annot"><span class="annottext">forall a. Benchmark a -&gt; BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#benchmarkOn"><span class="hs-identifier hs-var hs-var">benchmarkOn</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-type">BenchmarkOn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730613"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Are we benchmarking at all?</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="currentAccount"><span class="annot"><span class="annottext">forall a. Benchmark a -&gt; CurrentAccount a
+</span><a href="Agda.Utils.Benchmark.html#currentAccount"><span class="hs-identifier hs-var hs-var">currentAccount</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#CurrentAccount"><span class="hs-identifier hs-type">CurrentAccount</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730613"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ What are we billing to currently?</span></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="timings"><span class="annot"><span class="annottext">forall a. Benchmark a -&gt; Timings a
+</span><a href="Agda.Utils.Benchmark.html#timings"><span class="hs-identifier hs-var hs-var">timings</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Timings"><span class="hs-identifier hs-type">Timings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730613"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ The accounts and their accumulated timing bill.</span></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681730902"><span id="local-6989586621681730904"><span class="annot"><span class="annottext">(forall x. Benchmark a -&gt; Rep (Benchmark a) x)
+-&gt; (forall x. Rep (Benchmark a) x -&gt; Benchmark a)
+-&gt; Generic (Benchmark a)
+forall x. Rep (Benchmark a) x -&gt; Benchmark a
+forall x. Benchmark a -&gt; Rep (Benchmark a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (Benchmark a) x -&gt; Benchmark a
+forall a x. Benchmark a -&gt; Rep (Benchmark a) x
+$cfrom :: forall a x. Benchmark a -&gt; Rep (Benchmark a) x
+from :: forall x. Benchmark a -&gt; Rep (Benchmark a) x
+$cto :: forall a x. Rep (Benchmark a) x -&gt; Benchmark a
+to :: forall x. Rep (Benchmark a) x -&gt; Benchmark a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="annot"><span class="hs-comment">-- | Initial benchmark structure (empty).</span></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730625"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730625"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621681730912"><span class="annot"><span class="annottext">empty :: Benchmark a
+</span><a href="#local-6989586621681730912"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">benchmarkOn :: BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#benchmarkOn"><span class="hs-identifier hs-var">benchmarkOn</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BenchmarkOn a
+forall a. BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkOff"><span class="hs-identifier hs-var">BenchmarkOff</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">currentAccount :: CurrentAccount a
+</span><a href="Agda.Utils.Benchmark.html#currentAccount"><span class="hs-identifier hs-var">currentAccount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CurrentAccount a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Strict.Nothing</span></span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">timings :: Timings a
+</span><a href="Agda.Utils.Benchmark.html#timings"><span class="hs-identifier hs-var">timings</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Timings a
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621681730916"><span class="annot"><span class="annottext">null :: Benchmark a -&gt; Bool
+</span><a href="#local-6989586621681730916"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Timings a -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">(Timings a -&gt; Bool)
+-&gt; (Benchmark a -&gt; Timings a) -&gt; Benchmark a -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark a -&gt; Timings a
+forall a. Benchmark a -&gt; Timings a
+</span><a href="Agda.Utils.Benchmark.html#timings"><span class="hs-identifier hs-var">timings</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><span class="hs-comment">-- | Semantic editor combinator.</span></span><span>
+</span><span id="line-77"></span><span id="local-6989586621681730635"><span class="annot"><a href="Agda.Utils.Benchmark.html#mapBenchmarkOn"><span class="hs-identifier hs-type">mapBenchmarkOn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-type">BenchmarkOn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730635"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-type">BenchmarkOn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730635"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730635"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730635"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-78"></span><span id="mapBenchmarkOn"><span class="annot"><span class="annottext">mapBenchmarkOn :: forall a.
+(BenchmarkOn a -&gt; BenchmarkOn a) -&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#mapBenchmarkOn"><span class="hs-identifier hs-var hs-var">mapBenchmarkOn</span></a></span></span><span> </span><span id="local-6989586621681730920"><span class="annot"><span class="annottext">BenchmarkOn a -&gt; BenchmarkOn a
+</span><a href="#local-6989586621681730920"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681730921"><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730921"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730921"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#benchmarkOn"><span class="hs-identifier hs-var">benchmarkOn</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681730920"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#benchmarkOn"><span class="hs-identifier hs-var">benchmarkOn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730921"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><span class="hs-comment">-- | Semantic editor combinator.</span></span><span>
+</span><span id="line-81"></span><span id="local-6989586621681730641"><span class="annot"><a href="Agda.Utils.Benchmark.html#mapCurrentAccount"><span class="hs-identifier hs-type">mapCurrentAccount</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#CurrentAccount"><span class="hs-identifier hs-type">CurrentAccount</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730641"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#CurrentAccount"><span class="hs-identifier hs-type">CurrentAccount</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730641"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730641"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730641"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-83"></span><span id="mapCurrentAccount"><span class="annot"><span class="annottext">mapCurrentAccount :: forall a.
+(CurrentAccount a -&gt; CurrentAccount a)
+-&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#mapCurrentAccount"><span class="hs-identifier hs-var hs-var">mapCurrentAccount</span></a></span></span><span> </span><span id="local-6989586621681730923"><span class="annot"><span class="annottext">CurrentAccount a -&gt; CurrentAccount a
+</span><a href="#local-6989586621681730923"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681730924"><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730924"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730924"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#currentAccount"><span class="hs-identifier hs-var">currentAccount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681730923"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#currentAccount"><span class="hs-identifier hs-var">currentAccount</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730924"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><span class="hs-comment">-- | Semantic editor combinator.</span></span><span>
+</span><span id="line-86"></span><span id="local-6989586621681730643"><span class="annot"><a href="Agda.Utils.Benchmark.html#mapTimings"><span class="hs-identifier hs-type">mapTimings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Timings"><span class="hs-identifier hs-type">Timings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730643"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Timings"><span class="hs-identifier hs-type">Timings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730643"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730643"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730643"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-87"></span><span id="mapTimings"><span class="annot"><span class="annottext">mapTimings :: forall a. (Timings a -&gt; Timings a) -&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#mapTimings"><span class="hs-identifier hs-var hs-var">mapTimings</span></a></span></span><span> </span><span id="local-6989586621681730926"><span class="annot"><span class="annottext">Timings a -&gt; Timings a
+</span><a href="#local-6989586621681730926"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681730927"><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730927"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730927"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#timings"><span class="hs-identifier hs-var">timings</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681730926"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#timings"><span class="hs-identifier hs-var">timings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730927"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><span class="hs-comment">-- | Add to specified CPU time account.</span></span><span>
+</span><span id="line-90"></span><span id="local-6989586621681730645"><span class="annot"><a href="Agda.Utils.Benchmark.html#addCPUTime"><span class="hs-identifier hs-type">addCPUTime</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681730645"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730645"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730645"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730645"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-91"></span><span id="addCPUTime"><span class="annot"><span class="annottext">addCPUTime :: forall a.
+Ord a =&gt;
+Account a -&gt; CPUTime -&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#addCPUTime"><span class="hs-identifier hs-var hs-var">addCPUTime</span></a></span></span><span> </span><span id="local-6989586621681730933"><span class="annot"><span class="annottext">Account a
+</span><a href="#local-6989586621681730933"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621681730934"><span class="annot"><span class="annottext">CPUTime
+</span><a href="#local-6989586621681730934"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Timings a -&gt; Timings a) -&gt; Benchmark a -&gt; Benchmark a
+forall a. (Timings a -&gt; Timings a) -&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#mapTimings"><span class="hs-identifier hs-var">mapTimings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(CPUTime -&gt; CPUTime -&gt; CPUTime)
+-&gt; Account a -&gt; CPUTime -&gt; Timings a -&gt; Timings a
+forall k v.
+Ord k =&gt;
+(v -&gt; v -&gt; v) -&gt; [k] -&gt; v -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#insertWith"><span class="hs-identifier hs-var">Trie.insertWith</span></a></span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; CPUTime -&gt; CPUTime
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="annot"><span class="annottext">Account a
+</span><a href="#local-6989586621681730933"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">CPUTime
+</span><a href="#local-6989586621681730934"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="annot"><span class="hs-comment">-- | Print benchmark as three-column table with totals.</span></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730655"><span id="local-6989586621681730941"><span id="local-6989586621681730945"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681730655"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730655"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730655"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621681730980"><span class="annot"><span class="annottext">pretty :: Benchmark a -&gt; Doc
+</span><a href="#local-6989586621681730980"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span id="local-6989586621681730982"><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730982"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Doc
+forall a. [Char] -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Doc) -&gt; [Char] -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Box -&gt; [Char]
+</span><span class="hs-identifier hs-var">Boxes.render</span></span><span> </span><span class="annot"><span class="annottext">Box
+</span><a href="#local-6989586621681730985"><span class="hs-identifier hs-var">table</span></a></span><span>
+</span><span id="line-96"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-97"></span><span>    </span><span id="local-6989586621681730986"><span class="annot"><span class="annottext">trie :: Timings a
+</span><a href="#local-6989586621681730986"><span class="hs-identifier hs-var hs-var">trie</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Benchmark a -&gt; Timings a
+forall a. Benchmark a -&gt; Timings a
+</span><a href="Agda.Utils.Benchmark.html#timings"><span class="hs-identifier hs-var">timings</span></a></span><span> </span><span class="annot"><span class="annottext">Benchmark a
+</span><a href="#local-6989586621681730982"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-98"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681730987"><span class="annot"><span class="annottext">[[a]]
+</span><a href="#local-6989586621681730987"><span class="hs-identifier hs-var">accounts</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681730988"><span class="annot"><span class="annottext">[(CPUTime, CPUTime)]
+</span><a href="#local-6989586621681730988"><span class="hs-identifier hs-var">times0</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[([a], (CPUTime, CPUTime))] -&gt; ([[a]], [(CPUTime, CPUTime)])
+forall a b. [(a, b)] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">unzip</span></span><span> </span><span class="annot"><span class="annottext">([([a], (CPUTime, CPUTime))] -&gt; ([[a]], [(CPUTime, CPUTime)]))
+-&gt; [([a], (CPUTime, CPUTime))] -&gt; ([[a]], [(CPUTime, CPUTime)])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((CPUTime, CPUTime) -&gt; (CPUTime, CPUTime) -&gt; Ordering)
+-&gt; Trie a (CPUTime, CPUTime) -&gt; [([a], (CPUTime, CPUTime))]
+forall k v. Ord k =&gt; (v -&gt; v -&gt; Ordering) -&gt; Trie k v -&gt; [([k], v)]
+</span><a href="Agda.Utils.Trie.html#toListOrderedBy"><span class="hs-identifier hs-var">Trie.toListOrderedBy</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(CPUTime -&gt; CPUTime -&gt; Ordering) -&gt; CPUTime -&gt; CPUTime -&gt; Ordering
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; CPUTime -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime -&gt; CPUTime -&gt; Ordering)
+-&gt; ((CPUTime, CPUTime) -&gt; CPUTime)
+-&gt; (CPUTime, CPUTime)
+-&gt; (CPUTime, CPUTime)
+-&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime, CPUTime) -&gt; CPUTime
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>                               </span><span class="annot"><span class="annottext">(Trie a (CPUTime, CPUTime) -&gt; [([a], (CPUTime, CPUTime))])
+-&gt; Trie a (CPUTime, CPUTime) -&gt; [([a], (CPUTime, CPUTime))]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((CPUTime, CPUTime) -&gt; Bool)
+-&gt; Trie a (CPUTime, CPUTime) -&gt; Trie a (CPUTime, CPUTime)
+forall k v. Ord k =&gt; (v -&gt; Bool) -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#filter"><span class="hs-identifier hs-var">Trie.filter</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">CPUTime -&gt; CPUTime -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; CPUTime
+</span><a href="Agda.Utils.Time.html#fromMilliseconds"><span class="hs-identifier hs-var">fromMilliseconds</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">10</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(CPUTime -&gt; Bool)
+-&gt; ((CPUTime, CPUTime) -&gt; CPUTime) -&gt; (CPUTime, CPUTime) -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime, CPUTime) -&gt; CPUTime
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>                               </span><span class="annot"><span class="annottext">(Trie a (CPUTime, CPUTime) -&gt; Trie a (CPUTime, CPUTime))
+-&gt; Trie a (CPUTime, CPUTime) -&gt; Trie a (CPUTime, CPUTime)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Timings a -&gt; Maybe (CPUTime, CPUTime))
+-&gt; Timings a -&gt; Trie a (CPUTime, CPUTime)
+forall k u v.
+Ord k =&gt;
+(Trie k u -&gt; Maybe v) -&gt; Trie k u -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#mapSubTries"><span class="hs-identifier hs-var">Trie.mapSubTries</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(CPUTime, CPUTime) -&gt; Maybe (CPUTime, CPUTime)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">((CPUTime, CPUTime) -&gt; Maybe (CPUTime, CPUTime))
+-&gt; (Timings a -&gt; (CPUTime, CPUTime))
+-&gt; Timings a
+-&gt; Maybe (CPUTime, CPUTime)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Timings a -&gt; (CPUTime, CPUTime)
+forall {b} {k}. (Num b, Ord k) =&gt; Trie k b -&gt; (b, b)
+</span><a href="#local-6989586621681730998"><span class="hs-identifier hs-var">aggr</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Timings a
+</span><a href="#local-6989586621681730986"><span class="hs-identifier hs-var">trie</span></a></span><span>
+</span><span id="line-101"></span><span>    </span><span id="local-6989586621681730999"><span class="annot"><span class="annottext">times :: [CPUTime]
+</span><a href="#local-6989586621681730999"><span class="hs-identifier hs-var hs-var">times</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((CPUTime, CPUTime) -&gt; CPUTime)
+-&gt; [(CPUTime, CPUTime)] -&gt; [CPUTime]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime, CPUTime) -&gt; CPUTime
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[(CPUTime, CPUTime)]
+</span><a href="#local-6989586621681730988"><span class="hs-identifier hs-var">times0</span></a></span><span>
+</span><span id="line-102"></span><span>    </span><span id="local-6989586621681730998"><span class="annot"><span class="annottext">aggr :: Trie k b -&gt; (b, b)
+</span><a href="#local-6989586621681730998"><span class="hs-identifier hs-var hs-var">aggr</span></a></span></span><span> </span><span id="local-6989586621681731012"><span class="annot"><span class="annottext">Trie k b
+</span><a href="#local-6989586621681731012"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; Maybe b -&gt; b
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">(Maybe b -&gt; b) -&gt; Maybe b -&gt; b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[k] -&gt; Trie k b -&gt; Maybe b
+forall k v. Ord k =&gt; [k] -&gt; Trie k v -&gt; Maybe v
+</span><a href="Agda.Utils.Trie.html#lookup"><span class="hs-identifier hs-var">Trie.lookup</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Trie k b
+</span><a href="#local-6989586621681731012"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Sum b -&gt; b
+forall a. Sum a -&gt; a
+</span><span class="hs-identifier hs-var">getSum</span></span><span> </span><span class="annot"><span class="annottext">(Sum b -&gt; b) -&gt; Sum b -&gt; b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Sum b) -&gt; Trie k b -&gt; Sum b
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Sum b
+forall a. a -&gt; Sum a
+</span><span class="hs-identifier hs-var">Sum</span></span><span> </span><span class="annot"><span class="annottext">Trie k b
+</span><a href="#local-6989586621681731012"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>    </span><span id="local-6989586621681731018"><span class="annot"><span class="annottext">aggrTimes :: [Box]
+</span><a href="#local-6989586621681731018"><span class="hs-identifier hs-var hs-var">aggrTimes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-104"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681731019"><span class="annot"><a href="#local-6989586621681731019"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681731020"><span class="annot"><a href="#local-6989586621681731020"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681731021"><span class="annot"><a href="#local-6989586621681731021"><span class="hs-identifier hs-var">aggrT</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[a]] -&gt; [(CPUTime, CPUTime)] -&gt; [([a], (CPUTime, CPUTime))]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="annot"><span class="annottext">[[a]]
+</span><a href="#local-6989586621681730987"><span class="hs-identifier hs-var">accounts</span></a></span><span> </span><span class="annot"><span class="annottext">[(CPUTime, CPUTime)]
+</span><a href="#local-6989586621681730988"><span class="hs-identifier hs-var">times0</span></a></span><span>
+</span><span id="line-105"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621681731020"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">==</span></span><span> </span><span class="annot"><a href="#local-6989586621681731021"><span class="hs-identifier hs-type">aggrT</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">||</span></span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-type">null</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731019"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-106"></span><span>               </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-107"></span><span>               </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Boxes.text</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;(&quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731021"><span class="hs-identifier hs-type">aggrT</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-comment">-- Generate a table.</span><span>
+</span><span id="line-110"></span><span>    </span><span id="local-6989586621681730985"><span class="annot"><span class="annottext">table :: Box
+</span><a href="#local-6989586621681730985"><span class="hs-identifier hs-var hs-var">table</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Alignment -&gt; [Box] -&gt; Box
+forall (f :: * -&gt; *).
+Foldable f =&gt;
+Int -&gt; Alignment -&gt; f Box -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.hsep</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Alignment
+</span><span class="hs-identifier hs-var">Boxes.left</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Box
+</span><a href="#local-6989586621681731027"><span class="hs-identifier hs-var">col1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Box
+</span><a href="#local-6989586621681731028"><span class="hs-identifier hs-var">col2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Box
+</span><a href="#local-6989586621681731029"><span class="hs-identifier hs-var">col3</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span>    </span><span class="hs-comment">-- First column: Accounts.</span><span>
+</span><span id="line-113"></span><span>    </span><span id="local-6989586621681731027"><span class="annot"><span class="annottext">col1 :: Box
+</span><a href="#local-6989586621681731027"><span class="hs-identifier hs-var hs-var">col1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alignment -&gt; [Box] -&gt; Box
+forall (f :: * -&gt; *). Foldable f =&gt; Alignment -&gt; f Box -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.vcat</span></span><span> </span><span class="annot"><span class="annottext">Alignment
+</span><span class="hs-identifier hs-var">Boxes.left</span></span><span> </span><span class="annot"><span class="annottext">([Box] -&gt; Box) -&gt; [Box] -&gt; Box
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-114"></span><span>           </span><span class="annot"><span class="annottext">([Char] -&gt; Box) -&gt; [[Char]] -&gt; [Box]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.text</span></span><span> </span><span class="annot"><span class="annottext">([[Char]] -&gt; [Box]) -&gt; [[Char]] -&gt; [Box]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-115"></span><span>           </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Total&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; [Char]) -&gt; [[a]] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [Char]
+forall {a}. Pretty a =&gt; [a] -&gt; [Char]
+</span><a href="#local-6989586621681731031"><span class="hs-identifier hs-var">showAccount</span></a></span><span> </span><span class="annot"><span class="annottext">[[a]]
+</span><a href="#local-6989586621681730987"><span class="hs-identifier hs-var">accounts</span></a></span><span>
+</span><span id="line-116"></span><span>    </span><span class="hs-comment">-- Second column: Times.</span><span>
+</span><span id="line-117"></span><span>    </span><span id="local-6989586621681731028"><span class="annot"><span class="annottext">col2 :: Box
+</span><a href="#local-6989586621681731028"><span class="hs-identifier hs-var hs-var">col2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alignment -&gt; [Box] -&gt; Box
+forall (f :: * -&gt; *). Foldable f =&gt; Alignment -&gt; f Box -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.vcat</span></span><span> </span><span class="annot"><span class="annottext">Alignment
+</span><span class="hs-identifier hs-var">Boxes.right</span></span><span> </span><span class="annot"><span class="annottext">([Box] -&gt; Box) -&gt; [Box] -&gt; Box
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-118"></span><span>           </span><span class="annot"><span class="annottext">(CPUTime -&gt; Box) -&gt; [CPUTime] -&gt; [Box]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.text</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Box) -&gt; (CPUTime -&gt; [Char]) -&gt; CPUTime -&gt; Box
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; [Char]
+forall a. Pretty a =&gt; a -&gt; [Char]
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([CPUTime] -&gt; [Box]) -&gt; [CPUTime] -&gt; [Box]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-119"></span><span>           </span><span class="annot"><span class="annottext">[CPUTime] -&gt; CPUTime
+forall a. Num a =&gt; [a] -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">[CPUTime]
+</span><a href="#local-6989586621681730999"><span class="hs-identifier hs-var">times</span></a></span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; [CPUTime] -&gt; [CPUTime]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[CPUTime]
+</span><a href="#local-6989586621681730999"><span class="hs-identifier hs-var">times</span></a></span><span>
+</span><span id="line-120"></span><span>    </span><span class="hs-comment">-- Thid column: Aggregate times.</span><span>
+</span><span id="line-121"></span><span>    </span><span id="local-6989586621681731029"><span class="annot"><span class="annottext">col3 :: Box
+</span><a href="#local-6989586621681731029"><span class="hs-identifier hs-var hs-var">col3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alignment -&gt; [Box] -&gt; Box
+forall (f :: * -&gt; *). Foldable f =&gt; Alignment -&gt; f Box -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.vcat</span></span><span> </span><span class="annot"><span class="annottext">Alignment
+</span><span class="hs-identifier hs-var">Boxes.right</span></span><span> </span><span class="annot"><span class="annottext">([Box] -&gt; Box) -&gt; [Box] -&gt; Box
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-122"></span><span>           </span><span class="annot"><span class="annottext">Box
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">Box -&gt; [Box] -&gt; [Box]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Box]
+</span><a href="#local-6989586621681731018"><span class="hs-identifier hs-var">aggrTimes</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span>    </span><span id="local-6989586621681731031"><span class="annot"><span class="annottext">showAccount :: [a] -&gt; [Char]
+</span><a href="#local-6989586621681731031"><span class="hs-identifier hs-var hs-var">showAccount</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Miscellaneous&quot;</span></span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><a href="#local-6989586621681731031"><span class="hs-identifier hs-var">showAccount</span></a></span><span> </span><span id="local-6989586621681731039"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681731039"><span class="hs-identifier hs-var">ks</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [Char]
+forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.intercalate</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.&quot;</span></span><span> </span><span class="annot"><span class="annottext">([[Char]] -&gt; [Char]) -&gt; [[Char]] -&gt; [Char]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; [Char]) -&gt; [a] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [Char]
+forall a. Pretty a =&gt; a -&gt; [Char]
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681731039"><span class="hs-identifier hs-var">ks</span></a></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="annot"><span class="hs-comment">-- * Benchmarking monad.</span></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="annot"><span class="hs-comment">-- | Monad with access to benchmarking data.</span></span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadBench"><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-var">MonadBench</span></a></span></span><span> </span><span id="local-6989586621681730714"><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="BenchPhase"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-var">BenchPhase</span></a></span></span><span> </span><span id="local-6989586621681730714"><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-134"></span><span>  </span><span id="getBenchmark"><span class="annot"><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-type">getBenchmark</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>  </span><span id="putBenchmark"><span class="annot"><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-type">putBenchmark</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span>  </span><span id="local-6989586621681731047"><span class="annot"><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var hs-var">putBenchmark</span></a></span><span> </span><span id="local-6989586621681731049"><span class="annot"><span class="annottext">Benchmark (BenchPhase m)
+</span><a href="#local-6989586621681731049"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span> </span><span class="annot"><span class="annottext">((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m)
+-&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m)
+</span><a href="#local-6989586621681731049"><span class="hs-identifier hs-var">b</span></a></span></span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span>  </span><span id="modifyBenchmark"><span class="annot"><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-type">modifyBenchmark</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>  </span><span id="local-6989586621681731052"><span class="annot"><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var hs-var">modifyBenchmark</span></a></span><span> </span><span id="local-6989586621681731059"><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)
+</span><a href="#local-6989586621681731059"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-141"></span><span>    </span><span id="local-6989586621681731060"><span class="annot"><a href="#local-6989586621681731060"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m))
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">getBenchmark</span></a></span><span>
+</span><span id="line-142"></span><span>    </span><span class="annot"><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-type">putBenchmark</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$!</span></span><span> </span><span class="annot"><a href="#local-6989586621681731059"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731060"><span class="hs-identifier hs-type">b</span></a></span></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-comment">-- | We need to be able to terminate benchmarking in case of an exception.</span><span>
+</span><span id="line-145"></span><span>  </span><span id="finally"><span class="annot"><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-type">finally</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681730734"><span id="local-6989586621681730735"><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730734"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730735"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730714"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730734"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-pragma">{-# MINIMAL</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-pragma hs-type">getBenchmark</span></a></span><span> </span><span class="hs-pragma">,</span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-pragma hs-type">putBenchmark</span></a></span><span> </span><span class="hs-pragma">|</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-pragma hs-type">modifyBenchmark</span></a></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-pragma hs-type">finally</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span id="local-6989586621681730724"><span id="local-6989586621681730725"><span class="annot"><a href="Agda.Utils.Benchmark.html#getsBenchmark"><span class="hs-identifier hs-type">getsBenchmark</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730724"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730724"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730725"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730724"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730725"><span class="hs-identifier hs-type">c</span></a></span></span></span><span>
+</span><span id="line-150"></span><span id="getsBenchmark"><span class="annot"><span class="annottext">getsBenchmark :: forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; c) -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#getsBenchmark"><span class="hs-identifier hs-var hs-var">getsBenchmark</span></a></span></span><span> </span><span id="local-6989586621681731068"><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; c
+</span><a href="#local-6989586621681731068"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; c
+</span><a href="#local-6989586621681731068"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; c)
+-&gt; m (Benchmark (BenchPhase m)) -&gt; m c
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m))
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">getBenchmark</span></a></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730740"><span id="local-6989586621681730741"><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730740"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730741"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730740"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="BenchPhase"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-var">BenchPhase</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730741"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730740"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730740"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-154"></span><span>  </span><span id="local-6989586621681731093"><span class="annot"><span class="annottext">getBenchmark :: ReaderT r m (Benchmark (BenchPhase (ReaderT r m)))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var hs-var hs-var">getBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase (ReaderT r m)))
+-&gt; ReaderT r m (Benchmark (BenchPhase (ReaderT r m)))
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT r m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m (Benchmark (BenchPhase (ReaderT r m)))
+ -&gt; ReaderT r m (Benchmark (BenchPhase (ReaderT r m))))
+-&gt; m (Benchmark (BenchPhase (ReaderT r m)))
+-&gt; ReaderT r m (Benchmark (BenchPhase (ReaderT r m)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m))
+m (Benchmark (BenchPhase (ReaderT r m)))
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">getBenchmark</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span id="local-6989586621681731098"><span class="annot"><span class="annottext">putBenchmark :: Benchmark (BenchPhase (ReaderT r m)) -&gt; ReaderT r m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var hs-var hs-var">putBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ReaderT r m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT r m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT r m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; m ())
+-&gt; Benchmark (BenchPhase m)
+-&gt; ReaderT r m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Benchmark (BenchPhase m) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var">putBenchmark</span></a></span><span>
+</span><span id="line-156"></span><span>  </span><span id="local-6989586621681731102"><span class="annot"><span class="annottext">modifyBenchmark :: (Benchmark (BenchPhase (ReaderT r m))
+ -&gt; Benchmark (BenchPhase (ReaderT r m)))
+-&gt; ReaderT r m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var hs-var hs-var">modifyBenchmark</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ReaderT r m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT r m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ReaderT r m ())
+-&gt; ((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; ReaderT r m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span>
+</span><span id="line-157"></span><span>  </span><span id="local-6989586621681731104"><span class="annot"><span class="annottext">finally :: forall b c. ReaderT r m b -&gt; ReaderT r m c -&gt; ReaderT r m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var hs-var hs-var">finally</span></a></span></span><span> </span><span id="local-6989586621681731105"><span class="annot"><span class="annottext">ReaderT r m b
+</span><a href="#local-6989586621681731105"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681731106"><span class="annot"><span class="annottext">ReaderT r m c
+</span><a href="#local-6989586621681731106"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(r -&gt; m b) -&gt; ReaderT r m b
+forall r (m :: * -&gt; *) a. (r -&gt; m a) -&gt; ReaderT r m a
+</span><span class="hs-identifier hs-var">ReaderT</span></span><span> </span><span class="annot"><span class="annottext">((r -&gt; m b) -&gt; ReaderT r m b) -&gt; (r -&gt; m b) -&gt; ReaderT r m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681731108"><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681731108"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-158"></span><span>    </span><span class="annot"><span class="annottext">m b -&gt; m c -&gt; m b
+forall b c. m b -&gt; m c -&gt; m b
+forall (m :: * -&gt; *) b c. MonadBench m =&gt; m b -&gt; m c -&gt; m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var">finally</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ReaderT r m b
+</span><a href="#local-6989586621681731105"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT r m b -&gt; r -&gt; m b
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-operator hs-var">`runReaderT`</span></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681731108"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ReaderT r m c
+</span><a href="#local-6989586621681731106"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT r m c -&gt; r -&gt; m c
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-operator hs-var">`runReaderT`</span></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681731108"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730762"><span id="local-6989586621681730763"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730762"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681730763"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730763"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730762"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-161"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="BenchPhase"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-var">BenchPhase</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730763"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730762"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730762"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-162"></span><span>  </span><span id="local-6989586621681731133"><span class="annot"><span class="annottext">getBenchmark :: WriterT w m (Benchmark (BenchPhase (WriterT w m)))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var hs-var hs-var">getBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase (WriterT w m)))
+-&gt; WriterT w m (Benchmark (BenchPhase (WriterT w m)))
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; WriterT w m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m (Benchmark (BenchPhase (WriterT w m)))
+ -&gt; WriterT w m (Benchmark (BenchPhase (WriterT w m))))
+-&gt; m (Benchmark (BenchPhase (WriterT w m)))
+-&gt; WriterT w m (Benchmark (BenchPhase (WriterT w m)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m))
+m (Benchmark (BenchPhase (WriterT w m)))
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">getBenchmark</span></a></span><span>
+</span><span id="line-163"></span><span>  </span><span id="local-6989586621681731137"><span class="annot"><span class="annottext">putBenchmark :: Benchmark (BenchPhase (WriterT w m)) -&gt; WriterT w m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var hs-var hs-var">putBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; WriterT w m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; WriterT w m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; WriterT w m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; m ())
+-&gt; Benchmark (BenchPhase m)
+-&gt; WriterT w m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Benchmark (BenchPhase m) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var">putBenchmark</span></a></span><span>
+</span><span id="line-164"></span><span>  </span><span id="local-6989586621681731141"><span class="annot"><span class="annottext">modifyBenchmark :: (Benchmark (BenchPhase (WriterT w m))
+ -&gt; Benchmark (BenchPhase (WriterT w m)))
+-&gt; WriterT w m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var hs-var hs-var">modifyBenchmark</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; WriterT w m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; WriterT w m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; WriterT w m ())
+-&gt; ((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; WriterT w m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span>
+</span><span id="line-165"></span><span>  </span><span id="local-6989586621681731143"><span class="annot"><span class="annottext">finally :: forall b c. WriterT w m b -&gt; WriterT w m c -&gt; WriterT w m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var hs-var hs-var">finally</span></a></span></span><span> </span><span id="local-6989586621681731144"><span class="annot"><span class="annottext">WriterT w m b
+</span><a href="#local-6989586621681731144"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681731145"><span class="annot"><span class="annottext">WriterT w m c
+</span><a href="#local-6989586621681731145"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (b, w) -&gt; WriterT w m b
+forall w (m :: * -&gt; *) a. m (a, w) -&gt; WriterT w m a
+</span><span class="hs-identifier hs-var">WriterT</span></span><span> </span><span class="annot"><span class="annottext">(m (b, w) -&gt; WriterT w m b) -&gt; m (b, w) -&gt; WriterT w m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m (b, w) -&gt; m (c, w) -&gt; m (b, w)
+forall b c. m b -&gt; m c -&gt; m b
+forall (m :: * -&gt; *) b c. MonadBench m =&gt; m b -&gt; m c -&gt; m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var">finally</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WriterT w m b -&gt; m (b, w)
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var">runWriterT</span></span><span> </span><span class="annot"><span class="annottext">WriterT w m b
+</span><a href="#local-6989586621681731144"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WriterT w m c -&gt; m (c, w)
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var">runWriterT</span></span><span> </span><span class="annot"><span class="annottext">WriterT w m c
+</span><a href="#local-6989586621681731145"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730780"><span id="local-6989586621681730781"><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730780"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730781"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730780"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="BenchPhase"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-var">BenchPhase</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730781"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730780"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730780"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span>  </span><span id="local-6989586621681731170"><span class="annot"><span class="annottext">getBenchmark :: StateT r m (Benchmark (BenchPhase (StateT r m)))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var hs-var hs-var">getBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase (StateT r m)))
+-&gt; StateT r m (Benchmark (BenchPhase (StateT r m)))
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; StateT r m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m (Benchmark (BenchPhase (StateT r m)))
+ -&gt; StateT r m (Benchmark (BenchPhase (StateT r m))))
+-&gt; m (Benchmark (BenchPhase (StateT r m)))
+-&gt; StateT r m (Benchmark (BenchPhase (StateT r m)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m))
+m (Benchmark (BenchPhase (StateT r m)))
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">getBenchmark</span></a></span><span>
+</span><span id="line-171"></span><span>  </span><span id="local-6989586621681731174"><span class="annot"><span class="annottext">putBenchmark :: Benchmark (BenchPhase (StateT r m)) -&gt; StateT r m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var hs-var hs-var">putBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; StateT r m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; StateT r m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; StateT r m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; m ())
+-&gt; Benchmark (BenchPhase m)
+-&gt; StateT r m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Benchmark (BenchPhase m) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var">putBenchmark</span></a></span><span>
+</span><span id="line-172"></span><span>  </span><span id="local-6989586621681731178"><span class="annot"><span class="annottext">modifyBenchmark :: (Benchmark (BenchPhase (StateT r m))
+ -&gt; Benchmark (BenchPhase (StateT r m)))
+-&gt; StateT r m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var hs-var hs-var">modifyBenchmark</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; StateT r m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; StateT r m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; StateT r m ())
+-&gt; ((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; StateT r m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span>
+</span><span id="line-173"></span><span>  </span><span id="local-6989586621681731180"><span class="annot"><span class="annottext">finally :: forall b c. StateT r m b -&gt; StateT r m c -&gt; StateT r m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var hs-var hs-var">finally</span></a></span></span><span> </span><span id="local-6989586621681731181"><span class="annot"><span class="annottext">StateT r m b
+</span><a href="#local-6989586621681731181"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681731182"><span class="annot"><span class="annottext">StateT r m c
+</span><a href="#local-6989586621681731182"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(r -&gt; m (b, r)) -&gt; StateT r m b
+forall s (m :: * -&gt; *) a. (s -&gt; m (a, s)) -&gt; StateT s m a
+</span><span class="hs-identifier hs-var">StateT</span></span><span> </span><span class="annot"><span class="annottext">((r -&gt; m (b, r)) -&gt; StateT r m b)
+-&gt; (r -&gt; m (b, r)) -&gt; StateT r m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731184"><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681731184"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-174"></span><span>    </span><span class="annot"><span class="annottext">m (b, r) -&gt; m (c, r) -&gt; m (b, r)
+forall b c. m b -&gt; m c -&gt; m b
+forall (m :: * -&gt; *) b c. MonadBench m =&gt; m b -&gt; m c -&gt; m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var">finally</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">StateT r m b
+</span><a href="#local-6989586621681731181"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">StateT r m b -&gt; r -&gt; m (b, r)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-operator hs-var">`runStateT`</span></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681731184"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">StateT r m c
+</span><a href="#local-6989586621681731182"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">StateT r m c -&gt; r -&gt; m (c, r)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-operator hs-var">`runStateT`</span></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621681731184"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730798"><span id="local-6989586621681730799"><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730798"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730799"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730798"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="BenchPhase"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-var">BenchPhase</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="#local-6989586621681730799"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730798"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730798"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span>  </span><span id="local-6989586621681731208"><span class="annot"><span class="annottext">getBenchmark :: ExceptT e m (Benchmark (BenchPhase (ExceptT e m)))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var hs-var hs-var">getBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase (ExceptT e m)))
+-&gt; ExceptT e m (Benchmark (BenchPhase (ExceptT e m)))
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ExceptT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m (Benchmark (BenchPhase (ExceptT e m)))
+ -&gt; ExceptT e m (Benchmark (BenchPhase (ExceptT e m))))
+-&gt; m (Benchmark (BenchPhase (ExceptT e m)))
+-&gt; ExceptT e m (Benchmark (BenchPhase (ExceptT e m)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m))
+m (Benchmark (BenchPhase (ExceptT e m)))
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">getBenchmark</span></a></span><span>
+</span><span id="line-180"></span><span>  </span><span id="local-6989586621681731212"><span class="annot"><span class="annottext">putBenchmark :: Benchmark (BenchPhase (ExceptT e m)) -&gt; ExceptT e m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var hs-var hs-var">putBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ExceptT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ExceptT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ExceptT e m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; m ())
+-&gt; Benchmark (BenchPhase m)
+-&gt; ExceptT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Benchmark (BenchPhase m) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var">putBenchmark</span></a></span><span>
+</span><span id="line-181"></span><span>  </span><span id="local-6989586621681731216"><span class="annot"><span class="annottext">modifyBenchmark :: (Benchmark (BenchPhase (ExceptT e m))
+ -&gt; Benchmark (BenchPhase (ExceptT e m)))
+-&gt; ExceptT e m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var hs-var hs-var">modifyBenchmark</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ExceptT e m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ExceptT e m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ExceptT e m ())
+-&gt; ((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; ExceptT e m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span>
+</span><span id="line-182"></span><span>  </span><span id="local-6989586621681731218"><span class="annot"><span class="annottext">finally :: forall b c. ExceptT e m b -&gt; ExceptT e m c -&gt; ExceptT e m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var hs-var hs-var">finally</span></a></span></span><span> </span><span id="local-6989586621681731219"><span class="annot"><span class="annottext">ExceptT e m b
+</span><a href="#local-6989586621681731219"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681731220"><span class="annot"><span class="annottext">ExceptT e m c
+</span><a href="#local-6989586621681731220"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Either e b) -&gt; ExceptT e m b
+forall e (m :: * -&gt; *) a. m (Either e a) -&gt; ExceptT e m a
+</span><span class="hs-identifier hs-var">ExceptT</span></span><span> </span><span class="annot"><span class="annottext">(m (Either e b) -&gt; ExceptT e m b)
+-&gt; m (Either e b) -&gt; ExceptT e m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m (Either e b) -&gt; m (Either e c) -&gt; m (Either e b)
+forall b c. m b -&gt; m c -&gt; m b
+forall (m :: * -&gt; *) b c. MonadBench m =&gt; m b -&gt; m c -&gt; m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var">finally</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ExceptT e m b -&gt; m (Either e b)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="annot"><span class="annottext">ExceptT e m b
+</span><a href="#local-6989586621681731219"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ExceptT e m c -&gt; m (Either e c)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="annot"><span class="annottext">ExceptT e m c
+</span><a href="#local-6989586621681731220"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730813"><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730813"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730813"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="BenchPhase"><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-var">BenchPhase</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730813"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730813"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span>  </span><span id="local-6989586621681731247"><span class="annot"><span class="annottext">getBenchmark :: ListT m (Benchmark (BenchPhase (ListT m)))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var hs-var hs-var">getBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m)) -&gt; ListT m (Benchmark (BenchPhase m))
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">m (Benchmark (BenchPhase m))
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">getBenchmark</span></a></span><span>
+</span><span id="line-188"></span><span>  </span><span id="local-6989586621681731251"><span class="annot"><span class="annottext">putBenchmark :: Benchmark (BenchPhase (ListT m)) -&gt; ListT m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var hs-var hs-var">putBenchmark</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ListT m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ListT m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; m ())
+-&gt; Benchmark (BenchPhase m)
+-&gt; ListT m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Benchmark (BenchPhase m) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#putBenchmark"><span class="hs-identifier hs-var">putBenchmark</span></a></span><span>
+</span><span id="line-189"></span><span>  </span><span id="local-6989586621681731255"><span class="annot"><span class="annottext">modifyBenchmark :: (Benchmark (BenchPhase (ListT m))
+ -&gt; Benchmark (BenchPhase (ListT m)))
+-&gt; ListT m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var hs-var hs-var">modifyBenchmark</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ListT m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ListT m ())
+-&gt; ((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; ListT m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span>
+</span><span id="line-190"></span><span>  </span><span id="local-6989586621681731257"><span class="annot"><span class="annottext">finally :: forall b c. ListT m b -&gt; ListT m c -&gt; ListT m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var hs-var hs-var">finally</span></a></span></span><span> </span><span id="local-6989586621681731258"><span class="annot"><span class="annottext">ListT m b
+</span><a href="#local-6989586621681731258"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681731259"><span class="annot"><span class="annottext">ListT m c
+</span><a href="#local-6989586621681731259"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (b, ListT m b)) -&gt; ListT m b
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (b, ListT m b)) -&gt; ListT m b)
+-&gt; m (Maybe (b, ListT m b)) -&gt; ListT m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe (b, ListT m b))
+-&gt; m (Maybe (c, ListT m c)) -&gt; m (Maybe (b, ListT m b))
+forall b c. m b -&gt; m c -&gt; m b
+forall (m :: * -&gt; *) b c. MonadBench m =&gt; m b -&gt; m c -&gt; m b
+</span><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-identifier hs-var">finally</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListT m b -&gt; m (Maybe (b, ListT m b))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var">runListT</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m b
+</span><a href="#local-6989586621681731258"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListT m c -&gt; m (Maybe (c, ListT m c))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var">runListT</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m c
+</span><a href="#local-6989586621681731259"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="annot"><span class="hs-comment">-- | Turn benchmarking on/off.</span></span><span>
+</span><span id="line-193"></span><span>
+</span><span id="line-194"></span><span id="local-6989586621681730820"><span class="annot"><a href="Agda.Utils.Benchmark.html#setBenchmarking"><span class="hs-identifier hs-type">setBenchmarking</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730820"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-type">BenchmarkOn</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730820"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730820"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-195"></span><span id="setBenchmarking"><span class="annot"><span class="annottext">setBenchmarking :: forall (m :: * -&gt; *).
+MonadBench m =&gt;
+BenchmarkOn (BenchPhase m) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#setBenchmarking"><span class="hs-identifier hs-var hs-var">setBenchmarking</span></a></span></span><span> </span><span id="local-6989586621681731265"><span class="annot"><span class="annottext">BenchmarkOn (BenchPhase m)
+</span><a href="#local-6989586621681731265"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span> </span><span class="annot"><span class="annottext">((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m))
+-&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)
+forall a.
+(BenchmarkOn a -&gt; BenchmarkOn a) -&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#mapBenchmarkOn"><span class="hs-identifier hs-var">mapBenchmarkOn</span></a></span><span> </span><span class="annot"><span class="annottext">((BenchmarkOn (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m))
+ -&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; (BenchmarkOn (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m))
+-&gt; Benchmark (BenchPhase m)
+-&gt; Benchmark (BenchPhase m)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">BenchmarkOn (BenchPhase m)
+-&gt; BenchmarkOn (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m)
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">BenchmarkOn (BenchPhase m)
+</span><a href="#local-6989586621681731265"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- | Bill current account with time up to now.</span><span>
+</span><span id="line-198"></span><span class="hs-comment">--   Switch to new account.</span><span>
+</span><span id="line-199"></span><span class="hs-comment">--   Return old account (if any).</span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span id="local-6989586621681730822"><span class="annot"><a href="Agda.Utils.Benchmark.html#switchBenchmarking"><span class="hs-identifier hs-type">switchBenchmarking</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730822"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Strict.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730822"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Maybe new account.</span></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730822"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Strict.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730822"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Maybe old account.</span></span><span>
+</span><span id="line-204"></span><span id="switchBenchmarking"><span class="annot"><span class="annottext">switchBenchmarking :: forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+</span><a href="Agda.Utils.Benchmark.html#switchBenchmarking"><span class="hs-identifier hs-var hs-var">switchBenchmarking</span></a></span></span><span> </span><span id="local-6989586621681731288"><span class="annot"><span class="annottext">Maybe (Account (BenchPhase m))
+</span><a href="#local-6989586621681731288"><span class="hs-identifier hs-var">newAccount</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-205"></span><span>  </span><span id="local-6989586621681731289"><span class="annot"><a href="#local-6989586621681731289"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO CPUTime -&gt; m CPUTime
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO CPUTime -&gt; m CPUTime) -&gt; IO CPUTime -&gt; m CPUTime
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IO CPUTime
+forall (m :: * -&gt; *). MonadIO m =&gt; m CPUTime
+</span><a href="Agda.Utils.Time.html#getCPUTime"><span class="hs-identifier hs-var">getCPUTime</span></a></span><span>
+</span><span id="line-206"></span><span>  </span><span class="hs-comment">-- Stop and bill current benchmarking.</span><span>
+</span><span id="line-207"></span><span>  </span><span id="local-6989586621681731292"><span class="annot"><a href="#local-6989586621681731292"><span class="hs-identifier hs-var">oldAccount</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#getsBenchmark"><span class="hs-identifier hs-type">getsBenchmark</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#currentAccount"><span class="hs-identifier hs-var">currentAccount</span></a></span><span>
+</span><span id="line-208"></span><span>  </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#whenJust"><span class="hs-identifier hs-type">Strict.whenJust</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731292"><span class="hs-identifier hs-type">oldAccount</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681731294"><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731294"><span class="hs-identifier hs-var">acc</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681731295"><span class="annot"><span class="annottext">CPUTime
+</span><a href="#local-6989586621681731295"><span class="hs-identifier hs-var">start</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-209"></span><span>    </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span> </span><span class="annot"><span class="annottext">((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m)
+-&gt; CPUTime -&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)
+forall a.
+Ord a =&gt;
+Account a -&gt; CPUTime -&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#addCPUTime"><span class="hs-identifier hs-var">addCPUTime</span></a></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731294"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">(CPUTime -&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; CPUTime -&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CPUTime
+</span><a href="#local-6989586621681731289"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; CPUTime -&gt; CPUTime
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">CPUTime
+</span><a href="#local-6989586621681731295"><span class="hs-identifier hs-var">start</span></a></span><span>
+</span><span id="line-210"></span><span>  </span><span class="hs-comment">-- Switch to new account.</span><span>
+</span><span id="line-211"></span><span>  </span><span class="annot"><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-type">modifyBenchmark</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#mapCurrentAccount"><span class="hs-identifier hs-type">mapCurrentAccount</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">const</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681731289"><span class="hs-identifier hs-type">now</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="#local-6989586621681731288"><span class="hs-identifier hs-type">newAccount</span></a></span><span>
+</span><span id="line-212"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">fst</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="#local-6989586621681731292"><span class="hs-identifier hs-type">oldAccount</span></a></span><span>
+</span><span id="line-213"></span><span>
+</span><span id="line-214"></span><span class="annot"><span class="hs-comment">-- | Resets the account and the timing information.</span></span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span id="local-6989586621681730828"><span class="annot"><a href="Agda.Utils.Benchmark.html#reset"><span class="hs-identifier hs-type">reset</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730828"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730828"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-217"></span><span id="reset"><span class="annot"><span class="annottext">reset :: forall (m :: * -&gt; *). MonadBench m =&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#reset"><span class="hs-identifier hs-var hs-var">reset</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#modifyBenchmark"><span class="hs-identifier hs-var">modifyBenchmark</span></a></span><span> </span><span class="annot"><span class="annottext">((Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ())
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-218"></span><span>  </span><span class="annot"><span class="annottext">(CurrentAccount (BenchPhase m) -&gt; CurrentAccount (BenchPhase m))
+-&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)
+forall a.
+(CurrentAccount a -&gt; CurrentAccount a)
+-&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#mapCurrentAccount"><span class="hs-identifier hs-var">mapCurrentAccount</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CurrentAccount (BenchPhase m)
+-&gt; CurrentAccount (BenchPhase m) -&gt; CurrentAccount (BenchPhase m)
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">CurrentAccount (BenchPhase m)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Strict.Nothing</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; (Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m))
+-&gt; Benchmark (BenchPhase m)
+-&gt; Benchmark (BenchPhase m)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-219"></span><span>  </span><span class="annot"><span class="annottext">(Timings (BenchPhase m) -&gt; Timings (BenchPhase m))
+-&gt; Benchmark (BenchPhase m) -&gt; Benchmark (BenchPhase m)
+forall a. (Timings a -&gt; Timings a) -&gt; Benchmark a -&gt; Benchmark a
+</span><a href="Agda.Utils.Benchmark.html#mapTimings"><span class="hs-identifier hs-var">mapTimings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Timings (BenchPhase m)
+-&gt; Timings (BenchPhase m) -&gt; Timings (BenchPhase m)
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Timings (BenchPhase m)
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">Trie.empty</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-pragma">{-# INLINABLE</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-pragma hs-type">billTo</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- | Bill a computation to a specific account.</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--   Works even if the computation is aborted by an exception.</span><span>
+</span><span id="line-224"></span><span>
+</span><span id="line-225"></span><span id="local-6989586621681730830"><span id="local-6989586621681730831"><span class="annot"><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-type">billTo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730830"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730830"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730830"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730831"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730830"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730831"><span class="hs-identifier hs-type">c</span></a></span></span></span><span>
+</span><span id="line-226"></span><span id="billTo"><span class="annot"><span class="annottext">billTo :: forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; m c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-var hs-var">billTo</span></a></span></span><span> </span><span id="local-6989586621681731314"><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731314"><span class="hs-identifier hs-var">account</span></a></span></span><span> </span><span id="local-6989586621681731315"><span class="annot"><span class="annottext">m c
+</span><a href="#local-6989586621681731315"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m Bool -&gt; m c -&gt; m c -&gt; m c
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifNotM"><span class="hs-identifier hs-var">ifNotM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Account (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m) -&gt; Bool
+forall a. Account a -&gt; BenchmarkOn a -&gt; Bool
+</span><a href="Agda.Utils.Benchmark.html#isBenchmarkOn"><span class="hs-identifier hs-var">isBenchmarkOn</span></a></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731314"><span class="hs-identifier hs-var">account</span></a></span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn (BenchPhase m) -&gt; Bool)
+-&gt; m (BenchmarkOn (BenchPhase m)) -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m))
+-&gt; m (BenchmarkOn (BenchPhase m))
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; c) -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#getsBenchmark"><span class="hs-identifier hs-var">getsBenchmark</span></a></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m)
+forall a. Benchmark a -&gt; BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#benchmarkOn"><span class="hs-identifier hs-var">benchmarkOn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m c
+</span><a href="#local-6989586621681731315"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">(m c -&gt; m c) -&gt; m c -&gt; m c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-227"></span><span>  </span><span class="hs-comment">-- Switch to new account.</span><span>
+</span><span id="line-228"></span><span>  </span><span id="local-6989586621681731317"><span class="annot"><a href="#local-6989586621681731317"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+</span><a href="Agda.Utils.Benchmark.html#switchBenchmarking"><span class="hs-identifier hs-var">switchBenchmarking</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (Account (BenchPhase m))
+ -&gt; m (Maybe (Account (BenchPhase m))))
+-&gt; Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m) -&gt; Maybe (Account (BenchPhase m))
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Strict.Just</span></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731314"><span class="hs-identifier hs-var">account</span></a></span><span>
+</span><span id="line-229"></span><span>  </span><span class="hs-comment">-- Compute and switch back to old account.</span><span>
+</span><span id="line-230"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">E.evaluate</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">=&lt;&lt;</span></span><span> </span><span class="annot"><a href="#local-6989586621681731315"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#finally"><span class="hs-operator hs-type">`finally`</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#switchBenchmarking"><span class="hs-identifier hs-type">switchBenchmarking</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731317"><span class="hs-identifier hs-type">old</span></a></span><span>
+</span><span id="line-231"></span><span>
+</span><span id="line-232"></span><span class="annot"><span class="hs-comment">-- | Bill a CPS function to an account. Can't handle exceptions.</span></span><span>
+</span><span id="line-233"></span><span id="local-6989586621681730840"><span id="local-6989586621681730841"><span id="local-6989586621681730842"><span class="annot"><a href="Agda.Utils.Benchmark.html#billToCPS"><span class="hs-identifier hs-type">billToCPS</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730840"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681730841"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730842"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730842"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681730841"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730842"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730842"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-234"></span><span id="billToCPS"><span class="annot"><span class="annottext">billToCPS :: forall (m :: * -&gt; *) b c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; ((b -&gt; m c) -&gt; m c) -&gt; (b -&gt; m c) -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billToCPS"><span class="hs-identifier hs-var hs-var">billToCPS</span></a></span></span><span> </span><span id="local-6989586621681731332"><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731332"><span class="hs-identifier hs-var">account</span></a></span></span><span> </span><span id="local-6989586621681731333"><span class="annot"><span class="annottext">(b -&gt; m c) -&gt; m c
+</span><a href="#local-6989586621681731333"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681731334"><span class="annot"><span class="annottext">b -&gt; m c
+</span><a href="#local-6989586621681731334"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m Bool -&gt; m c -&gt; m c -&gt; m c
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifNotM"><span class="hs-identifier hs-var">ifNotM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Account (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m) -&gt; Bool
+forall a. Account a -&gt; BenchmarkOn a -&gt; Bool
+</span><a href="Agda.Utils.Benchmark.html#isBenchmarkOn"><span class="hs-identifier hs-var">isBenchmarkOn</span></a></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731332"><span class="hs-identifier hs-var">account</span></a></span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn (BenchPhase m) -&gt; Bool)
+-&gt; m (BenchmarkOn (BenchPhase m)) -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Benchmark (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m))
+-&gt; m (BenchmarkOn (BenchPhase m))
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+(Benchmark (BenchPhase m) -&gt; c) -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#getsBenchmark"><span class="hs-identifier hs-var">getsBenchmark</span></a></span><span> </span><span class="annot"><span class="annottext">Benchmark (BenchPhase m) -&gt; BenchmarkOn (BenchPhase m)
+forall a. Benchmark a -&gt; BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#benchmarkOn"><span class="hs-identifier hs-var">benchmarkOn</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(b -&gt; m c) -&gt; m c
+</span><a href="#local-6989586621681731333"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; m c
+</span><a href="#local-6989586621681731334"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m c -&gt; m c) -&gt; m c -&gt; m c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-235"></span><span>  </span><span class="hs-comment">-- Switch to new account.</span><span>
+</span><span id="line-236"></span><span>  </span><span id="local-6989586621681731335"><span class="annot"><a href="#local-6989586621681731335"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+</span><a href="Agda.Utils.Benchmark.html#switchBenchmarking"><span class="hs-identifier hs-var">switchBenchmarking</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (Account (BenchPhase m))
+ -&gt; m (Maybe (Account (BenchPhase m))))
+-&gt; Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m) -&gt; Maybe (Account (BenchPhase m))
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Strict.Just</span></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731332"><span class="hs-identifier hs-var">account</span></a></span><span>
+</span><span id="line-237"></span><span>  </span><span class="annot"><a href="#local-6989586621681731333"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681731336"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681731336"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681731336"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; m c -&gt; m c
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-238"></span><span>    </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+Maybe (Account (BenchPhase m))
+-&gt; m (Maybe (Account (BenchPhase m)))
+</span><a href="Agda.Utils.Benchmark.html#switchBenchmarking"><span class="hs-identifier hs-var">switchBenchmarking</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (Account (BenchPhase m))
+</span><a href="#local-6989586621681731335"><span class="hs-identifier hs-var">old</span></a></span><span>
+</span><span id="line-239"></span><span>    </span><span class="annot"><a href="#local-6989586621681731334"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731336"><span class="hs-identifier hs-type">x</span></a></span><span>
+</span><span id="line-240"></span><span>
+</span><span id="line-241"></span><span class="annot"><span class="hs-comment">-- | Bill a pure computation to a specific account.</span></span><span>
+</span><span id="line-242"></span><span id="local-6989586621681730847"><span id="local-6989586621681730848"><span class="annot"><a href="Agda.Utils.Benchmark.html#billPureTo"><span class="hs-identifier hs-type">billPureTo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier hs-type">MonadBench</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730847"><span class="hs-identifier hs-type">m</span></a></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier hs-type">BenchPhase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730847"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730848"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681730847"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730848"><span class="hs-identifier hs-type">c</span></a></span></span></span><span>
+</span><span id="line-243"></span><span id="billPureTo"><span class="annot"><span class="annottext">billPureTo :: forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billPureTo"><span class="hs-identifier hs-var hs-var">billPureTo</span></a></span></span><span> </span><span id="local-6989586621681731343"><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731343"><span class="hs-identifier hs-var">account</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m) -&gt; m c -&gt; m c
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; m c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-var">billTo</span></a></span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase m)
+</span><a href="#local-6989586621681731343"><span class="hs-identifier hs-var">account</span></a></span><span> </span><span class="annot"><span class="annottext">(m c -&gt; m c) -&gt; (c -&gt; m c) -&gt; c -&gt; m c
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">c -&gt; m c
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span class="hs-comment">-- NFData instances.</span><span>
+</span><span id="line-246"></span><span>
+</span><span id="line-247"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730874"><span id="local-6989586621681731346"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681730874"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730874"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-248"></span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- Andreas, 2025-07-31:</span><span>
+</span><span id="line-250"></span><span class="hs-comment">-- Generic derivation of NFData with embedded function spaces</span><span>
+</span><span id="line-251"></span><span class="hs-comment">-- throws deprecation warning in GHC 9.10.3 (deepseq-1.5.2.0),</span><span>
+</span><span id="line-252"></span><span class="hs-comment">-- see https://github.com/haskell/deepseq/issues/111 ,</span><span>
+</span><span id="line-253"></span><span class="hs-comment">-- so we spell it out.</span><span>
+</span><span id="line-254"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730873"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681730873"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-type">BenchmarkOn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681730873"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-255"></span><span>  </span><span id="local-6989586621681731379"><span class="annot"><span class="annottext">rnf :: BenchmarkOn a -&gt; ()
+</span><a href="#local-6989586621681731379"><span class="hs-identifier hs-var hs-var hs-var">rnf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-256"></span><span>    </span><span class="annot"><span class="annottext">BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkOff"><span class="hs-identifier hs-var">BenchmarkOff</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-257"></span><span>    </span><span class="annot"><span class="annottext">BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-var">BenchmarkOn</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-258"></span><span>    </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkSome"><span class="hs-identifier hs-type">BenchmarkSome</span></a></span><span> </span><span id="local-6989586621681731381"><span class="annot"><span class="annottext">Account a -&gt; Bool
+</span><a href="#local-6989586621681731381"><span class="hs-identifier hs-var">_fun</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>  </span><span class="hs-comment">-- functions cannot be normalized</span><span>
+</span><span id="line-259"></span></pre></body></html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="annot"><span class="hs-comment">{-| Instead of checking time-stamps we compute a hash of the module source and
+    store it in the interface file. This module contains the functions to do
+    that. -}</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html"><span class="hs-identifier">Agda.Utils.Hash</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">B</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Hash</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">H</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">L</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Digest.Murmur64</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Encoding</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.IO.UTF8.html"><span class="hs-identifier">Agda.Utils.IO.UTF8</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#readTextFile"><span class="hs-identifier">readTextFile</span></a></span><span class="hs-special">)</span><span class="hs-cpp">
+
+#include &quot;MachDeps.h&quot;
+</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">type</span><span> </span><span id="Hash"><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-var">Hash</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><a href="Agda.Utils.Hash.html#hashSize"><span class="hs-identifier hs-type">hashSize</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-26"></span><span id="hashSize"><span class="annot"><span class="annottext">hashSize :: Int
+</span><a href="Agda.Utils.Hash.html#hashSize"><span class="hs-identifier hs-var hs-var">hashSize</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="annot"><a href="Agda.Utils.Hash.html#hashByteString"><span class="hs-identifier hs-type">hashByteString</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span>
+</span><span id="line-29"></span><span id="hashByteString"><span class="annot"><span class="annottext">hashByteString :: ByteString -&gt; Hash
+</span><a href="Agda.Utils.Hash.html#hashByteString"><span class="hs-identifier hs-var hs-var">hashByteString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Hash -&gt; Hash
+</span><span class="hs-identifier hs-var">H.asWord64</span></span><span> </span><span class="annot"><span class="annottext">(Hash -&gt; Hash) -&gt; (ByteString -&gt; Hash) -&gt; ByteString -&gt; Hash
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Hash -&gt; Word8 -&gt; Hash) -&gt; Hash -&gt; ByteString -&gt; Hash
+forall a. (a -&gt; Word8 -&gt; a) -&gt; a -&gt; ByteString -&gt; a
+</span><span class="hs-identifier hs-var">B.foldl'</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681718068"><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681718068"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621681718069"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621681718069"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Hash -&gt; Hash -&gt; Hash
+</span><span class="hs-identifier hs-var">H.combine</span></span><span> </span><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681718068"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word8 -&gt; Hash
+</span><span class="hs-identifier hs-var">H.hashWord8</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621681718069"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word8 -&gt; Hash
+</span><span class="hs-identifier hs-var">H.hashWord8</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Agda.Utils.Hash.html#hashTextFile"><span class="hs-identifier hs-type">hashTextFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span>
+</span><span id="line-32"></span><span id="hashTextFile"><span class="annot"><span class="annottext">hashTextFile :: AbsolutePath -&gt; IO Hash
+</span><a href="Agda.Utils.Hash.html#hashTextFile"><span class="hs-identifier hs-var hs-var">hashTextFile</span></a></span></span><span> </span><span id="local-6989586621681718073"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681718073"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Hash
+</span><a href="Agda.Utils.Hash.html#hashText"><span class="hs-identifier hs-var">hashText</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Hash) -&gt; IO Text -&gt; IO Hash
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO Text
+</span><a href="Agda.Utils.IO.UTF8.html#readTextFile"><span class="hs-identifier hs-var">readTextFile</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AbsolutePath -&gt; String
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681718073"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><span class="hs-comment">-- | Hashes a piece of 'Text'.</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Agda.Utils.Hash.html#hashText"><span class="hs-identifier hs-type">hashText</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span>
+</span><span id="line-37"></span><span id="hashText"><span class="annot"><span class="annottext">hashText :: Text -&gt; Hash
+</span><a href="Agda.Utils.Hash.html#hashText"><span class="hs-identifier hs-var hs-var">hashText</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Hash
+</span><a href="Agda.Utils.Hash.html#hashByteString"><span class="hs-identifier hs-var">hashByteString</span></a></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; Hash) -&gt; (Text -&gt; ByteString) -&gt; Text -&gt; Hash
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; ByteString
+</span><span class="hs-identifier hs-var">T.encodeUtf8</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; ByteString) -&gt; (Text -&gt; Text) -&gt; Text -&gt; ByteString
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
+</span><span class="hs-identifier hs-var">T.toStrict</span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><a href="Agda.Utils.Hash.html#combineHashes"><span class="hs-identifier hs-type">combineHashes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span>
+</span><span id="line-40"></span><span id="combineHashes"><span class="annot"><span class="annottext">combineHashes :: [Hash] -&gt; Hash
+</span><a href="Agda.Utils.Hash.html#combineHashes"><span class="hs-identifier hs-var hs-var">combineHashes</span></a></span></span><span> </span><span id="local-6989586621681718080"><span class="annot"><span class="annottext">[Hash]
+</span><a href="#local-6989586621681718080"><span class="hs-identifier hs-var">hs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Hash -&gt; Hash
+</span><span class="hs-identifier hs-var">H.asWord64</span></span><span> </span><span class="annot"><span class="annottext">(Hash -&gt; Hash) -&gt; Hash -&gt; Hash
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Hash -&gt; Hash -&gt; Hash) -&gt; Hash -&gt; [Hash] -&gt; Hash
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">L.foldl'</span></span><span> </span><span class="annot"><span class="annottext">Hash -&gt; Hash -&gt; Hash
+</span><span class="hs-identifier hs-var">H.combine</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word8 -&gt; Hash
+</span><span class="hs-identifier hs-var">H.hashWord8</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Hash] -&gt; Hash) -&gt; [Hash] -&gt; Hash
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Hash -&gt; Hash) -&gt; [Hash] -&gt; [Hash]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">L.map</span></span><span> </span><span class="annot"><span class="annottext">Hash -&gt; Hash
+forall a. Hashable a =&gt; a -&gt; Hash
+</span><span class="hs-identifier hs-var">H.hash</span></span><span> </span><span class="annot"><span class="annottext">[Hash]
+</span><a href="#local-6989586621681718080"><span class="hs-identifier hs-var">hs</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="annot"><span class="hs-comment">-- | Hashing a module name for unique identifiers.</span></span><span>
+</span><span id="line-43"></span><span class="annot"><a href="Agda.Utils.Hash.html#hashString"><span class="hs-identifier hs-type">hashString</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>
+</span><span id="line-44"></span><span id="hashString"><span class="annot"><span class="annottext">hashString :: String -&gt; Hash
+</span><a href="Agda.Utils.Hash.html#hashString"><span class="hs-identifier hs-var hs-var">hashString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Hash64 -&gt; Hash
+</span><span class="hs-identifier hs-var">asWord64</span></span><span> </span><span class="annot"><span class="annottext">(Hash64 -&gt; Hash) -&gt; (String -&gt; Hash64) -&gt; String -&gt; Hash
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Hash64
+forall a. Hashable64 a =&gt; a -&gt; Hash64
+</span><span class="hs-identifier hs-var">hash64</span></span><span>
+</span><span id="line-45"></span></pre></body></html>

@@ -1,0 +1,697 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Lenses for 'CommandLineOptions' and 'PragmaOptions'.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--   Add as needed.</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--   Nothing smart happening here.</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html"><span class="hs-identifier">Agda.Interaction.Options.Lenses</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html"><span class="hs-identifier">Agda.TypeChecking.Monad.State</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html"><span class="hs-identifier">Agda.Utils.WithDefault</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#Value"><span class="hs-identifier">Value</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-18"></span><span class="annot"><span class="hs-comment">-- * Pragma options</span></span><span>
+</span><span id="line-19"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span id="local-6989586621681937978"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#modifyPragmaOptions"><span class="hs-identifier hs-type">modifyPragmaOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937978"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937978"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-22"></span><span id="modifyPragmaOptions"><span class="annot"><span class="annottext">modifyPragmaOptions :: forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(PragmaOptions -&gt; PragmaOptions) -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#modifyPragmaOptions"><span class="hs-identifier hs-var hs-var">modifyPragmaOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; ((PragmaOptions -&gt; PragmaOptions) -&gt; TCState -&gt; TCState)
+-&gt; (PragmaOptions -&gt; PragmaOptions)
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; PragmaOptions) -&gt; TCState -&gt; TCState
+forall a.
+LensPragmaOptions a =&gt;
+(PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Types.html#mapPragmaOptions"><span class="hs-identifier hs-var">mapPragmaOptions</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-25"></span><span class="annot"><span class="hs-comment">-- ** Verbosity in the local pragma options</span></span><span>
+</span><span id="line-26"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">class</span><span> </span><span id="LensVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensVerbosity"><span class="hs-identifier hs-var">LensVerbosity</span></a></span></span><span> </span><span id="local-6989586621681937990"><span class="annot"><a href="#local-6989586621681937990"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-29"></span><span>  </span><span id="getVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#getVerbosity"><span class="hs-identifier hs-type">getVerbosity</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681937990"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span id="setVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setVerbosity"><span class="hs-identifier hs-type">setVerbosity</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937990"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937990"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span id="mapVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapVerbosity"><span class="hs-identifier hs-type">mapVerbosity</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937990"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937990"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-comment">-- default implementations</span><span>
+</span><span id="line-34"></span><span>  </span><span id="local-6989586621681938043"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setVerbosity"><span class="hs-identifier hs-var hs-var">setVerbosity</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+forall a. LensVerbosity a =&gt; (Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapVerbosity"><span class="hs-identifier hs-var">mapVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">((Verbosity -&gt; Verbosity) -&gt; a -&gt; a)
+-&gt; (Verbosity -&gt; Verbosity -&gt; Verbosity) -&gt; Verbosity -&gt; a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Verbosity -&gt; Verbosity -&gt; Verbosity
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span></span><span>
+</span><span id="line-35"></span><span>  </span><span id="local-6989586621681938046"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapVerbosity"><span class="hs-identifier hs-var hs-var">mapVerbosity</span></a></span><span> </span><span id="local-6989586621681938049"><span class="annot"><span class="annottext">Verbosity -&gt; Verbosity
+</span><a href="#local-6989586621681938049"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681938050"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938050"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Verbosity -&gt; a -&gt; a
+forall a. LensVerbosity a =&gt; Verbosity -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setVerbosity"><span class="hs-identifier hs-var">setVerbosity</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Verbosity -&gt; Verbosity
+</span><a href="#local-6989586621681938049"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; Verbosity -&gt; Verbosity
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Verbosity
+forall a. LensVerbosity a =&gt; a -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getVerbosity"><span class="hs-identifier hs-var">getVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938050"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938050"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938054"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensVerbosity"><span class="hs-identifier hs-type">LensVerbosity</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681938058"><span class="annot"><span class="annottext">getVerbosity :: PragmaOptions -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getVerbosity"><span class="hs-identifier hs-var hs-var hs-var">getVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Types.html#_optVerbose"><span class="hs-identifier hs-var">_optVerbose</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681938060"><span class="annot"><span class="annottext">setVerbosity :: Verbosity -&gt; PragmaOptions -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#setVerbosity"><span class="hs-identifier hs-var hs-var hs-var">setVerbosity</span></a></span></span><span> </span><span id="local-6989586621681938061"><span class="annot"><span class="annottext">Verbosity
+</span><a href="#local-6989586621681938061"><span class="hs-identifier hs-var">is</span></a></span></span><span> </span><span id="local-6989586621681938062"><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="#local-6989586621681938062"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="#local-6989586621681938062"><span class="hs-identifier hs-var">opts</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#_optVerbose"><span class="hs-identifier hs-var">_optVerbose</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681938061"><span class="hs-identifier hs-type">is</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938065"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensVerbosity"><span class="hs-identifier hs-type">LensVerbosity</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621681938071"><span class="annot"><span class="annottext">getVerbosity :: TCState -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getVerbosity"><span class="hs-identifier hs-var hs-var hs-var">getVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Verbosity
+forall a. LensVerbosity a =&gt; a -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getVerbosity"><span class="hs-identifier hs-var">getVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Verbosity)
+-&gt; (TCState -&gt; PragmaOptions) -&gt; TCState -&gt; Verbosity
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; PragmaOptions
+forall a. LensPragmaOptions a =&gt; a -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#getPragmaOptions"><span class="hs-identifier hs-var">getPragmaOptions</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span id="local-6989586621681938075"><span class="annot"><span class="annottext">mapVerbosity :: (Verbosity -&gt; Verbosity) -&gt; TCState -&gt; TCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapVerbosity"><span class="hs-identifier hs-var hs-var hs-var">mapVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; PragmaOptions) -&gt; TCState -&gt; TCState
+forall a.
+LensPragmaOptions a =&gt;
+(PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Types.html#mapPragmaOptions"><span class="hs-identifier hs-var">mapPragmaOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((PragmaOptions -&gt; PragmaOptions) -&gt; TCState -&gt; TCState)
+-&gt; ((Verbosity -&gt; Verbosity) -&gt; PragmaOptions -&gt; PragmaOptions)
+-&gt; (Verbosity -&gt; Verbosity)
+-&gt; TCState
+-&gt; TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; PragmaOptions -&gt; PragmaOptions
+forall a. LensVerbosity a =&gt; (Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapVerbosity"><span class="hs-identifier hs-var">mapVerbosity</span></a></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span id="local-6989586621681937998"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#modifyVerbosity"><span class="hs-identifier hs-type">modifyVerbosity</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937998"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937998"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-46"></span><span id="modifyVerbosity"><span class="annot"><span class="annottext">modifyVerbosity :: forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(Verbosity -&gt; Verbosity) -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#modifyVerbosity"><span class="hs-identifier hs-var hs-var">modifyVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; ((Verbosity -&gt; Verbosity) -&gt; TCState -&gt; TCState)
+-&gt; (Verbosity -&gt; Verbosity)
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; TCState -&gt; TCState
+forall a. LensVerbosity a =&gt; (Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapVerbosity"><span class="hs-identifier hs-var">mapVerbosity</span></a></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span id="local-6989586621681938000"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#putVerbosity"><span class="hs-identifier hs-type">putVerbosity</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938000"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938000"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-49"></span><span id="putVerbosity"><span class="annot"><span class="annottext">putVerbosity :: forall (m :: * -&gt; *). MonadTCState m =&gt; Verbosity -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#putVerbosity"><span class="hs-identifier hs-var hs-var">putVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; (Verbosity -&gt; TCState -&gt; TCState) -&gt; Verbosity -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Verbosity -&gt; TCState -&gt; TCState
+forall a. LensVerbosity a =&gt; Verbosity -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setVerbosity"><span class="hs-identifier hs-var">setVerbosity</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-52"></span><span class="annot"><span class="hs-comment">-- * Command line options</span></span><span>
+</span><span id="line-53"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-keyword">class</span><span> </span><span id="LensCommandLineOptions"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensCommandLineOptions"><span class="hs-identifier hs-var">LensCommandLineOptions</span></a></span></span><span> </span><span id="local-6989586621681938003"><span class="annot"><a href="#local-6989586621681938003"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-56"></span><span>  </span><span id="getCommandLineOptions"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-type">getCommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681938003"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span id="setCommandLineOptions"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setCommandLineOptions"><span class="hs-identifier hs-type">setCommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938003"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938003"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-58"></span><span>  </span><span id="mapCommandLineOptions"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-type">mapCommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938003"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938003"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-comment">-- default implementations</span><span>
+</span><span id="line-61"></span><span>  </span><span id="local-6989586621681938088"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setCommandLineOptions"><span class="hs-identifier hs-var hs-var">setCommandLineOptions</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a)
+-&gt; (CommandLineOptions -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; CommandLineOptions
+-&gt; a
+-&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span></span><span>
+</span><span id="line-62"></span><span>  </span><span id="local-6989586621681938090"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var hs-var">mapCommandLineOptions</span></a></span><span> </span><span id="local-6989586621681938093"><span class="annot"><span class="annottext">CommandLineOptions -&gt; CommandLineOptions
+</span><a href="#local-6989586621681938093"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681938094"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938094"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; a -&gt; a
+forall a. LensCommandLineOptions a =&gt; CommandLineOptions -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setCommandLineOptions"><span class="hs-identifier hs-var">setCommandLineOptions</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CommandLineOptions -&gt; CommandLineOptions
+</span><a href="#local-6989586621681938093"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions)
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938094"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938094"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938098"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensCommandLineOptions"><span class="hs-identifier hs-type">LensCommandLineOptions</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PersistentTCState"><span class="hs-identifier hs-type">PersistentTCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>  </span><span id="local-6989586621681938102"><span class="annot"><span class="annottext">getCommandLineOptions :: PersistentTCState -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var hs-var hs-var">getCommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; CommandLineOptions
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentOptions"><span class="hs-identifier hs-var">stPersistentOptions</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span id="local-6989586621681938104"><span class="annot"><span class="annottext">setCommandLineOptions :: CommandLineOptions -&gt; PersistentTCState -&gt; PersistentTCState
+</span><a href="Agda.Interaction.Options.Lenses.html#setCommandLineOptions"><span class="hs-identifier hs-var hs-var hs-var">setCommandLineOptions</span></a></span></span><span> </span><span id="local-6989586621681938105"><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681938105"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span id="local-6989586621681938106"><span class="annot"><span class="annottext">PersistentTCState
+</span><a href="#local-6989586621681938106"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PersistentTCState
+</span><a href="#local-6989586621681938106"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentOptions"><span class="hs-identifier hs-var">stPersistentOptions</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681938105"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938109"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensCommandLineOptions"><span class="hs-identifier hs-type">LensCommandLineOptions</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621681938114"><span class="annot"><span class="annottext">getCommandLineOptions :: TCState -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var hs-var hs-var">getCommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">(PersistentTCState -&gt; CommandLineOptions)
+-&gt; (TCState -&gt; PersistentTCState) -&gt; TCState -&gt; CommandLineOptions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; PersistentTCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span>
+</span><span id="line-70"></span><span>  </span><span id="local-6989586621681938117"><span class="annot"><span class="annottext">mapCommandLineOptions :: (CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var hs-var hs-var">mapCommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PersistentTCState -&gt; PersistentTCState) -&gt; TCState -&gt; TCState
+</span><a href="Agda.TypeChecking.Monad.State.html#updatePersistentState"><span class="hs-identifier hs-var">updatePersistentState</span></a></span><span> </span><span class="annot"><span class="annottext">((PersistentTCState -&gt; PersistentTCState) -&gt; TCState -&gt; TCState)
+-&gt; ((CommandLineOptions -&gt; CommandLineOptions)
+    -&gt; PersistentTCState -&gt; PersistentTCState)
+-&gt; (CommandLineOptions -&gt; CommandLineOptions)
+-&gt; TCState
+-&gt; TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions)
+-&gt; PersistentTCState -&gt; PersistentTCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span id="local-6989586621681938006"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#modifyCommandLineOptions"><span class="hs-identifier hs-type">modifyCommandLineOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938006"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938006"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-73"></span><span id="modifyCommandLineOptions"><span class="annot"><span class="annottext">modifyCommandLineOptions :: forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#modifyCommandLineOptions"><span class="hs-identifier hs-var hs-var">modifyCommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; ((CommandLineOptions -&gt; CommandLineOptions)
+    -&gt; TCState -&gt; TCState)
+-&gt; (CommandLineOptions -&gt; CommandLineOptions)
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-76"></span><span class="annot"><span class="hs-comment">-- ** Safe mode</span></span><span>
+</span><span id="line-77"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">type</span><span> </span><span id="SafeMode"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-var">SafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">class</span><span> </span><span id="LensSafeMode"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensSafeMode"><span class="hs-identifier hs-var">LensSafeMode</span></a></span></span><span> </span><span id="local-6989586621681938009"><span class="annot"><a href="#local-6989586621681938009"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-82"></span><span>  </span><span id="getSafeMode"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-type">getSafeMode</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681938009"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-type">SafeMode</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span id="setSafeMode"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setSafeMode"><span class="hs-identifier hs-type">setSafeMode</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-type">SafeMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938009"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938009"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-84"></span><span>  </span><span id="mapSafeMode"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-type">mapSafeMode</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-type">SafeMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-type">SafeMode</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938009"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938009"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-comment">-- default implementations</span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621681938127"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setSafeMode"><span class="hs-identifier hs-var hs-var">setSafeMode</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SafeMode -&gt; SafeMode) -&gt; a -&gt; a
+forall a. LensSafeMode a =&gt; (SafeMode -&gt; SafeMode) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var">mapSafeMode</span></a></span><span> </span><span class="annot"><span class="annottext">((SafeMode -&gt; SafeMode) -&gt; a -&gt; a)
+-&gt; (SafeMode -&gt; SafeMode -&gt; SafeMode) -&gt; SafeMode -&gt; a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SafeMode -&gt; SafeMode -&gt; SafeMode
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span></span><span>
+</span><span id="line-88"></span><span>  </span><span id="local-6989586621681938129"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var hs-var">mapSafeMode</span></a></span><span> </span><span id="local-6989586621681938132"><span class="annot"><span class="annottext">SafeMode -&gt; SafeMode
+</span><a href="#local-6989586621681938132"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681938133"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938133"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SafeMode -&gt; a -&gt; a
+forall a. LensSafeMode a =&gt; SafeMode -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setSafeMode"><span class="hs-identifier hs-var">setSafeMode</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SafeMode -&gt; SafeMode
+</span><a href="#local-6989586621681938132"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(SafeMode -&gt; SafeMode) -&gt; SafeMode -&gt; SafeMode
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; SafeMode
+forall a. LensSafeMode a =&gt; a -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var">getSafeMode</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938133"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938133"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938137"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensSafeMode"><span class="hs-identifier hs-type">LensSafeMode</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-91"></span><span>  </span><span id="local-6989586621681938141"><span class="annot"><span class="annottext">getSafeMode :: PragmaOptions -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var hs-var hs-var">getSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Base.html#optSafe"><span class="hs-identifier hs-var">optSafe</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span id="local-6989586621681938143"><span class="annot"><span class="annottext">setSafeMode :: SafeMode -&gt; PragmaOptions -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#setSafeMode"><span class="hs-identifier hs-var hs-var hs-var">setSafeMode</span></a></span></span><span> </span><span id="local-6989586621681938144"><span class="annot"><span class="annottext">SafeMode
+</span><a href="#local-6989586621681938144"><span class="hs-identifier hs-var">is</span></a></span></span><span> </span><span id="local-6989586621681938145"><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="#local-6989586621681938145"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="#local-6989586621681938145"><span class="hs-identifier hs-var">opts</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#_optSafe"><span class="hs-identifier hs-var">_optSafe</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938144"><span class="hs-identifier hs-type">is</span></a></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-comment">-- setSafeOption</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938149"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensSafeMode"><span class="hs-identifier hs-type">LensSafeMode</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621681938156"><span class="annot"><span class="annottext">getSafeMode :: CommandLineOptions -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var hs-var hs-var">getSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; SafeMode
+forall a. LensSafeMode a =&gt; a -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var">getSafeMode</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; SafeMode)
+-&gt; (CommandLineOptions -&gt; PragmaOptions)
+-&gt; CommandLineOptions
+-&gt; SafeMode
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; PragmaOptions
+forall a. LensPragmaOptions a =&gt; a -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#getPragmaOptions"><span class="hs-identifier hs-var">getPragmaOptions</span></a></span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621681938159"><span class="annot"><span class="annottext">mapSafeMode :: (SafeMode -&gt; SafeMode) -&gt; CommandLineOptions -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var hs-var hs-var">mapSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; PragmaOptions)
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a.
+LensPragmaOptions a =&gt;
+(PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Types.html#mapPragmaOptions"><span class="hs-identifier hs-var">mapPragmaOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((PragmaOptions -&gt; PragmaOptions)
+ -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; ((SafeMode -&gt; SafeMode) -&gt; PragmaOptions -&gt; PragmaOptions)
+-&gt; (SafeMode -&gt; SafeMode)
+-&gt; CommandLineOptions
+-&gt; CommandLineOptions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(SafeMode -&gt; SafeMode) -&gt; PragmaOptions -&gt; PragmaOptions
+forall a. LensSafeMode a =&gt; (SafeMode -&gt; SafeMode) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var">mapSafeMode</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938162"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensSafeMode"><span class="hs-identifier hs-type">LensSafeMode</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PersistentTCState"><span class="hs-identifier hs-type">PersistentTCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621681938168"><span class="annot"><span class="annottext">getSafeMode :: PersistentTCState -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var hs-var hs-var">getSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; SafeMode
+forall a. LensSafeMode a =&gt; a -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var">getSafeMode</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; SafeMode)
+-&gt; (PersistentTCState -&gt; CommandLineOptions)
+-&gt; PersistentTCState
+-&gt; SafeMode
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span>
+</span><span id="line-100"></span><span>  </span><span id="local-6989586621681938171"><span class="annot"><span class="annottext">mapSafeMode :: (SafeMode -&gt; SafeMode) -&gt; PersistentTCState -&gt; PersistentTCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var hs-var hs-var">mapSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions)
+-&gt; PersistentTCState -&gt; PersistentTCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((CommandLineOptions -&gt; CommandLineOptions)
+ -&gt; PersistentTCState -&gt; PersistentTCState)
+-&gt; ((SafeMode -&gt; SafeMode)
+    -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; (SafeMode -&gt; SafeMode)
+-&gt; PersistentTCState
+-&gt; PersistentTCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(SafeMode -&gt; SafeMode) -&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a. LensSafeMode a =&gt; (SafeMode -&gt; SafeMode) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var">mapSafeMode</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938174"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensSafeMode"><span class="hs-identifier hs-type">LensSafeMode</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span id="local-6989586621681938180"><span class="annot"><span class="annottext">getSafeMode :: TCState -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var hs-var hs-var">getSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; SafeMode
+forall a. LensSafeMode a =&gt; a -&gt; SafeMode
+</span><a href="Agda.Interaction.Options.Lenses.html#getSafeMode"><span class="hs-identifier hs-var">getSafeMode</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; SafeMode)
+-&gt; (TCState -&gt; CommandLineOptions) -&gt; TCState -&gt; SafeMode
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621681938183"><span class="annot"><span class="annottext">mapSafeMode :: (SafeMode -&gt; SafeMode) -&gt; TCState -&gt; TCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var hs-var hs-var">mapSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState)
+-&gt; ((SafeMode -&gt; SafeMode)
+    -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; (SafeMode -&gt; SafeMode)
+-&gt; TCState
+-&gt; TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(SafeMode -&gt; SafeMode) -&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a. LensSafeMode a =&gt; (SafeMode -&gt; SafeMode) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var">mapSafeMode</span></a></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span id="local-6989586621681938014"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#modifySafeMode"><span class="hs-identifier hs-type">modifySafeMode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938014"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-type">SafeMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-type">SafeMode</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938014"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-107"></span><span id="modifySafeMode"><span class="annot"><span class="annottext">modifySafeMode :: forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(SafeMode -&gt; SafeMode) -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#modifySafeMode"><span class="hs-identifier hs-var hs-var">modifySafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; ((SafeMode -&gt; SafeMode) -&gt; TCState -&gt; TCState)
+-&gt; (SafeMode -&gt; SafeMode)
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(SafeMode -&gt; SafeMode) -&gt; TCState -&gt; TCState
+forall a. LensSafeMode a =&gt; (SafeMode -&gt; SafeMode) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapSafeMode"><span class="hs-identifier hs-var">mapSafeMode</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span id="local-6989586621681938016"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#putSafeMode"><span class="hs-identifier hs-type">putSafeMode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938016"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#SafeMode"><span class="hs-identifier hs-type">SafeMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938016"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-110"></span><span id="putSafeMode"><span class="annot"><span class="annottext">putSafeMode :: forall (m :: * -&gt; *). MonadTCState m =&gt; SafeMode -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#putSafeMode"><span class="hs-identifier hs-var hs-var">putSafeMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; (SafeMode -&gt; TCState -&gt; TCState) -&gt; SafeMode -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SafeMode -&gt; TCState -&gt; TCState
+forall a. LensSafeMode a =&gt; SafeMode -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setSafeMode"><span class="hs-identifier hs-var">setSafeMode</span></a></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-113"></span><span class="annot"><span class="hs-comment">-- ** Include directories</span></span><span>
+</span><span id="line-114"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-keyword">class</span><span> </span><span id="LensIncludePaths"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensIncludePaths"><span class="hs-identifier hs-var">LensIncludePaths</span></a></span></span><span> </span><span id="local-6989586621681938019"><span class="annot"><a href="#local-6989586621681938019"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-117"></span><span>  </span><span id="getAbsoluteIncludePaths"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#getAbsoluteIncludePaths"><span class="hs-identifier hs-type">getAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681938019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-118"></span><span>  </span><span id="setAbsoluteIncludePaths"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setAbsoluteIncludePaths"><span class="hs-identifier hs-type">setAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938019"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span id="mapAbsoluteIncludePaths"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-type">mapAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938019"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-comment">-- default implementations</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621681938196"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var">setAbsoluteIncludePaths</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([AbsolutePath] -&gt; [AbsolutePath]) -&gt; a -&gt; a
+forall a.
+LensIncludePaths a =&gt;
+([AbsolutePath] -&gt; [AbsolutePath]) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-var">mapAbsoluteIncludePaths</span></a></span><span> </span><span class="annot"><span class="annottext">(([AbsolutePath] -&gt; [AbsolutePath]) -&gt; a -&gt; a)
+-&gt; ([AbsolutePath] -&gt; [AbsolutePath] -&gt; [AbsolutePath])
+-&gt; [AbsolutePath]
+-&gt; a
+-&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[AbsolutePath] -&gt; [AbsolutePath] -&gt; [AbsolutePath]
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span></span><span>
+</span><span id="line-123"></span><span>  </span><span id="local-6989586621681938198"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var">mapAbsoluteIncludePaths</span></a></span><span> </span><span id="local-6989586621681938201"><span class="annot"><span class="annottext">[AbsolutePath] -&gt; [AbsolutePath]
+</span><a href="#local-6989586621681938201"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681938202"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938202"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[AbsolutePath] -&gt; a -&gt; a
+forall a. LensIncludePaths a =&gt; [AbsolutePath] -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setAbsoluteIncludePaths"><span class="hs-identifier hs-var">setAbsoluteIncludePaths</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[AbsolutePath] -&gt; [AbsolutePath]
+</span><a href="#local-6989586621681938201"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">([AbsolutePath] -&gt; [AbsolutePath])
+-&gt; [AbsolutePath] -&gt; [AbsolutePath]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [AbsolutePath]
+forall a. LensIncludePaths a =&gt; a -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Lenses.html#getAbsoluteIncludePaths"><span class="hs-identifier hs-var">getAbsoluteIncludePaths</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938202"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938202"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938206"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensIncludePaths"><span class="hs-identifier hs-type">LensIncludePaths</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-126"></span><span>  </span><span id="local-6989586621681938210"><span class="annot"><span class="annottext">getAbsoluteIncludePaths :: CommandLineOptions -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Lenses.html#getAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var hs-var">getAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Types.html#optAbsoluteIncludePaths"><span class="hs-identifier hs-var">optAbsoluteIncludePaths</span></a></span><span>
+</span><span id="line-127"></span><span>  </span><span id="local-6989586621681938212"><span class="annot"><span class="annottext">setAbsoluteIncludePaths :: [AbsolutePath] -&gt; CommandLineOptions -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#setAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var hs-var">setAbsoluteIncludePaths</span></a></span></span><span> </span><span id="local-6989586621681938213"><span class="annot"><span class="annottext">[AbsolutePath]
+</span><a href="#local-6989586621681938213"><span class="hs-identifier hs-var">is</span></a></span></span><span> </span><span id="local-6989586621681938214"><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681938214"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681938214"><span class="hs-identifier hs-var">opts</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optAbsoluteIncludePaths"><span class="hs-identifier hs-var">optAbsoluteIncludePaths</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681938213"><span class="hs-identifier hs-type">is</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938217"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensIncludePaths"><span class="hs-identifier hs-type">LensIncludePaths</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PersistentTCState"><span class="hs-identifier hs-type">PersistentTCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-130"></span><span>  </span><span id="local-6989586621681938223"><span class="annot"><span class="annottext">getAbsoluteIncludePaths :: PersistentTCState -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Lenses.html#getAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var hs-var">getAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; [AbsolutePath]
+forall a. LensIncludePaths a =&gt; a -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Lenses.html#getAbsoluteIncludePaths"><span class="hs-identifier hs-var">getAbsoluteIncludePaths</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; [AbsolutePath])
+-&gt; (PersistentTCState -&gt; CommandLineOptions)
+-&gt; PersistentTCState
+-&gt; [AbsolutePath]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621681938226"><span class="annot"><span class="annottext">mapAbsoluteIncludePaths :: ([AbsolutePath] -&gt; [AbsolutePath])
+-&gt; PersistentTCState -&gt; PersistentTCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var hs-var">mapAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions)
+-&gt; PersistentTCState -&gt; PersistentTCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((CommandLineOptions -&gt; CommandLineOptions)
+ -&gt; PersistentTCState -&gt; PersistentTCState)
+-&gt; (([AbsolutePath] -&gt; [AbsolutePath])
+    -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; ([AbsolutePath] -&gt; [AbsolutePath])
+-&gt; PersistentTCState
+-&gt; PersistentTCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([AbsolutePath] -&gt; [AbsolutePath])
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a.
+LensIncludePaths a =&gt;
+([AbsolutePath] -&gt; [AbsolutePath]) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-var">mapAbsoluteIncludePaths</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938229"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensIncludePaths"><span class="hs-identifier hs-type">LensIncludePaths</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>  </span><span id="local-6989586621681938235"><span class="annot"><span class="annottext">getAbsoluteIncludePaths :: TCState -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Lenses.html#getAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var hs-var">getAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; [AbsolutePath]
+forall a. LensIncludePaths a =&gt; a -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Lenses.html#getAbsoluteIncludePaths"><span class="hs-identifier hs-var">getAbsoluteIncludePaths</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; [AbsolutePath])
+-&gt; (TCState -&gt; CommandLineOptions) -&gt; TCState -&gt; [AbsolutePath]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621681938238"><span class="annot"><span class="annottext">mapAbsoluteIncludePaths :: ([AbsolutePath] -&gt; [AbsolutePath]) -&gt; TCState -&gt; TCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var hs-var">mapAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState)
+-&gt; (([AbsolutePath] -&gt; [AbsolutePath])
+    -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; ([AbsolutePath] -&gt; [AbsolutePath])
+-&gt; TCState
+-&gt; TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([AbsolutePath] -&gt; [AbsolutePath])
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a.
+LensIncludePaths a =&gt;
+([AbsolutePath] -&gt; [AbsolutePath]) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-var">mapAbsoluteIncludePaths</span></a></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span id="local-6989586621681938021"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#modifyAbsoluteIncludePaths"><span class="hs-identifier hs-type">modifyAbsoluteIncludePaths</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938021"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938021"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-138"></span><span id="modifyAbsoluteIncludePaths"><span class="annot"><span class="annottext">modifyAbsoluteIncludePaths :: forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+([AbsolutePath] -&gt; [AbsolutePath]) -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#modifyAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var">modifyAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; (([AbsolutePath] -&gt; [AbsolutePath]) -&gt; TCState -&gt; TCState)
+-&gt; ([AbsolutePath] -&gt; [AbsolutePath])
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([AbsolutePath] -&gt; [AbsolutePath]) -&gt; TCState -&gt; TCState
+forall a.
+LensIncludePaths a =&gt;
+([AbsolutePath] -&gt; [AbsolutePath]) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapAbsoluteIncludePaths"><span class="hs-identifier hs-var">mapAbsoluteIncludePaths</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span id="local-6989586621681938023"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#putAbsoluteIncludePaths"><span class="hs-identifier hs-type">putAbsoluteIncludePaths</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938023"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938023"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-141"></span><span id="putAbsoluteIncludePaths"><span class="annot"><span class="annottext">putAbsoluteIncludePaths :: forall (m :: * -&gt; *). MonadTCState m =&gt; [AbsolutePath] -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#putAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var">putAbsoluteIncludePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; ([AbsolutePath] -&gt; TCState -&gt; TCState) -&gt; [AbsolutePath] -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[AbsolutePath] -&gt; TCState -&gt; TCState
+forall a. LensIncludePaths a =&gt; [AbsolutePath] -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setAbsoluteIncludePaths"><span class="hs-identifier hs-var">setAbsoluteIncludePaths</span></a></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-144"></span><span class="annot"><span class="hs-comment">-- ** Verbosity</span></span><span>
+</span><span id="line-145"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-keyword">type</span><span> </span><span id="PersistentVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-var">PersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span>
+</span><span id="line-148"></span><span class="hs-keyword">class</span><span> </span><span id="LensPersistentVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensPersistentVerbosity"><span class="hs-identifier hs-var">LensPersistentVerbosity</span></a></span></span><span> </span><span id="local-6989586621681938025"><span class="annot"><a href="#local-6989586621681938025"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-149"></span><span>  </span><span id="getPersistentVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-type">getPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681938025"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-type">PersistentVerbosity</span></a></span><span>
+</span><span id="line-150"></span><span>  </span><span id="setPersistentVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setPersistentVerbosity"><span class="hs-identifier hs-type">setPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-type">PersistentVerbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938025"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938025"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-151"></span><span>  </span><span id="mapPersistentVerbosity"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-type">mapPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-type">PersistentVerbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-type">PersistentVerbosity</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938025"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938025"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-comment">-- default implementations</span><span>
+</span><span id="line-154"></span><span>  </span><span id="local-6989586621681938252"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#setPersistentVerbosity"><span class="hs-identifier hs-var hs-var">setPersistentVerbosity</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+forall a.
+LensPersistentVerbosity a =&gt;
+(Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var">mapPersistentVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">((Verbosity -&gt; Verbosity) -&gt; a -&gt; a)
+-&gt; (Verbosity -&gt; Verbosity -&gt; Verbosity) -&gt; Verbosity -&gt; a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Verbosity -&gt; Verbosity -&gt; Verbosity
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span></span><span>
+</span><span id="line-155"></span><span>  </span><span id="local-6989586621681938254"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var hs-var">mapPersistentVerbosity</span></a></span><span> </span><span id="local-6989586621681938257"><span class="annot"><span class="annottext">Verbosity -&gt; Verbosity
+</span><a href="#local-6989586621681938257"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681938258"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938258"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Verbosity -&gt; a -&gt; a
+forall a. LensPersistentVerbosity a =&gt; Verbosity -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setPersistentVerbosity"><span class="hs-identifier hs-var">setPersistentVerbosity</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Verbosity -&gt; Verbosity
+</span><a href="#local-6989586621681938257"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; Verbosity -&gt; Verbosity
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Verbosity
+forall a. LensPersistentVerbosity a =&gt; a -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var">getPersistentVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938258"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681938258"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938262"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensPersistentVerbosity"><span class="hs-identifier hs-type">LensPersistentVerbosity</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621681938267"><span class="annot"><span class="annottext">getPersistentVerbosity :: PragmaOptions -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">getPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Verbosity
+forall a. LensVerbosity a =&gt; a -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getVerbosity"><span class="hs-identifier hs-var">getVerbosity</span></a></span><span>
+</span><span id="line-159"></span><span>  </span><span id="local-6989586621681938269"><span class="annot"><span class="annottext">setPersistentVerbosity :: Verbosity -&gt; PragmaOptions -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#setPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">setPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Verbosity -&gt; PragmaOptions -&gt; PragmaOptions
+forall a. LensVerbosity a =&gt; Verbosity -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setVerbosity"><span class="hs-identifier hs-var">setVerbosity</span></a></span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938272"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensPersistentVerbosity"><span class="hs-identifier hs-type">LensPersistentVerbosity</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-162"></span><span>  </span><span id="local-6989586621681938278"><span class="annot"><span class="annottext">getPersistentVerbosity :: CommandLineOptions -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">getPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Verbosity
+forall a. LensPersistentVerbosity a =&gt; a -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var">getPersistentVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Verbosity)
+-&gt; (CommandLineOptions -&gt; PragmaOptions)
+-&gt; CommandLineOptions
+-&gt; Verbosity
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; PragmaOptions
+forall a. LensPragmaOptions a =&gt; a -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#getPragmaOptions"><span class="hs-identifier hs-var">getPragmaOptions</span></a></span><span>
+</span><span id="line-163"></span><span>  </span><span id="local-6989586621681938281"><span class="annot"><span class="annottext">mapPersistentVerbosity :: (Verbosity -&gt; Verbosity)
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">mapPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; PragmaOptions)
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a.
+LensPragmaOptions a =&gt;
+(PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Types.html#mapPragmaOptions"><span class="hs-identifier hs-var">mapPragmaOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((PragmaOptions -&gt; PragmaOptions)
+ -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; ((Verbosity -&gt; Verbosity) -&gt; PragmaOptions -&gt; PragmaOptions)
+-&gt; (Verbosity -&gt; Verbosity)
+-&gt; CommandLineOptions
+-&gt; CommandLineOptions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; PragmaOptions -&gt; PragmaOptions
+forall a.
+LensPersistentVerbosity a =&gt;
+(Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var">mapPersistentVerbosity</span></a></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938284"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensPersistentVerbosity"><span class="hs-identifier hs-type">LensPersistentVerbosity</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PersistentTCState"><span class="hs-identifier hs-type">PersistentTCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-166"></span><span>  </span><span id="local-6989586621681938290"><span class="annot"><span class="annottext">getPersistentVerbosity :: PersistentTCState -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">getPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; Verbosity
+forall a. LensPersistentVerbosity a =&gt; a -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var">getPersistentVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; Verbosity)
+-&gt; (PersistentTCState -&gt; CommandLineOptions)
+-&gt; PersistentTCState
+-&gt; Verbosity
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span id="local-6989586621681938293"><span class="annot"><span class="annottext">mapPersistentVerbosity :: (Verbosity -&gt; Verbosity) -&gt; PersistentTCState -&gt; PersistentTCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">mapPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions)
+-&gt; PersistentTCState -&gt; PersistentTCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((CommandLineOptions -&gt; CommandLineOptions)
+ -&gt; PersistentTCState -&gt; PersistentTCState)
+-&gt; ((Verbosity -&gt; Verbosity)
+    -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; (Verbosity -&gt; Verbosity)
+-&gt; PersistentTCState
+-&gt; PersistentTCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity)
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a.
+LensPersistentVerbosity a =&gt;
+(Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var">mapPersistentVerbosity</span></a></span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938296"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#LensPersistentVerbosity"><span class="hs-identifier hs-type">LensPersistentVerbosity</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-170"></span><span>  </span><span id="local-6989586621681938302"><span class="annot"><span class="annottext">getPersistentVerbosity :: TCState -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">getPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; Verbosity
+forall a. LensPersistentVerbosity a =&gt; a -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Lenses.html#getPersistentVerbosity"><span class="hs-identifier hs-var">getPersistentVerbosity</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; Verbosity)
+-&gt; (TCState -&gt; CommandLineOptions) -&gt; TCState -&gt; Verbosity
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; CommandLineOptions
+forall a. LensCommandLineOptions a =&gt; a -&gt; CommandLineOptions
+</span><a href="Agda.Interaction.Options.Lenses.html#getCommandLineOptions"><span class="hs-identifier hs-var">getCommandLineOptions</span></a></span><span>
+</span><span id="line-171"></span><span>  </span><span id="local-6989586621681938305"><span class="annot"><span class="annottext">mapPersistentVerbosity :: (Verbosity -&gt; Verbosity) -&gt; TCState -&gt; TCState
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var hs-var hs-var">mapPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState
+forall a.
+LensCommandLineOptions a =&gt;
+(CommandLineOptions -&gt; CommandLineOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapCommandLineOptions"><span class="hs-identifier hs-var">mapCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((CommandLineOptions -&gt; CommandLineOptions) -&gt; TCState -&gt; TCState)
+-&gt; ((Verbosity -&gt; Verbosity)
+    -&gt; CommandLineOptions -&gt; CommandLineOptions)
+-&gt; (Verbosity -&gt; Verbosity)
+-&gt; TCState
+-&gt; TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity)
+-&gt; CommandLineOptions -&gt; CommandLineOptions
+forall a.
+LensPersistentVerbosity a =&gt;
+(Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var">mapPersistentVerbosity</span></a></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span id="local-6989586621681938306"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#modifyPersistentVerbosity"><span class="hs-identifier hs-type">modifyPersistentVerbosity</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938306"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-type">PersistentVerbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-type">PersistentVerbosity</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938306"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-174"></span><span id="modifyPersistentVerbosity"><span class="annot"><span class="annottext">modifyPersistentVerbosity :: forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(Verbosity -&gt; Verbosity) -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#modifyPersistentVerbosity"><span class="hs-identifier hs-var hs-var">modifyPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; ((Verbosity -&gt; Verbosity) -&gt; TCState -&gt; TCState)
+-&gt; (Verbosity -&gt; Verbosity)
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Verbosity -&gt; Verbosity) -&gt; TCState -&gt; TCState
+forall a.
+LensPersistentVerbosity a =&gt;
+(Verbosity -&gt; Verbosity) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#mapPersistentVerbosity"><span class="hs-identifier hs-var">mapPersistentVerbosity</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span id="local-6989586621681938311"><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#putPersistentVerbosity"><span class="hs-identifier hs-type">putPersistentVerbosity</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938311"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Lenses.html#PersistentVerbosity"><span class="hs-identifier hs-type">PersistentVerbosity</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681938311"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-177"></span><span id="putPersistentVerbosity"><span class="annot"><span class="annottext">putPersistentVerbosity :: forall (m :: * -&gt; *). MonadTCState m =&gt; Verbosity -&gt; m ()
+</span><a href="Agda.Interaction.Options.Lenses.html#putPersistentVerbosity"><span class="hs-identifier hs-var hs-var">putPersistentVerbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; m ())
+-&gt; (Verbosity -&gt; TCState -&gt; TCState) -&gt; Verbosity -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Verbosity -&gt; TCState -&gt; TCState
+forall a. LensPersistentVerbosity a =&gt; Verbosity -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Lenses.html#setPersistentVerbosity"><span class="hs-identifier hs-var">setPersistentVerbosity</span></a></span><span>
+</span><span id="line-178"></span></pre></body></html>

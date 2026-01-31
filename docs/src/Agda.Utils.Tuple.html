@@ -1,0 +1,371 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-5"></span><span>    </span><span class="annot"><a href="Agda.Utils.Tuple.html#%2F%2F"><span class="hs-operator">(//)</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(***)</span></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&amp;&amp;&amp;)</span></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">first</span></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">second</span></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#sortPair"><span class="hs-identifier">sortPair</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#fst3"><span class="hs-identifier">fst3</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#snd3"><span class="hs-identifier">snd3</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#thd3"><span class="hs-identifier">thd3</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">swap</span></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#uncurry3"><span class="hs-identifier">uncurry3</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#uncurry4"><span class="hs-identifier">uncurry4</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#mapPairM"><span class="hs-identifier">mapPairM</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#firstM"><span class="hs-identifier">firstM</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#secondM"><span class="hs-identifier">secondM</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier">Pair</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Arrow</span></span><span>   </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(&amp;&amp;&amp;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(***)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">NFData</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">first</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">second</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Tuple</span></span><span>      </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">swap</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Generic</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">//</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-32"></span><span class="annot"><span class="hs-comment">-- | Strict pairing.</span></span><span>
+</span><span id="line-33"></span><span id="local-6989586621681705552"><span id="local-6989586621681705553"><span class="annot"><a href="Agda.Utils.Tuple.html#%2F%2F"><span class="hs-operator hs-type">(//)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681705552"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705553"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705552"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681705553"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-34"></span><span id="%2F%2F"><span class="annot"><span class="annottext">// :: forall a b. a -&gt; b -&gt; (a, b)
+</span><a href="Agda.Utils.Tuple.html#%2F%2F"><span class="hs-operator hs-var hs-var">(//)</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681705727"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705727"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681705728"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705728"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705727"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705728"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">infixr</span><span> </span><span class="hs-number">4</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#%2F%2F"><span class="hs-operator hs-type">//</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="annot"><span class="hs-comment">-- | Order a pair.</span></span><span>
+</span><span id="line-38"></span><span id="local-6989586621681705556"><span class="annot"><a href="Agda.Utils.Tuple.html#sortPair"><span class="hs-identifier hs-type">sortPair</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681705556"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705556"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681705556"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705556"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681705556"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-39"></span><span id="sortPair"><span class="annot"><span class="annottext">sortPair :: forall a. Ord a =&gt; (a, a) -&gt; (a, a)
+</span><a href="Agda.Utils.Tuple.html#sortPair"><span class="hs-identifier hs-var hs-var">sortPair</span></a></span></span><span> </span><span id="local-6989586621681705731"><span class="annot"><span class="annottext">p :: (a, a)
+</span><a href="#local-6989586621681705731"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621681705732"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705732"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705733"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705733"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705732"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705733"><span class="hs-identifier hs-var">y</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, a)
+</span><a href="#local-6989586621681705731"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705733"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705732"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- * Triple (stolen from Data.Tuple.HT)</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#fst3"><span class="hs-pragma hs-type">fst3</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-46"></span><span id="local-6989586621681705559"><span id="local-6989586621681705560"><span id="local-6989586621681705561"><span class="annot"><a href="Agda.Utils.Tuple.html#fst3"><span class="hs-identifier hs-type">fst3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705559"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705560"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705561"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705559"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-47"></span><span id="fst3"><span class="annot"><span class="annottext">fst3 :: forall a b c. (a, b, c) -&gt; a
+</span><a href="Agda.Utils.Tuple.html#fst3"><span class="hs-identifier hs-var hs-var">fst3</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span id="local-6989586621681705735"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705735"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">c
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705735"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#snd3"><span class="hs-pragma hs-type">snd3</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-50"></span><span id="local-6989586621681705565"><span id="local-6989586621681705566"><span id="local-6989586621681705567"><span class="annot"><a href="Agda.Utils.Tuple.html#snd3"><span class="hs-identifier hs-type">snd3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705565"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705566"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705567"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705566"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-51"></span><span id="snd3"><span class="annot"><span class="annottext">snd3 :: forall a b c. (a, b, c) -&gt; b
+</span><a href="Agda.Utils.Tuple.html#snd3"><span class="hs-identifier hs-var hs-var">snd3</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span id="local-6989586621681705736"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705736"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">c
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705736"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#thd3"><span class="hs-pragma hs-type">thd3</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-54"></span><span id="local-6989586621681705571"><span id="local-6989586621681705572"><span id="local-6989586621681705573"><span class="annot"><a href="Agda.Utils.Tuple.html#thd3"><span class="hs-identifier hs-type">thd3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705571"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705572"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705573"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705573"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-55"></span><span id="thd3"><span class="annot"><span class="annottext">thd3 :: forall a b c. (a, b, c) -&gt; c
+</span><a href="Agda.Utils.Tuple.html#thd3"><span class="hs-identifier hs-var hs-var">thd3</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span id="local-6989586621681705737"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681705737"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681705737"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#uncurry3"><span class="hs-pragma hs-type">uncurry3</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-58"></span><span id="local-6989586621681705577"><span id="local-6989586621681705578"><span id="local-6989586621681705579"><span id="local-6989586621681705580"><span class="annot"><a href="Agda.Utils.Tuple.html#uncurry3"><span class="hs-identifier hs-type">uncurry3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705577"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705578"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705579"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705580"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705577"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705578"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705579"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705580"><span class="hs-identifier hs-type">d</span></a></span></span></span></span></span><span>
+</span><span id="line-59"></span><span id="uncurry3"><span class="annot"><span class="annottext">uncurry3 :: forall a b c d. (a -&gt; b -&gt; c -&gt; d) -&gt; (a, b, c) -&gt; d
+</span><a href="Agda.Utils.Tuple.html#uncurry3"><span class="hs-identifier hs-var hs-var">uncurry3</span></a></span></span><span> </span><span id="local-6989586621681705738"><span class="annot"><span class="annottext">a -&gt; b -&gt; c -&gt; d
+</span><a href="#local-6989586621681705738"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span id="local-6989586621681705739"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705739"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705740"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705740"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705741"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681705741"><span class="hs-identifier hs-var">z</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c -&gt; d
+</span><a href="#local-6989586621681705738"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705739"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705740"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681705741"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#uncurry4"><span class="hs-pragma hs-type">uncurry4</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-62"></span><span id="local-6989586621681705585"><span id="local-6989586621681705586"><span id="local-6989586621681705587"><span id="local-6989586621681705588"><span id="local-6989586621681705589"><span class="annot"><a href="Agda.Utils.Tuple.html#uncurry4"><span class="hs-identifier hs-type">uncurry4</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705585"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705586"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705587"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705588"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705589"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705585"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705586"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705587"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705588"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705589"><span class="hs-identifier hs-type">e</span></a></span></span></span></span></span></span><span>
+</span><span id="line-63"></span><span id="uncurry4"><span class="annot"><span class="annottext">uncurry4 :: forall a b c d e. (a -&gt; b -&gt; c -&gt; d -&gt; e) -&gt; (a, b, c, d) -&gt; e
+</span><a href="Agda.Utils.Tuple.html#uncurry4"><span class="hs-identifier hs-var hs-var">uncurry4</span></a></span></span><span> </span><span id="local-6989586621681705742"><span class="annot"><span class="annottext">a -&gt; b -&gt; c -&gt; d -&gt; e
+</span><a href="#local-6989586621681705742"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span id="local-6989586621681705743"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705743"><span class="hs-identifier hs-var">w</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705744"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705744"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705745"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681705745"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705746"><span class="annot"><span class="annottext">d
+</span><a href="#local-6989586621681705746"><span class="hs-identifier hs-var">z</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c -&gt; d -&gt; e
+</span><a href="#local-6989586621681705742"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705743"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705744"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681705745"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">d
+</span><a href="#local-6989586621681705746"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><span class="hs-comment">-- | Monadic version of '***'.</span></span><span>
+</span><span id="line-66"></span><span id="local-6989586621681705595"><span id="local-6989586621681705596"><span id="local-6989586621681705597"><span id="local-6989586621681705598"><span id="local-6989586621681705599"><span class="annot"><a href="Agda.Utils.Tuple.html#mapPairM"><span class="hs-identifier hs-type">mapPairM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621681705595"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705596"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681705597"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705598"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681705599"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705596"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705598"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705597"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705599"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span></span></span></span></span></span><span>
+</span><span id="line-67"></span><span id="mapPairM"><span class="annot"><span class="annottext">mapPairM :: forall (m :: * -&gt; *) a c b d.
+Applicative m =&gt;
+(a -&gt; m c) -&gt; (b -&gt; m d) -&gt; (a, b) -&gt; m (c, d)
+</span><a href="Agda.Utils.Tuple.html#mapPairM"><span class="hs-identifier hs-var hs-var">mapPairM</span></a></span></span><span> </span><span id="local-6989586621681705752"><span class="annot"><span class="annottext">a -&gt; m c
+</span><a href="#local-6989586621681705752"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681705753"><span class="annot"><span class="annottext">b -&gt; m d
+</span><a href="#local-6989586621681705753"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span id="local-6989586621681705754"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705754"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705755"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705755"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(c -&gt; d -&gt; (c, d)) -&gt; m c -&gt; m (d -&gt; (c, d))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m c
+</span><a href="#local-6989586621681705752"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705754"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m (d -&gt; (c, d)) -&gt; m d -&gt; m (c, d)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; m d
+</span><a href="#local-6989586621681705753"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705755"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="annot"><span class="hs-comment">-- | Monadic 'first'.</span></span><span>
+</span><span id="line-70"></span><span id="local-6989586621681705611"><span id="local-6989586621681705612"><span id="local-6989586621681705613"><span id="local-6989586621681705614"><span class="annot"><a href="Agda.Utils.Tuple.html#firstM"><span class="hs-identifier hs-type">firstM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681705611"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705612"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705611"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681705613"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705612"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705614"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705611"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705613"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705614"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-71"></span><span id="firstM"><span class="annot"><span class="annottext">firstM :: forall (m :: * -&gt; *) a c b.
+Functor m =&gt;
+(a -&gt; m c) -&gt; (a, b) -&gt; m (c, b)
+</span><a href="Agda.Utils.Tuple.html#firstM"><span class="hs-identifier hs-var hs-var">firstM</span></a></span></span><span> </span><span id="local-6989586621681705759"><span class="annot"><span class="annottext">a -&gt; m c
+</span><a href="#local-6989586621681705759"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span id="local-6989586621681705760"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705760"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705761"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705761"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705761"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(c -&gt; (c, b)) -&gt; m c -&gt; m (c, b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m c
+</span><a href="#local-6989586621681705759"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705760"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="annot"><span class="hs-comment">-- | Monadic 'second'.</span></span><span>
+</span><span id="line-74"></span><span id="local-6989586621681705619"><span id="local-6989586621681705620"><span id="local-6989586621681705621"><span id="local-6989586621681705622"><span class="annot"><a href="Agda.Utils.Tuple.html#secondM"><span class="hs-identifier hs-type">secondM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681705619"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705620"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705619"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681705621"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705622"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705620"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681705619"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705622"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681705621"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-75"></span><span id="secondM"><span class="annot"><span class="annottext">secondM :: forall (m :: * -&gt; *) b d a.
+Functor m =&gt;
+(b -&gt; m d) -&gt; (a, b) -&gt; m (a, d)
+</span><a href="Agda.Utils.Tuple.html#secondM"><span class="hs-identifier hs-var hs-var">secondM</span></a></span></span><span> </span><span id="local-6989586621681705764"><span class="annot"><span class="annottext">b -&gt; m d
+</span><a href="#local-6989586621681705764"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">~</span><span class="hs-special">(</span><span id="local-6989586621681705765"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705765"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681705766"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705766"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705765"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(d -&gt; (a, d)) -&gt; m d -&gt; m (a, d)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; m d
+</span><a href="#local-6989586621681705764"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681705766"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">data</span><span> </span><span id="Pair"><span class="annot"><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-var">Pair</span></a></span></span><span> </span><span id="local-6989586621681705692"><span class="annot"><a href="#local-6989586621681705692"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Pair"><span class="annot"><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-var">Pair</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681705692"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681705692"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681705770"><span id="local-6989586621681705776"><span id="local-6989586621681705780"><span class="annot"><span class="annottext">Int -&gt; Pair a -&gt; ShowS
+[Pair a] -&gt; ShowS
+Pair a -&gt; String
+(Int -&gt; Pair a -&gt; ShowS)
+-&gt; (Pair a -&gt; String) -&gt; ([Pair a] -&gt; ShowS) -&gt; Show (Pair a)
+forall a. Show a =&gt; Int -&gt; Pair a -&gt; ShowS
+forall a. Show a =&gt; [Pair a] -&gt; ShowS
+forall a. Show a =&gt; Pair a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Pair a -&gt; ShowS
+showsPrec :: Int -&gt; Pair a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Pair a -&gt; String
+show :: Pair a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Pair a] -&gt; ShowS
+showList :: [Pair a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705786"><span id="local-6989586621681705790"><span class="annot"><span class="annottext">Pair a -&gt; Pair a -&gt; Bool
+(Pair a -&gt; Pair a -&gt; Bool)
+-&gt; (Pair a -&gt; Pair a -&gt; Bool) -&gt; Eq (Pair a)
+forall a. Eq a =&gt; Pair a -&gt; Pair a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; Pair a -&gt; Pair a -&gt; Bool
+== :: Pair a -&gt; Pair a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; Pair a -&gt; Pair a -&gt; Bool
+/= :: Pair a -&gt; Pair a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705795"><span id="local-6989586621681705797"><span class="annot"><span class="annottext">(forall x. Pair a -&gt; Rep (Pair a) x)
+-&gt; (forall x. Rep (Pair a) x -&gt; Pair a) -&gt; Generic (Pair a)
+forall x. Rep (Pair a) x -&gt; Pair a
+forall x. Pair a -&gt; Rep (Pair a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (Pair a) x -&gt; Pair a
+forall a x. Pair a -&gt; Rep (Pair a) x
+$cfrom :: forall a x. Pair a -&gt; Rep (Pair a) x
+from :: forall x. Pair a -&gt; Rep (Pair a) x
+$cto :: forall a x. Rep (Pair a) x -&gt; Pair a
+to :: forall x. Rep (Pair a) x -&gt; Pair a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705803"><span id="local-6989586621681705805"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Pair a -&gt; Pair b)
+-&gt; (forall a b. a -&gt; Pair b -&gt; Pair a) -&gt; Functor Pair
+forall a b. a -&gt; Pair b -&gt; Pair a
+forall a b. (a -&gt; b) -&gt; Pair a -&gt; Pair b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Pair a -&gt; Pair b
+fmap :: forall a b. (a -&gt; b) -&gt; Pair a -&gt; Pair b
+$c&lt;$ :: forall a b. a -&gt; Pair b -&gt; Pair a
+&lt;$ :: forall a b. a -&gt; Pair b -&gt; Pair a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705810"><span id="local-6989586621681705816"><span id="local-6989586621681705820"><span id="local-6989586621681705825"><span id="local-6989586621681705827"><span id="local-6989586621681705830"><span id="local-6989586621681705833"><span id="local-6989586621681705836"><span id="local-6989586621681705839"><span id="local-6989586621681705842"><span id="local-6989586621681705845"><span id="local-6989586621681705847"><span id="local-6989586621681705850"><span id="local-6989586621681705855"><span id="local-6989586621681705860"><span id="local-6989586621681705865"><span id="local-6989586621681705870"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; Pair m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Pair a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Pair a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Pair a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Pair a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Pair a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Pair a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Pair a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Pair a -&gt; a)
+-&gt; (forall a. Pair a -&gt; [a])
+-&gt; (forall a. Pair a -&gt; Bool)
+-&gt; (forall a. Pair a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; Pair a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; Pair a -&gt; a)
+-&gt; (forall a. Ord a =&gt; Pair a -&gt; a)
+-&gt; (forall a. Num a =&gt; Pair a -&gt; a)
+-&gt; (forall a. Num a =&gt; Pair a -&gt; a)
+-&gt; Foldable Pair
+forall a. Eq a =&gt; a -&gt; Pair a -&gt; Bool
+forall a. Num a =&gt; Pair a -&gt; a
+forall a. Ord a =&gt; Pair a -&gt; a
+forall m. Monoid m =&gt; Pair m -&gt; m
+forall a. Pair a -&gt; Bool
+forall a. Pair a -&gt; Int
+forall a. Pair a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; Pair a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Pair a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall m. Monoid m =&gt; Pair m -&gt; m
+fold :: forall m. Monoid m =&gt; Pair m -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Pair a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Pair a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Pair a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Pair a -&gt; m
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Pair a -&gt; b
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Pair a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Pair a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Pair a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Pair a -&gt; a
+$ctoList :: forall a. Pair a -&gt; [a]
+toList :: forall a. Pair a -&gt; [a]
+$cnull :: forall a. Pair a -&gt; Bool
+null :: forall a. Pair a -&gt; Bool
+$clength :: forall a. Pair a -&gt; Int
+length :: forall a. Pair a -&gt; Int
+$celem :: forall a. Eq a =&gt; a -&gt; Pair a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; Pair a -&gt; Bool
+$cmaximum :: forall a. Ord a =&gt; Pair a -&gt; a
+maximum :: forall a. Ord a =&gt; Pair a -&gt; a
+$cminimum :: forall a. Ord a =&gt; Pair a -&gt; a
+minimum :: forall a. Ord a =&gt; Pair a -&gt; a
+$csum :: forall a. Num a =&gt; Pair a -&gt; a
+sum :: forall a. Num a =&gt; Pair a -&gt; a
+$cproduct :: forall a. Num a =&gt; Pair a -&gt; a
+product :: forall a. Num a =&gt; Pair a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705883"><span id="local-6989586621681705887"><span id="local-6989586621681705893"><span id="local-6989586621681705898"><span class="annot"><span class="annottext">Functor Pair
+Foldable Pair
+(Functor Pair, Foldable Pair) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; Pair a -&gt; f (Pair b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    Pair (f a) -&gt; f (Pair a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; Pair a -&gt; m (Pair b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; Pair (m a) -&gt; m (Pair a))
+-&gt; Traversable Pair
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; Pair (m a) -&gt; m (Pair a)
+forall (f :: * -&gt; *) a. Applicative f =&gt; Pair (f a) -&gt; f (Pair a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Pair a -&gt; m (Pair b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Pair a -&gt; f (Pair b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Pair a -&gt; f (Pair b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Pair a -&gt; f (Pair b)
+$csequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; Pair (f a) -&gt; f (Pair a)
+sequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; Pair (f a) -&gt; f (Pair a)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Pair a -&gt; m (Pair b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Pair a -&gt; m (Pair b)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; Pair (m a) -&gt; m (Pair a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; Pair (m a) -&gt; m (Pair a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681705909"><span id="local-6989586621681705913"><span id="local-6989586621681705916"><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-type">Pair</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-81"></span><span>  </span><span id="local-6989586621681705919"><span class="annot"><span class="annottext">pure :: forall a. a -&gt; Pair a
+</span><span class="hs-identifier hs-var hs-var hs-var">pure</span></span></span><span> </span><span id="local-6989586621681705920"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705920"><span class="hs-identifier hs-var">a</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Pair a
+forall a. a -&gt; a -&gt; Pair a
+</span><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-var">Pair</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705920"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705920"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-type">Pair</span></a></span><span> </span><span id="local-6989586621681705921"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681705921"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681705922"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681705922"><span class="hs-identifier hs-var">f'</span></a></span></span><span> </span><span id="local-6989586621681705923"><span class="annot"><span class="annottext">&lt;*&gt; :: forall a b. Pair (a -&gt; b) -&gt; Pair a -&gt; Pair b
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;*&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-type">Pair</span></a></span><span> </span><span id="local-6989586621681705924"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705924"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681705925"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705925"><span class="hs-identifier hs-var">a'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; b -&gt; Pair b
+forall a. a -&gt; a -&gt; Pair a
+</span><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-var">Pair</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681705921"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705924"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681705922"><span class="hs-identifier hs-var">f'</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705925"><span class="hs-identifier hs-var">a'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681705711"><span id="local-6989586621681705928"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681705711"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Tuple.html#Pair"><span class="hs-identifier hs-type">Pair</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681705711"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-85"></span></pre></body></html>

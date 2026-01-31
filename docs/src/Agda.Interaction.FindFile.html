@@ -1,0 +1,649 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- | Functions which map between module names and file names.</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Note that file name lookups are cached in the 'TCState'. The code</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- assumes that no Agda source files are added or removed from the</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- include directories while the code is being type checked.</span><span>
+</span><span id="line-7"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html"><span class="hs-identifier">Agda.Interaction.FindFile</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier">SourceFile</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier">InterfaceFile</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.FindFile.html#intFilePath"><span class="hs-identifier">intFilePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#toIFile"><span class="hs-identifier">toIFile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#mkInterfaceFile"><span class="hs-identifier">mkInterfaceFile</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#FindError"><span class="hs-identifier">FindError</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findErrorToTypeError"><span class="hs-identifier">findErrorToTypeError</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile"><span class="hs-identifier">findFile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27"><span class="hs-identifier">findFile'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27_"><span class="hs-identifier">findFile'_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27%27"><span class="hs-identifier">findFile''</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findInterfaceFile%27"><span class="hs-identifier">findInterfaceFile'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findInterfaceFile"><span class="hs-identifier">findInterfaceFile</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#checkModuleName"><span class="hs-identifier">checkModuleName</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#rootNameModule"><span class="hs-identifier">rootNameModule</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#replaceModuleExtension"><span class="hs-identifier">replaceModuleExtension</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#dropAgdaExtension"><span class="hs-identifier">dropAgdaExtension</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#hasAgdaExtension"><span class="hs-identifier">hasAgdaExtension</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#stripAgdaExtension"><span class="hs-identifier">stripAgdaExtension</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">catMaybes</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isJust</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.html"><span class="hs-identifier">Agda.Interaction.Library</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.html#findProjectRoot"><span class="hs-identifier">findProjectRoot</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html"><span class="hs-identifier">Agda.Syntax.Parser</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Benchmark</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier">billTo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Benchmark</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Bench</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Options.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Options</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Options.html#getIncludeDirs"><span class="hs-identifier">getIncludeDirs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Options.html#libToTCM"><span class="hs-identifier">libToTCM</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html"><span class="hs-identifier">Agda.TypeChecking.Monad.State</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html#registerFileIdWithBuiltin"><span class="hs-identifier">registerFileIdWithBuiltin</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html#topLevelModuleName"><span class="hs-identifier">topLevelModuleName</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Trace.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Trace</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Trace.html#runPM"><span class="hs-identifier">runPM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Trace.html#setCurrentRange"><span class="hs-identifier">setCurrentRange</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Version.html"><span class="hs-identifier">Agda.Version</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Version.html#version"><span class="hs-identifier">version</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Applicative.html"><span class="hs-identifier">Agda.Utils.Applicative</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Applicative.html#%3F%24%3E"><span class="hs-operator">(?$&gt;)</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.html"><span class="hs-identifier">Agda.Utils.CallStack</span></a></span><span>   </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">HasCallStack</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html"><span class="hs-identifier">Agda.Utils.FileId</span></a></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#stripSuffix"><span class="hs-identifier">stripSuffix</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#nubOn"><span class="hs-identifier">nubOn</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html"><span class="hs-identifier">Agda.Utils.List2</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier">List2</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier">List2</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html"><span class="hs-identifier">Agda.Utils.List2</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List2</span></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier">ifM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html#unlessM"><span class="hs-identifier">unlessM</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier">Pretty</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier">prettyShow</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- This instance isn't producing something pretty.</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- instance Pretty SourceFile where</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   pretty = pretty . srcFileId</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="annot"><span class="hs-comment">-- | File must exist.</span></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">newtype</span><span> </span><span id="InterfaceFile"><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier hs-var">InterfaceFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="InterfaceFile"><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier hs-var">InterfaceFile</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="intFilePath"><span class="annot"><span class="annottext">InterfaceFile -&gt; AbsolutePath
+</span><a href="Agda.Interaction.FindFile.html#intFilePath"><span class="hs-identifier hs-var hs-var">intFilePath</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681938797"><span id="local-6989586621681938801"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier hs-type">InterfaceFile</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-73"></span><span>  </span><span id="local-6989586621681938806"><span class="annot"><span class="annottext">pretty :: InterfaceFile -&gt; Doc
+</span><a href="#local-6989586621681938806"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">(AbsolutePath -&gt; Doc)
+-&gt; (InterfaceFile -&gt; AbsolutePath) -&gt; InterfaceFile -&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">InterfaceFile -&gt; AbsolutePath
+</span><a href="Agda.Interaction.FindFile.html#intFilePath"><span class="hs-identifier hs-var">intFilePath</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | Makes an interface file from an AbsolutePath candidate.</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   If the file does not exist, then fail by returning @Nothing@.</span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#mkInterfaceFile"><span class="hs-identifier hs-type">mkInterfaceFile</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>             </span><span class="annot"><span class="hs-comment">-- ^ Path to the candidate interface file</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier hs-type">InterfaceFile</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-comment">-- ^ Interface file iff it exists</span></span><span>
+</span><span id="line-81"></span><span id="mkInterfaceFile"><span class="annot"><span class="annottext">mkInterfaceFile :: AbsolutePath -&gt; IO (Maybe InterfaceFile)
+</span><a href="Agda.Interaction.FindFile.html#mkInterfaceFile"><span class="hs-identifier hs-var hs-var">mkInterfaceFile</span></a></span></span><span> </span><span id="local-6989586621681938809"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938809"><span class="hs-identifier hs-var">fp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-82"></span><span>  </span><span id="local-6989586621681938810"><span class="annot"><a href="#local-6989586621681938810"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO Bool
+</span><a href="Agda.Utils.FileName.html#doesFileExistCaseSensitive"><span class="hs-identifier hs-var">doesFileExistCaseSensitive</span></a></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; IO Bool) -&gt; FilePath -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938809"><span class="hs-identifier hs-var">fp</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681938810"><span class="hs-identifier hs-type">ex</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Applicative.html#%3F%24%3E"><span class="hs-operator hs-type">?$&gt;</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier hs-type">InterfaceFile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938809"><span class="hs-identifier hs-type">fp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- | Converts an Agda file name to the corresponding interface file</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--   name. Note that we do not guarantee that the file exists.</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#toIFile"><span class="hs-identifier hs-type">toIFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-89"></span><span id="toIFile"><span class="annot"><span class="annottext">toIFile :: HasCallStack =&gt; SourceFile -&gt; TCM AbsolutePath
+</span><a href="Agda.Interaction.FindFile.html#toIFile"><span class="hs-identifier hs-var hs-var">toIFile</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span> </span><span id="local-6989586621681938822"><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681938822"><span class="hs-identifier hs-var">fi</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-90"></span><span>  </span><span id="local-6989586621681938823"><span class="annot"><a href="#local-6989586621681938823"><span class="hs-identifier hs-var">src</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FileId -&gt; TCM AbsolutePath
+forall (m :: * -&gt; *). MonadFileId m =&gt; FileId -&gt; m AbsolutePath
+</span><a href="Agda.Utils.FileId.html#fileFromId"><span class="hs-identifier hs-var">fileFromId</span></a></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681938822"><span class="hs-identifier hs-var">fi</span></a></span><span> </span><span class="hs-comment">-- partial function, thus HasCallStack</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681938825"><span class="annot"><a href="#local-6989586621681938825"><span class="hs-identifier hs-var hs-var">fp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938823"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681938826"><span class="annot"><a href="#local-6989586621681938826"><span class="hs-identifier hs-var hs-var">localIFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; AbsolutePath -&gt; AbsolutePath
+</span><a href="Agda.Interaction.FindFile.html#replaceModuleExtension"><span class="hs-identifier hs-var">replaceModuleExtension</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;.agdai&quot;</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938823"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span id="local-6989586621681938827"><span class="annot"><a href="#local-6989586621681938827"><span class="hs-identifier hs-var">mroot</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Options.html#libToTCM"><span class="hs-identifier hs-type">libToTCM</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.html#findProjectRoot"><span class="hs-identifier hs-type">findProjectRoot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">takeDirectory</span></span><span> </span><span class="annot"><a href="#local-6989586621681938825"><span class="hs-identifier hs-type">fp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621681938827"><span class="hs-identifier hs-type">mroot</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><span class="annottext">Maybe FilePath
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; TCM AbsolutePath
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938826"><span class="hs-identifier hs-var">localIFile</span></a></span><span>
+</span><span id="line-96"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681938829"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938829"><span class="hs-identifier hs-var">root</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-97"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681938830"><span class="annot"><span class="annottext">buildDir :: FilePath
+</span><a href="#local-6989586621681938830"><span class="hs-identifier hs-var hs-var hs-var">buildDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938829"><span class="hs-identifier hs-var">root</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;_build&quot;</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="Agda.Version.html#version"><span class="hs-identifier hs-var">version</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;agda&quot;</span></span><span>
+</span><span id="line-98"></span><span>      </span><span id="local-6989586621681938832"><span class="annot"><a href="#local-6989586621681938832"><span class="hs-identifier hs-var">fileName</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO FilePath -&gt; TCMT IO FilePath
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO FilePath -&gt; TCMT IO FilePath)
+-&gt; IO FilePath -&gt; TCMT IO FilePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; IO FilePath
+</span><a href="Agda.Utils.FileName.html#makeRelativeCanonical"><span class="hs-identifier hs-var">makeRelativeCanonical</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938829"><span class="hs-identifier hs-var">root</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938826"><span class="hs-identifier hs-var">localIFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681938835"><span class="annot"><a href="#local-6989586621681938835"><span class="hs-identifier hs-var hs-var">separatedIFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier hs-var">mkAbsolute</span></a></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; AbsolutePath) -&gt; FilePath -&gt; AbsolutePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938830"><span class="hs-identifier hs-var">buildDir</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938832"><span class="hs-identifier hs-var">fileName</span></a></span><span>
+</span><span id="line-100"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><a href="#local-6989586621681938835"><span class="hs-identifier hs-type">separatedIFile</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#replaceModuleExtension"><span class="hs-identifier hs-type">replaceModuleExtension</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-103"></span><span id="replaceModuleExtension"><span class="annot"><span class="annottext">replaceModuleExtension :: FilePath -&gt; AbsolutePath -&gt; AbsolutePath
+</span><a href="Agda.Interaction.FindFile.html#replaceModuleExtension"><span class="hs-identifier hs-var hs-var">replaceModuleExtension</span></a></span></span><span> </span><span id="local-6989586621681938837"><span class="annot"><span class="annottext">ext :: FilePath
+</span><a href="#local-6989586621681938837"><span class="hs-identifier hs-var">ext</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'.'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier hs-var">mkAbsolute</span></a></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; AbsolutePath)
+-&gt; (AbsolutePath -&gt; FilePath) -&gt; AbsolutePath -&gt; AbsolutePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938837"><span class="hs-identifier hs-var">ext</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; FilePath)
+-&gt; (AbsolutePath -&gt; FilePath) -&gt; AbsolutePath -&gt; FilePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>  </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath
+</span><a href="Agda.Interaction.FindFile.html#dropAgdaExtension"><span class="hs-identifier hs-var">dropAgdaExtension</span></a></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; FilePath)
+-&gt; (AbsolutePath -&gt; FilePath) -&gt; AbsolutePath -&gt; FilePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#replaceModuleExtension"><span class="hs-identifier hs-var">replaceModuleExtension</span></a></span><span> </span><span id="local-6989586621681938838"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938838"><span class="hs-identifier hs-var">ext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; AbsolutePath -&gt; AbsolutePath
+</span><a href="Agda.Interaction.FindFile.html#replaceModuleExtension"><span class="hs-identifier hs-var">replaceModuleExtension</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'.'</span></span><span class="annot"><span class="annottext">Char -&gt; FilePath -&gt; FilePath
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938838"><span class="hs-identifier hs-var">ext</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- | Errors which can arise when trying to find a source file.</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- Invariant: All paths are absolute.</span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="hs-keyword">data</span><span> </span><span id="FindError"><span class="annot"><a href="Agda.Interaction.FindFile.html#FindError"><span class="hs-identifier hs-var">FindError</span></a></span></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="NotFound"><span class="annot"><a href="Agda.Interaction.FindFile.html#NotFound"><span class="hs-identifier hs-var">NotFound</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>      </span><span class="hs-comment">-- ^ An Agda module was not found.</span><span>
+</span><span id="line-113"></span><span>      </span><span class="hs-comment">--   We were looking for it in one of the given include directories.</span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Ambiguous"><span class="annot"><a href="Agda.Interaction.FindFile.html#Ambiguous"><span class="hs-identifier hs-var">Ambiguous</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-115"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Several matching files were found.</span></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681938842"><span id="local-6989586621681938852"><span id="local-6989586621681938856"><span class="annot"><span class="annottext">Int -&gt; FindError -&gt; FilePath -&gt; FilePath
+[FindError] -&gt; FilePath -&gt; FilePath
+FindError -&gt; FilePath
+(Int -&gt; FindError -&gt; FilePath -&gt; FilePath)
+-&gt; (FindError -&gt; FilePath)
+-&gt; ([FindError] -&gt; FilePath -&gt; FilePath)
+-&gt; Show FindError
+forall a.
+(Int -&gt; a -&gt; FilePath -&gt; FilePath)
+-&gt; (a -&gt; FilePath) -&gt; ([a] -&gt; FilePath -&gt; FilePath) -&gt; Show a
+$cshowsPrec :: Int -&gt; FindError -&gt; FilePath -&gt; FilePath
+showsPrec :: Int -&gt; FindError -&gt; FilePath -&gt; FilePath
+$cshow :: FindError -&gt; FilePath
+show :: FindError -&gt; FilePath
+$cshowList :: [FindError] -&gt; FilePath -&gt; FilePath
+showList :: [FindError] -&gt; FilePath -&gt; FilePath
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- | Given the module name which the error applies to this function</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- converts a 'FindError' to a 'TypeError'.</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#findErrorToTypeError"><span class="hs-identifier hs-type">findErrorToTypeError</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#FindError"><span class="hs-identifier hs-type">FindError</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TypeError"><span class="hs-identifier hs-type">TypeError</span></a></span><span>
+</span><span id="line-122"></span><span id="findErrorToTypeError"><span class="annot"><span class="annottext">findErrorToTypeError :: TopLevelModuleName -&gt; FindError -&gt; TypeError
+</span><a href="Agda.Interaction.FindFile.html#findErrorToTypeError"><span class="hs-identifier hs-var hs-var">findErrorToTypeError</span></a></span></span><span> </span><span id="local-6989586621681938862"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938862"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-123"></span><span>  </span><span class="annot"><a href="Agda.Interaction.FindFile.html#NotFound"><span class="hs-identifier hs-type">NotFound</span></a></span><span>  </span><span id="local-6989586621681938863"><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938863"><span class="hs-identifier hs-var">dirs</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; List1 AbsolutePath -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#FileNotFound"><span class="hs-identifier hs-var">FileNotFound</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938862"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938863"><span class="hs-identifier hs-var">dirs</span></a></span><span>
+</span><span id="line-124"></span><span>  </span><span class="annot"><a href="Agda.Interaction.FindFile.html#Ambiguous"><span class="hs-identifier hs-type">Ambiguous</span></a></span><span> </span><span id="local-6989586621681938865"><span class="annot"><span class="annottext">List2 AbsolutePath
+</span><a href="#local-6989586621681938865"><span class="hs-identifier hs-var">files</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; List2 AbsolutePath -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#AmbiguousTopLevelModuleName"><span class="hs-identifier hs-var">AmbiguousTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938862"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">List2 AbsolutePath
+</span><a href="#local-6989586621681938865"><span class="hs-identifier hs-var">files</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- | Finds the source file corresponding to a given top-level module</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- name. The returned paths are absolute.</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- Raises an error if the file cannot be found.</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile"><span class="hs-identifier hs-type">findFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span>
+</span><span id="line-132"></span><span id="findFile"><span class="annot"><span class="annottext">findFile :: TopLevelModuleName -&gt; TCM SourceFile
+</span><a href="Agda.Interaction.FindFile.html#findFile"><span class="hs-identifier hs-var hs-var">findFile</span></a></span></span><span> </span><span id="local-6989586621681938867"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938867"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-133"></span><span>  </span><span id="local-6989586621681938868"><span class="annot"><a href="#local-6989586621681938868"><span class="hs-identifier hs-var">mf</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TCM (Either FindError SourceFile)
+</span><a href="Agda.Interaction.FindFile.html#findFile%27"><span class="hs-identifier hs-var">findFile'</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938867"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621681938868"><span class="hs-identifier hs-type">mf</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-135"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681938869"><span class="annot"><span class="annottext">FindError
+</span><a href="#local-6989586621681938869"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCM SourceFile
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCM SourceFile) -&gt; TypeError -&gt; TCM SourceFile
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; FindError -&gt; TypeError
+</span><a href="Agda.Interaction.FindFile.html#findErrorToTypeError"><span class="hs-identifier hs-var">findErrorToTypeError</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938867"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">FindError
+</span><a href="#local-6989586621681938869"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-136"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681938871"><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938871"><span class="hs-identifier hs-var">f</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SourceFile -&gt; TCM SourceFile
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938871"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- | Tries to find the source file corresponding to a given top-level</span><span>
+</span><span id="line-139"></span><span class="hs-comment">--   module name. The returned paths are absolute.</span><span>
+</span><span id="line-140"></span><span class="hs-comment">--</span><span>
+</span><span id="line-141"></span><span class="hs-comment">--   SIDE EFFECT:  Updates 'stModuleToSource'.</span><span>
+</span><span id="line-142"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27"><span class="hs-identifier hs-type">findFile'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#FindError"><span class="hs-identifier hs-type">FindError</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span id="findFile%27"><span class="annot"><span class="annottext">findFile' :: TopLevelModuleName -&gt; TCM (Either FindError SourceFile)
+</span><a href="Agda.Interaction.FindFile.html#findFile%27"><span class="hs-identifier hs-var hs-var">findFile'</span></a></span></span><span> </span><span id="local-6989586621681938873"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938873"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-144"></span><span>    </span><span id="local-6989586621681938874"><span class="annot"><a href="#local-6989586621681938874"><span class="hs-identifier hs-var">dirs</span></a></span></span><span>     </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCM (List1 AbsolutePath)
+</span><a href="Agda.TypeChecking.Monad.Options.html#getIncludeDirs"><span class="hs-identifier hs-var">getIncludeDirs</span></a></span><span>
+</span><span id="line-145"></span><span>    </span><span id="local-6989586621681938875"><span class="annot"><a href="#local-6989586621681938875"><span class="hs-identifier hs-var">modToSrc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stModuleToSource"><span class="hs-identifier hs-type">stModuleToSource</span></a></span><span>
+</span><span id="line-146"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681938879"><span class="annot"><a href="#local-6989586621681938879"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681938880"><span class="annot"><a href="#local-6989586621681938880"><span class="hs-identifier hs-var">modToSrc</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27%27"><span class="hs-identifier hs-type">findFile''</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938874"><span class="hs-identifier hs-type">dirs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938873"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681938875"><span class="hs-identifier hs-type">modToSrc</span></a></span><span>
+</span><span id="line-147"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stModuleToSource"><span class="hs-identifier hs-type">stModuleToSource</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-operator hs-type">`setTCLens`</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938880"><span class="hs-identifier hs-type">modToSrc</span></a></span><span>
+</span><span id="line-148"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681938879"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="annot"><span class="hs-comment">-- | A variant of 'findFile'' which manipulates an extra 'ModuleToSourceId'</span></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27_"><span class="hs-identifier hs-type">findFile'_</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-153"></span><span>     </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-154"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Include paths.</span></span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-156"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ModuleToSourceId"><span class="hs-identifier hs-type">ModuleToSourceId</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#FindError"><span class="hs-identifier hs-type">FindError</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-157"></span><span id="findFile%27_"><span class="annot"><span class="annottext">findFile'_ :: List1 AbsolutePath
+-&gt; TopLevelModuleName
+-&gt; StateT ModuleToSourceId TCM (Either FindError SourceFile)
+</span><a href="Agda.Interaction.FindFile.html#findFile%27_"><span class="hs-identifier hs-var hs-var">findFile'_</span></a></span></span><span> </span><span id="local-6989586621681938885"><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938885"><span class="hs-identifier hs-var">incs</span></a></span></span><span> </span><span id="local-6989586621681938886"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938886"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621681938887"><span class="annot"><a href="#local-6989586621681938887"><span class="hs-identifier hs-var">dict</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCState FileDictWithBuiltins
+-&gt; StateT ModuleToSourceId TCM FileDictWithBuiltins
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(FileDictWithBuiltins -&gt; f FileDictWithBuiltins)
+-&gt; TCState -&gt; f TCState
+Lens' TCState FileDictWithBuiltins
+</span><a href="Agda.TypeChecking.Monad.Base.html#stFileDict"><span class="hs-identifier hs-var">stFileDict</span></a></span><span>
+</span><span id="line-159"></span><span>  </span><span id="local-6989586621681938891"><span class="annot"><a href="#local-6989586621681938891"><span class="hs-identifier hs-var">m2s</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">get</span></span><span>
+</span><span id="line-160"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681938893"><span class="annot"><a href="#local-6989586621681938893"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ModuleToSource"><span class="hs-identifier hs-type">ModuleToSource</span></a></span><span> </span><span id="local-6989586621681938895"><span class="annot"><a href="#local-6989586621681938895"><span class="hs-identifier hs-var">dict'</span></a></span></span><span> </span><span id="local-6989586621681938896"><span class="annot"><a href="#local-6989586621681938896"><span class="hs-identifier hs-var">m2s'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-161"></span><span>    </span><span class="annot"><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27%27"><span class="hs-identifier hs-type">findFile''</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938885"><span class="hs-identifier hs-type">incs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938886"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ModuleToSource"><span class="hs-identifier hs-type">ModuleToSource</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938887"><span class="hs-identifier hs-type">dict</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938891"><span class="hs-identifier hs-type">m2s</span></a></span><span>
+</span><span id="line-162"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-identifier hs-type">setTCLens</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stFileDict"><span class="hs-identifier hs-type">stFileDict</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938895"><span class="hs-identifier hs-type">dict'</span></a></span><span>
+</span><span id="line-163"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">put</span></span><span> </span><span class="annot"><a href="#local-6989586621681938896"><span class="hs-identifier hs-type">m2s'</span></a></span><span>
+</span><span id="line-164"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681938893"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="annot"><span class="hs-comment">-- | A variant of 'findFile'' which does not require 'TCM'.</span></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27%27"><span class="hs-identifier hs-type">findFile''</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-169"></span><span>     </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-170"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Include paths.</span></span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ModuleToSource"><span class="hs-identifier hs-type">ModuleToSource</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#FindError"><span class="hs-identifier hs-type">FindError</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-173"></span><span id="findFile%27%27"><span class="annot"><span class="annottext">findFile'' :: List1 AbsolutePath
+-&gt; TopLevelModuleName
+-&gt; StateT ModuleToSource IO (Either FindError SourceFile)
+</span><a href="Agda.Interaction.FindFile.html#findFile%27%27"><span class="hs-identifier hs-var hs-var">findFile''</span></a></span></span><span> </span><span id="local-6989586621681938901"><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938901"><span class="hs-identifier hs-var">dirs</span></a></span></span><span> </span><span id="local-6989586621681938902"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938902"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-174"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ModuleToSource"><span class="hs-identifier hs-type">ModuleToSource</span></a></span><span> </span><span id="local-6989586621681938903"><span class="annot"><a href="#local-6989586621681938903"><span class="hs-identifier hs-var">dict</span></a></span></span><span> </span><span id="local-6989586621681938904"><span class="annot"><a href="#local-6989586621681938904"><span class="hs-identifier hs-var">modToSrc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">StateT ModuleToSource IO ModuleToSource
+forall s (m :: * -&gt; *). MonadState s m =&gt; m s
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-175"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.lookup</span></span><span> </span><span class="annot"><a href="#local-6989586621681938902"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938904"><span class="hs-identifier hs-type">modToSrc</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-176"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681938906"><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938906"><span class="hs-identifier hs-var">sf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either FindError SourceFile
+-&gt; StateT ModuleToSource IO (Either FindError SourceFile)
+forall a. a -&gt; StateT ModuleToSource IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either FindError SourceFile
+ -&gt; StateT ModuleToSource IO (Either FindError SourceFile))
+-&gt; Either FindError SourceFile
+-&gt; StateT ModuleToSource IO (Either FindError SourceFile)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SourceFile -&gt; Either FindError SourceFile
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938906"><span class="hs-identifier hs-var">sf</span></a></span><span>
+</span><span id="line-177"></span><span>    </span><span class="annot"><span class="annottext">Maybe SourceFile
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-178"></span><span>      </span><span id="local-6989586621681938907"><span class="annot"><a href="#local-6989586621681938907"><span class="hs-identifier hs-var">files</span></a></span></span><span>          </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [AbsolutePath] -&gt; StateT ModuleToSource IO [AbsolutePath]
+forall a. IO a -&gt; StateT ModuleToSource IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO [AbsolutePath] -&gt; StateT ModuleToSource IO [AbsolutePath])
+-&gt; IO [AbsolutePath] -&gt; StateT ModuleToSource IO [AbsolutePath]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[FilePath] -&gt; IO [AbsolutePath]
+</span><a href="#local-6989586621681938908"><span class="hs-identifier hs-var">fileList</span></a></span><span> </span><span class="annot"><span class="annottext">[FilePath]
+</span><a href="Agda.Syntax.Parser.html#agdaFileExtensions"><span class="hs-identifier hs-var">agdaFileExtensions</span></a></span><span>
+</span><span id="line-179"></span><span>      </span><span id="local-6989586621681938910"><span class="annot"><a href="#local-6989586621681938910"><span class="hs-identifier hs-var">existingFiles</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">filterM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileName.html#doesFileExistCaseSensitive"><span class="hs-identifier hs-type">doesFileExistCaseSensitive</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-type">filePath</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681938907"><span class="hs-identifier hs-type">files</span></a></span><span>
+</span><span id="line-180"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#nubOn"><span class="hs-identifier hs-type">nubOn</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">id</span></span><span> </span><span class="annot"><a href="#local-6989586621681938910"><span class="hs-identifier hs-type">existingFiles</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-181"></span><span>        </span><span class="hs-special">[</span><span id="local-6989586621681938913"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938913"><span class="hs-identifier hs-var">file</span></a></span></span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-182"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681938914"><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681938914"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681938915"><span class="annot"><span class="annottext">FileDictWithBuiltins
+</span><a href="#local-6989586621681938915"><span class="hs-identifier hs-var hs-var">dict'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+-&gt; FileDictWithBuiltins -&gt; (FileId, FileDictWithBuiltins)
+</span><a href="Agda.TypeChecking.Monad.State.html#registerFileIdWithBuiltin"><span class="hs-identifier hs-var">registerFileIdWithBuiltin</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938913"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">FileDictWithBuiltins
+</span><a href="#local-6989586621681938903"><span class="hs-identifier hs-var">dict</span></a></span><span>
+</span><span id="line-183"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681938916"><span class="annot"><span class="annottext">src :: SourceFile
+</span><a href="#local-6989586621681938916"><span class="hs-identifier hs-var hs-var hs-var">src</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileId -&gt; SourceFile
+</span><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-var">SourceFile</span></a></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681938914"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-184"></span><span>          </span><span class="annot"><span class="annottext">ModuleToSource -&gt; StateT ModuleToSource IO ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; s -&gt; m ()
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(ModuleToSource -&gt; StateT ModuleToSource IO ())
+-&gt; ModuleToSource -&gt; StateT ModuleToSource IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FileDictWithBuiltins -&gt; ModuleToSourceId -&gt; ModuleToSource
+</span><a href="Agda.TypeChecking.Monad.Base.Types.html#ModuleToSource"><span class="hs-identifier hs-var">ModuleToSource</span></a></span><span> </span><span class="annot"><span class="annottext">FileDictWithBuiltins
+</span><a href="#local-6989586621681938915"><span class="hs-identifier hs-var">dict'</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleToSourceId -&gt; ModuleToSource)
+-&gt; ModuleToSourceId -&gt; ModuleToSource
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+-&gt; SourceFile -&gt; ModuleToSourceId -&gt; ModuleToSourceId
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938902"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938916"><span class="hs-identifier hs-var">src</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleToSourceId
+</span><a href="#local-6989586621681938904"><span class="hs-identifier hs-var">modToSrc</span></a></span><span>
+</span><span id="line-185"></span><span>          </span><span class="annot"><span class="annottext">Either FindError SourceFile
+-&gt; StateT ModuleToSource IO (Either FindError SourceFile)
+forall a. a -&gt; StateT ModuleToSource IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SourceFile -&gt; Either FindError SourceFile
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938916"><span class="hs-identifier hs-var">src</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-186"></span><span>        </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-187"></span><span>          </span><span class="annot"><span class="annottext">Either FindError SourceFile
+-&gt; StateT ModuleToSource IO (Either FindError SourceFile)
+forall a. a -&gt; StateT ModuleToSource IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FindError -&gt; Either FindError SourceFile
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 AbsolutePath -&gt; FindError
+</span><a href="Agda.Interaction.FindFile.html#NotFound"><span class="hs-identifier hs-var">NotFound</span></a></span><span> </span><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938901"><span class="hs-identifier hs-var">dirs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-188"></span><span>        </span><span id="local-6989586621681938918"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938918"><span class="hs-identifier hs-var">f0</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681938919"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938919"><span class="hs-identifier hs-var">f1</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681938920"><span class="annot"><span class="annottext">[AbsolutePath]
+</span><a href="#local-6989586621681938920"><span class="hs-identifier hs-var">fs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either FindError SourceFile
+-&gt; StateT ModuleToSource IO (Either FindError SourceFile)
+forall a. a -&gt; StateT ModuleToSource IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FindError -&gt; Either FindError SourceFile
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List2 AbsolutePath -&gt; FindError
+</span><a href="Agda.Interaction.FindFile.html#Ambiguous"><span class="hs-identifier hs-var">Ambiguous</span></a></span><span> </span><span class="annot"><span class="annottext">(List2 AbsolutePath -&gt; FindError)
+-&gt; List2 AbsolutePath -&gt; FindError
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+-&gt; AbsolutePath -&gt; [AbsolutePath] -&gt; List2 AbsolutePath
+forall a. a -&gt; a -&gt; [a] -&gt; List2 a
+</span><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-var">List2</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938918"><span class="hs-identifier hs-var">f0</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938919"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">[AbsolutePath]
+</span><a href="#local-6989586621681938920"><span class="hs-identifier hs-var">fs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-189"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-190"></span><span>    </span><span id="local-6989586621681938908"><span class="annot"><span class="annottext">fileList :: [FilePath] -&gt; IO [AbsolutePath]
+</span><a href="#local-6989586621681938908"><span class="hs-identifier hs-var hs-var">fileList</span></a></span></span><span> </span><span id="local-6989586621681938921"><span class="annot"><span class="annottext">[FilePath]
+</span><a href="#local-6989586621681938921"><span class="hs-identifier hs-var">exts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; IO AbsolutePath) -&gt; [FilePath] -&gt; IO [AbsolutePath]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO AbsolutePath
+</span><a href="Agda.Utils.FileName.html#absolute"><span class="hs-identifier hs-var">absolute</span></a></span><span>
+</span><span id="line-191"></span><span>                    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938924"><span class="hs-identifier hs-var">dir</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938925"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-192"></span><span>                    </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681938924"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938924"><span class="hs-identifier hs-var">dir</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">List1 AbsolutePath -&gt; [Item (List1 AbsolutePath)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938901"><span class="hs-identifier hs-var">dirs</span></a></span><span>
+</span><span id="line-193"></span><span>                    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681938925"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681938925"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; FilePath) -&gt; [FilePath] -&gt; [FilePath]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; FilePath -&gt; FilePath
+</span><a href="Agda.Syntax.TopLevelModuleName.html#moduleNameToFileName"><span class="hs-identifier hs-var">moduleNameToFileName</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938902"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[FilePath]
+</span><a href="#local-6989586621681938921"><span class="hs-identifier hs-var">exts</span></a></span><span>
+</span><span id="line-194"></span><span>                    </span><span class="hs-special">]</span><span>
+</span><span id="line-195"></span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- | Finds the interface file corresponding to a given top-level</span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- module file. The returned paths are absolute.</span><span>
+</span><span id="line-198"></span><span class="hs-comment">--</span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- Raises 'Nothing' if the interface file cannot be found.</span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#findInterfaceFile%27"><span class="hs-identifier hs-type">findInterfaceFile'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span>  </span><span class="hs-comment">-- We are calling partial function toIFile, thus want a call stack.</span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span>                 </span><span class="annot"><span class="hs-comment">-- ^ Path to the source file</span></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier hs-type">InterfaceFile</span></a></span><span class="hs-special">)</span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Maybe path to the interface file</span></span><span>
+</span><span id="line-204"></span><span id="findInterfaceFile%27"><span class="annot"><span class="annottext">findInterfaceFile' :: HasCallStack =&gt; SourceFile -&gt; TCM (Maybe InterfaceFile)
+</span><a href="Agda.Interaction.FindFile.html#findInterfaceFile%27"><span class="hs-identifier hs-var hs-var">findInterfaceFile'</span></a></span></span><span> </span><span id="local-6989586621681938932"><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938932"><span class="hs-identifier hs-var">fp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (Maybe InterfaceFile) -&gt; TCM (Maybe InterfaceFile)
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Maybe InterfaceFile) -&gt; TCM (Maybe InterfaceFile))
+-&gt; (AbsolutePath -&gt; IO (Maybe InterfaceFile))
+-&gt; AbsolutePath
+-&gt; TCM (Maybe InterfaceFile)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; IO (Maybe InterfaceFile)
+</span><a href="Agda.Interaction.FindFile.html#mkInterfaceFile"><span class="hs-identifier hs-var">mkInterfaceFile</span></a></span><span> </span><span class="annot"><span class="annottext">(AbsolutePath -&gt; TCM (Maybe InterfaceFile))
+-&gt; TCM AbsolutePath -&gt; TCM (Maybe InterfaceFile)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">HasCallStack =&gt; SourceFile -&gt; TCM AbsolutePath
+SourceFile -&gt; TCM AbsolutePath
+</span><a href="Agda.Interaction.FindFile.html#toIFile"><span class="hs-identifier hs-var">toIFile</span></a></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938932"><span class="hs-identifier hs-var">fp</span></a></span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- | Finds the interface file corresponding to a given top-level</span><span>
+</span><span id="line-208"></span><span class="hs-comment">-- module file. The returned paths are absolute.</span><span>
+</span><span id="line-209"></span><span class="hs-comment">--</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- Raises an error if the source file cannot be found, and returns</span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- 'Nothing' if the source file can be found but not the interface</span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- file.</span><span>
+</span><span id="line-213"></span><span>
+</span><span id="line-214"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#findInterfaceFile"><span class="hs-identifier hs-type">findInterfaceFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span>  </span><span class="hs-comment">-- because of calling a partial function</span><span>
+</span><span id="line-215"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.FindFile.html#InterfaceFile"><span class="hs-identifier hs-type">InterfaceFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-216"></span><span id="findInterfaceFile"><span class="annot"><span class="annottext">findInterfaceFile :: HasCallStack =&gt; TopLevelModuleName -&gt; TCM (Maybe InterfaceFile)
+</span><a href="Agda.Interaction.FindFile.html#findInterfaceFile"><span class="hs-identifier hs-var hs-var">findInterfaceFile</span></a></span></span><span> </span><span id="local-6989586621681938938"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938938"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HasCallStack =&gt; SourceFile -&gt; TCM (Maybe InterfaceFile)
+SourceFile -&gt; TCM (Maybe InterfaceFile)
+</span><a href="Agda.Interaction.FindFile.html#findInterfaceFile%27"><span class="hs-identifier hs-var">findInterfaceFile'</span></a></span><span> </span><span class="annot"><span class="annottext">(SourceFile -&gt; TCM (Maybe InterfaceFile))
+-&gt; TCM SourceFile -&gt; TCM (Maybe InterfaceFile)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TCM SourceFile
+</span><a href="Agda.Interaction.FindFile.html#findFile"><span class="hs-identifier hs-var">findFile</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938938"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-217"></span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- | Ensures that the module name matches the file name. The file</span><span>
+</span><span id="line-219"></span><span class="hs-comment">-- corresponding to the module name (according to the include path)</span><span>
+</span><span id="line-220"></span><span class="hs-comment">-- has to be the same as the given file name.</span><span>
+</span><span id="line-221"></span><span>
+</span><span id="line-222"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#checkModuleName"><span class="hs-identifier hs-type">checkModuleName</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-223"></span><span>     </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-224"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The name of the module.</span></span><span>
+</span><span id="line-225"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#SourceFile"><span class="hs-identifier hs-type">SourceFile</span></a></span><span>
+</span><span id="line-226"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The file from which it was loaded.</span></span><span>
+</span><span id="line-227"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-228"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The expected name, coming from an import statement.</span></span><span>
+</span><span id="line-229"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-230"></span><span id="checkModuleName"><span class="annot"><span class="annottext">checkModuleName :: TopLevelModuleName
+-&gt; SourceFile -&gt; Maybe TopLevelModuleName -&gt; TCMT IO ()
+</span><a href="Agda.Interaction.FindFile.html#checkModuleName"><span class="hs-identifier hs-var hs-var">checkModuleName</span></a></span></span><span> </span><span id="local-6989586621681938939"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938939"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621681938940"><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938940"><span class="hs-identifier hs-var">src0</span></a></span></span><span> </span><span id="local-6989586621681938941"><span class="annot"><span class="annottext">Maybe TopLevelModuleName
+</span><a href="#local-6989586621681938941"><span class="hs-identifier hs-var">mexpected</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-231"></span><span>  </span><span id="local-6989586621681938942"><span class="annot"><a href="#local-6989586621681938942"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SourceFile -&gt; TCM AbsolutePath
+forall (m :: * -&gt; *). MonadFileId m =&gt; SourceFile -&gt; m AbsolutePath
+</span><a href="Agda.TypeChecking.Monad.Base.html#srcFilePath"><span class="hs-identifier hs-var">srcFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938940"><span class="hs-identifier hs-var">src0</span></a></span><span>
+</span><span id="line-232"></span><span>  </span><span class="annot"><a href="Agda.Interaction.FindFile.html#findFile%27"><span class="hs-identifier hs-type">findFile'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938939"><span class="hs-identifier hs-type">name</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-233"></span><span>
+</span><span id="line-234"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.FindFile.html#NotFound"><span class="hs-identifier hs-type">NotFound</span></a></span><span> </span><span id="local-6989586621681938944"><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938944"><span class="hs-identifier hs-var">dirs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCMT IO ()
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCMT IO ()) -&gt; TypeError -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-235"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe TopLevelModuleName
+</span><a href="#local-6989586621681938941"><span class="hs-identifier hs-var">mexpected</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-236"></span><span>        </span><span class="annot"><span class="annottext">Maybe TopLevelModuleName
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; List1 AbsolutePath -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#ModuleNameDoesntMatchFileName"><span class="hs-identifier hs-var">ModuleNameDoesntMatchFileName</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938939"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">List1 AbsolutePath
+</span><a href="#local-6989586621681938944"><span class="hs-identifier hs-var">dirs</span></a></span><span>
+</span><span id="line-237"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681938946"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938946"><span class="hs-identifier hs-var">expected</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameWithSourceFile -&gt; TopLevelModuleName -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#ModuleNameUnexpected"><span class="hs-identifier hs-var">ModuleNameUnexpected</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName
+-&gt; SourceFile -&gt; TopLevelModuleNameWithSourceFile
+</span><a href="Agda.TypeChecking.Monad.Base.Types.html#TopLevelModuleNameWithSourceFile"><span class="hs-identifier hs-var">TopLevelModuleNameWithSourceFile</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938939"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938940"><span class="hs-identifier hs-var">src0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938946"><span class="hs-identifier hs-var">expected</span></a></span><span>
+</span><span id="line-238"></span><span>
+</span><span id="line-239"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.FindFile.html#Ambiguous"><span class="hs-identifier hs-type">Ambiguous</span></a></span><span> </span><span id="local-6989586621681938949"><span class="annot"><span class="annottext">List2 AbsolutePath
+</span><a href="#local-6989586621681938949"><span class="hs-identifier hs-var">files</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCMT IO ()
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCMT IO ()) -&gt; TypeError -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-240"></span><span>      </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; List2 AbsolutePath -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#AmbiguousTopLevelModuleName"><span class="hs-identifier hs-var">AmbiguousTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938939"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">List2 AbsolutePath
+</span><a href="#local-6989586621681938949"><span class="hs-identifier hs-var">files</span></a></span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681938950"><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938950"><span class="hs-identifier hs-var">src</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-243"></span><span>      </span><span id="local-6989586621681938951"><span class="annot"><a href="#local-6989586621681938951"><span class="hs-identifier hs-var">file'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SourceFile -&gt; TCM AbsolutePath
+forall (m :: * -&gt; *). MonadFileId m =&gt; SourceFile -&gt; m AbsolutePath
+</span><a href="Agda.TypeChecking.Monad.Base.html#srcFilePath"><span class="hs-identifier hs-var">srcFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">SourceFile
+</span><a href="#local-6989586621681938950"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-244"></span><span>      </span><span id="local-6989586621681938952"><span class="annot"><a href="#local-6989586621681938952"><span class="hs-identifier hs-var">file</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#absolute"><span class="hs-identifier hs-type">absolute</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-type">filePath</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938942"><span class="hs-identifier hs-type">file</span></a></span><span>
+</span><span id="line-245"></span><span>      </span><span class="annot"><a href="Agda.Utils.Monad.html#unlessM"><span class="hs-identifier hs-type">unlessM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#sameFile"><span class="hs-identifier hs-type">sameFile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938952"><span class="hs-identifier hs-type">file</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938951"><span class="hs-identifier hs-type">file'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-246"></span><span>        </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-type">typeError</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ModuleDefinedInOtherFile"><span class="hs-identifier hs-type">ModuleDefinedInOtherFile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938939"><span class="hs-identifier hs-type">name</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938952"><span class="hs-identifier hs-type">file</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681938951"><span class="hs-identifier hs-type">file'</span></a></span><span>
+</span><span id="line-247"></span><span>
+</span><span id="line-248"></span><span>  </span><span class="hs-comment">-- Andreas, 2020-09-28, issue #4671:  In any case, make sure</span><span>
+</span><span id="line-249"></span><span>  </span><span class="hs-comment">-- that we do not end up with a mismatch between expected</span><span>
+</span><span id="line-250"></span><span>  </span><span class="hs-comment">-- and actual module name.</span><span>
+</span><span id="line-251"></span><span>
+</span><span id="line-252"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">forM_</span></span><span> </span><span class="annot"><a href="#local-6989586621681938941"><span class="hs-identifier hs-type">mexpected</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681938956"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938956"><span class="hs-identifier hs-var">expected</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-253"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; TCMT IO () -&gt; TCMT IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938939"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TopLevelModuleName -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938956"><span class="hs-identifier hs-var">expected</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCMT IO () -&gt; TCMT IO ()) -&gt; TCMT IO () -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-254"></span><span>      </span><span class="annot"><span class="annottext">TypeError -&gt; TCMT IO ()
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCMT IO ()) -&gt; TypeError -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+-&gt; TopLevelModuleName -&gt; TopLevelModuleName -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#OverlappingProjects"><span class="hs-identifier hs-var">OverlappingProjects</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681938942"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938939"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681938956"><span class="hs-identifier hs-var">expected</span></a></span><span>
+</span><span id="line-255"></span><span>      </span><span class="hs-comment">-- OverlappingProjects is the correct error for</span><span>
+</span><span id="line-256"></span><span>      </span><span class="hs-comment">-- test/Fail/customized/NestedProjectRoots</span><span>
+</span><span id="line-257"></span><span>      </span><span class="hs-comment">-- -- typeError $ ModuleNameUnexpected name expected</span><span>
+</span><span id="line-258"></span><span>
+</span><span id="line-259"></span><span class="annot"><span class="hs-comment">-- | Remove an Agda file extension from a filepath, if possible.</span></span><span>
+</span><span id="line-260"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#stripAgdaExtension"><span class="hs-identifier hs-type">stripAgdaExtension</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-261"></span><span id="stripAgdaExtension"><span class="annot"><span class="annottext">stripAgdaExtension :: FilePath -&gt; Maybe FilePath
+</span><a href="Agda.Interaction.FindFile.html#stripAgdaExtension"><span class="hs-identifier hs-var hs-var">stripAgdaExtension</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[FilePath] -&gt; FilePath -&gt; Maybe FilePath
+</span><a href="Agda.Utils.FileName.html#stripAnyOfExtensions"><span class="hs-identifier hs-var">stripAnyOfExtensions</span></a></span><span> </span><span class="annot"><span class="annottext">[FilePath]
+</span><a href="Agda.Syntax.Parser.html#agdaFileExtensions"><span class="hs-identifier hs-var">agdaFileExtensions</span></a></span><span>
+</span><span id="line-262"></span><span>
+</span><span id="line-263"></span><span class="annot"><span class="hs-comment">-- | Check if a file path has an Agda extension.</span></span><span>
+</span><span id="line-264"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#hasAgdaExtension"><span class="hs-identifier hs-type">hasAgdaExtension</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-265"></span><span id="hasAgdaExtension"><span class="annot"><span class="annottext">hasAgdaExtension :: FilePath -&gt; Bool
+</span><a href="Agda.Interaction.FindFile.html#hasAgdaExtension"><span class="hs-identifier hs-var hs-var">hasAgdaExtension</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isJust</span></span><span> </span><span class="annot"><span class="annottext">(Maybe FilePath -&gt; Bool)
+-&gt; (FilePath -&gt; Maybe FilePath) -&gt; FilePath -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Maybe FilePath
+</span><a href="Agda.Interaction.FindFile.html#stripAgdaExtension"><span class="hs-identifier hs-var">stripAgdaExtension</span></a></span><span>
+</span><span id="line-266"></span><span>
+</span><span id="line-267"></span><span class="annot"><span class="hs-comment">-- | Remove an existing Agda file extension from a file path.</span></span><span>
+</span><span id="line-268"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#dropAgdaExtension"><span class="hs-identifier hs-type">dropAgdaExtension</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-269"></span><span id="dropAgdaExtension"><span class="annot"><span class="annottext">dropAgdaExtension :: FilePath -&gt; FilePath
+</span><a href="Agda.Interaction.FindFile.html#dropAgdaExtension"><span class="hs-identifier hs-var hs-var">dropAgdaExtension</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Maybe FilePath -&gt; FilePath
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe FilePath -&gt; FilePath)
+-&gt; (FilePath -&gt; Maybe FilePath) -&gt; FilePath -&gt; FilePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Maybe FilePath
+</span><a href="Agda.Interaction.FindFile.html#stripAgdaExtension"><span class="hs-identifier hs-var">stripAgdaExtension</span></a></span><span>
+</span><span id="line-270"></span><span>
+</span><span id="line-271"></span><span>
+</span><span id="line-272"></span><span class="annot"><a href="Agda.Interaction.FindFile.html#rootNameModule"><span class="hs-identifier hs-type">rootNameModule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-273"></span><span id="rootNameModule"><span class="annot"><span class="annottext">rootNameModule :: AbsolutePath -&gt; FilePath
+</span><a href="Agda.Interaction.FindFile.html#rootNameModule"><span class="hs-identifier hs-var hs-var">rootNameModule</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath
+</span><a href="Agda.Interaction.FindFile.html#dropAgdaExtension"><span class="hs-identifier hs-var">dropAgdaExtension</span></a></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; FilePath)
+-&gt; (AbsolutePath -&gt; FilePath) -&gt; AbsolutePath -&gt; FilePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(FilePath, FilePath) -&gt; FilePath
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">((FilePath, FilePath) -&gt; FilePath)
+-&gt; (AbsolutePath -&gt; (FilePath, FilePath))
+-&gt; AbsolutePath
+-&gt; FilePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; (FilePath, FilePath)
+</span><span class="hs-identifier hs-var">splitFileName</span></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; (FilePath, FilePath))
+-&gt; (AbsolutePath -&gt; FilePath)
+-&gt; AbsolutePath
+-&gt; (FilePath, FilePath)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span>
+</span><span id="line-274"></span></pre></body></html>

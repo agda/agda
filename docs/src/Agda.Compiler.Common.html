@@ -1,0 +1,541 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Compiler.Common.html"><span class="hs-identifier">Agda.Compiler.Common</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Compiler.Common.html"><span class="hs-identifier">Agda.Compiler.Common</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier">IsMain</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(!!)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">sortBy</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isPrefixOf</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.HashMap.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">HMap</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">I</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Imports.html"><span class="hs-identifier">Agda.Interaction.Imports</span></a></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Imports.html#CheckResult"><span class="hs-identifier">CheckResult</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Imports.html#crInterface"><span class="hs-identifier">crInterface</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Imports.html#crSource"><span class="hs-identifier">crSource</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Imports.html#Source"><span class="hs-identifier">Source</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.html"><span class="hs-identifier">Agda.Interaction.Library</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">TCM</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>          </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html"><span class="hs-identifier">Agda.Utils.WithDefault</span></a></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#lensCollapseDefault"><span class="hs-identifier">lensCollapseDefault</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span id="local-6989586621682234670"><span class="annot"><a href="Agda.Compiler.Common.html#doCompile"><span class="hs-identifier hs-type">doCompile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621682234670"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234670"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234670"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-42"></span><span id="doCompile"><span class="annot"><span class="annottext">doCompile :: forall r.
+Monoid r =&gt;
+(IsMain -&gt; Interface -&gt; TCM r) -&gt; IsMain -&gt; Interface -&gt; TCM r
+</span><a href="Agda.Compiler.Common.html#doCompile"><span class="hs-identifier hs-var hs-var">doCompile</span></a></span></span><span> </span><span id="local-6989586621682234922"><span class="annot"><span class="annottext">IsMain -&gt; Interface -&gt; TCM r
+</span><a href="#local-6989586621682234922"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621682234923"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682234923"><span class="hs-identifier hs-var">isMain</span></a></span></span><span> </span><span id="local-6989586621682234924"><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682234924"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><span class="annottext">(StateT (Set ModuleName) (TCMT IO) r -&gt; Set ModuleName -&gt; TCM r)
+-&gt; Set ModuleName -&gt; StateT (Set ModuleName) (TCMT IO) r -&gt; TCM r
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">StateT (Set ModuleName) (TCMT IO) r -&gt; Set ModuleName -&gt; TCM r
+forall (m :: * -&gt; *) s a. Monad m =&gt; StateT s m a -&gt; s -&gt; m a
+</span><span class="hs-identifier hs-var">evalStateT</span></span><span> </span><span class="annot"><span class="annottext">Set ModuleName
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span> </span><span class="annot"><span class="annottext">(StateT (Set ModuleName) (TCMT IO) r -&gt; TCM r)
+-&gt; StateT (Set ModuleName) (TCMT IO) r -&gt; TCM r
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">StateT (Set ModuleName) (TCMT IO) r
+-&gt; StateT (Set ModuleName) (TCMT IO) r
+</span><a href="#local-6989586621682234928"><span class="hs-identifier hs-var">compilePrim</span></a></span><span> </span><span class="annot"><span class="annottext">(StateT (Set ModuleName) (TCMT IO) r
+ -&gt; StateT (Set ModuleName) (TCMT IO) r)
+-&gt; StateT (Set ModuleName) (TCMT IO) r
+-&gt; StateT (Set ModuleName) (TCMT IO) r
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(IsMain -&gt; Interface -&gt; TCM r)
+-&gt; IsMain -&gt; Interface -&gt; StateT (Set ModuleName) (TCMT IO) r
+forall r.
+Monoid r =&gt;
+(IsMain -&gt; Interface -&gt; TCM r)
+-&gt; IsMain -&gt; Interface -&gt; StateT (Set ModuleName) (TCMT IO) r
+</span><a href="Agda.Compiler.Common.html#doCompile%27"><span class="hs-identifier hs-var">doCompile'</span></a></span><span> </span><span class="annot"><span class="annottext">IsMain -&gt; Interface -&gt; TCM r
+</span><a href="#local-6989586621682234922"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682234923"><span class="hs-identifier hs-var">isMain</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682234924"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-comment">-- The Agda.Primitive module is only loaded if the --no-load-primitives flag was not given,</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-comment">-- thus, only try to compile it if we have visited it.</span><span>
+</span><span id="line-47"></span><span>  </span><span id="local-6989586621682234928"><span class="annot"><span class="annottext">compilePrim :: StateT (Set ModuleName) (TCMT IO) r
+-&gt; StateT (Set ModuleName) (TCMT IO) r
+</span><a href="#local-6989586621682234928"><span class="hs-identifier hs-var hs-var">compilePrim</span></a></span></span><span> </span><span id="local-6989586621682234930"><span class="annot"><span class="annottext">StateT (Set ModuleName) (TCMT IO) r
+</span><a href="#local-6989586621682234930"><span class="hs-identifier hs-var">cont</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-48"></span><span>    </span><span id="local-6989586621682234931"><span class="annot"><a href="#local-6989586621682234931"><span class="hs-identifier hs-var">agdaPrim</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO (Maybe ModuleInfo)
+-&gt; StateT (Set ModuleName) (TCMT IO) (Maybe ModuleInfo)
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m a -&gt; StateT (Set ModuleName) m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(TCMT IO (Maybe ModuleInfo)
+ -&gt; StateT (Set ModuleName) (TCMT IO) (Maybe ModuleInfo))
+-&gt; TCMT IO (Maybe ModuleInfo)
+-&gt; StateT (Set ModuleName) (TCMT IO) (Maybe ModuleInfo)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>      </span><span id="local-6989586621682234933"><span class="annot"><a href="#local-6989586621682234933"><span class="hs-identifier hs-var">agdaPrim</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TCM TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.State.html#topLevelModuleName"><span class="hs-identifier hs-var">TCM.topLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+</span><a href="#local-6989586621682234935"><span class="hs-identifier hs-var">agdaPrim</span></a></span><span>
+</span><span id="line-50"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Map.lookup</span></span><span> </span><span class="annot"><a href="#local-6989586621682234933"><span class="hs-identifier hs-type">agdaPrim</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier hs-type">getVisitedModules</span></a></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621682234931"><span class="hs-identifier hs-type">agdaPrim</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-52"></span><span>      </span><span class="annot"><span class="annottext">Maybe ModuleInfo
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">StateT (Set ModuleName) (TCMT IO) r
+</span><a href="#local-6989586621682234930"><span class="hs-identifier hs-var">cont</span></a></span><span>
+</span><span id="line-53"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682234939"><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621682234939"><span class="hs-keyword hs-var">prim</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-54"></span><span>        </span><span class="annot"><span class="annottext">r -&gt; r -&gt; r
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">(r -&gt; r -&gt; r)
+-&gt; StateT (Set ModuleName) (TCMT IO) r
+-&gt; StateT (Set ModuleName) (TCMT IO) (r -&gt; r)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(IsMain -&gt; Interface -&gt; TCM r)
+-&gt; IsMain -&gt; Interface -&gt; StateT (Set ModuleName) (TCMT IO) r
+forall r.
+Monoid r =&gt;
+(IsMain -&gt; Interface -&gt; TCM r)
+-&gt; IsMain -&gt; Interface -&gt; StateT (Set ModuleName) (TCMT IO) r
+</span><a href="Agda.Compiler.Common.html#doCompile%27"><span class="hs-identifier hs-var">doCompile'</span></a></span><span> </span><span class="annot"><span class="annottext">IsMain -&gt; Interface -&gt; TCM r
+</span><a href="#local-6989586621682234922"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">IsMain
+</span><a href="Agda.Syntax.Common.html#NotMain"><span class="hs-identifier hs-var">NotMain</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleInfo -&gt; Interface
+</span><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621682234939"><span class="hs-keyword hs-var">prim</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">StateT (Set ModuleName) (TCMT IO) (r -&gt; r)
+-&gt; StateT (Set ModuleName) (TCMT IO) r
+-&gt; StateT (Set ModuleName) (TCMT IO) r
+forall a b.
+StateT (Set ModuleName) (TCMT IO) (a -&gt; b)
+-&gt; StateT (Set ModuleName) (TCMT IO) a
+-&gt; StateT (Set ModuleName) (TCMT IO) b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">StateT (Set ModuleName) (TCMT IO) r
+</span><a href="#local-6989586621682234930"><span class="hs-identifier hs-var">cont</span></a></span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-56"></span><span>    </span><span id="local-6989586621682234935"><span class="annot"><span class="annottext">agdaPrim :: RawTopLevelModuleName
+</span><a href="#local-6989586621682234935"><span class="hs-identifier hs-var hs-var">agdaPrim</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-57"></span><span>      </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">rawModuleNameRange :: Range
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameRange"><span class="hs-identifier hs-var">rawModuleNameRange</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-58"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameParts :: TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;Agda&quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Text] -&gt; TopLevelModuleNameParts
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;Primitive&quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Text] -&gt; [Text]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameInferred :: Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameInferred"><span class="hs-identifier hs-var">rawModuleNameInferred</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-60"></span><span>      </span><span class="hs-special">}</span><span>
+</span><span id="line-61"></span><span>      </span><span class="hs-comment">-- N.B. The Range in TopLevelModuleName is ignored for Ord, so we can set it to mempty.</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- This helper function is called for both `Agda.Primitive` and the module in question.</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- It's also called for each imported module, recursively. (Avoiding duplicates).</span><span>
+</span><span id="line-65"></span><span id="local-6989586621682234699"><span class="annot"><a href="Agda.Compiler.Common.html#doCompile%27"><span class="hs-identifier hs-type">doCompile'</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621682234699"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234699"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234699"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-68"></span><span id="doCompile%27"><span class="annot"><span class="annottext">doCompile' :: forall r.
+Monoid r =&gt;
+(IsMain -&gt; Interface -&gt; TCM r)
+-&gt; IsMain -&gt; Interface -&gt; StateT (Set ModuleName) (TCMT IO) r
+</span><a href="Agda.Compiler.Common.html#doCompile%27"><span class="hs-identifier hs-var hs-var">doCompile'</span></a></span></span><span> </span><span id="local-6989586621682234989"><span class="annot"><span class="annottext">IsMain -&gt; Interface -&gt; TCM r
+</span><a href="#local-6989586621682234989"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621682234990"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682234990"><span class="hs-identifier hs-var">isMain</span></a></span></span><span> </span><span id="local-6989586621682234991"><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682234991"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621682234992"><span class="annot"><a href="#local-6989586621682234992"><span class="hs-identifier hs-var">alreadyDone</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Set ModuleName -&gt; Bool) -&gt; StateT (Set ModuleName) (TCMT IO) Bool
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleName -&gt; Set ModuleName -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interface -&gt; ModuleName
+</span><a href="Agda.TypeChecking.Monad.Base.html#iModuleName"><span class="hs-identifier hs-var">iModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682234991"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621682234992"><span class="hs-identifier hs-type">alreadyDone</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">mempty</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-71"></span><span>    </span><span id="local-6989586621682234996"><span class="annot"><a href="#local-6989586621682234996"><span class="hs-identifier hs-var">imps</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">lift</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-72"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">catMaybes</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span>
+</span><span id="line-73"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">mapM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModule"><span class="hs-identifier hs-type">getVisitedModule</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">fst</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iImportedModules"><span class="hs-identifier hs-var">iImportedModules</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234991"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621682235003"><span class="annot"><a href="#local-6989586621682235003"><span class="hs-identifier hs-var">ri</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">mconcat</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">mapM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Common.html#doCompile%27"><span class="hs-identifier hs-type">doCompile'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234989"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NotMain"><span class="hs-identifier hs-type">NotMain</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682234996"><span class="hs-identifier hs-type">imps</span></a></span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">lift</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Compiler.Common.html#setInterface"><span class="hs-identifier hs-type">setInterface</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234991"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span id="local-6989586621682235005"><span class="annot"><a href="#local-6989586621682235005"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">lift</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621682234989"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234990"><span class="hs-identifier hs-type">isMain</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234991"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">modify</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set.insert</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iModuleName"><span class="hs-identifier hs-var">iModuleName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234991"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">mappend</span></span><span> </span><span class="annot"><a href="#local-6989586621682235003"><span class="hs-identifier hs-type">ri</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235005"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Agda.Compiler.Common.html#setInterface"><span class="hs-identifier hs-type">setInterface</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span id="setInterface"><span class="annot"><span class="annottext">setInterface :: Interface -&gt; TCMT IO ()
+</span><a href="Agda.Compiler.Common.html#setInterface"><span class="hs-identifier hs-var hs-var">setInterface</span></a></span></span><span> </span><span id="local-6989586621682235008"><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682235008"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-82"></span><span>  </span><span id="local-6989586621682235009"><span class="annot"><a href="#local-6989586621682235009"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; CommandLineOptions) -&gt; TCMT IO CommandLineOptions
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; (TCState -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#getsTC"><span class="hs-identifier hs-var">getsTC</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PersistentTCState -&gt; CommandLineOptions
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentOptions"><span class="hs-identifier hs-var">stPersistentOptions</span></a></span><span> </span><span class="annot"><span class="annottext">(PersistentTCState -&gt; CommandLineOptions)
+-&gt; (TCState -&gt; PersistentTCState) -&gt; TCState -&gt; CommandLineOptions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; PersistentTCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Options.html#setCommandLineOptions"><span class="hs-identifier hs-type">setCommandLineOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235009"><span class="hs-identifier hs-type">opts</span></a></span><span>
+</span><span id="line-84"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">mapM_</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Options.html#setOptionsFromPragma"><span class="hs-identifier hs-type">setOptionsFromPragma</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iDefaultPragmaOptions"><span class="hs-identifier hs-var">iDefaultPragmaOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235008"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iFilePragmaOptions"><span class="hs-identifier hs-var">iFilePragmaOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235008"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-comment">-- One could perhaps make the following command lazy. Note, however,</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-comment">-- that it doesn't suffice to replace setTCLens' with setTCLens,</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-comment">-- because the stPreImportedModules field is strict.</span><span>
+</span><span id="line-88"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stImportedModules"><span class="hs-identifier hs-type">stImportedModules</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens%27"><span class="hs-operator hs-type">`setTCLens'`</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Set.fromList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">fst</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iImportedModules"><span class="hs-identifier hs-var">iImportedModules</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235008"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stCurrentModule"><span class="hs-identifier hs-type">stCurrentModule</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens%27"><span class="hs-operator hs-type">`setTCLens'`</span></a></span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iModuleName"><span class="hs-identifier hs-var">iModuleName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235008"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iTopLevelModuleName"><span class="hs-identifier hs-var">iTopLevelModuleName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235008"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span id="local-6989586621682234772"><span class="annot"><a href="Agda.Compiler.Common.html#curIF"><span class="hs-identifier hs-type">curIF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234772"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682234772"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span></span><span>
+</span><span id="line-94"></span><span id="curIF"><span class="annot"><span class="annottext">curIF :: forall (m :: * -&gt; *). ReadTCState m =&gt; m Interface
+</span><a href="Agda.Compiler.Common.html#curIF"><span class="hs-identifier hs-var hs-var">curIF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621682235041"><span class="annot"><a href="#local-6989586621682235041"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m TopLevelModuleName
+forall (m :: * -&gt; *). ReadTCState m =&gt; m TopLevelModuleName
+</span><a href="Agda.Compiler.Common.html#curMName"><span class="hs-identifier hs-var">curMName</span></a></span><span>
+</span><span id="line-96"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">maybe</span></span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-type">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModule"><span class="hs-identifier hs-type">getVisitedModule</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235041"><span class="hs-identifier hs-type">name</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span id="local-6989586621682234775"><span class="annot"><a href="Agda.Compiler.Common.html#curMName"><span class="hs-identifier hs-type">curMName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234775"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682234775"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span></span><span>
+</span><span id="line-99"></span><span id="curMName"><span class="annot"><span class="annottext">curMName :: forall (m :: * -&gt; *). ReadTCState m =&gt; m TopLevelModuleName
+</span><a href="Agda.Compiler.Common.html#curMName"><span class="hs-identifier hs-var hs-var">curMName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+-&gt; ((ModuleName, TopLevelModuleName) -&gt; TopLevelModuleName)
+-&gt; Maybe (ModuleName, TopLevelModuleName)
+-&gt; TopLevelModuleName
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleName, TopLevelModuleName) -&gt; TopLevelModuleName
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">(Maybe (ModuleName, TopLevelModuleName) -&gt; TopLevelModuleName)
+-&gt; m (Maybe (ModuleName, TopLevelModuleName))
+-&gt; m TopLevelModuleName
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState (Maybe (ModuleName, TopLevelModuleName))
+-&gt; m (Maybe (ModuleName, TopLevelModuleName))
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (ModuleName, TopLevelModuleName)
+ -&gt; f (Maybe (ModuleName, TopLevelModuleName)))
+-&gt; TCState -&gt; f TCState
+Lens' TCState (Maybe (ModuleName, TopLevelModuleName))
+</span><a href="Agda.TypeChecking.Monad.Base.html#stCurrentModule"><span class="hs-identifier hs-var">stCurrentModule</span></a></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span id="local-6989586621682234785"><span class="annot"><a href="Agda.Compiler.Common.html#curDefs"><span class="hs-identifier hs-type">curDefs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234785"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682234785"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definitions"><span class="hs-identifier hs-type">Definitions</span></a></span></span><span>
+</span><span id="line-102"></span><span id="curDefs"><span class="annot"><span class="annottext">curDefs :: forall (m :: * -&gt; *). ReadTCState m =&gt; m Definitions
+</span><a href="Agda.Compiler.Common.html#curDefs"><span class="hs-identifier hs-var hs-var">curDefs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Definition -&gt; Bool) -&gt; Definitions -&gt; Definitions
+forall v k. (v -&gt; Bool) -&gt; HashMap k v -&gt; HashMap k v
+</span><span class="hs-identifier hs-var">HMap.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (Definition -&gt; Bool) -&gt; Definition -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Definition -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Base.html#defNoCompilation"><span class="hs-identifier hs-var">defNoCompilation</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Definitions -&gt; Definitions)
+-&gt; (Interface -&gt; Definitions) -&gt; Interface -&gt; Definitions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Signature -&gt; Lens' Signature Definitions -&gt; Definitions
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(Definitions -&gt; f Definitions) -&gt; Signature -&gt; f Signature
+Lens' Signature Definitions
+</span><a href="Agda.TypeChecking.Monad.Base.html#sigDefinitions"><span class="hs-identifier hs-var">sigDefinitions</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Signature -&gt; Definitions)
+-&gt; (Interface -&gt; Signature) -&gt; Interface -&gt; Definitions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Interface -&gt; Signature
+</span><a href="Agda.TypeChecking.Monad.Base.html#iSignature"><span class="hs-identifier hs-var">iSignature</span></a></span><span> </span><span class="annot"><span class="annottext">(Interface -&gt; Definitions) -&gt; m Interface -&gt; m Definitions
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m Interface
+forall (m :: * -&gt; *). ReadTCState m =&gt; m Interface
+</span><a href="Agda.Compiler.Common.html#curIF"><span class="hs-identifier hs-var">curIF</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Agda.Compiler.Common.html#sortDefs"><span class="hs-identifier hs-type">sortDefs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definitions"><span class="hs-identifier hs-type">Definitions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier hs-type">Definition</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-105"></span><span id="sortDefs"><span class="annot"><span class="annottext">sortDefs :: Definitions -&gt; [(QName, Definition)]
+</span><a href="Agda.Compiler.Common.html#sortDefs"><span class="hs-identifier hs-var hs-var">sortDefs</span></a></span></span><span> </span><span id="local-6989586621682235075"><span class="annot"><span class="annottext">Definitions
+</span><a href="#local-6989586621682235075"><span class="hs-identifier hs-var">defs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-comment">-- The list is sorted to ensure that the order of the generated</span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-comment">-- definitions does not depend on things like the number of bits</span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-comment">-- in an Int (see Issue 1900).</span><span>
+</span><span id="line-109"></span><span>  </span><span class="annot"><span class="annottext">((QName, Definition) -&gt; (QName, Definition) -&gt; Ordering)
+-&gt; [(QName, Definition)] -&gt; [(QName, Definition)]
+forall a. (a -&gt; a -&gt; Ordering) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">sortBy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; QName -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; QName -&gt; Ordering)
+-&gt; ((QName, Definition) -&gt; QName)
+-&gt; (QName, Definition)
+-&gt; (QName, Definition)
+-&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">(QName, Definition) -&gt; QName
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(QName, Definition)] -&gt; [(QName, Definition)])
+-&gt; [(QName, Definition)] -&gt; [(QName, Definition)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-110"></span><span>  </span><span class="annot"><span class="annottext">Definitions -&gt; [(QName, Definition)]
+forall k v. HashMap k v -&gt; [(k, v)]
+</span><span class="hs-identifier hs-var">HMap.toList</span></span><span> </span><span class="annot"><span class="annottext">Definitions
+</span><a href="#local-6989586621682235075"><span class="hs-identifier hs-var">defs</span></a></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span id="local-6989586621682234804"><span class="annot"><a href="Agda.Compiler.Common.html#compileDir"><span class="hs-identifier hs-type">compileDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234804"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682234804"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span></span><span>
+</span><span id="line-113"></span><span id="compileDir"><span class="annot"><span class="annottext">compileDir :: forall (m :: * -&gt; *). HasOptions m =&gt; m String
+</span><a href="Agda.Compiler.Common.html#compileDir"><span class="hs-identifier hs-var hs-var">compileDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-114"></span><span>  </span><span id="local-6989586621682235091"><span class="annot"><a href="#local-6989586621682235091"><span class="hs-identifier hs-var">mdir</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; Maybe String
+</span><a href="Agda.Interaction.Options.Types.html#optCompileDir"><span class="hs-identifier hs-var">optCompileDir</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; Maybe String)
+-&gt; m CommandLineOptions -&gt; m (Maybe String)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m CommandLineOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m CommandLineOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#commandLineOptions"><span class="hs-identifier hs-var">commandLineOptions</span></a></span><span>
+</span><span id="line-115"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">maybe</span></span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-type">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682235091"><span class="hs-identifier hs-type">mdir</span></a></span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Agda.Compiler.Common.html#repl"><span class="hs-identifier hs-type">repl</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-119"></span><span id="repl"><span class="annot"><span class="annottext">repl :: [String] -&gt; String -&gt; String
+</span><a href="Agda.Compiler.Common.html#repl"><span class="hs-identifier hs-var hs-var">repl</span></a></span></span><span> </span><span id="local-6989586621682235095"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621682235095"><span class="hs-identifier hs-var">subs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621682235096"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-120"></span><span>  </span><span id="local-6989586621682235096"><span class="annot"><span class="annottext">go :: String -&gt; String
+</span><a href="#local-6989586621682235096"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&lt;'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&lt;'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621682235097"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682235097"><span class="hs-identifier hs-var">c</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&gt;'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&gt;'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621682235098"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682235098"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682235100"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682235100"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621682235095"><span class="hs-identifier hs-var">subs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621682235095"><span class="hs-identifier hs-var">subs</span></a></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Int -&gt; String
+forall a. HasCallStack =&gt; [a] -&gt; Int -&gt; a
+</span><a href="Agda.Utils.List.html#%21%21"><span class="hs-operator hs-var">!!</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682235100"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621682235096"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682235098"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-121"></span><span>     </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621682235100"><span class="annot"><span class="annottext">i :: Int
+</span><a href="#local-6989586621682235100"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682235097"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'0'</span></span><span>
+</span><span id="line-122"></span><span>  </span><span class="annot"><a href="#local-6989586621682235096"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682235106"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682235106"><span class="hs-identifier hs-var">c</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621682235107"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682235107"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682235106"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; String -&gt; String
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621682235096"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682235107"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-123"></span><span>  </span><span class="annot"><a href="#local-6989586621682235096"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="annot"><span class="hs-comment">-- | Sets up the compilation environment.</span></span><span>
+</span><span id="line-127"></span><span id="local-6989586621682234813"><span class="annot"><a href="Agda.Compiler.Common.html#inCompilerEnv"><span class="hs-identifier hs-type">inCompilerEnv</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Imports.html#CheckResult"><span class="hs-identifier hs-type">CheckResult</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234813"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234813"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-128"></span><span id="inCompilerEnv"><span class="annot"><span class="annottext">inCompilerEnv :: forall a. CheckResult -&gt; TCM a -&gt; TCM a
+</span><a href="Agda.Compiler.Common.html#inCompilerEnv"><span class="hs-identifier hs-var hs-var">inCompilerEnv</span></a></span></span><span> </span><span id="local-6989586621682235166"><span class="annot"><span class="annottext">CheckResult
+</span><a href="#local-6989586621682235166"><span class="hs-identifier hs-var">checkResult</span></a></span></span><span> </span><span id="local-6989586621682235167"><span class="annot"><span class="annottext">TCM a
+</span><a href="#local-6989586621682235167"><span class="hs-identifier hs-var">cont</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682235168"><span class="annot"><span class="annottext">mainI :: Interface
+</span><a href="#local-6989586621682235168"><span class="hs-identifier hs-var hs-var hs-var">mainI</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CheckResult -&gt; Interface
+</span><a href="Agda.Interaction.Imports.html#crInterface"><span class="hs-identifier hs-var">crInterface</span></a></span><span> </span><span class="annot"><span class="annottext">CheckResult
+</span><a href="#local-6989586621682235166"><span class="hs-identifier hs-var">checkResult</span></a></span><span>
+</span><span id="line-130"></span><span>      </span><span id="local-6989586621682235169"><span class="annot"><span class="annottext">checkedSource :: Source
+</span><a href="#local-6989586621682235169"><span class="hs-identifier hs-var hs-var hs-var">checkedSource</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CheckResult -&gt; Source
+</span><a href="Agda.Interaction.Imports.html#crSource"><span class="hs-identifier hs-var">crSource</span></a></span><span> </span><span class="annot"><span class="annottext">CheckResult
+</span><a href="#local-6989586621682235166"><span class="hs-identifier hs-var">checkResult</span></a></span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-comment">-- Preserve the state (the compiler modifies the state).</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-comment">-- Andreas, 2014-03-23 But we might want to collect Benchmark info,</span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-comment">-- so use localTCState.</span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-comment">-- FNF, 2017-02-22 we also want to keep the warnings we have encountered,</span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-comment">-- so use localTCStateSaving and pick them out.</span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621682235170"><span class="annot"><a href="#local-6989586621682235170"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span id="local-6989586621682235171"><span class="annot"><a href="#local-6989586621682235171"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCM a -&gt; TCM (a, TCState)
+forall a. TCM a -&gt; TCM (a, TCState)
+</span><a href="Agda.TypeChecking.Monad.State.html#localTCStateSaving"><span class="hs-identifier hs-var">localTCStateSaving</span></a></span><span> </span><span class="annot"><span class="annottext">(TCM a -&gt; TCM (a, TCState)) -&gt; TCM a -&gt; TCM (a, TCState)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span>    </span><span class="hs-comment">-- Compute the output directory. Note: using commandLineOptions would make</span><span>
+</span><span id="line-140"></span><span>    </span><span class="hs-comment">-- the current pragma options persistent when we setCommandLineOptions</span><span>
+</span><span id="line-141"></span><span>    </span><span class="hs-comment">-- below.</span><span>
+</span><span id="line-142"></span><span>    </span><span id="local-6989586621682235173"><span class="annot"><a href="#local-6989586621682235173"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; CommandLineOptions) -&gt; TCMT IO CommandLineOptions
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; (TCState -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#getsTC"><span class="hs-identifier hs-var">getsTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; CommandLineOptions) -&gt; TCMT IO CommandLineOptions)
+-&gt; (TCState -&gt; CommandLineOptions) -&gt; TCMT IO CommandLineOptions
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; CommandLineOptions
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentOptions"><span class="hs-identifier hs-var">stPersistentOptions</span></a></span><span> </span><span class="annot"><span class="annottext">(PersistentTCState -&gt; CommandLineOptions)
+-&gt; (TCState -&gt; PersistentTCState) -&gt; TCState -&gt; CommandLineOptions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; PersistentTCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span>
+</span><span id="line-143"></span><span>    </span><span id="local-6989586621682235174"><span class="annot"><a href="#local-6989586621682235174"><span class="hs-identifier hs-var">compileDir</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optCompileDir"><span class="hs-identifier hs-var">optCompileDir</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235173"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-144"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682235175"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682235175"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; TCMT IO String
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682235175"><span class="hs-identifier hs-var">dir</span></a></span><span>
+</span><span id="line-145"></span><span>        </span><span class="annot"><span class="annottext">Maybe String
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-146"></span><span>          </span><span class="hs-comment">-- The default output directory is the project root.</span><span>
+</span><span id="line-147"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682235176"><span class="annot"><span class="annottext">tm :: TopLevelModuleName
+</span><a href="#local-6989586621682235176"><span class="hs-identifier hs-var hs-var hs-var">tm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Interface -&gt; TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Base.html#iTopLevelModuleName"><span class="hs-identifier hs-var">iTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682235168"><span class="hs-identifier hs-var">mainI</span></a></span><span>
+</span><span id="line-148"></span><span>          </span><span id="local-6989586621682235177"><span class="annot"><a href="#local-6989586621682235177"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SourceFile -&gt; TCMT IO AbsolutePath
+forall (m :: * -&gt; *). MonadFileId m =&gt; SourceFile -&gt; m AbsolutePath
+</span><a href="Agda.TypeChecking.Monad.Base.html#srcFilePath"><span class="hs-identifier hs-var">srcFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">(SourceFile -&gt; TCMT IO AbsolutePath)
+-&gt; SourceFile -&gt; TCMT IO AbsolutePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Source -&gt; SourceFile
+</span><a href="Agda.Interaction.Imports.html#srcOrigin"><span class="hs-identifier hs-var">srcOrigin</span></a></span><span> </span><span class="annot"><span class="annottext">Source
+</span><a href="#local-6989586621682235169"><span class="hs-identifier hs-var">checkedSource</span></a></span><span>
+</span><span id="line-149"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-type">filePath</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#projectRoot"><span class="hs-identifier hs-type">projectRoot</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235177"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235176"><span class="hs-identifier hs-type">tm</span></a></span><span>
+</span><span id="line-150"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Options.html#setCommandLineOptions"><span class="hs-identifier hs-type">setCommandLineOptions</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-151"></span><span>      </span><span class="annot"><a href="#local-6989586621682235173"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optCompileDir"><span class="hs-identifier hs-var">optCompileDir</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="#local-6989586621682235174"><span class="hs-identifier hs-type">compileDir</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span>    </span><span class="hs-comment">-- Andreas, 2017-08-23, issue #2714 recover pragma option --no-main</span><span>
+</span><span id="line-154"></span><span>    </span><span class="hs-comment">-- Unfortunately, a pragma option is stored in the interface file as</span><span>
+</span><span id="line-155"></span><span>    </span><span class="hs-comment">-- just a list of strings, thus, the solution is a bit of hack:</span><span>
+</span><span id="line-156"></span><span>    </span><span class="hs-comment">-- We match on whether @[&quot;--no-main&quot;]@ is one of the stored options.</span><span>
+</span><span id="line-157"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682235182"><span class="annot"><a href="#local-6989586621682235182"><span class="hs-identifier hs-var hs-var">iFilePragmaStrings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(OptionsPragma -&gt; [String]) -&gt; [OptionsPragma] -&gt; [[String]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">OptionsPragma -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#pragmaStrings"><span class="hs-identifier hs-var">pragmaStrings</span></a></span><span> </span><span class="annot"><span class="annottext">([OptionsPragma] -&gt; [[String]])
+-&gt; (Interface -&gt; [OptionsPragma]) -&gt; Interface -&gt; [[String]]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Interface -&gt; [OptionsPragma]
+</span><a href="Agda.TypeChecking.Monad.Base.html#iFilePragmaOptions"><span class="hs-identifier hs-var">iFilePragmaOptions</span></a></span><span>
+</span><span id="line-158"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">when</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;--no-main&quot;</span></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="hs-operator hs-type">`elem`</span></span><span> </span><span class="annot"><a href="#local-6989586621682235182"><span class="hs-identifier hs-type">iFilePragmaStrings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235168"><span class="hs-identifier hs-type">mainI</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-159"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-identifier hs-type">setTCLens</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPragmaOptions"><span class="hs-identifier hs-type">stPragmaOptions</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#lensOptCompileMain"><span class="hs-identifier hs-type">lensOptCompileMain</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#lensCollapseDefault"><span class="hs-identifier hs-type">lensCollapseDefault</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-comment">-- Perhaps all pragma options from the top-level module should be</span><span>
+</span><span id="line-162"></span><span>    </span><span class="hs-comment">-- made available to the compiler in a suitable way. Here are more</span><span>
+</span><span id="line-163"></span><span>    </span><span class="hs-comment">-- hacks:</span><span>
+</span><span id="line-164"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">flip</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">elem</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;--cubical&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;--cubical=full&quot;</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621682235182"><span class="hs-identifier hs-type">iFilePragmaStrings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235168"><span class="hs-identifier hs-type">mainI</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-165"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-identifier hs-type">setTCLens</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPragmaOptions"><span class="hs-identifier hs-type">stPragmaOptions</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#lensOptCubical"><span class="hs-identifier hs-type">lensOptCubical</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#CFull"><span class="hs-identifier hs-type">CFull</span></a></span><span>
+</span><span id="line-166"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">flip</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">elem</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;--erased-cubical&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;--cubical=erased&quot;</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621682235182"><span class="hs-identifier hs-type">iFilePragmaStrings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235168"><span class="hs-identifier hs-type">mainI</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-167"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-identifier hs-type">setTCLens</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPragmaOptions"><span class="hs-identifier hs-type">stPragmaOptions</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#lensOptCubical"><span class="hs-identifier hs-type">lensOptCubical</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#CErased"><span class="hs-identifier hs-type">CErased</span></a></span><span>
+</span><span id="line-168"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;--cubical=no-glue&quot;</span></span><span> </span><span class="annot"><span class="hs-operator">`elem`</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621682235182"><span class="hs-identifier hs-type">iFilePragmaStrings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235168"><span class="hs-identifier hs-type">mainI</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-169"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-identifier hs-type">setTCLens</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPragmaOptions"><span class="hs-identifier hs-type">stPragmaOptions</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#lensOptCubical"><span class="hs-identifier hs-type">lensOptCubical</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#CWithoutGlue"><span class="hs-identifier hs-type">CWithoutGlue</span></a></span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html#setScope"><span class="hs-identifier hs-type">setScope</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iInsideScope"><span class="hs-identifier hs-var">iInsideScope</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235168"><span class="hs-identifier hs-type">mainI</span></a></span><span> </span><span class="hs-comment">-- so that compiler errors don't use overly qualified names</span><span>
+</span><span id="line-172"></span><span>    </span><span class="hs-comment">-- Andr&#225;s, 2025-08-30: this is a fresh creation of a scope from an interface</span><span>
+</span><span id="line-173"></span><span>    </span><span class="hs-comment">-- so inverse scopes don't yet exist.</span><span>
+</span><span id="line-174"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html#recomputeInverseScope"><span class="hs-identifier hs-type">recomputeInverseScope</span></a></span><span>
+</span><span id="line-175"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#ignoreAbstractMode"><span class="hs-identifier hs-type">ignoreAbstractMode</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235167"><span class="hs-identifier hs-type">cont</span></a></span><span>
+</span><span id="line-176"></span><span>  </span><span class="hs-comment">-- keep generated warnings</span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682235215"><span class="annot"><a href="#local-6989586621682235215"><span class="hs-identifier hs-var hs-var">newWarnings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PostScopeState -&gt; Set TCWarning
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPostTCWarnings"><span class="hs-identifier hs-var">stPostTCWarnings</span></a></span><span> </span><span class="annot"><span class="annottext">(PostScopeState -&gt; Set TCWarning)
+-&gt; PostScopeState -&gt; Set TCWarning
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>  </span><span class="annot"><span class="annottext">TCState -&gt; PostScopeState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPostScopeState"><span class="hs-identifier hs-var">stPostScopeState</span></a></span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; PostScopeState) -&gt; TCState -&gt; PostScopeState
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621682235171"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-178"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stTCWarnings"><span class="hs-identifier hs-type">stTCWarnings</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-operator hs-type">`setTCLens`</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682235215"><span class="hs-identifier hs-type">newWarnings</span></a></span><span>
+</span><span id="line-179"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682235170"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span id="local-6989586621682234855"><span class="annot"><a href="Agda.Compiler.Common.html#topLevelModuleName"><span class="hs-identifier hs-type">topLevelModuleName</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-182"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682234855"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682234855"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span></span><span>
+</span><span id="line-183"></span><span id="topLevelModuleName"><span class="annot"><span class="annottext">topLevelModuleName :: forall (m :: * -&gt; *).
+ReadTCState m =&gt;
+ModuleName -&gt; m TopLevelModuleName
+</span><a href="Agda.Compiler.Common.html#topLevelModuleName"><span class="hs-identifier hs-var hs-var">topLevelModuleName</span></a></span></span><span> </span><span id="local-6989586621682235235"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621682235235"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-184"></span><span>  </span><span class="hs-comment">-- Interfaces of visited modules.</span><span>
+</span><span id="line-185"></span><span>  </span><span id="local-6989586621682235236"><span class="annot"><a href="#local-6989586621682235236"><span class="hs-identifier hs-var">visited</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(ModuleInfo -&gt; Interface) -&gt; [ModuleInfo] -&gt; [Interface]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">ModuleInfo -&gt; Interface
+</span><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span> </span><span class="annot"><span class="annottext">([ModuleInfo] -&gt; [Interface])
+-&gt; (Map TopLevelModuleName ModuleInfo -&gt; [ModuleInfo])
+-&gt; Map TopLevelModuleName ModuleInfo
+-&gt; [Interface]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map TopLevelModuleName ModuleInfo -&gt; [ModuleInfo]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map TopLevelModuleName ModuleInfo -&gt; [Interface])
+-&gt; m (Map TopLevelModuleName ModuleInfo) -&gt; m [Interface]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (Map TopLevelModuleName ModuleInfo)
+forall (m :: * -&gt; *).
+ReadTCState m =&gt;
+m (Map TopLevelModuleName ModuleInfo)
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier hs-var">getVisitedModules</span></a></span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-comment">-- find the module with the longest matching prefix to m</span><span>
+</span><span id="line-187"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682235238"><span class="annot"><a href="#local-6989586621682235238"><span class="hs-identifier hs-var hs-var">is</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Interface -&gt; Interface -&gt; Ordering) -&gt; [Interface] -&gt; [Interface]
+forall a. (a -&gt; a -&gt; Ordering) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">sortBy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int -&gt; Ordering)
+-&gt; (Interface -&gt; Int) -&gt; Interface -&gt; Interface -&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Name] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; Int) -&gt; (Interface -&gt; [Name]) -&gt; Interface -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; [Name]
+</span><a href="Agda.Syntax.Abstract.Name.html#mnameToList"><span class="hs-identifier hs-var">mnameToList</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleName -&gt; [Name])
+-&gt; (Interface -&gt; ModuleName) -&gt; Interface -&gt; [Name]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Interface -&gt; ModuleName
+</span><a href="Agda.TypeChecking.Monad.Base.html#iModuleName"><span class="hs-identifier hs-var">iModuleName</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Interface] -&gt; [Interface]) -&gt; [Interface] -&gt; [Interface]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-188"></span><span>           </span><span class="annot"><span class="annottext">(Interface -&gt; Bool) -&gt; [Interface] -&gt; [Interface]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621682235240"><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682235240"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; [Name]
+</span><a href="Agda.Syntax.Abstract.Name.html#mnameToList"><span class="hs-identifier hs-var">mnameToList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interface -&gt; ModuleName
+</span><a href="Agda.TypeChecking.Monad.Base.html#iModuleName"><span class="hs-identifier hs-var">iModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682235240"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; [Name] -&gt; Bool
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Bool
+</span><span class="hs-operator hs-var">`isPrefixOf`</span></span><span>
+</span><span id="line-189"></span><span>                         </span><span class="annot"><span class="annottext">ModuleName -&gt; [Name]
+</span><a href="Agda.Syntax.Abstract.Name.html#mnameToList"><span class="hs-identifier hs-var">mnameToList</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621682235235"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span>             </span><span class="annot"><span class="annottext">[Interface]
+</span><a href="#local-6989586621682235236"><span class="hs-identifier hs-var">visited</span></a></span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621682235238"><span class="hs-identifier hs-type">is</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-192"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621682235241"><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682235241"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[Interface]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; m TopLevelModuleName
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interface -&gt; TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Base.html#iTopLevelModuleName"><span class="hs-identifier hs-var">iTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621682235241"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-193"></span><span>    </span><span class="hs-comment">-- if we did not get anything, it may be because m is a section</span><span>
+</span><span id="line-194"></span><span>    </span><span class="hs-comment">-- (a module _ ), see e.g. #1866</span><span>
+</span><span id="line-195"></span><span>    </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m TopLevelModuleName
+forall (m :: * -&gt; *). ReadTCState m =&gt; m TopLevelModuleName
+</span><a href="Agda.Compiler.Common.html#curMName"><span class="hs-identifier hs-var">curMName</span></a></span><span>
+</span><span id="line-196"></span></pre></body></html>

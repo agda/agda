@@ -1,0 +1,768 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE ImplicitParams             #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html"><span class="hs-identifier">Agda.Termination.CallMatrix</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- module Agda.Termination.CallMatrix</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--   ( CallMatrix'(..), CallMatrix</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--   , callMatrix</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--   , CallComb(..)</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--   , tests</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--   ) where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Termination.CutOff.html"><span class="hs-identifier">Agda.Termination.CutOff</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Termination.Order.html"><span class="hs-identifier">Agda.Termination.Order</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Order</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Termination.SparseMatrix.html"><span class="hs-identifier">Agda.Termination.SparseMatrix</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Matrix</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Termination.Semiring.html"><span class="hs-identifier">Agda.Termination.Semiring</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.Semiring.html#HasZero"><span class="hs-identifier">HasZero</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html"><span class="hs-identifier">Agda.Utils.Favorites</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier">Favorites</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html"><span class="hs-identifier">Agda.Utils.Favorites</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Fav</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html"><span class="hs-identifier">Agda.Utils.PartialOrd</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--  * Call matrices</span><span>
+</span><span id="line-30"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | Call matrix indices = function argument indices.</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   Machine integer 'Int' is sufficient, since we cannot index more arguments</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--   than we have addresses on our machine.</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">type</span><span> </span><span id="ArgumentIndex"><span class="annot"><a href="Agda.Termination.CallMatrix.html#ArgumentIndex"><span class="hs-identifier hs-var">ArgumentIndex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | Call matrices.</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   A call matrix for a call @f --&gt; g@ has dimensions @ar(g) &#215; ar(f)@.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--   Each column corresponds to one formal argument of caller @f@.</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   Each row corresponds to one argument in the call to @g@.</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   In the presence of dot patterns, a call argument can be related</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--   to /several/ different formal arguments of @f@.</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--   See e.g. @test/succeed/DotPatternTermination.agda@:</span><span>
+</span><span id="line-50"></span><span class="hs-comment">--</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--     data D : Nat -&gt; Set where</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--       cz : D zero</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--       c1 : forall n -&gt; D n -&gt; D (suc n)</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--       c2 : forall n -&gt; D n -&gt; D n</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--     f : forall n -&gt; D n -&gt; Nat</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--     f .zero    cz        = zero</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--     f .(suc n) (c1  n d) = f n (c2 n d)</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--     f n        (c2 .n d) = f n d</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--   Call matrices (without guardedness) are</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--           -1 -1   n &lt; suc n  and       n &lt;  c1 n d</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--            ?  =                   c2 n d &lt;= c1 n d</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--            = -1   n &lt;= n     and  n &lt; c2 n d</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--            ? -1                   d &lt; c2 n d</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--   Here is a part of the original documentation for call matrices</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--   (kept for historical reasons):</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   This datatype encodes information about a single recursive</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--   function application. The columns of the call matrix stand for</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--   'source' function arguments (patterns). The rows of the matrix stand for</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--   'target' function arguments. Element @(i, j)@ in the matrix should</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--   be computed as follows:</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--     * 'Order.lt' (less than) if the @j@-th argument to the 'target'</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--       function is structurally strictly smaller than the @i@-th</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--       pattern.</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--     * 'Order.le' (less than or equal) if the @j@-th argument to the</span><span>
+</span><span id="line-87"></span><span class="hs-comment">--       'target' function is structurally smaller than the @i@-th</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--       pattern.</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--     * 'Order.unknown' otherwise.</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-keyword">newtype</span><span> </span><span id="CallMatrix%27"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix%27"><span class="hs-identifier hs-var">CallMatrix'</span></a></span></span><span> </span><span id="local-6989586621681733244"><span class="annot"><a href="#local-6989586621681733244"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CallMatrix"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-var">CallMatrix</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="mat"><span class="annot"><span class="annottext">forall a. CallMatrix' a -&gt; Matrix ArgumentIndex a
+</span><a href="Agda.Termination.CallMatrix.html#mat"><span class="hs-identifier hs-var hs-var">mat</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.SparseMatrix.html#Matrix"><span class="hs-identifier hs-type">Matrix</span></a></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#ArgumentIndex"><span class="hs-identifier hs-type">ArgumentIndex</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733244"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681733454"><span id="local-6989586621681733460"><span class="annot"><span class="annottext">CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+(CallMatrix' a -&gt; CallMatrix' a -&gt; Bool)
+-&gt; (CallMatrix' a -&gt; CallMatrix' a -&gt; Bool) -&gt; Eq (CallMatrix' a)
+forall a. Eq a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+== :: CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+/= :: CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733473"><span id="local-6989586621681733479"><span id="local-6989586621681733484"><span id="local-6989586621681733489"><span id="local-6989586621681733494"><span id="local-6989586621681733499"><span id="local-6989586621681733504"><span class="annot"><span class="annottext">Eq (CallMatrix' a)
+Eq (CallMatrix' a) =&gt;
+(CallMatrix' a -&gt; CallMatrix' a -&gt; Ordering)
+-&gt; (CallMatrix' a -&gt; CallMatrix' a -&gt; Bool)
+-&gt; (CallMatrix' a -&gt; CallMatrix' a -&gt; Bool)
+-&gt; (CallMatrix' a -&gt; CallMatrix' a -&gt; Bool)
+-&gt; (CallMatrix' a -&gt; CallMatrix' a -&gt; Bool)
+-&gt; (CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a)
+-&gt; (CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a)
+-&gt; Ord (CallMatrix' a)
+CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+CallMatrix' a -&gt; CallMatrix' a -&gt; Ordering
+CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall a. Ord a =&gt; Eq (CallMatrix' a)
+forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Ordering
+forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a
+$ccompare :: forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Ordering
+compare :: CallMatrix' a -&gt; CallMatrix' a -&gt; Ordering
+$c&lt; :: forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+&lt; :: CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+$c&lt;= :: forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+&lt;= :: CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+$c&gt; :: forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+&gt; :: CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+$c&gt;= :: forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+&gt;= :: CallMatrix' a -&gt; CallMatrix' a -&gt; Bool
+$cmax :: forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a
+max :: CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a
+$cmin :: forall a. Ord a =&gt; CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a
+min :: CallMatrix' a -&gt; CallMatrix' a -&gt; CallMatrix' a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733521"><span id="local-6989586621681733528"><span id="local-6989586621681733532"><span class="annot"><span class="annottext">ArgumentIndex -&gt; CallMatrix' a -&gt; ShowS
+[CallMatrix' a] -&gt; ShowS
+CallMatrix' a -&gt; String
+(ArgumentIndex -&gt; CallMatrix' a -&gt; ShowS)
+-&gt; (CallMatrix' a -&gt; String)
+-&gt; ([CallMatrix' a] -&gt; ShowS)
+-&gt; Show (CallMatrix' a)
+forall a.
+(HasZero a, Show a) =&gt;
+ArgumentIndex -&gt; CallMatrix' a -&gt; ShowS
+forall a. (HasZero a, Show a) =&gt; [CallMatrix' a] -&gt; ShowS
+forall a. (HasZero a, Show a) =&gt; CallMatrix' a -&gt; String
+forall a.
+(ArgumentIndex -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a.
+(HasZero a, Show a) =&gt;
+ArgumentIndex -&gt; CallMatrix' a -&gt; ShowS
+showsPrec :: ArgumentIndex -&gt; CallMatrix' a -&gt; ShowS
+$cshow :: forall a. (HasZero a, Show a) =&gt; CallMatrix' a -&gt; String
+show :: CallMatrix' a -&gt; String
+$cshowList :: forall a. (HasZero a, Show a) =&gt; [CallMatrix' a] -&gt; ShowS
+showList :: [CallMatrix' a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733539"><span id="local-6989586621681733544"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; CallMatrix' a -&gt; CallMatrix' b)
+-&gt; (forall a b. a -&gt; CallMatrix' b -&gt; CallMatrix' a)
+-&gt; Functor CallMatrix'
+forall a b. a -&gt; CallMatrix' b -&gt; CallMatrix' a
+forall a b. (a -&gt; b) -&gt; CallMatrix' a -&gt; CallMatrix' b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; CallMatrix' a -&gt; CallMatrix' b
+fmap :: forall a b. (a -&gt; b) -&gt; CallMatrix' a -&gt; CallMatrix' b
+$c&lt;$ :: forall a b. a -&gt; CallMatrix' b -&gt; CallMatrix' a
+&lt;$ :: forall a b. a -&gt; CallMatrix' b -&gt; CallMatrix' a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733551"><span id="local-6989586621681733558"><span id="local-6989586621681733564"><span id="local-6989586621681733570"><span id="local-6989586621681733574"><span id="local-6989586621681733578"><span id="local-6989586621681733582"><span id="local-6989586621681733586"><span id="local-6989586621681733590"><span id="local-6989586621681733594"><span id="local-6989586621681733598"><span id="local-6989586621681733602"><span id="local-6989586621681733606"><span id="local-6989586621681733612"><span id="local-6989586621681733618"><span id="local-6989586621681733624"><span id="local-6989586621681733630"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; CallMatrix' m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; CallMatrix' a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; CallMatrix' a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; CallMatrix' a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; CallMatrix' a -&gt; a)
+-&gt; (forall a. CallMatrix' a -&gt; [a])
+-&gt; (forall a. CallMatrix' a -&gt; Bool)
+-&gt; (forall a. CallMatrix' a -&gt; ArgumentIndex)
+-&gt; (forall a. Eq a =&gt; a -&gt; CallMatrix' a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; CallMatrix' a -&gt; a)
+-&gt; (forall a. Ord a =&gt; CallMatrix' a -&gt; a)
+-&gt; (forall a. Num a =&gt; CallMatrix' a -&gt; a)
+-&gt; (forall a. Num a =&gt; CallMatrix' a -&gt; a)
+-&gt; Foldable CallMatrix'
+forall a. Eq a =&gt; a -&gt; CallMatrix' a -&gt; Bool
+forall a. Num a =&gt; CallMatrix' a -&gt; a
+forall a. Ord a =&gt; CallMatrix' a -&gt; a
+forall m. Monoid m =&gt; CallMatrix' m -&gt; m
+forall a. CallMatrix' a -&gt; Bool
+forall a. CallMatrix' a -&gt; ArgumentIndex
+forall a. CallMatrix' a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; CallMatrix' a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; CallMatrix' a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; ArgumentIndex)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall m. Monoid m =&gt; CallMatrix' m -&gt; m
+fold :: forall m. Monoid m =&gt; CallMatrix' m -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; CallMatrix' a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; CallMatrix' a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; CallMatrix' a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; CallMatrix' a -&gt; m
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; CallMatrix' a -&gt; b
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; CallMatrix' a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; CallMatrix' a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; CallMatrix' a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; CallMatrix' a -&gt; a
+$ctoList :: forall a. CallMatrix' a -&gt; [a]
+toList :: forall a. CallMatrix' a -&gt; [a]
+$cnull :: forall a. CallMatrix' a -&gt; Bool
+null :: forall a. CallMatrix' a -&gt; Bool
+$clength :: forall a. CallMatrix' a -&gt; ArgumentIndex
+length :: forall a. CallMatrix' a -&gt; ArgumentIndex
+$celem :: forall a. Eq a =&gt; a -&gt; CallMatrix' a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; CallMatrix' a -&gt; Bool
+$cmaximum :: forall a. Ord a =&gt; CallMatrix' a -&gt; a
+maximum :: forall a. Ord a =&gt; CallMatrix' a -&gt; a
+$cminimum :: forall a. Ord a =&gt; CallMatrix' a -&gt; a
+minimum :: forall a. Ord a =&gt; CallMatrix' a -&gt; a
+$csum :: forall a. Num a =&gt; CallMatrix' a -&gt; a
+sum :: forall a. Num a =&gt; CallMatrix' a -&gt; a
+$cproduct :: forall a. Num a =&gt; CallMatrix' a -&gt; a
+product :: forall a. Num a =&gt; CallMatrix' a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733659"><span id="local-6989586621681733667"><span id="local-6989586621681733673"><span id="local-6989586621681733678"><span class="annot"><span class="annottext">Functor CallMatrix'
+Foldable CallMatrix'
+(Functor CallMatrix', Foldable CallMatrix') =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; CallMatrix' a -&gt; f (CallMatrix' b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    CallMatrix' (f a) -&gt; f (CallMatrix' a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; CallMatrix' a -&gt; m (CallMatrix' b))
+-&gt; (forall (m :: * -&gt; *) a.
+    Monad m =&gt;
+    CallMatrix' (m a) -&gt; m (CallMatrix' a))
+-&gt; Traversable CallMatrix'
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+CallMatrix' (m a) -&gt; m (CallMatrix' a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+CallMatrix' (f a) -&gt; f (CallMatrix' a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; CallMatrix' a -&gt; m (CallMatrix' b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; CallMatrix' a -&gt; f (CallMatrix' b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; CallMatrix' a -&gt; f (CallMatrix' b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; CallMatrix' a -&gt; f (CallMatrix' b)
+$csequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+CallMatrix' (f a) -&gt; f (CallMatrix' a)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+CallMatrix' (f a) -&gt; f (CallMatrix' a)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; CallMatrix' a -&gt; m (CallMatrix' b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; CallMatrix' a -&gt; m (CallMatrix' b)
+$csequence :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+CallMatrix' (m a) -&gt; m (CallMatrix' a)
+sequence :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+CallMatrix' (m a) -&gt; m (CallMatrix' a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733687"><span class="annot"><span class="annottext">Comparable (CallMatrix' a)
+Comparable (CallMatrix' a) -&gt; PartialOrd (CallMatrix' a)
+forall a. PartialOrd a =&gt; Comparable (CallMatrix' a)
+forall a. Comparable a -&gt; PartialOrd a
+$ccomparable :: forall a. PartialOrd a =&gt; Comparable (CallMatrix' a)
+comparable :: Comparable (CallMatrix' a)
+</span><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-var hs-var hs-var hs-var">PartialOrd</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-keyword">type</span><span> </span><span id="CallMatrix"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-var">CallMatrix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix%27"><span class="hs-identifier hs-type">CallMatrix'</span></a></span><span> </span><span class="annot"><a href="Agda.Termination.Order.html#Order"><span class="hs-identifier hs-type">Order</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span id="local-6989586621681733696"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Termination.Order.html#NotWorse"><span class="hs-identifier hs-type">NotWorse</span></a></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733352"><span class="annot"><a href="Agda.Termination.Semiring.html#HasZero"><span class="hs-identifier hs-type">HasZero</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733352"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.SparseMatrix.html#Diagonal"><span class="hs-identifier hs-type">Diagonal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix%27"><span class="hs-identifier hs-type">CallMatrix'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733352"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681733352"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-101"></span><span>  </span><span id="local-6989586621681733715"><span class="annot"><span class="annottext">diagonal :: CallMatrix' a -&gt; [a]
+</span><a href="#local-6989586621681733715"><span class="hs-identifier hs-var hs-var hs-var">diagonal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex a -&gt; [a]
+forall m e. Diagonal m e =&gt; m -&gt; [e]
+</span><a href="Agda.Termination.SparseMatrix.html#diagonal"><span class="hs-identifier hs-var">diagonal</span></a></span><span> </span><span class="annot"><span class="annottext">(Matrix ArgumentIndex a -&gt; [a])
+-&gt; (CallMatrix' a -&gt; Matrix ArgumentIndex a)
+-&gt; CallMatrix' a
+-&gt; [a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CallMatrix' a -&gt; Matrix ArgumentIndex a
+forall a. CallMatrix' a -&gt; Matrix ArgumentIndex a
+</span><a href="Agda.Termination.CallMatrix.html#mat"><span class="hs-identifier hs-var">mat</span></a></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span id="local-6989586621681733358"><span class="annot"><a href="Agda.Termination.CallMatrix.html#mapCallMatrix"><span class="hs-identifier hs-type">mapCallMatrix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.SparseMatrix.html#Matrix"><span class="hs-identifier hs-type">Matrix</span></a></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#ArgumentIndex"><span class="hs-identifier hs-type">ArgumentIndex</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733358"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.SparseMatrix.html#Matrix"><span class="hs-identifier hs-type">Matrix</span></a></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#ArgumentIndex"><span class="hs-identifier hs-type">ArgumentIndex</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733358"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix%27"><span class="hs-identifier hs-type">CallMatrix'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733358"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix%27"><span class="hs-identifier hs-type">CallMatrix'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733358"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-104"></span><span id="mapCallMatrix"><span class="annot"><span class="annottext">mapCallMatrix :: forall a.
+(Matrix ArgumentIndex a -&gt; Matrix ArgumentIndex a)
+-&gt; CallMatrix' a -&gt; CallMatrix' a
+</span><a href="Agda.Termination.CallMatrix.html#mapCallMatrix"><span class="hs-identifier hs-var hs-var">mapCallMatrix</span></a></span></span><span> </span><span id="local-6989586621681733719"><span class="annot"><span class="annottext">Matrix ArgumentIndex a -&gt; Matrix ArgumentIndex a
+</span><a href="#local-6989586621681733719"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span id="local-6989586621681733720"><span class="annot"><span class="annottext">Matrix ArgumentIndex a
+</span><a href="#local-6989586621681733720"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex a -&gt; CallMatrix' a
+forall a. Matrix ArgumentIndex a -&gt; CallMatrix' a
+</span><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-var">CallMatrix</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Matrix ArgumentIndex a -&gt; Matrix ArgumentIndex a
+</span><a href="#local-6989586621681733719"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex a
+</span><a href="#local-6989586621681733720"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><span class="hs-comment">-- | Call matrix multiplication and call combination.</span></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-keyword">class</span><span> </span><span id="CallComb"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallComb"><span class="hs-identifier hs-var">CallComb</span></a></span></span><span> </span><span id="local-6989586621681733362"><span class="annot"><a href="#local-6989586621681733362"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-109"></span><span>  </span><span id="%3E%2A%3C"><span class="annot"><a href="Agda.Termination.CallMatrix.html#%3E%2A%3C"><span class="hs-operator hs-type">(&gt;*&lt;)</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="">?cutoff</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.CutOff.html#CutOff"><span class="hs-identifier hs-type">CutOff</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681733362"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681733362"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681733362"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- | Call matrix multiplication.</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--   @f --(m1)--&gt; g --(m2)--&gt; h@  is combined to @f --(m2 `mul` m1)--&gt; h@</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--   Note the reversed order of multiplication:</span><span>
+</span><span id="line-116"></span><span class="hs-comment">--   The matrix @c1@ of the second call @g--&gt;h@ in the sequence</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--   @f--&gt;g--&gt;h@ is multiplied with the matrix @c2@ of the first call.</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--   Preconditions:</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--   @m1@ has dimensions @ar(g) &#215; ar(f)@.</span><span>
+</span><span id="line-121"></span><span class="hs-comment">--   @m2@ has dimensions @ar(h) &#215; ar(g)@.</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--   Postcondition:</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--   @m1 &gt;*&lt; m2@ has dimensions @ar(h) &#215; ar(f)@.</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallComb"><span class="hs-identifier hs-type">CallComb</span></a></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-127"></span><span>  </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span id="local-6989586621681733732"><span class="annot"><span class="annottext">Matrix ArgumentIndex Order
+</span><a href="#local-6989586621681733732"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621681733733"><span class="annot"><span class="annottext">&gt;*&lt; :: (?cutoff::CutOff) =&gt; CallMatrix -&gt; CallMatrix -&gt; CallMatrix
+</span><a href="Agda.Termination.CallMatrix.html#%3E%2A%3C"><span class="hs-operator hs-var hs-var hs-var">&gt;*&lt;</span></a></span></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span id="local-6989586621681733734"><span class="annot"><span class="annottext">Matrix ArgumentIndex Order
+</span><a href="#local-6989586621681733734"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex Order -&gt; CallMatrix
+forall a. Matrix ArgumentIndex a -&gt; CallMatrix' a
+</span><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-var">CallMatrix</span></a></span><span> </span><span class="annot"><span class="annottext">(Matrix ArgumentIndex Order -&gt; CallMatrix)
+-&gt; Matrix ArgumentIndex Order -&gt; CallMatrix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Semiring Order
+-&gt; Matrix ArgumentIndex Order
+-&gt; Matrix ArgumentIndex Order
+-&gt; Matrix ArgumentIndex Order
+forall i a.
+(Ix i, Eq a) =&gt;
+Semiring a -&gt; Matrix i a -&gt; Matrix i a -&gt; Matrix i a
+</span><a href="Agda.Termination.SparseMatrix.html#mul"><span class="hs-identifier hs-var">mul</span></a></span><span> </span><span class="annot"><span class="annottext">Semiring Order
+(?cutoff::CutOff) =&gt; Semiring Order
+</span><a href="Agda.Termination.Order.html#orderSemiring"><span class="hs-identifier hs-var">orderSemiring</span></a></span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex Order
+</span><a href="#local-6989586621681733734"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex Order
+</span><a href="#local-6989586621681733732"><span class="hs-identifier hs-var">m1</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-comment">{- UNUSED, BUT DON'T REMOVE!
+-- | Call matrix addition = minimum = pick worst information.
+addCallMatrices :: (?cutoff :: CutOff) =&gt; CallMatrix -&gt; CallMatrix -&gt; CallMatrix
+addCallMatrices cm1 cm2 = CallMatrix $
+  add (Semiring.add orderSemiring) (mat cm1) (mat cm2)
+-}</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">-- * Call matrix augmented with path information.</span></span><span>
+</span><span id="line-138"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="annot"><span class="hs-comment">-- | Call matrix augmented with path information.</span></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-keyword">data</span><span> </span><span id="CallMatrixAug"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-var">CallMatrixAug</span></a></span></span><span> </span><span id="local-6989586621681733370"><span class="annot"><a href="#local-6989586621681733370"><span class="hs-identifier hs-type">cinfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CallMatrixAug"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-var">CallMatrixAug</span></a></span></span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="augCallMatrix"><span class="annot"><span class="annottext">forall cinfo. CallMatrixAug cinfo -&gt; CallMatrix
+</span><a href="Agda.Termination.CallMatrix.html#augCallMatrix"><span class="hs-identifier hs-var hs-var">augCallMatrix</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span class="annot"><span class="hs-comment">-- ^ The matrix of the (composed call).</span></span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="augCallInfo"><span class="annot"><span class="annottext">forall cinfo. CallMatrixAug cinfo -&gt; cinfo
+</span><a href="Agda.Termination.CallMatrix.html#augCallInfo"><span class="hs-identifier hs-var hs-var">augCallInfo</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681733370"><span class="hs-identifier hs-type">cinfo</span></a></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Meta info, like call path.</span></span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681733741"><span id="local-6989586621681733746"><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool
+(CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool)
+-&gt; (CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool)
+-&gt; Eq (CallMatrixAug cinfo)
+forall cinfo.
+Eq cinfo =&gt;
+CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall cinfo.
+Eq cinfo =&gt;
+CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool
+== :: CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool
+$c/= :: forall cinfo.
+Eq cinfo =&gt;
+CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool
+/= :: CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733751"><span id="local-6989586621681733758"><span id="local-6989586621681733762"><span class="annot"><span class="annottext">ArgumentIndex -&gt; CallMatrixAug cinfo -&gt; ShowS
+[CallMatrixAug cinfo] -&gt; ShowS
+CallMatrixAug cinfo -&gt; String
+(ArgumentIndex -&gt; CallMatrixAug cinfo -&gt; ShowS)
+-&gt; (CallMatrixAug cinfo -&gt; String)
+-&gt; ([CallMatrixAug cinfo] -&gt; ShowS)
+-&gt; Show (CallMatrixAug cinfo)
+forall cinfo.
+Show cinfo =&gt;
+ArgumentIndex -&gt; CallMatrixAug cinfo -&gt; ShowS
+forall cinfo. Show cinfo =&gt; [CallMatrixAug cinfo] -&gt; ShowS
+forall cinfo. Show cinfo =&gt; CallMatrixAug cinfo -&gt; String
+forall a.
+(ArgumentIndex -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall cinfo.
+Show cinfo =&gt;
+ArgumentIndex -&gt; CallMatrixAug cinfo -&gt; ShowS
+showsPrec :: ArgumentIndex -&gt; CallMatrixAug cinfo -&gt; ShowS
+$cshow :: forall cinfo. Show cinfo =&gt; CallMatrixAug cinfo -&gt; String
+show :: CallMatrixAug cinfo -&gt; String
+$cshowList :: forall cinfo. Show cinfo =&gt; [CallMatrixAug cinfo] -&gt; ShowS
+showList :: [CallMatrixAug cinfo] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733379"><span class="annot"><a href="Agda.Termination.SparseMatrix.html#Diagonal"><span class="hs-identifier hs-type">Diagonal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733379"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Termination.Order.html#Order"><span class="hs-identifier hs-type">Order</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-149"></span><span>  </span><span id="local-6989586621681733769"><span class="annot"><span class="annottext">diagonal :: CallMatrixAug cinfo -&gt; [Order]
+</span><a href="Agda.Termination.SparseMatrix.html#diagonal"><span class="hs-identifier hs-var hs-var hs-var">diagonal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CallMatrix -&gt; [Order]
+forall m e. Diagonal m e =&gt; m -&gt; [e]
+</span><a href="Agda.Termination.SparseMatrix.html#diagonal"><span class="hs-identifier hs-var">diagonal</span></a></span><span> </span><span class="annot"><span class="annottext">(CallMatrix -&gt; [Order])
+-&gt; (CallMatrixAug cinfo -&gt; CallMatrix)
+-&gt; CallMatrixAug cinfo
+-&gt; [Order]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; CallMatrix
+forall cinfo. CallMatrixAug cinfo -&gt; CallMatrix
+</span><a href="Agda.Termination.CallMatrix.html#augCallMatrix"><span class="hs-identifier hs-var">augCallMatrix</span></a></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733381"><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733381"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-152"></span><span>  </span><span id="local-6989586621681733775"><span class="annot"><span class="annottext">comparable :: Comparable (CallMatrixAug cinfo)
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span id="local-6989586621681733776"><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733776"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681733777"><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733777"><span class="hs-identifier hs-var">m'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Comparable CallMatrix
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; CallMatrix
+forall cinfo. CallMatrixAug cinfo -&gt; CallMatrix
+</span><a href="Agda.Termination.CallMatrix.html#augCallMatrix"><span class="hs-identifier hs-var">augCallMatrix</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733776"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; CallMatrix
+forall cinfo. CallMatrixAug cinfo -&gt; CallMatrix
+</span><a href="Agda.Termination.CallMatrix.html#augCallMatrix"><span class="hs-identifier hs-var">augCallMatrix</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733777"><span class="hs-identifier hs-var">m'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733383"><span class="annot"><a href="Agda.Termination.Order.html#NotWorse"><span class="hs-identifier hs-type">NotWorse</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733383"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-155"></span><span>  </span><span id="local-6989586621681733781"><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733781"><span class="hs-identifier hs-var">c1</span></a></span></span><span> </span><span id="local-6989586621681733782"><span class="annot"><span class="annottext">notWorse :: CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; Bool
+</span><a href="Agda.Termination.Order.html#notWorse"><span class="hs-operator hs-var hs-var hs-var">`notWorse`</span></a></span></span><span> </span><span id="local-6989586621681733783"><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733783"><span class="hs-identifier hs-var">c2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; CallMatrix
+forall cinfo. CallMatrixAug cinfo -&gt; CallMatrix
+</span><a href="Agda.Termination.CallMatrix.html#augCallMatrix"><span class="hs-identifier hs-var">augCallMatrix</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733781"><span class="hs-identifier hs-var">c1</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrix -&gt; CallMatrix -&gt; Bool
+forall a. NotWorse a =&gt; a -&gt; a -&gt; Bool
+</span><a href="Agda.Termination.Order.html#notWorse"><span class="hs-operator hs-var">`notWorse`</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; CallMatrix
+forall cinfo. CallMatrixAug cinfo -&gt; CallMatrix
+</span><a href="Agda.Termination.CallMatrix.html#augCallMatrix"><span class="hs-identifier hs-var">augCallMatrix</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733783"><span class="hs-identifier hs-var">c2</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="annot"><span class="hs-comment">-- | Augmented call matrix multiplication.</span></span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733385"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681733385"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallComb"><span class="hs-identifier hs-type">CallComb</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733385"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-160"></span><span>  </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span id="local-6989586621681733791"><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733791"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621681733792"><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733792"><span class="hs-identifier hs-var">p1</span></a></span></span><span> </span><span id="local-6989586621681733793"><span class="annot"><span class="annottext">&gt;*&lt; :: (?cutoff::CutOff) =&gt;
+CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; CallMatrixAug cinfo
+</span><a href="Agda.Termination.CallMatrix.html#%3E%2A%3C"><span class="hs-operator hs-var hs-var hs-var">&gt;*&lt;</span></a></span></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span id="local-6989586621681733794"><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733794"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span id="local-6989586621681733795"><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733795"><span class="hs-identifier hs-var">p2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-161"></span><span>    </span><span class="annot"><span class="annottext">CallMatrix -&gt; cinfo -&gt; CallMatrixAug cinfo
+forall cinfo. CallMatrix -&gt; cinfo -&gt; CallMatrixAug cinfo
+</span><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-var">CallMatrixAug</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733791"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrix -&gt; CallMatrix -&gt; CallMatrix
+forall a. (CallComb a, ?cutoff::CutOff) =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Termination.CallMatrix.html#%3E%2A%3C"><span class="hs-operator hs-var">&gt;*&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733794"><span class="hs-identifier hs-var">m2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">cinfo -&gt; cinfo -&gt; cinfo
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733792"><span class="hs-identifier hs-var">p1</span></a></span><span> </span><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733795"><span class="hs-identifier hs-var">p2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="annot"><span class="hs-comment">-- | Non-augmented call matrix.</span></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span id="local-6989586621681733387"><span class="annot"><a href="Agda.Termination.CallMatrix.html#noAug"><span class="hs-identifier hs-type">noAug</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681733387"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733387"><span class="hs-identifier hs-type">cinfo</span></a></span></span><span>
+</span><span id="line-166"></span><span id="noAug"><span class="annot"><span class="annottext">noAug :: forall cinfo. Monoid cinfo =&gt; CallMatrix -&gt; CallMatrixAug cinfo
+</span><a href="Agda.Termination.CallMatrix.html#noAug"><span class="hs-identifier hs-var hs-var">noAug</span></a></span></span><span> </span><span id="local-6989586621681733799"><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733799"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CallMatrix -&gt; cinfo -&gt; CallMatrixAug cinfo
+forall cinfo. CallMatrix -&gt; cinfo -&gt; CallMatrixAug cinfo
+</span><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-var">CallMatrixAug</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733799"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">cinfo
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span id="local-6989586621681733389"><span class="annot"><a href="Agda.Termination.CallMatrix.html#mapCallMatrixAug"><span class="hs-identifier hs-type">mapCallMatrixAug</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733389"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733389"><span class="hs-identifier hs-type">cinfo</span></a></span></span><span>
+</span><span id="line-169"></span><span id="mapCallMatrixAug"><span class="annot"><span class="annottext">mapCallMatrixAug :: forall cinfo.
+(CallMatrix -&gt; CallMatrix)
+-&gt; CallMatrixAug cinfo -&gt; CallMatrixAug cinfo
+</span><a href="Agda.Termination.CallMatrix.html#mapCallMatrixAug"><span class="hs-identifier hs-var hs-var">mapCallMatrixAug</span></a></span></span><span> </span><span id="local-6989586621681733801"><span class="annot"><span class="annottext">CallMatrix -&gt; CallMatrix
+</span><a href="#local-6989586621681733801"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span id="local-6989586621681733802"><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733802"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681733803"><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733803"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CallMatrix -&gt; cinfo -&gt; CallMatrixAug cinfo
+forall cinfo. CallMatrix -&gt; cinfo -&gt; CallMatrixAug cinfo
+</span><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-var">CallMatrixAug</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CallMatrix -&gt; CallMatrix
+</span><a href="#local-6989586621681733801"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733802"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733803"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-172"></span><span class="annot"><span class="hs-comment">-- * Sets of incomparable call matrices augmented with path information.</span></span><span>
+</span><span id="line-173"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- | Sets of incomparable call matrices augmented with path information.</span><span>
+</span><span id="line-176"></span><span class="hs-comment">--   Use overloaded 'null', 'empty', 'singleton', 'mappend'.</span><span>
+</span><span id="line-177"></span><span class="hs-keyword">newtype</span><span> </span><span id="CMSet"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-var">CMSet</span></a></span></span><span> </span><span id="local-6989586621681733391"><span class="annot"><a href="#local-6989586621681733391"><span class="hs-identifier hs-type">cinfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CMSet"><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-var">CMSet</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="cmSet"><span class="annot"><span class="annottext">forall cinfo. CMSet cinfo -&gt; Favorites (CallMatrixAug cinfo)
+</span><a href="Agda.Termination.CallMatrix.html#cmSet"><span class="hs-identifier hs-var hs-var">cmSet</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733391"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-178"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span> </span><span id="local-6989586621681733811"><span id="local-6989586621681733817"><span id="local-6989586621681733821"><span class="annot"><span class="annottext">ArgumentIndex -&gt; CMSet cinfo -&gt; ShowS
+[CMSet cinfo] -&gt; ShowS
+CMSet cinfo -&gt; String
+(ArgumentIndex -&gt; CMSet cinfo -&gt; ShowS)
+-&gt; (CMSet cinfo -&gt; String)
+-&gt; ([CMSet cinfo] -&gt; ShowS)
+-&gt; Show (CMSet cinfo)
+forall cinfo. Show cinfo =&gt; ArgumentIndex -&gt; CMSet cinfo -&gt; ShowS
+forall cinfo. Show cinfo =&gt; [CMSet cinfo] -&gt; ShowS
+forall cinfo. Show cinfo =&gt; CMSet cinfo -&gt; String
+forall a.
+(ArgumentIndex -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall cinfo. Show cinfo =&gt; ArgumentIndex -&gt; CMSet cinfo -&gt; ShowS
+showsPrec :: ArgumentIndex -&gt; CMSet cinfo -&gt; ShowS
+$cshow :: forall cinfo. Show cinfo =&gt; CMSet cinfo -&gt; String
+show :: CMSet cinfo -&gt; String
+$cshowList :: forall cinfo. Show cinfo =&gt; [CMSet cinfo] -&gt; ShowS
+showList :: [CMSet cinfo] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733824"><span id="local-6989586621681733830"><span id="local-6989586621681733835"><span class="annot"><span class="annottext">NonEmpty (CMSet cinfo) -&gt; CMSet cinfo
+CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+(CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo)
+-&gt; (NonEmpty (CMSet cinfo) -&gt; CMSet cinfo)
+-&gt; (forall b. Integral b =&gt; b -&gt; CMSet cinfo -&gt; CMSet cinfo)
+-&gt; Semigroup (CMSet cinfo)
+forall b. Integral b =&gt; b -&gt; CMSet cinfo -&gt; CMSet cinfo
+forall cinfo. NonEmpty (CMSet cinfo) -&gt; CMSet cinfo
+forall cinfo. CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+forall cinfo b. Integral b =&gt; b -&gt; CMSet cinfo -&gt; CMSet cinfo
+$c&lt;&gt; :: forall cinfo. CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+&lt;&gt; :: CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+$csconcat :: forall cinfo. NonEmpty (CMSet cinfo) -&gt; CMSet cinfo
+sconcat :: NonEmpty (CMSet cinfo) -&gt; CMSet cinfo
+$cstimes :: forall cinfo b. Integral b =&gt; b -&gt; CMSet cinfo -&gt; CMSet cinfo
+stimes :: forall b. Integral b =&gt; b -&gt; CMSet cinfo -&gt; CMSet cinfo
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733848"><span id="local-6989586621681733854"><span id="local-6989586621681733859"><span class="annot"><span class="annottext">Semigroup (CMSet cinfo)
+CMSet cinfo
+Semigroup (CMSet cinfo) =&gt;
+CMSet cinfo
+-&gt; (CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo)
+-&gt; ([CMSet cinfo] -&gt; CMSet cinfo)
+-&gt; Monoid (CMSet cinfo)
+[CMSet cinfo] -&gt; CMSet cinfo
+CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+forall cinfo. Semigroup (CMSet cinfo)
+forall cinfo. CMSet cinfo
+forall a.
+Semigroup a =&gt;
+a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+forall cinfo. [CMSet cinfo] -&gt; CMSet cinfo
+forall cinfo. CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+$cmempty :: forall cinfo. CMSet cinfo
+mempty :: CMSet cinfo
+$cmappend :: forall cinfo. CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+mappend :: CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+$cmconcat :: forall cinfo. [CMSet cinfo] -&gt; CMSet cinfo
+mconcat :: [CMSet cinfo] -&gt; CMSet cinfo
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733866"><span id="local-6989586621681733871"><span class="annot"><span class="annottext">CMSet cinfo
+CMSet cinfo -&gt; Bool
+CMSet cinfo -&gt; (CMSet cinfo -&gt; Bool) -&gt; Null (CMSet cinfo)
+forall cinfo. CMSet cinfo
+forall a. a -&gt; (a -&gt; Bool) -&gt; Null a
+forall cinfo. CMSet cinfo -&gt; Bool
+$cempty :: forall cinfo. CMSet cinfo
+empty :: CMSet cinfo
+$cnull :: forall cinfo. CMSet cinfo -&gt; Bool
+null :: CMSet cinfo -&gt; Bool
+</span><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Null</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733877"><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733391"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span id="local-6989586621681733418"><span class="annot"><a href="Agda.Termination.CallMatrix.html#mapCMSet"><span class="hs-identifier hs-type">mapCMSet</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733418"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733418"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-181"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733418"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733418"><span class="hs-identifier hs-type">cinfo</span></a></span></span><span>
+</span><span id="line-182"></span><span id="mapCMSet"><span class="annot"><span class="annottext">mapCMSet :: forall cinfo.
+(Favorites (CallMatrixAug cinfo)
+ -&gt; Favorites (CallMatrixAug cinfo))
+-&gt; CMSet cinfo -&gt; CMSet cinfo
+</span><a href="Agda.Termination.CallMatrix.html#mapCMSet"><span class="hs-identifier hs-var hs-var">mapCMSet</span></a></span></span><span> </span><span id="local-6989586621681733884"><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733884"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span id="local-6989586621681733885"><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733885"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+forall cinfo. Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+</span><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-var">CMSet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733884"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733885"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span class="annot"><span class="hs-comment">-- | Call matrix set product is the Cartesian product.</span></span><span>
+</span><span id="line-185"></span><span>
+</span><span id="line-186"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733421"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681733421"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallComb"><span class="hs-identifier hs-type">CallComb</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733421"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-187"></span><span>  </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span id="local-6989586621681733893"><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733893"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621681733894"><span class="annot"><span class="annottext">&gt;*&lt; :: (?cutoff::CutOff) =&gt; CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+</span><a href="Agda.Termination.CallMatrix.html#%3E%2A%3C"><span class="hs-operator hs-var hs-var hs-var">&gt;*&lt;</span></a></span></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span id="local-6989586621681733895"><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733895"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+forall cinfo. Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+</span><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-var">CMSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo)
+-&gt; Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[CallMatrixAug cinfo] -&gt; Favorites (CallMatrixAug cinfo)
+forall a. PartialOrd a =&gt; [a] -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#fromList"><span class="hs-identifier hs-var">Fav.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">([CallMatrixAug cinfo] -&gt; Favorites (CallMatrixAug cinfo))
+-&gt; [CallMatrixAug cinfo] -&gt; Favorites (CallMatrixAug cinfo)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-188"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733897"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; CallMatrixAug cinfo -&gt; CallMatrixAug cinfo
+forall a. (CallComb a, ?cutoff::CutOff) =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Termination.CallMatrix.html#%3E%2A%3C"><span class="hs-operator hs-var">&gt;*&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733898"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681733897"><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733897"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; [CallMatrixAug cinfo]
+forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var">Fav.toList</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733893"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681733898"><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733898"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; [CallMatrixAug cinfo]
+forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var">Fav.toList</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733895"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span class="annot"><span class="hs-comment">-- | Insert into a call matrix set.</span></span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span id="local-6989586621681733424"><span class="annot"><a href="Agda.Termination.CallMatrix.html#insert"><span class="hs-identifier hs-type">insert</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733424"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733424"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733424"><span class="hs-identifier hs-type">cinfo</span></a></span></span><span>
+</span><span id="line-193"></span><span id="insert"><span class="annot"><span class="annottext">insert :: forall cinfo. CallMatrixAug cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+</span><a href="Agda.Termination.CallMatrix.html#insert"><span class="hs-identifier hs-var hs-var">insert</span></a></span></span><span> </span><span id="local-6989586621681733902"><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733902"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span id="local-6989586621681733903"><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733903"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+forall cinfo. Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+</span><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-var">CMSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo)
+-&gt; Favorites (CallMatrixAug cinfo) -&gt; CMSet cinfo
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+-&gt; Favorites (CallMatrixAug cinfo)
+-&gt; Favorites (CallMatrixAug cinfo)
+forall a. PartialOrd a =&gt; a -&gt; Favorites a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#insert"><span class="hs-identifier hs-var">Fav.insert</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo
+</span><a href="#local-6989586621681733902"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733903"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="annot"><span class="hs-comment">-- | Union two call matrix sets.</span></span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span id="local-6989586621681733905"><span class="annot"><a href="Agda.Termination.CallMatrix.html#union"><span class="hs-identifier hs-type">union</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733905"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733905"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733905"><span class="hs-identifier hs-type">cinfo</span></a></span></span><span>
+</span><span id="line-198"></span><span id="union"><span class="annot"><span class="annottext">union :: forall cinfo. CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+</span><a href="Agda.Termination.CallMatrix.html#union"><span class="hs-identifier hs-var hs-var">union</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CMSet cinfo -&gt; CMSet cinfo -&gt; CMSet cinfo
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- union (CMSet as) (CMSet bs) = CMSet $ Fav.union as bs</span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="annot"><span class="hs-comment">-- | Convert into a list of augmented call matrices.</span></span><span>
+</span><span id="line-202"></span><span>
+</span><span id="line-203"></span><span id="local-6989586621681733428"><span class="annot"><a href="Agda.Termination.CallMatrix.html#toList"><span class="hs-identifier hs-type">toList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733428"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733428"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-204"></span><span id="toList"><span class="annot"><span class="annottext">toList :: forall cinfo. CMSet cinfo -&gt; [CallMatrixAug cinfo]
+</span><a href="Agda.Termination.CallMatrix.html#toList"><span class="hs-identifier hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span id="local-6989586621681733909"><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733909"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo) -&gt; [CallMatrixAug cinfo]
+forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var">Fav.toList</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites (CallMatrixAug cinfo)
+</span><a href="#local-6989586621681733909"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-207"></span><span class="annot"><span class="hs-comment">-- * Printing</span></span><span>
+</span><span id="line-208"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-209"></span><span>
+</span><span id="line-210"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733912"><span id="local-6989586621681733916"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-211"></span><span>  </span><span id="local-6989586621681733925"><span class="annot"><span class="annottext">pretty :: CallMatrix -&gt; Doc
+</span><a href="#local-6989586621681733925"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrix"><span class="hs-identifier hs-type">CallMatrix</span></a></span><span> </span><span id="local-6989586621681733927"><span class="annot"><span class="annottext">Matrix ArgumentIndex Order
+</span><a href="#local-6989586621681733927"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex Order -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">Matrix ArgumentIndex Order
+</span><a href="#local-6989586621681733927"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-212"></span><span>
+</span><span id="line-213"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733436"><span id="local-6989586621681733931"><span id="local-6989586621681733935"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733436"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733436"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-214"></span><span>  </span><span id="local-6989586621681733939"><span class="annot"><span class="annottext">pretty :: CallMatrixAug cinfo -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CallMatrixAug"><span class="hs-identifier hs-type">CallMatrixAug</span></a></span><span> </span><span id="local-6989586621681733940"><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733940"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681733941"><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733941"><span class="hs-identifier hs-var">cinfo</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">cinfo -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">cinfo
+</span><a href="#local-6989586621681733941"><span class="hs-identifier hs-var">cinfo</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">$$</span></span><span> </span><span class="annot"><span class="annottext">CallMatrix -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">CallMatrix
+</span><a href="#local-6989586621681733940"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681733440"><span id="local-6989586621681733946"><span id="local-6989586621681733950"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733440"><span class="hs-identifier hs-type">cinfo</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Termination.CallMatrix.html#CMSet"><span class="hs-identifier hs-type">CMSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681733440"><span class="hs-identifier hs-type">cinfo</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-217"></span><span>  </span><span id="local-6989586621681733956"><span class="annot"><span class="annottext">pretty :: CMSet cinfo -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Doc] -&gt; Doc
+forall (t :: * -&gt; *). Foldable t =&gt; t Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#vcat"><span class="hs-identifier hs-var">vcat</span></a></span><span> </span><span class="annot"><span class="annottext">([Doc] -&gt; Doc) -&gt; (CMSet cinfo -&gt; [Doc]) -&gt; CMSet cinfo -&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; [Doc] -&gt; [Doc]
+forall (t :: * -&gt; *). Foldable t =&gt; Doc -&gt; t Doc -&gt; [Doc]
+</span><a href="Agda.Syntax.Common.Pretty.html#punctuate"><span class="hs-identifier hs-var">punctuate</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681733959"><span class="hs-identifier hs-var">newLine</span></a></span><span> </span><span class="annot"><span class="annottext">([Doc] -&gt; [Doc]) -&gt; (CMSet cinfo -&gt; [Doc]) -&gt; CMSet cinfo -&gt; [Doc]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CallMatrixAug cinfo -&gt; Doc) -&gt; [CallMatrixAug cinfo] -&gt; [Doc]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">CallMatrixAug cinfo -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">([CallMatrixAug cinfo] -&gt; [Doc])
+-&gt; (CMSet cinfo -&gt; [CallMatrixAug cinfo]) -&gt; CMSet cinfo -&gt; [Doc]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CMSet cinfo -&gt; [CallMatrixAug cinfo]
+forall cinfo. CMSet cinfo -&gt; [CallMatrixAug cinfo]
+</span><a href="Agda.Termination.CallMatrix.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span>
+</span><span id="line-218"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681733959"><span class="annot"><span class="annottext">newLine :: Doc
+</span><a href="#local-6989586621681733959"><span class="hs-identifier hs-var hs-var">newLine</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\n&quot;</span></span><span>
+</span><span id="line-219"></span></pre></body></html>

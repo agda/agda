@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Agda strings uses Data.Text [1], which can only represent unicode scalar values [2], excluding</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- the surrogate code points [3] (@U+D800..U+DFFF@). To allow @primStringFromList@ to be injective</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- we make sure character values also exclude surrogate code points, mapping them to the replacement</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- character @U+FFFD@.</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- See #4999 for more information.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- [1] https://hackage.haskell.org/package/text-1.2.4.0/docs/Data-Text.html#g:2</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- [2] https://www.unicode.org/glossary/#unicode_scalar_value</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- [3] https://www.unicode.org/glossary/#surrogate_code_point</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Char.html"><span class="hs-identifier">Agda.Utils.Char</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="annot"><span class="hs-comment">-- | The unicode replacement character &#65533; .</span></span><span>
+</span><span id="line-20"></span><span class="annot"><a href="Agda.Utils.Char.html#replacementChar"><span class="hs-identifier hs-type">replacementChar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-21"></span><span id="replacementChar"><span class="annot"><span class="annottext">replacementChar :: Char
+</span><a href="Agda.Utils.Char.html#replacementChar"><span class="hs-identifier hs-var hs-var">replacementChar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\xFFFD'</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="annot"><span class="hs-comment">-- | Is a character a surrogate code point.</span></span><span>
+</span><span id="line-24"></span><span class="annot"><a href="Agda.Utils.Char.html#isSurrogateCodePoint"><span class="hs-identifier hs-type">isSurrogateCodePoint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-25"></span><span id="isSurrogateCodePoint"><span class="annot"><span class="annottext">isSurrogateCodePoint :: Char -&gt; Bool
+</span><a href="Agda.Utils.Char.html#isSurrogateCodePoint"><span class="hs-identifier hs-var hs-var">isSurrogateCodePoint</span></a></span></span><span> </span><span id="local-6989586621681693684"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681693684"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><span class="hs-identifier hs-var">generalCategory</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681693684"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">GeneralCategory -&gt; GeneralCategory -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier hs-var">Surrogate</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="annot"><span class="hs-comment">-- | Map surrogate code points to the unicode replacement character.</span></span><span>
+</span><span id="line-28"></span><span class="annot"><a href="Agda.Utils.Char.html#replaceSurrogateCodePoint"><span class="hs-identifier hs-type">replaceSurrogateCodePoint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-29"></span><span id="replaceSurrogateCodePoint"><span class="annot"><span class="annottext">replaceSurrogateCodePoint :: Char -&gt; Char
+</span><a href="Agda.Utils.Char.html#replaceSurrogateCodePoint"><span class="hs-identifier hs-var hs-var">replaceSurrogateCodePoint</span></a></span></span><span> </span><span id="local-6989586621681693688"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681693688"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Agda.Utils.Char.html#isSurrogateCodePoint"><span class="hs-identifier hs-var">isSurrogateCodePoint</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681693688"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="Agda.Utils.Char.html#replacementChar"><span class="hs-identifier hs-var">replacementChar</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681693688"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Total function to convert an integer to a character. Maps surrogate code points</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   to the replacement character @U+FFFD@.</span><span>
+</span><span id="line-35"></span><span class="annot"><a href="Agda.Utils.Char.html#integerToChar"><span class="hs-identifier hs-type">integerToChar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-36"></span><span id="integerToChar"><span class="annot"><span class="annottext">integerToChar :: Integer -&gt; Char
+</span><a href="Agda.Utils.Char.html#integerToChar"><span class="hs-identifier hs-var hs-var">integerToChar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="Agda.Utils.Char.html#replaceSurrogateCodePoint"><span class="hs-identifier hs-var">replaceSurrogateCodePoint</span></a></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Char) -&gt; (Integer -&gt; Char) -&gt; Integer -&gt; Char
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Char
+forall a. Enum a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">toEnum</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Char) -&gt; (Integer -&gt; Int) -&gt; Integer -&gt; Char
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Int) -&gt; (Integer -&gt; Integer) -&gt; Integer -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Integral a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">`mod`</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0x110000</span></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span></pre></body></html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Mutual.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Mutual</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Info.html"><span class="hs-identifier">Agda.Syntax.Info</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Info</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html"><span class="hs-identifier">Agda.TypeChecking.Monad.State</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span id="local-6989586621681936015"><span class="annot"><a href="Agda.TypeChecking.Monad.Mutual.html#noMutualBlock"><span class="hs-identifier hs-type">noMutualBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936015"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936015"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-18"></span><span id="noMutualBlock"><span class="annot"><span class="annottext">noMutualBlock :: forall a. TCM a -&gt; TCM a
+</span><a href="Agda.TypeChecking.Monad.Mutual.html#noMutualBlock"><span class="hs-identifier hs-var hs-var">noMutualBlock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; TCMT IO a -&gt; TCMT IO a
+forall a. (TCEnv -&gt; TCEnv) -&gt; TCMT IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCEnv -&gt; TCEnv) -&gt; TCMT IO a -&gt; TCMT IO a)
+-&gt; (TCEnv -&gt; TCEnv) -&gt; TCMT IO a -&gt; TCMT IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681936104"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936104"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936104"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envMutualBlock"><span class="hs-identifier hs-var">envMutualBlock</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- | Pass the current mutual block id</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--   or create a new mutual block if we are not already inside on.</span><span>
+</span><span id="line-22"></span><span id="local-6989586621681936026"><span class="annot"><a href="Agda.TypeChecking.Monad.Mutual.html#inMutualBlock"><span class="hs-identifier hs-type">inMutualBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936026"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936026"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-23"></span><span id="inMutualBlock"><span class="annot"><span class="annottext">inMutualBlock :: forall a. (MutualId -&gt; TCM a) -&gt; TCM a
+</span><a href="Agda.TypeChecking.Monad.Mutual.html#inMutualBlock"><span class="hs-identifier hs-var hs-var">inMutualBlock</span></a></span></span><span> </span><span id="local-6989586621681936112"><span class="annot"><span class="annottext">MutualId -&gt; TCM a
+</span><a href="#local-6989586621681936112"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-24"></span><span>  </span><span id="local-6989586621681936113"><span class="annot"><a href="#local-6989586621681936113"><span class="hs-identifier hs-var">mi</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; Maybe MutualId) -&gt; TCMT IO (Maybe MutualId)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; (TCEnv -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#asksTC"><span class="hs-identifier hs-var">asksTC</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Maybe MutualId
+</span><a href="Agda.TypeChecking.Monad.Base.html#envMutualBlock"><span class="hs-identifier hs-var">envMutualBlock</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621681936113"><span class="hs-identifier hs-type">mi</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-26"></span><span>    </span><span class="annot"><span class="annottext">Maybe MutualId
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-27"></span><span>      </span><span id="local-6989586621681936115"><span class="annot"><a href="#local-6989586621681936115"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO MutualId
+forall i (m :: * -&gt; *). MonadFresh i m =&gt; m i
+</span><a href="Agda.TypeChecking.Monad.Base.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-28"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-type">localTC</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681936117"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936117"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681936117"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envMutualBlock"><span class="hs-identifier hs-var">envMutualBlock</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="#local-6989586621681936115"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681936112"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936115"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-comment">-- Don't create a new mutual block if we're already inside one.</span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681936118"><span class="annot"><span class="annottext">MutualId
+</span><a href="#local-6989586621681936118"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MutualId -&gt; TCM a
+</span><a href="#local-6989586621681936112"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">MutualId
+</span><a href="#local-6989586621681936118"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="annot"><span class="hs-comment">-- | Set the mutual block info for a block if non-existing.</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Mutual.html#insertMutualBlockInfo"><span class="hs-identifier hs-type">insertMutualBlockInfo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Info.html#MutualInfo"><span class="hs-identifier hs-type">Info.MutualInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span id="insertMutualBlockInfo"><span class="annot"><span class="annottext">insertMutualBlockInfo :: MutualId -&gt; MutualInfo -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Mutual.html#insertMutualBlockInfo"><span class="hs-identifier hs-var hs-var">insertMutualBlockInfo</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span> </span><span id="local-6989586621681936121"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681936121"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681936122"><span class="annot"><span class="annottext">MutualInfo
+</span><a href="#local-6989586621681936122"><span class="hs-identifier hs-var">info</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><span class="annottext">(MutualBlocks -&gt; f MutualBlocks) -&gt; TCState -&gt; f TCState
+Lens' TCState MutualBlocks
+</span><a href="Agda.TypeChecking.Monad.Base.html#stMutualBlocks"><span class="hs-identifier hs-var">stMutualBlocks</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' TCState MutualBlocks
+-&gt; (MutualBlocks -&gt; MutualBlocks) -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-var">`modifyTCLens`</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe MutualBlock -&gt; Maybe MutualBlock)
+-&gt; Key -&gt; MutualBlocks -&gt; MutualBlocks
+forall a. (Maybe a -&gt; Maybe a) -&gt; Key -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.alter</span></span><span> </span><span class="annot"><span class="annottext">Maybe MutualBlock -&gt; Maybe MutualBlock
+</span><a href="#local-6989586621681936128"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Key
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681936121"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681936128"><span class="annot"><span class="annottext">f :: Maybe MutualBlock -&gt; Maybe MutualBlock
+</span><a href="#local-6989586621681936128"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe MutualBlock
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MutualBlock -&gt; Maybe MutualBlock
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(MutualBlock -&gt; Maybe MutualBlock)
+-&gt; MutualBlock -&gt; Maybe MutualBlock
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MutualInfo -&gt; Set QName -&gt; MutualBlock
+</span><a href="Agda.TypeChecking.Monad.Base.html#MutualBlock"><span class="hs-identifier hs-var">MutualBlock</span></a></span><span> </span><span class="annot"><span class="annottext">MutualInfo
+</span><a href="#local-6989586621681936122"><span class="hs-identifier hs-var">info</span></a></span><span> </span><span class="annot"><span class="annottext">Set QName
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><a href="#local-6989586621681936128"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681936131"><span class="annot"><span class="annottext">mb :: MutualBlock
+</span><a href="#local-6989586621681936131"><span class="hs-identifier hs-var">mb</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualBlock"><span class="hs-identifier hs-type">MutualBlock</span></a></span><span> </span><span id="local-6989586621681936132"><span class="annot"><span class="annottext">MutualInfo
+</span><a href="#local-6989586621681936132"><span class="hs-identifier hs-var">info0</span></a></span></span><span> </span><span id="local-6989586621681936133"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681936133"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">MutualInfo -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">MutualInfo
+</span><a href="#local-6989586621681936132"><span class="hs-identifier hs-var">info0</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MutualBlock -&gt; Maybe MutualBlock
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(MutualBlock -&gt; Maybe MutualBlock)
+-&gt; MutualBlock -&gt; Maybe MutualBlock
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MutualInfo -&gt; Set QName -&gt; MutualBlock
+</span><a href="Agda.TypeChecking.Monad.Base.html#MutualBlock"><span class="hs-identifier hs-var">MutualBlock</span></a></span><span> </span><span class="annot"><span class="annottext">MutualInfo
+</span><a href="#local-6989586621681936122"><span class="hs-identifier hs-var">info</span></a></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681936133"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MutualBlock -&gt; Maybe MutualBlock
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">MutualBlock
+</span><a href="#local-6989586621681936131"><span class="hs-identifier hs-var">mb</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- | Set the mutual block for a definition.</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Mutual.html#setMutualBlock"><span class="hs-identifier hs-type">setMutualBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span id="setMutualBlock"><span class="annot"><span class="annottext">setMutualBlock :: MutualId -&gt; QName -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Mutual.html#setMutualBlock"><span class="hs-identifier hs-var hs-var">setMutualBlock</span></a></span></span><span> </span><span id="local-6989586621681936136"><span class="annot"><span class="annottext">m :: MutualId
+</span><a href="#local-6989586621681936136"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span> </span><span id="local-6989586621681936137"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681936137"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681936138"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681936138"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><span class="annottext">(MutualBlocks -&gt; f MutualBlocks) -&gt; TCState -&gt; f TCState
+Lens' TCState MutualBlocks
+</span><a href="Agda.TypeChecking.Monad.Base.html#stMutualBlocks"><span class="hs-identifier hs-var">stMutualBlocks</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' TCState MutualBlocks
+-&gt; (MutualBlocks -&gt; MutualBlocks) -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-var">`modifyTCLens`</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe MutualBlock -&gt; Maybe MutualBlock)
+-&gt; Key -&gt; MutualBlocks -&gt; MutualBlocks
+forall a. (Maybe a -&gt; Maybe a) -&gt; Key -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.alter</span></span><span> </span><span class="annot"><span class="annottext">Maybe MutualBlock -&gt; Maybe MutualBlock
+</span><a href="#local-6989586621681936141"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Key
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681936137"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><span class="annottext">(Signature -&gt; f Signature) -&gt; TCState -&gt; f TCState
+Lens' TCState Signature
+</span><a href="Agda.TypeChecking.Monad.Base.html#stSignature"><span class="hs-identifier hs-var">stSignature</span></a></span><span>    </span><span class="annot"><span class="annottext">Lens' TCState Signature -&gt; (Signature -&gt; Signature) -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-var">`modifyTCLens`</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; (Definition -&gt; Definition) -&gt; Signature -&gt; Signature
+</span><a href="Agda.TypeChecking.Monad.State.html#updateDefinition"><span class="hs-identifier hs-var">updateDefinition</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681936138"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681936146"><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621681936146"><span class="hs-identifier hs-var">defn</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621681936146"><span class="hs-identifier hs-var">defn</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#defMutual"><span class="hs-identifier hs-var">defMutual</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681936136"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-50"></span><span>  </span><span id="local-6989586621681936141"><span class="annot"><span class="annottext">f :: Maybe MutualBlock -&gt; Maybe MutualBlock
+</span><a href="#local-6989586621681936141"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe MutualBlock
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MutualBlock -&gt; Maybe MutualBlock
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(MutualBlock -&gt; Maybe MutualBlock)
+-&gt; MutualBlock -&gt; Maybe MutualBlock
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MutualInfo -&gt; Set QName -&gt; MutualBlock
+</span><a href="Agda.TypeChecking.Monad.Base.html#MutualBlock"><span class="hs-identifier hs-var">MutualBlock</span></a></span><span> </span><span class="annot"><span class="annottext">MutualInfo
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span> </span><span class="annot"><span class="annottext">(Set QName -&gt; MutualBlock) -&gt; Set QName -&gt; MutualBlock
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Set QName
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681936138"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="annot"><a href="#local-6989586621681936141"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualBlock"><span class="hs-identifier hs-type">MutualBlock</span></a></span><span> </span><span id="local-6989586621681936149"><span class="annot"><span class="annottext">MutualInfo
+</span><a href="#local-6989586621681936149"><span class="hs-identifier hs-var">mi</span></a></span></span><span> </span><span id="local-6989586621681936150"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681936150"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MutualBlock -&gt; Maybe MutualBlock
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(MutualBlock -&gt; Maybe MutualBlock)
+-&gt; MutualBlock -&gt; Maybe MutualBlock
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MutualInfo -&gt; Set QName -&gt; MutualBlock
+</span><a href="Agda.TypeChecking.Monad.Base.html#MutualBlock"><span class="hs-identifier hs-var">MutualBlock</span></a></span><span> </span><span class="annot"><span class="annottext">MutualInfo
+</span><a href="#local-6989586621681936149"><span class="hs-identifier hs-var">mi</span></a></span><span> </span><span class="annot"><span class="annottext">(Set QName -&gt; MutualBlock) -&gt; Set QName -&gt; MutualBlock
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Set QName -&gt; Set QName
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.insert</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681936138"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681936150"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | Get the current mutual block, if any, otherwise a fresh mutual</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- block is returned.</span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Mutual.html#currentOrFreshMutualBlock"><span class="hs-identifier hs-type">currentOrFreshMutualBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span>
+</span><span id="line-56"></span><span id="currentOrFreshMutualBlock"><span class="annot"><span class="annottext">currentOrFreshMutualBlock :: TCMT IO MutualId
+</span><a href="Agda.TypeChecking.Monad.Mutual.html#currentOrFreshMutualBlock"><span class="hs-identifier hs-var hs-var">currentOrFreshMutualBlock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCMT IO MutualId
+-&gt; (MutualId -&gt; TCMT IO MutualId)
+-&gt; Maybe MutualId
+-&gt; TCMT IO MutualId
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO MutualId
+forall i (m :: * -&gt; *). MonadFresh i m =&gt; m i
+</span><a href="Agda.TypeChecking.Monad.Base.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span> </span><span class="annot"><span class="annottext">MutualId -&gt; TCMT IO MutualId
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe MutualId -&gt; TCMT IO MutualId)
+-&gt; TCMT IO (Maybe MutualId) -&gt; TCMT IO MutualId
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(TCEnv -&gt; Maybe MutualId) -&gt; TCMT IO (Maybe MutualId)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; (TCEnv -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#asksTC"><span class="hs-identifier hs-var">asksTC</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Maybe MutualId
+</span><a href="Agda.TypeChecking.Monad.Base.html#envMutualBlock"><span class="hs-identifier hs-var">envMutualBlock</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span id="local-6989586621681936057"><span class="annot"><a href="Agda.TypeChecking.Monad.Mutual.html#lookupMutualBlock"><span class="hs-identifier hs-type">lookupMutualBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681936057"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681936057"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualBlock"><span class="hs-identifier hs-type">MutualBlock</span></a></span></span><span>
+</span><span id="line-59"></span><span id="lookupMutualBlock"><span class="annot"><span class="annottext">lookupMutualBlock :: forall (tcm :: * -&gt; *).
+ReadTCState tcm =&gt;
+MutualId -&gt; tcm MutualBlock
+</span><a href="Agda.TypeChecking.Monad.Mutual.html#lookupMutualBlock"><span class="hs-identifier hs-var hs-var">lookupMutualBlock</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MutualId"><span class="hs-identifier hs-type">MutualId</span></a></span><span> </span><span id="local-6989586621681936169"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681936169"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><span class="annottext">MutualBlock -&gt; Key -&gt; MutualBlocks -&gt; MutualBlock
+forall a. a -&gt; Key -&gt; IntMap a -&gt; a
+</span><span class="hs-identifier hs-var">IntMap.findWithDefault</span></span><span> </span><span class="annot"><span class="annottext">MutualBlock
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Key
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681936169"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(MutualBlocks -&gt; MutualBlock)
+-&gt; tcm MutualBlocks -&gt; tcm MutualBlock
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState MutualBlocks -&gt; tcm MutualBlocks
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(MutualBlocks -&gt; f MutualBlocks) -&gt; TCState -&gt; f TCState
+Lens' TCState MutualBlocks
+</span><a href="Agda.TypeChecking.Monad.Base.html#stMutualBlocks"><span class="hs-identifier hs-var">stMutualBlocks</span></a></span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-comment">-- can be empty if we ask for the current mutual block and there is none</span><span>
+</span><span id="line-62"></span></pre></body></html>

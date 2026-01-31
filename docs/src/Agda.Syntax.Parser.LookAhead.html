@@ -1,0 +1,401 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="annot"><span class="hs-comment">{-| When lexing by hand (for instance string literals) we need to do some
+    looking ahead. The 'LookAhead' monad keeps track of the position we are
+    currently looking at, and provides facilities to synchronise the look-ahead
+    position with the actual position of the 'Parser' monad (see 'sync' and
+    'rollback').
+-}</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html"><span class="hs-identifier">Agda.Syntax.Parser.LookAhead</span></a></span><span>
+</span><span id="line-9"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-comment">-- * The LookAhead monad</span></span><span>
+</span><span id="line-10"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier">LookAhead</span></a></span><span>
+</span><span id="line-11"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#runLookAhead"><span class="hs-identifier">runLookAhead</span></a></span><span>
+</span><span id="line-12"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Operations</span></span><span>
+</span><span id="line-13"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#lookAheadError"><span class="hs-identifier">lookAheadError</span></a></span><span>
+</span><span id="line-14"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#getInput"><span class="hs-identifier">getInput</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#setInput"><span class="hs-identifier">setInput</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#liftP"><span class="hs-identifier">liftP</span></a></span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#nextChar"><span class="hs-identifier">nextChar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#eatNextChar"><span class="hs-identifier">eatNextChar</span></a></span><span>
+</span><span id="line-16"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#sync"><span class="hs-identifier">sync</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#rollback"><span class="hs-identifier">rollback</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#match"><span class="hs-identifier">match</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#match%27"><span class="hs-identifier">match'</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html"><span class="hs-identifier">Agda.Syntax.Parser.Alex</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html"><span class="hs-identifier">Agda.Syntax.Parser.Monad</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Null.html#ifNull"><span class="hs-identifier">ifNull</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Maybe.html#fromMaybeM"><span class="hs-identifier">fromMaybeM</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">{--------------------------------------------------------------------------
+    The look-ahead monad
+ --------------------------------------------------------------------------}</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><span class="hs-comment">{-| The LookAhead monad is basically a state monad keeping with an extra
+    'AlexInput', wrapped around the 'Parser' monad.
+-}</span></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">newtype</span><span> </span><span id="LookAhead"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-var">LookAhead</span></a></span></span><span> </span><span id="local-6989586621681835460"><span class="annot"><a href="#local-6989586621681835460"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-38"></span><span>    </span><span id="LookAhead"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-var">LookAhead</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="_unLookAhead"><span class="annot"><span class="annottext">forall a.
+LookAhead a -&gt; ReaderT ErrorFunction (StateT AlexInput Parser) a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#_unLookAhead"><span class="hs-identifier hs-var hs-var">_unLookAhead</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#ErrorFunction"><span class="hs-identifier hs-type">ErrorFunction</span></a></span><span>
+</span><span id="line-39"></span><span>                                       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681835460"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-40"></span><span>              </span><span class="hs-special">}</span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681835610"><span id="local-6989586621681835616"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b)
+-&gt; (forall a b. a -&gt; LookAhead b -&gt; LookAhead a)
+-&gt; Functor LookAhead
+forall a b. a -&gt; LookAhead b -&gt; LookAhead a
+forall a b. (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b
+fmap :: forall a b. (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b
+$c&lt;$ :: forall a b. a -&gt; LookAhead b -&gt; LookAhead a
+&lt;$ :: forall a b. a -&gt; LookAhead b -&gt; LookAhead a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681835630"><span id="local-6989586621681835636"><span id="local-6989586621681835641"><span id="local-6989586621681835646"><span id="local-6989586621681835651"><span class="annot"><span class="annottext">Functor LookAhead
+Functor LookAhead =&gt;
+(forall a. a -&gt; LookAhead a)
+-&gt; (forall a b. LookAhead (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c) -&gt; LookAhead a -&gt; LookAhead b -&gt; LookAhead c)
+-&gt; (forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b)
+-&gt; (forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead a)
+-&gt; Applicative LookAhead
+forall a. a -&gt; LookAhead a
+forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead a
+forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b
+forall a b. LookAhead (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b
+forall a b c.
+(a -&gt; b -&gt; c) -&gt; LookAhead a -&gt; LookAhead b -&gt; LookAhead c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall a. a -&gt; LookAhead a
+pure :: forall a. a -&gt; LookAhead a
+$c&lt;*&gt; :: forall a b. LookAhead (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b
+&lt;*&gt; :: forall a b. LookAhead (a -&gt; b) -&gt; LookAhead a -&gt; LookAhead b
+$cliftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; LookAhead a -&gt; LookAhead b -&gt; LookAhead c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; LookAhead a -&gt; LookAhead b -&gt; LookAhead c
+$c*&gt; :: forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b
+*&gt; :: forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b
+$c&lt;* :: forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead a
+&lt;* :: forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681835668"><span id="local-6989586621681835674"><span id="local-6989586621681835679"><span class="annot"><span class="annottext">Applicative LookAhead
+Applicative LookAhead =&gt;
+(forall a b. LookAhead a -&gt; (a -&gt; LookAhead b) -&gt; LookAhead b)
+-&gt; (forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b)
+-&gt; (forall a. a -&gt; LookAhead a)
+-&gt; Monad LookAhead
+forall a. a -&gt; LookAhead a
+forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b
+forall a b. LookAhead a -&gt; (a -&gt; LookAhead b) -&gt; LookAhead b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall a b. LookAhead a -&gt; (a -&gt; LookAhead b) -&gt; LookAhead b
+&gt;&gt;= :: forall a b. LookAhead a -&gt; (a -&gt; LookAhead b) -&gt; LookAhead b
+$c&gt;&gt; :: forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b
+&gt;&gt; :: forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b
+$creturn :: forall a. a -&gt; LookAhead a
+return :: forall a. a -&gt; LookAhead a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">newtype</span><span> </span><span id="ErrorFunction"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#ErrorFunction"><span class="hs-identifier hs-var">ErrorFunction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-44"></span><span>    </span><span id="ErrorFun"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#ErrorFun"><span class="hs-identifier hs-var">ErrorFun</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="throwError"><span class="annot"><span class="annottext">ErrorFunction -&gt; forall a. String -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#throwError"><span class="hs-identifier hs-var hs-var">throwError</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681835518"><span class="annot"><a href="#local-6989586621681835518"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835518"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><span class="hs-comment">-- | Throw an error message according to the supplied method.</span></span><span>
+</span><span id="line-47"></span><span id="local-6989586621681835687"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#lookAheadError"><span class="hs-identifier hs-type">lookAheadError</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835687"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- ASR (2021-02-07). The eta-expansion @\e -&gt; throwError e@ is</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- required GHC &gt;= 9.0.1 ((see Issue #4955).</span><span>
+</span><span id="line-50"></span><span id="lookAheadError"><span class="annot"><span class="annottext">lookAheadError :: forall a. String -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#lookAheadError"><span class="hs-identifier hs-var hs-var">lookAheadError</span></a></span></span><span> </span><span id="local-6989586621681835692"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681835692"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(String -&gt; LookAhead a) -&gt; String -&gt; LookAhead a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681835692"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((String -&gt; LookAhead a) -&gt; LookAhead a)
+-&gt; LookAhead (String -&gt; LookAhead a) -&gt; LookAhead a
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">ReaderT
+  ErrorFunction (StateT AlexInput Parser) (String -&gt; LookAhead a)
+-&gt; LookAhead (String -&gt; LookAhead a)
+forall a.
+ReaderT ErrorFunction (StateT AlexInput Parser) a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-var">LookAhead</span></a></span><span> </span><span class="annot"><span class="annottext">(ReaderT
+   ErrorFunction (StateT AlexInput Parser) (String -&gt; LookAhead a)
+ -&gt; LookAhead (String -&gt; LookAhead a))
+-&gt; ReaderT
+     ErrorFunction (StateT AlexInput Parser) (String -&gt; LookAhead a)
+-&gt; LookAhead (String -&gt; LookAhead a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(ErrorFunction -&gt; String -&gt; LookAhead a)
+-&gt; ReaderT
+     ErrorFunction (StateT AlexInput Parser) (String -&gt; LookAhead a)
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681835695"><span class="annot"><span class="annottext">ErrorFunction
+</span><a href="#local-6989586621681835695"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ErrorFunction -&gt; forall a. String -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#throwError"><span class="hs-identifier hs-var">throwError</span></a></span><span> </span><span class="annot"><span class="annottext">ErrorFunction
+</span><a href="#local-6989586621681835695"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">{--------------------------------------------------------------------------
+    Operations
+ --------------------------------------------------------------------------}</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="annot"><span class="hs-comment">-- | Get the current look-ahead position.</span></span><span>
+</span><span id="line-57"></span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#getInput"><span class="hs-identifier hs-type">getInput</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span>
+</span><span id="line-58"></span><span id="getInput"><span class="annot"><span class="annottext">getInput :: LookAhead AlexInput
+</span><a href="Agda.Syntax.Parser.LookAhead.html#getInput"><span class="hs-identifier hs-var hs-var">getInput</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ErrorFunction (StateT AlexInput Parser) AlexInput
+-&gt; LookAhead AlexInput
+forall a.
+ReaderT ErrorFunction (StateT AlexInput Parser) a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-var">LookAhead</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT ErrorFunction (StateT AlexInput Parser) AlexInput
+forall s (m :: * -&gt; *). MonadState s m =&gt; m s
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="annot"><span class="hs-comment">-- | Set the look-ahead position.</span></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#setInput"><span class="hs-identifier hs-type">setInput</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span id="setInput"><span class="annot"><span class="annottext">setInput :: AlexInput -&gt; LookAhead ()
+</span><a href="Agda.Syntax.Parser.LookAhead.html#setInput"><span class="hs-identifier hs-var hs-var">setInput</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ErrorFunction (StateT AlexInput Parser) () -&gt; LookAhead ()
+forall a.
+ReaderT ErrorFunction (StateT AlexInput Parser) a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-var">LookAhead</span></a></span><span> </span><span class="annot"><span class="annottext">(ReaderT ErrorFunction (StateT AlexInput Parser) ()
+ -&gt; LookAhead ())
+-&gt; (AlexInput
+    -&gt; ReaderT ErrorFunction (StateT AlexInput Parser) ())
+-&gt; AlexInput
+-&gt; LookAhead ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AlexInput -&gt; ReaderT ErrorFunction (StateT AlexInput Parser) ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; s -&gt; m ()
+</span><span class="hs-identifier hs-var">put</span></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="annot"><span class="hs-comment">-- | Lift a computation in the 'Parser' monad to the 'LookAhead' monad.</span></span><span>
+</span><span id="line-67"></span><span id="local-6989586621681835539"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#liftP"><span class="hs-identifier hs-type">liftP</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835539"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835539"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-68"></span><span id="liftP"><span class="annot"><span class="annottext">liftP :: forall a. Parser a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#liftP"><span class="hs-identifier hs-var hs-var">liftP</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ErrorFunction (StateT AlexInput Parser) a -&gt; LookAhead a
+forall a.
+ReaderT ErrorFunction (StateT AlexInput Parser) a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-var">LookAhead</span></a></span><span> </span><span class="annot"><span class="annottext">(ReaderT ErrorFunction (StateT AlexInput Parser) a -&gt; LookAhead a)
+-&gt; (Parser a -&gt; ReaderT ErrorFunction (StateT AlexInput Parser) a)
+-&gt; Parser a
+-&gt; LookAhead a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">StateT AlexInput Parser a
+-&gt; ReaderT ErrorFunction (StateT AlexInput Parser) a
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ReaderT ErrorFunction m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(StateT AlexInput Parser a
+ -&gt; ReaderT ErrorFunction (StateT AlexInput Parser) a)
+-&gt; (Parser a -&gt; StateT AlexInput Parser a)
+-&gt; Parser a
+-&gt; ReaderT ErrorFunction (StateT AlexInput Parser) a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Parser a -&gt; StateT AlexInput Parser a
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; StateT AlexInput m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><span class="hs-comment">-- | Look at the next character. Fails if there are no more characters.</span></span><span>
+</span><span id="line-72"></span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#nextChar"><span class="hs-identifier hs-type">nextChar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-73"></span><span id="nextChar"><span class="annot"><span class="annottext">nextChar :: LookAhead Char
+</span><a href="Agda.Syntax.Parser.LookAhead.html#nextChar"><span class="hs-identifier hs-var hs-var">nextChar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LookAhead Char -&gt; LookAhead (Maybe Char) -&gt; LookAhead Char
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; m (Maybe a) -&gt; m a
+</span><a href="Agda.Utils.Maybe.html#fromMaybeM"><span class="hs-identifier hs-var">fromMaybeM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; LookAhead Char
+forall a. String -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#lookAheadError"><span class="hs-identifier hs-var">lookAheadError</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;unexpected end of file&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">LookAhead (Maybe Char)
+</span><a href="Agda.Syntax.Parser.LookAhead.html#nextCharMaybe"><span class="hs-identifier hs-var">nextCharMaybe</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="annot"><span class="hs-comment">-- | Look at the next character. Return 'Nothing' if there are no more characters.</span></span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#nextCharMaybe"><span class="hs-identifier hs-type">nextCharMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span id="nextCharMaybe"><span class="annot"><span class="annottext">nextCharMaybe :: LookAhead (Maybe Char)
+</span><a href="Agda.Syntax.Parser.LookAhead.html#nextCharMaybe"><span class="hs-identifier hs-var hs-var">nextCharMaybe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-keyword">do</span><span>  </span><span id="local-6989586621681835707"><span class="annot"><a href="#local-6989586621681835707"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LookAhead AlexInput
+</span><a href="Agda.Syntax.Parser.LookAhead.html#getInput"><span class="hs-identifier hs-var">getInput</span></a></span><span>
+</span><span id="line-79"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexGetChar"><span class="hs-identifier hs-type">alexGetChar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835707"><span class="hs-identifier hs-type">inp</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-80"></span><span>            </span><span class="annot"><span class="annottext">Maybe (Char, AlexInput)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Char -&gt; LookAhead (Maybe Char)
+forall a. a -&gt; LookAhead a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe Char
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-81"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681835709"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835709"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681835710"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835710"><span class="hs-identifier hs-var">inp'</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-82"></span><span>                </span><span class="hs-keyword">do</span><span>  </span><span class="annot"><span class="annottext">AlexInput -&gt; LookAhead ()
+</span><a href="Agda.Syntax.Parser.LookAhead.html#setInput"><span class="hs-identifier hs-var">setInput</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835710"><span class="hs-identifier hs-var">inp'</span></a></span><span>
+</span><span id="line-83"></span><span>                    </span><span class="annot"><span class="annottext">Maybe Char -&gt; LookAhead (Maybe Char)
+forall a. a -&gt; LookAhead a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Char -&gt; LookAhead (Maybe Char))
+-&gt; Maybe Char -&gt; LookAhead (Maybe Char)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Maybe Char
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835709"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="annot"><span class="hs-comment">-- | Consume all the characters up to the current look-ahead position.</span></span><span>
+</span><span id="line-87"></span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#sync"><span class="hs-identifier hs-type">sync</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span id="sync"><span class="annot"><span class="annottext">sync :: LookAhead ()
+</span><a href="Agda.Syntax.Parser.LookAhead.html#sync"><span class="hs-identifier hs-var hs-var">sync</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-89"></span><span>    </span><span class="hs-keyword">do</span><span>  </span><span id="local-6989586621681835711"><span class="annot"><a href="#local-6989586621681835711"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LookAhead AlexInput
+</span><a href="Agda.Syntax.Parser.LookAhead.html#getInput"><span class="hs-identifier hs-var">getInput</span></a></span><span>
+</span><span id="line-90"></span><span>        </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#liftP"><span class="hs-identifier hs-type">liftP</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#setLexInput"><span class="hs-identifier hs-type">setLexInput</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835711"><span class="hs-identifier hs-type">inp</span></a></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="annot"><span class="hs-comment">-- | Undo look-ahead. Restores the input from the 'ParseState'.</span></span><span>
+</span><span id="line-94"></span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#rollback"><span class="hs-identifier hs-type">rollback</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span id="rollback"><span class="annot"><span class="annottext">rollback :: LookAhead ()
+</span><a href="Agda.Syntax.Parser.LookAhead.html#rollback"><span class="hs-identifier hs-var hs-var">rollback</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-96"></span><span>    </span><span class="hs-keyword">do</span><span>  </span><span id="local-6989586621681835714"><span class="annot"><a href="#local-6989586621681835714"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser AlexInput -&gt; LookAhead AlexInput
+forall a. Parser a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#liftP"><span class="hs-identifier hs-var">liftP</span></a></span><span> </span><span class="annot"><span class="annottext">Parser AlexInput
+</span><a href="Agda.Syntax.Parser.Alex.html#getLexInput"><span class="hs-identifier hs-var">getLexInput</span></a></span><span>
+</span><span id="line-97"></span><span>        </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#setInput"><span class="hs-identifier hs-type">setInput</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835714"><span class="hs-identifier hs-type">inp</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><span class="hs-comment">-- | Consume the next character. Does 'nextChar' followed by 'sync'.</span></span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#eatNextChar"><span class="hs-identifier hs-type">eatNextChar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-102"></span><span id="eatNextChar"><span class="annot"><span class="annottext">eatNextChar :: LookAhead Char
+</span><a href="Agda.Syntax.Parser.LookAhead.html#eatNextChar"><span class="hs-identifier hs-var hs-var">eatNextChar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-103"></span><span>    </span><span class="hs-keyword">do</span><span>  </span><span id="local-6989586621681835716"><span class="annot"><a href="#local-6989586621681835716"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LookAhead Char
+</span><a href="Agda.Syntax.Parser.LookAhead.html#nextChar"><span class="hs-identifier hs-var">nextChar</span></a></span><span>
+</span><span id="line-104"></span><span>        </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#sync"><span class="hs-identifier hs-type">sync</span></a></span><span>
+</span><span id="line-105"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681835716"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="annot"><span class="hs-comment">{-| Do a case on the current input string. If any of the given strings match we
+    move past it and execute the corresponding action. If no string matches, we
+    execute a default action, advancing the input one character. This function
+    only affects the look-ahead position.
+-}</span></span><span>
+</span><span id="line-113"></span><span id="local-6989586621681835549"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#match"><span class="hs-identifier hs-type">match</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835549"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835549"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835549"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-114"></span><span id="match"><span class="annot"><span class="annottext">match :: forall a. [(String, LookAhead a)] -&gt; LookAhead a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#match"><span class="hs-identifier hs-var hs-var">match</span></a></span></span><span> </span><span id="local-6989586621681835718"><span class="annot"><span class="annottext">[(String, LookAhead a)]
+</span><a href="#local-6989586621681835718"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681835719"><span class="annot"><span class="annottext">LookAhead a
+</span><a href="#local-6989586621681835719"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-115"></span><span>    </span><span class="hs-keyword">do</span><span>  </span><span id="local-6989586621681835720"><span class="annot"><a href="#local-6989586621681835720"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LookAhead Char
+</span><a href="Agda.Syntax.Parser.LookAhead.html#nextChar"><span class="hs-identifier hs-var">nextChar</span></a></span><span>
+</span><span id="line-116"></span><span>        </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#match%27"><span class="hs-identifier hs-type">match'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835720"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835718"><span class="hs-identifier hs-type">xs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835719"><span class="hs-identifier hs-type">def</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="annot"><span class="hs-comment">{-| Same as 'match' but takes the initial character from the first argument
+    instead of reading it from the input.  Consequently, in the default case
+    the input is not advanced.
+-}</span></span><span>
+</span><span id="line-122"></span><span id="local-6989586621681835551"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#match%27"><span class="hs-identifier hs-type">match'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835551"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835551"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835551"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-123"></span><span id="match%27"><span class="annot"><span class="annottext">match' :: forall a.
+Char -&gt; [(String, LookAhead a)] -&gt; LookAhead a -&gt; LookAhead a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#match%27"><span class="hs-identifier hs-var hs-var">match'</span></a></span></span><span> </span><span id="local-6989586621681835723"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835723"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681835724"><span class="annot"><span class="annottext">[(String, LookAhead a)]
+</span><a href="#local-6989586621681835724"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681835725"><span class="annot"><span class="annottext">LookAhead a
+</span><a href="#local-6989586621681835725"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-comment">-- Set the error continuation to the default @def@, but make sure we reset</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-comment">-- the input to where we started speculative matching.</span><span>
+</span><span id="line-127"></span><span>  </span><span id="local-6989586621681835726"><span class="annot"><a href="#local-6989586621681835726"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LookAhead AlexInput
+</span><a href="Agda.Syntax.Parser.LookAhead.html#getInput"><span class="hs-identifier hs-var">getInput</span></a></span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681835727"><span class="annot"><a href="#local-6989586621681835727"><span class="hs-identifier hs-var hs-var">fallback</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AlexInput -&gt; LookAhead ()
+</span><a href="Agda.Syntax.Parser.LookAhead.html#setInput"><span class="hs-identifier hs-var">setInput</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835726"><span class="hs-identifier hs-var">inp</span></a></span><span> </span><span class="annot"><span class="annottext">LookAhead () -&gt; LookAhead a -&gt; LookAhead a
+forall a b. LookAhead a -&gt; LookAhead b -&gt; LookAhead b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">LookAhead a
+</span><a href="#local-6989586621681835725"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-comment">-- Find the longest match from the table.</span><span>
+</span><span id="line-131"></span><span>  </span><span class="annot"><a href="#local-6989586621681835728"><span class="hs-identifier hs-type">match''</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835727"><span class="hs-identifier hs-type">fallback</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835724"><span class="hs-identifier hs-type">xs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835723"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>  </span><span id="local-6989586621681835728"><span class="annot"><span class="annottext">match'' :: LookAhead b -&gt; [(String, LookAhead b)] -&gt; Char -&gt; LookAhead b
+</span><a href="#local-6989586621681835728"><span class="hs-identifier hs-var hs-var">match''</span></a></span></span><span> </span><span id="local-6989586621681835744"><span class="annot"><span class="annottext">LookAhead b
+</span><a href="#local-6989586621681835744"><span class="hs-identifier hs-var">fallback</span></a></span></span><span> </span><span id="local-6989586621681835745"><span class="annot"><span class="annottext">[(String, LookAhead b)]
+</span><a href="#local-6989586621681835745"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621681835746"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835746"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>    </span><span class="hs-comment">-- Match the first character, dropping entries that do not match.</span><span>
+</span><span id="line-137"></span><span>    </span><span class="annot"><span class="annottext">[(String, LookAhead b)]
+-&gt; LookAhead b
+-&gt; ([(String, LookAhead b)] -&gt; LookAhead b)
+-&gt; LookAhead b
+forall a b. Null a =&gt; a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Null.html#ifNull"><span class="hs-identifier hs-var">ifNull</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681835747"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">LookAhead b
+</span><a href="#local-6989586621681835748"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681835749"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835749"><span class="hs-identifier hs-var">c'</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681835747"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681835747"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681835748"><span class="annot"><span class="annottext">LookAhead b
+</span><a href="#local-6989586621681835748"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[(String, LookAhead b)]
+</span><a href="#local-6989586621681835745"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835746"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835749"><span class="hs-identifier hs-var">c'</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span>      </span><span class="hs-comment">-- If no alternatives are left, fall back to the failure continuation.</span><span>
+</span><span id="line-140"></span><span>      </span><span class="hs-comment">{-then-}</span><span> </span><span class="annot"><span class="annottext">LookAhead b
+</span><a href="#local-6989586621681835744"><span class="hs-identifier hs-var">fallback</span></a></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span>      </span><span class="hs-comment">-- Otherwise:</span><span>
+</span><span id="line-143"></span><span>      </span><span class="hs-comment">{-else-}</span><span> </span><span class="annot"><span class="annottext">(([(String, LookAhead b)] -&gt; LookAhead b) -&gt; LookAhead b)
+-&gt; ([(String, LookAhead b)] -&gt; LookAhead b) -&gt; LookAhead b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681835750"><span class="annot"><span class="annottext">[(String, LookAhead b)]
+</span><a href="#local-6989586621681835750"><span class="hs-identifier hs-var">bs'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>        </span><span class="hs-comment">-- If we have a successful match, store it in the failure continuation.</span><span>
+</span><span id="line-146"></span><span>        </span><span id="local-6989586621681835751"><span class="annot"><a href="#local-6989586621681835751"><span class="hs-identifier hs-var">fallback'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-147"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">String -&gt; [(String, LookAhead b)] -&gt; Maybe (LookAhead b)
+forall a b. Eq a =&gt; a -&gt; [(a, b)] -&gt; Maybe b
+</span><span class="hs-identifier hs-var">lookup</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">[(String, LookAhead b)]
+</span><a href="#local-6989586621681835750"><span class="hs-identifier hs-var">bs'</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span>            </span><span class="hs-comment">-- No match yet.</span><span>
+</span><span id="line-150"></span><span>            </span><span class="annot"><span class="annottext">Maybe (LookAhead b)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LookAhead b -&gt; LookAhead (LookAhead b)
+forall a. a -&gt; LookAhead a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">LookAhead b
+</span><a href="#local-6989586621681835744"><span class="hs-identifier hs-var">fallback</span></a></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span>            </span><span class="hs-comment">-- Match found!  Remember it, and the state of the input where we found it.</span><span>
+</span><span id="line-153"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681835753"><span class="annot"><span class="annottext">LookAhead b
+</span><a href="#local-6989586621681835753"><span class="hs-identifier hs-var">p</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-154"></span><span>              </span><span id="local-6989586621681835754"><span class="annot"><a href="#local-6989586621681835754"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LookAhead AlexInput
+</span><a href="Agda.Syntax.Parser.LookAhead.html#getInput"><span class="hs-identifier hs-var">getInput</span></a></span><span>
+</span><span id="line-155"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#setInput"><span class="hs-identifier hs-type">setInput</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835754"><span class="hs-identifier hs-type">inp</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&gt;&gt;</span></span><span> </span><span class="annot"><a href="#local-6989586621681835753"><span class="hs-identifier hs-type">p</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span>        </span><span class="hs-comment">-- Keep trying to find a (longer) match.</span><span>
+</span><span id="line-158"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681835751"><span class="hs-identifier hs-type">fallback'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681835728"><span class="hs-identifier hs-type">match''</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835751"><span class="hs-identifier hs-type">fallback'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835750"><span class="hs-identifier hs-type">bs'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">=&lt;&lt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#nextCharMaybe"><span class="hs-identifier hs-type">nextCharMaybe</span></a></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="annot"><span class="hs-comment">-- | Run a 'LookAhead' computation. The first argument is the error function.</span></span><span>
+</span><span id="line-161"></span><span id="local-6989586621681835566"><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#runLookAhead"><span class="hs-identifier hs-type">runLookAhead</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681835756"><span class="annot"><a href="#local-6989586621681835756"><span class="hs-identifier hs-type">b</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835756"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835566"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835566"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-162"></span><span id="runLookAhead"><span class="annot"><span class="annottext">runLookAhead :: forall a.
+(forall a. String -&gt; LookAhead a) -&gt; LookAhead a -&gt; Parser a
+</span><a href="Agda.Syntax.Parser.LookAhead.html#runLookAhead"><span class="hs-identifier hs-var hs-var">runLookAhead</span></a></span></span><span> </span><span id="local-6989586621681835759"><span class="annot"><span class="annottext">forall a. String -&gt; LookAhead a
+</span><a href="#local-6989586621681835759"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#LookAhead"><span class="hs-identifier hs-type">LookAhead</span></a></span><span> </span><span id="local-6989586621681835760"><span class="annot"><span class="annottext">ReaderT ErrorFunction (StateT AlexInput Parser) a
+</span><a href="#local-6989586621681835760"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-163"></span><span>    </span><span class="hs-keyword">do</span><span>  </span><span id="local-6989586621681835761"><span class="annot"><a href="#local-6989586621681835761"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser AlexInput
+</span><a href="Agda.Syntax.Parser.Alex.html#getLexInput"><span class="hs-identifier hs-var">getLexInput</span></a></span><span>
+</span><span id="line-164"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">evalStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621681835760"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.LookAhead.html#ErrorFun"><span class="hs-identifier hs-type">ErrorFun</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835759"><span class="hs-identifier hs-type">err</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681835761"><span class="hs-identifier hs-type">inp</span></a></span><span>
+</span><span id="line-165"></span></pre></body></html>

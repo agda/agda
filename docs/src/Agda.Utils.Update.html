@@ -1,0 +1,659 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html"><span class="hs-identifier">Agda.Utils.Update</span></a></span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier">ChangeT</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#runChangeT"><span class="hs-identifier">runChangeT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#mapChangeT"><span class="hs-identifier">mapChangeT</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#UpdaterT"><span class="hs-identifier">UpdaterT</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#runUpdaterT"><span class="hs-identifier">runUpdaterT</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Change"><span class="hs-identifier">Change</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#MonadChange"><span class="hs-identifier">MonadChange</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#runChange"><span class="hs-identifier">runChange</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier">Updater</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier">sharing</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#runUpdater"><span class="hs-identifier">runUpdater</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#dirty"><span class="hs-identifier">dirty</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ifDirty"><span class="hs-identifier">ifDirty</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater1"><span class="hs-identifier">Updater1</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater2"><span class="hs-identifier">Updater2</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Identity</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Control</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer.Strict</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadWriter</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Writer</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">WriterT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">mapWriterT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runWriterT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Any</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="annot"><span class="hs-comment">-- * Change monad.</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="annot"><span class="hs-comment">-- | The class of change monads.</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681706455"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadChange"><span class="annot"><a href="Agda.Utils.Update.html#MonadChange"><span class="hs-identifier hs-var">MonadChange</span></a></span></span><span> </span><span id="local-6989586621681706455"><span class="annot"><a href="#local-6989586621681706455"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-32"></span><span>  </span><span id="tellDirty"><span class="annot"><a href="Agda.Utils.Update.html#tellDirty"><span class="hs-identifier hs-type">tellDirty</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681706455"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-comment">-- ^ Mark computation as having changed something.</span></span><span>
+</span><span id="line-33"></span><span>  </span><span id="listenDirty"><span class="annot"><a href="Agda.Utils.Update.html#listenDirty"><span class="hs-identifier hs-type">listenDirty</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681706568"><span class="annot"><a href="#local-6989586621681706455"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706568"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706455"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706568"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="annot"><span class="hs-comment">-- | The @ChangeT@ monad transformer.</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">newtype</span><span> </span><span id="ChangeT"><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-var">ChangeT</span></a></span></span><span> </span><span id="local-6989586621681706457"><span class="annot"><a href="#local-6989586621681706457"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621681706458"><span class="annot"><a href="#local-6989586621681706458"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ChangeT"><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-var">ChangeT</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="fromChangeT"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. ChangeT m a -&gt; WriterT Any m a
+</span><a href="Agda.Utils.Update.html#fromChangeT"><span class="hs-identifier hs-var hs-var">fromChangeT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span> </span><span class="annot"><a href="#local-6989586621681706457"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706458"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681706700"><span id="local-6989586621681706705"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b)
+-&gt; (forall a b. a -&gt; ChangeT m b -&gt; ChangeT m a)
+-&gt; Functor (ChangeT m)
+forall a b. a -&gt; ChangeT m b -&gt; ChangeT m a
+forall a b. (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+a -&gt; ChangeT m b -&gt; ChangeT m a
+forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+fmap :: forall a b. (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+$c&lt;$ :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+a -&gt; ChangeT m b -&gt; ChangeT m a
+&lt;$ :: forall a b. a -&gt; ChangeT m b -&gt; ChangeT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681706716"><span id="local-6989586621681706722"><span id="local-6989586621681706727"><span id="local-6989586621681706732"><span id="local-6989586621681706737"><span class="annot"><span class="annottext">Functor (ChangeT m)
+Functor (ChangeT m) =&gt;
+(forall a. a -&gt; ChangeT m a)
+-&gt; (forall a b. ChangeT m (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c) -&gt; ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m c)
+-&gt; (forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b)
+-&gt; (forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m a)
+-&gt; Applicative (ChangeT m)
+forall a. a -&gt; ChangeT m a
+forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m a
+forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+forall a b. ChangeT m (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+forall a b c.
+(a -&gt; b -&gt; c) -&gt; ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+forall (m :: * -&gt; *). Applicative m =&gt; Functor (ChangeT m)
+forall (m :: * -&gt; *) a. Applicative m =&gt; a -&gt; ChangeT m a
+forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m a
+forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+ChangeT m (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; c) -&gt; ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m c
+$cpure :: forall (m :: * -&gt; *) a. Applicative m =&gt; a -&gt; ChangeT m a
+pure :: forall a. a -&gt; ChangeT m a
+$c&lt;*&gt; :: forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+ChangeT m (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+&lt;*&gt; :: forall a b. ChangeT m (a -&gt; b) -&gt; ChangeT m a -&gt; ChangeT m b
+$cliftA2 :: forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; c) -&gt; ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m c
+$c*&gt; :: forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+*&gt; :: forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+$c&lt;* :: forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m a
+&lt;* :: forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681706752"><span id="local-6989586621681706758"><span id="local-6989586621681706763"><span class="annot"><span class="annottext">Applicative (ChangeT m)
+Applicative (ChangeT m) =&gt;
+(forall a b. ChangeT m a -&gt; (a -&gt; ChangeT m b) -&gt; ChangeT m b)
+-&gt; (forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b)
+-&gt; (forall a. a -&gt; ChangeT m a)
+-&gt; Monad (ChangeT m)
+forall a. a -&gt; ChangeT m a
+forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+forall a b. ChangeT m a -&gt; (a -&gt; ChangeT m b) -&gt; ChangeT m b
+forall (m :: * -&gt; *). Monad m =&gt; Applicative (ChangeT m)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ChangeT m a
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+ChangeT m a -&gt; (a -&gt; ChangeT m b) -&gt; ChangeT m b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+ChangeT m a -&gt; (a -&gt; ChangeT m b) -&gt; ChangeT m b
+&gt;&gt;= :: forall a b. ChangeT m a -&gt; (a -&gt; ChangeT m b) -&gt; ChangeT m b
+$c&gt;&gt; :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+&gt;&gt; :: forall a b. ChangeT m a -&gt; ChangeT m b -&gt; ChangeT m b
+$creturn :: forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ChangeT m a
+return :: forall a. a -&gt; ChangeT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681706773"><span class="annot"><span class="annottext">(forall (m :: * -&gt; *). Monad m =&gt; Monad (ChangeT m)) =&gt;
+(forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ChangeT m a)
+-&gt; MonadTrans ChangeT
+forall (m :: * -&gt; *). Monad m =&gt; Monad (ChangeT m)
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ChangeT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *).
+(forall (m :: * -&gt; *). Monad m =&gt; Monad (t m)) =&gt;
+(forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; t m a) -&gt; MonadTrans t
+$clift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ChangeT m a
+lift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ChangeT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadTrans</span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681706788"><span class="annot"><span class="annottext">Monad (ChangeT m)
+Monad (ChangeT m) =&gt;
+(forall a. String -&gt; ChangeT m a) -&gt; MonadFail (ChangeT m)
+forall a. String -&gt; ChangeT m a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. String -&gt; m a) -&gt; MonadFail m
+forall (m :: * -&gt; *). MonadFail m =&gt; Monad (ChangeT m)
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; ChangeT m a
+$cfail :: forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; ChangeT m a
+fail :: forall a. String -&gt; ChangeT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadFail</span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681706801"><span class="annot"><span class="annottext">Monad (ChangeT m)
+Monad (ChangeT m) =&gt;
+(forall a. IO a -&gt; ChangeT m a) -&gt; MonadIO (ChangeT m)
+forall a. IO a -&gt; ChangeT m a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. IO a -&gt; m a) -&gt; MonadIO m
+forall (m :: * -&gt; *). MonadIO m =&gt; Monad (ChangeT m)
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; ChangeT m a
+$cliftIO :: forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; ChangeT m a
+liftIO :: forall a. IO a -&gt; ChangeT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadIO</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- This instance cannot be derived in older ghcs like 8.0</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- because of the associated type synonym.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- 8.4 can derive it, but needs UndecidableInstances.</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadTransControl</span></span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="StT"><span class="annot"><span class="hs-identifier hs-var">StT</span></span></span><span> </span><span id="local-6989586621681706816"><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706816"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706816"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- StT (WriterT Any) a  would require UndecidableInstances</span><span>
+</span><span id="line-44"></span><span>  </span><span id="local-6989586621681706822"><span class="annot"><span class="annottext">liftWith :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+(Run ChangeT -&gt; m a) -&gt; ChangeT m a
+</span><a href="#local-6989586621681706822"><span class="hs-identifier hs-var hs-var hs-var">liftWith</span></a></span></span><span> </span><span id="local-6989586621681706824"><span class="annot"><span class="annottext">Run ChangeT -&gt; m a
+</span><a href="#local-6989586621681706824"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WriterT Any m a -&gt; ChangeT m a
+forall (m :: * -&gt; *) a. WriterT Any m a -&gt; ChangeT m a
+</span><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-var">ChangeT</span></a></span><span> </span><span class="annot"><span class="annottext">(WriterT Any m a -&gt; ChangeT m a) -&gt; WriterT Any m a -&gt; ChangeT m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Run (WriterT Any) -&gt; m a) -&gt; WriterT Any m a
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+(Run (WriterT Any) -&gt; m a) -&gt; WriterT Any m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTransControl t, Monad m) =&gt;
+(Run t -&gt; m a) -&gt; t m a
+</span><span class="hs-identifier hs-var">liftWith</span></span><span> </span><span class="annot"><span class="annottext">((Run (WriterT Any) -&gt; m a) -&gt; WriterT Any m a)
+-&gt; (Run (WriterT Any) -&gt; m a) -&gt; WriterT Any m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681706827"><span class="annot"><span class="annottext">Run (WriterT Any)
+</span><a href="#local-6989586621681706827"><span class="hs-identifier hs-var">runWriterT</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Run ChangeT -&gt; m a
+</span><a href="#local-6989586621681706824"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Run ChangeT -&gt; m a) -&gt; Run ChangeT -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">WriterT Any n b -&gt; n (b, Any)
+WriterT Any n b -&gt; n (StT (WriterT Any) b)
+Run (WriterT Any)
+</span><a href="#local-6989586621681706827"><span class="hs-identifier hs-var">runWriterT</span></a></span><span> </span><span class="annot"><span class="annottext">(WriterT Any n b -&gt; n (b, Any))
+-&gt; (ChangeT n b -&gt; WriterT Any n b) -&gt; ChangeT n b -&gt; n (b, Any)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ChangeT n b -&gt; WriterT Any n b
+forall (m :: * -&gt; *) a. ChangeT m a -&gt; WriterT Any m a
+</span><a href="Agda.Utils.Update.html#fromChangeT"><span class="hs-identifier hs-var">fromChangeT</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-comment">-- Andreas, 2020-04-17: these point-free variants do not seem to type check:</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-comment">-- liftWith f = ChangeT $ liftWith $ f . (. fromChangeT)</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-comment">-- liftWith = ChangeT . liftWith . (. (. fromChangeT))</span><span>
+</span><span id="line-48"></span><span>  </span><span id="local-6989586621681706837"><span class="annot"><span class="annottext">restoreT :: forall (m :: * -&gt; *) a. Monad m =&gt; m (StT ChangeT a) -&gt; ChangeT m a
+</span><a href="#local-6989586621681706837"><span class="hs-identifier hs-var hs-var hs-var">restoreT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WriterT Any m a -&gt; ChangeT m a
+forall (m :: * -&gt; *) a. WriterT Any m a -&gt; ChangeT m a
+</span><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-var">ChangeT</span></a></span><span> </span><span class="annot"><span class="annottext">(WriterT Any m a -&gt; ChangeT m a)
+-&gt; (m (a, Any) -&gt; WriterT Any m a) -&gt; m (a, Any) -&gt; ChangeT m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m (a, Any) -&gt; WriterT Any m a
+m (StT (WriterT Any) a) -&gt; WriterT Any m a
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m (StT (WriterT Any) a) -&gt; WriterT Any m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTransControl t, Monad m) =&gt;
+m (StT t a) -&gt; t m a
+</span><span class="hs-identifier hs-var">restoreT</span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681706569"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681706569"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#MonadChange"><span class="hs-identifier hs-type">MonadChange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706569"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-51"></span><span>  </span><span id="local-6989586621681706849"><span class="annot"><span class="annottext">tellDirty :: ChangeT m ()
+</span><a href="Agda.Utils.Update.html#tellDirty"><span class="hs-identifier hs-var hs-var hs-var">tellDirty</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WriterT Any m () -&gt; ChangeT m ()
+forall (m :: * -&gt; *) a. WriterT Any m a -&gt; ChangeT m a
+</span><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-var">ChangeT</span></a></span><span> </span><span class="annot"><span class="annottext">(WriterT Any m () -&gt; ChangeT m ())
+-&gt; WriterT Any m () -&gt; ChangeT m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Any -&gt; WriterT Any m ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">(Any -&gt; WriterT Any m ()) -&gt; Any -&gt; WriterT Any m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Any
+</span><span class="hs-identifier hs-var">Any</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681706856"><span class="annot"><span class="annottext">listenDirty :: forall a. ChangeT m a -&gt; ChangeT m (a, Bool)
+</span><a href="Agda.Utils.Update.html#listenDirty"><span class="hs-identifier hs-var hs-var hs-var">listenDirty</span></a></span></span><span> </span><span id="local-6989586621681706857"><span class="annot"><span class="annottext">ChangeT m a
+</span><a href="#local-6989586621681706857"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WriterT Any m (a, Bool) -&gt; ChangeT m (a, Bool)
+forall (m :: * -&gt; *) a. WriterT Any m a -&gt; ChangeT m a
+</span><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-var">ChangeT</span></a></span><span> </span><span class="annot"><span class="annottext">(WriterT Any m (a, Bool) -&gt; ChangeT m (a, Bool))
+-&gt; WriterT Any m (a, Bool) -&gt; ChangeT m (a, Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681706858"><span class="annot"><a href="#local-6989586621681706858"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span> </span><span id="local-6989586621681706859"><span class="annot"><a href="#local-6989586621681706859"><span class="hs-identifier hs-var">dirty</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">WriterT Any m a -&gt; WriterT Any m (a, Any)
+forall a. WriterT Any m a -&gt; WriterT Any m (a, Any)
+forall w (m :: * -&gt; *) a. MonadWriter w m =&gt; m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var">listen</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChangeT m a -&gt; WriterT Any m a
+forall (m :: * -&gt; *) a. ChangeT m a -&gt; WriterT Any m a
+</span><a href="Agda.Utils.Update.html#fromChangeT"><span class="hs-identifier hs-var">fromChangeT</span></a></span><span> </span><span class="annot"><span class="annottext">ChangeT m a
+</span><a href="#local-6989586621681706857"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706858"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681706859"><span class="hs-identifier hs-type">dirty</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="annot"><span class="hs-comment">-- | Run a 'ChangeT' computation, returning result plus change flag.</span></span><span>
+</span><span id="line-57"></span><span id="local-6989586621681706577"><span id="local-6989586621681706578"><span class="annot"><a href="Agda.Utils.Update.html#runChangeT"><span class="hs-identifier hs-type">runChangeT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681706577"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706577"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706578"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706577"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706578"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-58"></span><span id="runChangeT"><span class="annot"><span class="annottext">runChangeT :: forall (m :: * -&gt; *) a. Functor m =&gt; ChangeT m a -&gt; m (a, Bool)
+</span><a href="Agda.Utils.Update.html#runChangeT"><span class="hs-identifier hs-var hs-var">runChangeT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a, Any) -&gt; (a, Bool)) -&gt; m (a, Any) -&gt; m (a, Bool)
+forall a b. (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Any -&gt; Bool) -&gt; (a, Any) -&gt; (a, Bool)
+forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+forall (p :: * -&gt; * -&gt; *) b c a.
+Bifunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="annot"><span class="annottext">Any -&gt; Bool
+</span><span class="hs-identifier hs-var">getAny</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m (a, Any) -&gt; m (a, Bool))
+-&gt; (ChangeT m a -&gt; m (a, Any)) -&gt; ChangeT m a -&gt; m (a, Bool)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">WriterT Any m a -&gt; m (a, Any)
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var">runWriterT</span></span><span> </span><span class="annot"><span class="annottext">(WriterT Any m a -&gt; m (a, Any))
+-&gt; (ChangeT m a -&gt; WriterT Any m a) -&gt; ChangeT m a -&gt; m (a, Any)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ChangeT m a -&gt; WriterT Any m a
+forall (m :: * -&gt; *) a. ChangeT m a -&gt; WriterT Any m a
+</span><a href="Agda.Utils.Update.html#fromChangeT"><span class="hs-identifier hs-var">fromChangeT</span></a></span><span>
+</span><span id="line-59"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#runChangeT"><span class="hs-pragma hs-type">runChangeT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="annot"><span class="hs-comment">-- | Map a 'ChangeT' computation (monad transformer action).</span></span><span>
+</span><span id="line-62"></span><span id="local-6989586621681706589"><span id="local-6989586621681706590"><span id="local-6989586621681706591"><span id="local-6989586621681706592"><span class="annot"><a href="Agda.Utils.Update.html#mapChangeT"><span class="hs-identifier hs-type">mapChangeT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706589"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706590"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706591"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706592"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706589"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706590"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706591"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706592"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-63"></span><span id="mapChangeT"><span class="annot"><span class="annottext">mapChangeT :: forall (m :: * -&gt; *) a (n :: * -&gt; *) b.
+(m (a, Any) -&gt; n (b, Any)) -&gt; ChangeT m a -&gt; ChangeT n b
+</span><a href="Agda.Utils.Update.html#mapChangeT"><span class="hs-identifier hs-var hs-var">mapChangeT</span></a></span></span><span> </span><span id="local-6989586621681706867"><span class="annot"><span class="annottext">m (a, Any) -&gt; n (b, Any)
+</span><a href="#local-6989586621681706867"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span id="local-6989586621681706868"><span class="annot"><span class="annottext">WriterT Any m a
+</span><a href="#local-6989586621681706868"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WriterT Any n b -&gt; ChangeT n b
+forall (m :: * -&gt; *) a. WriterT Any m a -&gt; ChangeT m a
+</span><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-var">ChangeT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(m (a, Any) -&gt; n (b, Any)) -&gt; WriterT Any m a -&gt; WriterT Any n b
+forall (m :: * -&gt; *) a w (n :: * -&gt; *) b w'.
+(m (a, w) -&gt; n (b, w')) -&gt; WriterT w m a -&gt; WriterT w' n b
+</span><span class="hs-identifier hs-var">mapWriterT</span></span><span> </span><span class="annot"><span class="annottext">m (a, Any) -&gt; n (b, Any)
+</span><a href="#local-6989586621681706867"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">WriterT Any m a
+</span><a href="#local-6989586621681706868"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#mapChangeT"><span class="hs-pragma hs-type">mapChangeT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- Don't actually track changes with the identity monad:</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><span class="hs-comment">-- | A mock change monad.  Always assume change has happened.</span></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#MonadChange"><span class="hs-identifier hs-type">MonadChange</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-70"></span><span>  </span><span id="local-6989586621681706876"><span class="annot"><span class="annottext">tellDirty :: Identity ()
+</span><a href="Agda.Utils.Update.html#tellDirty"><span class="hs-identifier hs-var hs-var hs-var">tellDirty</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; Identity ()
+forall a. a -&gt; Identity a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>  </span><span id="local-6989586621681706879"><span class="annot"><span class="annottext">listenDirty :: forall a. Identity a -&gt; Identity (a, Bool)
+</span><a href="Agda.Utils.Update.html#listenDirty"><span class="hs-identifier hs-var hs-var hs-var">listenDirty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; (a, Bool)) -&gt; Identity a -&gt; Identity (a, Bool)
+forall a b. (a -&gt; b) -&gt; Identity a -&gt; Identity b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681706607"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681706607"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#MonadChange"><span class="hs-identifier hs-type">MonadChange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IdentityT</span></span><span> </span><span class="annot"><a href="#local-6989586621681706607"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621681706890"><span class="annot"><span class="annottext">tellDirty :: IdentityT m ()
+</span><a href="Agda.Utils.Update.html#tellDirty"><span class="hs-identifier hs-var hs-var hs-var">tellDirty</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; IdentityT m ()
+forall {k} (f :: k -&gt; *) (a :: k). f a -&gt; IdentityT f a
+</span><span class="hs-identifier hs-var">IdentityT</span></span><span>    </span><span class="annot"><span class="annottext">(m () -&gt; IdentityT m ()) -&gt; m () -&gt; IdentityT m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621681706893"><span class="annot"><span class="annottext">listenDirty :: forall a. IdentityT m a -&gt; IdentityT m (a, Bool)
+</span><a href="Agda.Utils.Update.html#listenDirty"><span class="hs-identifier hs-var hs-var hs-var">listenDirty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m a -&gt; m (a, Bool)) -&gt; IdentityT m a -&gt; IdentityT m (a, Bool)
+forall {k1} {k2} (m :: k1 -&gt; *) (a :: k1) (n :: k2 -&gt; *) (b :: k2).
+(m a -&gt; n b) -&gt; IdentityT m a -&gt; IdentityT n b
+</span><span class="hs-identifier hs-var">mapIdentityT</span></span><span> </span><span class="annot"><span class="annottext">((m a -&gt; m (a, Bool)) -&gt; IdentityT m a -&gt; IdentityT m (a, Bool))
+-&gt; (m a -&gt; m (a, Bool)) -&gt; IdentityT m a -&gt; IdentityT m (a, Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; (a, Bool)) -&gt; m a -&gt; m (a, Bool)
+forall a b. (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="annot"><span class="hs-comment">-- * Pure endo function and updater</span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">type</span><span> </span><span id="UpdaterT"><span class="annot"><a href="Agda.Utils.Update.html#UpdaterT"><span class="hs-identifier hs-var">UpdaterT</span></a></span></span><span> </span><span id="local-6989586621681706895"><span class="annot"><a href="#local-6989586621681706895"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621681706896"><span class="annot"><a href="#local-6989586621681706896"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681706896"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706895"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706896"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="annot"><span class="hs-comment">-- | Blindly run an updater.</span></span><span>
+</span><span id="line-82"></span><span id="local-6989586621681706618"><span id="local-6989586621681706619"><span class="annot"><a href="Agda.Utils.Update.html#runUpdaterT"><span class="hs-identifier hs-type">runUpdaterT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681706618"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#UpdaterT"><span class="hs-identifier hs-type">UpdaterT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706618"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706619"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706619"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706618"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706619"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-83"></span><span id="runUpdaterT"><span class="annot"><span class="annottext">runUpdaterT :: forall (m :: * -&gt; *) a.
+Functor m =&gt;
+UpdaterT m a -&gt; a -&gt; m (a, Bool)
+</span><a href="Agda.Utils.Update.html#runUpdaterT"><span class="hs-identifier hs-var hs-var">runUpdaterT</span></a></span></span><span> </span><span id="local-6989586621681706899"><span class="annot"><span class="annottext">UpdaterT m a
+</span><a href="#local-6989586621681706899"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681706900"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706900"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ChangeT m a -&gt; m (a, Bool)
+forall (m :: * -&gt; *) a. Functor m =&gt; ChangeT m a -&gt; m (a, Bool)
+</span><a href="Agda.Utils.Update.html#runChangeT"><span class="hs-identifier hs-var">runChangeT</span></a></span><span> </span><span class="annot"><span class="annottext">(ChangeT m a -&gt; m (a, Bool)) -&gt; ChangeT m a -&gt; m (a, Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">UpdaterT m a
+</span><a href="#local-6989586621681706899"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706900"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">type</span><span> </span><span id="EndoFun"><span class="annot"><a href="Agda.Utils.Update.html#EndoFun"><span class="hs-identifier hs-var">EndoFun</span></a></span></span><span> </span><span id="local-6989586621681706901"><span class="annot"><a href="#local-6989586621681706901"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681706901"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706901"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-86"></span><span class="hs-keyword">type</span><span> </span><span id="Change"><span class="annot"><a href="Agda.Utils.Update.html#Change"><span class="hs-identifier hs-var">Change</span></a></span></span><span>  </span><span id="local-6989586621681706902"><span class="annot"><a href="#local-6989586621681706902"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621681706902"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-87"></span><span class="hs-keyword">type</span><span> </span><span id="Updater"><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-var">Updater</span></a></span></span><span> </span><span id="local-6989586621681706903"><span class="annot"><a href="#local-6989586621681706903"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#UpdaterT"><span class="hs-identifier hs-type">UpdaterT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621681706903"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><span class="hs-comment">-- | Run a 'Change' computation, returning result plus change flag.</span></span><span>
+</span><span id="line-90"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#runChange"><span class="hs-pragma hs-type">runChange</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-91"></span><span id="local-6989586621681706623"><span class="annot"><a href="Agda.Utils.Update.html#runChange"><span class="hs-identifier hs-type">runChange</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Change"><span class="hs-identifier hs-type">Change</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706623"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706623"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-92"></span><span id="runChange"><span class="annot"><span class="annottext">runChange :: forall a. Change a -&gt; (a, Bool)
+</span><a href="Agda.Utils.Update.html#runChange"><span class="hs-identifier hs-var hs-var">runChange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Identity (a, Bool) -&gt; (a, Bool)
+forall a. Identity a -&gt; a
+</span><span class="hs-identifier hs-var">runIdentity</span></span><span> </span><span class="annot"><span class="annottext">(Identity (a, Bool) -&gt; (a, Bool))
+-&gt; (Change a -&gt; Identity (a, Bool)) -&gt; Change a -&gt; (a, Bool)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Change a -&gt; Identity (a, Bool)
+forall (m :: * -&gt; *) a. Functor m =&gt; ChangeT m a -&gt; m (a, Bool)
+</span><a href="Agda.Utils.Update.html#runChangeT"><span class="hs-identifier hs-var">runChangeT</span></a></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="annot"><span class="hs-comment">-- | Blindly run an updater.</span></span><span>
+</span><span id="line-95"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#runUpdater"><span class="hs-pragma hs-type">runUpdater</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-96"></span><span id="local-6989586621681706627"><span class="annot"><a href="Agda.Utils.Update.html#runUpdater"><span class="hs-identifier hs-type">runUpdater</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706627"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706627"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706627"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-97"></span><span id="runUpdater"><span class="annot"><span class="annottext">runUpdater :: forall a. Updater a -&gt; a -&gt; (a, Bool)
+</span><a href="Agda.Utils.Update.html#runUpdater"><span class="hs-identifier hs-var hs-var">runUpdater</span></a></span></span><span> </span><span id="local-6989586621681706906"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706906"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681706907"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706907"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Change a -&gt; (a, Bool)
+forall a. Change a -&gt; (a, Bool)
+</span><a href="Agda.Utils.Update.html#runChange"><span class="hs-identifier hs-var">runChange</span></a></span><span> </span><span class="annot"><span class="annottext">(Change a -&gt; (a, Bool)) -&gt; Change a -&gt; (a, Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706906"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706907"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="annot"><span class="hs-comment">-- | Mark a computation as dirty.</span></span><span>
+</span><span id="line-100"></span><span id="local-6989586621681706630"><span id="local-6989586621681706631"><span class="annot"><a href="Agda.Utils.Update.html#dirty"><span class="hs-identifier hs-type">dirty</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681706630"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#UpdaterT"><span class="hs-identifier hs-type">UpdaterT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706630"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706631"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-101"></span><span id="dirty"><span class="annot"><span class="annottext">dirty :: forall (m :: * -&gt; *) a. Monad m =&gt; UpdaterT m a
+</span><a href="Agda.Utils.Update.html#dirty"><span class="hs-identifier hs-var hs-var">dirty</span></a></span></span><span> </span><span id="local-6989586621681706912"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706912"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-102"></span><span>  </span><span class="annot"><span class="annottext">ChangeT m ()
+forall (m :: * -&gt; *). MonadChange m =&gt; m ()
+</span><a href="Agda.Utils.Update.html#tellDirty"><span class="hs-identifier hs-var">tellDirty</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">a -&gt; ChangeT m a
+forall a. a -&gt; ChangeT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706912"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-104"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#dirty"><span class="hs-pragma hs-type">dirty</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ifDirty"><span class="hs-pragma hs-type">ifDirty</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621681706913"><span id="local-6989586621681706914"><span class="annot"><a href="Agda.Utils.Update.html#Change"><span class="hs-pragma hs-type">Change</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706913"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="#local-6989586621681706913"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Change"><span class="hs-pragma hs-type">Change</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706914"><span class="hs-pragma hs-type">b</span></a></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="#local-6989586621681706913"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Change"><span class="hs-pragma hs-type">Change</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706914"><span class="hs-pragma hs-type">b</span></a></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Change"><span class="hs-pragma hs-type">Change</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706914"><span class="hs-pragma hs-type">b</span></a></span></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-107"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#ifDirty"><span class="hs-pragma hs-type">ifDirty</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621681706915"><span id="local-6989586621681706916"><span class="annot"><span class="hs-pragma hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621681706915"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="#local-6989586621681706915"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621681706916"><span class="hs-pragma hs-type">b</span></a></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="#local-6989586621681706915"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621681706916"><span class="hs-pragma hs-type">b</span></a></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621681706916"><span class="hs-pragma hs-type">b</span></a></span></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-108"></span><span id="local-6989586621681706634"><span id="local-6989586621681706635"><span id="local-6989586621681706636"><span class="annot"><a href="Agda.Utils.Update.html#ifDirty"><span class="hs-identifier hs-type">ifDirty</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681706634"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#MonadChange"><span class="hs-identifier hs-type">MonadChange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706634"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706634"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706635"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706635"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706634"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706636"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706635"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706634"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706636"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681706634"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706636"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-109"></span><span id="ifDirty"><span class="annot"><span class="annottext">ifDirty :: forall (m :: * -&gt; *) a b.
+(Monad m, MonadChange m) =&gt;
+m a -&gt; (a -&gt; m b) -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.Update.html#ifDirty"><span class="hs-identifier hs-var hs-var">ifDirty</span></a></span></span><span> </span><span id="local-6989586621681706921"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681706921"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681706922"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681706922"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681706923"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681706923"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681706924"><span class="annot"><a href="#local-6989586621681706924"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681706925"><span class="annot"><a href="#local-6989586621681706925"><span class="hs-identifier hs-var">dirty</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m a -&gt; m (a, Bool)
+forall a. m a -&gt; m (a, Bool)
+forall (m :: * -&gt; *) a. MonadChange m =&gt; m a -&gt; m (a, Bool)
+</span><a href="Agda.Utils.Update.html#listenDirty"><span class="hs-identifier hs-var">listenDirty</span></a></span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681706921"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621681706925"><span class="hs-identifier hs-type">dirty</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><a href="#local-6989586621681706922"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706924"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><a href="#local-6989586621681706923"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706924"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="annot"><span class="hs-comment">-- * Proper updater (Q-combinators)</span></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="annot"><span class="hs-comment">-- | Replace result of updating with original input if nothing has changed.</span></span><span>
+</span><span id="line-116"></span><span id="local-6989586621681706640"><span id="local-6989586621681706641"><span class="annot"><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier hs-type">sharing</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681706640"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#UpdaterT"><span class="hs-identifier hs-type">UpdaterT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706640"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706641"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#UpdaterT"><span class="hs-identifier hs-type">UpdaterT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706640"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706641"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-117"></span><span id="sharing"><span class="annot"><span class="annottext">sharing :: forall (m :: * -&gt; *) a. Monad m =&gt; UpdaterT m a -&gt; UpdaterT m a
+</span><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier hs-var hs-var">sharing</span></a></span></span><span> </span><span id="local-6989586621681706930"><span class="annot"><span class="annottext">UpdaterT m a
+</span><a href="#local-6989586621681706930"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681706931"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706931"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681706932"><span class="annot"><a href="#local-6989586621681706932"><span class="hs-identifier hs-var">a'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681706933"><span class="annot"><a href="#local-6989586621681706933"><span class="hs-identifier hs-var">changed</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ChangeT m a -&gt; ChangeT m (a, Bool)
+forall a. ChangeT m a -&gt; ChangeT m (a, Bool)
+forall (m :: * -&gt; *) a. MonadChange m =&gt; m a -&gt; m (a, Bool)
+</span><a href="Agda.Utils.Update.html#listenDirty"><span class="hs-identifier hs-var">listenDirty</span></a></span><span> </span><span class="annot"><span class="annottext">(ChangeT m a -&gt; ChangeT m (a, Bool))
+-&gt; ChangeT m a -&gt; ChangeT m (a, Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">UpdaterT m a
+</span><a href="#local-6989586621681706930"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706931"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621681706933"><span class="hs-identifier hs-type">changed</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><a href="#local-6989586621681706932"><span class="hs-identifier hs-type">a'</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><a href="#local-6989586621681706931"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-120"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#sharing"><span class="hs-pragma hs-type">sharing</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="annot"><span class="hs-comment">-- | Eval an updater (using 'sharing').</span></span><span>
+</span><span id="line-123"></span><span id="local-6989586621681706644"><span class="annot"><a href="Agda.Utils.Update.html#evalUpdater"><span class="hs-identifier hs-type">evalUpdater</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706644"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#EndoFun"><span class="hs-identifier hs-type">EndoFun</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706644"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-124"></span><span id="evalUpdater"><span class="annot"><span class="annottext">evalUpdater :: forall a. Updater a -&gt; EndoFun a
+</span><a href="Agda.Utils.Update.html#evalUpdater"><span class="hs-identifier hs-var hs-var">evalUpdater</span></a></span></span><span> </span><span id="local-6989586621681706936"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706936"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681706937"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706937"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, Bool) -&gt; a
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">((a, Bool) -&gt; a) -&gt; (a, Bool) -&gt; a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Change a -&gt; (a, Bool)
+forall a. Change a -&gt; (a, Bool)
+</span><a href="Agda.Utils.Update.html#runChange"><span class="hs-identifier hs-var">runChange</span></a></span><span> </span><span class="annot"><span class="annottext">(Change a -&gt; (a, Bool)) -&gt; Change a -&gt; (a, Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Updater a -&gt; Updater a
+forall (m :: * -&gt; *) a. Monad m =&gt; UpdaterT m a -&gt; UpdaterT m a
+</span><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier hs-var">sharing</span></a></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706936"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706937"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-125"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#evalUpdater"><span class="hs-pragma hs-type">evalUpdater</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- END REAL STUFF</span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="annot"><span class="hs-comment">-- * Updater transformer classes</span></span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="annot"><span class="hs-comment">-- ** Unary (functors)</span></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><span class="hs-comment">-- | Like 'Functor', but preserving sharing.</span></span><span>
+</span><span id="line-134"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Traversable</span></span><span> </span><span class="annot"><a href="#local-6989586621681706649"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="Updater1"><span class="annot"><a href="Agda.Utils.Update.html#Updater1"><span class="hs-identifier hs-var">Updater1</span></a></span></span><span> </span><span id="local-6989586621681706649"><span class="annot"><a href="#local-6989586621681706649"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-135"></span><span>  </span><span id="updater1"><span class="annot"><a href="Agda.Utils.Update.html#updater1"><span class="hs-identifier hs-type">updater1</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681706651"><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706651"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706649"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706651"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-136"></span><span>  </span><span id="updates1"><span class="annot"><a href="Agda.Utils.Update.html#updates1"><span class="hs-identifier hs-type">updates1</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681706942"><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706942"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706649"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706942"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="annot"><span class="hs-comment">-- ^ @= sharing . updater1@</span></span><span>
+</span><span id="line-137"></span><span>  </span><span id="update1"><span class="annot"><a href="Agda.Utils.Update.html#update1"><span class="hs-identifier hs-type">update1</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681706658"><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706658"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#EndoFun"><span class="hs-identifier hs-type">EndoFun</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706649"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706658"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span>  </span><span id="local-6989586621681706945"><span class="annot"><a href="Agda.Utils.Update.html#updater1"><span class="hs-identifier hs-var hs-var">updater1</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; ChangeT Identity a) -&gt; f a -&gt; ChangeT Identity (f a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; f a -&gt; f (f b)
+</span><span class="hs-identifier hs-var">traverse</span></span></span><span>
+</span><span id="line-140"></span><span>  </span><span id="local-6989586621681706952"><span class="annot"><a href="Agda.Utils.Update.html#updates1"><span class="hs-identifier hs-var hs-var">updates1</span></a></span><span> </span><span id="local-6989586621681706955"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706955"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UpdaterT Identity (f a) -&gt; UpdaterT Identity (f a)
+forall (m :: * -&gt; *) a. Monad m =&gt; UpdaterT m a -&gt; UpdaterT m a
+</span><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier hs-var">sharing</span></a></span><span> </span><span class="annot"><span class="annottext">(UpdaterT Identity (f a) -&gt; UpdaterT Identity (f a))
+-&gt; UpdaterT Identity (f a) -&gt; UpdaterT Identity (f a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Updater a -&gt; UpdaterT Identity (f a)
+forall a. Updater a -&gt; Updater (f a)
+forall (f :: * -&gt; *) a. Updater1 f =&gt; Updater a -&gt; Updater (f a)
+</span><a href="Agda.Utils.Update.html#updater1"><span class="hs-identifier hs-var">updater1</span></a></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706955"><span class="hs-identifier hs-var">f</span></a></span></span><span>
+</span><span id="line-141"></span><span>  </span><span id="local-6989586621681706956"><span class="annot"><a href="Agda.Utils.Update.html#update1"><span class="hs-identifier hs-var hs-var">update1</span></a></span><span>  </span><span id="local-6989586621681706958"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706958"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Updater (f a) -&gt; EndoFun (f a)
+forall a. Updater a -&gt; EndoFun a
+</span><a href="Agda.Utils.Update.html#evalUpdater"><span class="hs-identifier hs-var">evalUpdater</span></a></span><span> </span><span class="annot"><span class="annottext">(Updater (f a) -&gt; EndoFun (f a)) -&gt; Updater (f a) -&gt; EndoFun (f a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Updater a -&gt; Updater (f a)
+forall a. Updater a -&gt; Updater (f a)
+forall (f :: * -&gt; *) a. Updater1 f =&gt; Updater a -&gt; Updater (f a)
+</span><a href="Agda.Utils.Update.html#updater1"><span class="hs-identifier hs-var">updater1</span></a></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706958"><span class="hs-identifier hs-var">f</span></a></span></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681706963"><span id="local-6989586621681706967"><span id="local-6989586621681706970"><span class="annot"><a href="Agda.Utils.Update.html#Updater1"><span class="hs-identifier hs-type">Updater1</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681706978"><span id="local-6989586621681706982"><span class="annot"><a href="Agda.Utils.Update.html#Updater1"><span class="hs-identifier hs-type">Updater1</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-146"></span><span>  </span><span id="local-6989586621681706991"><span class="annot"><span class="annottext">updater1 :: forall a. Updater a -&gt; Updater [a]
+</span><a href="Agda.Utils.Update.html#updater1"><span class="hs-identifier hs-var hs-var hs-var">updater1</span></a></span></span><span> </span><span id="local-6989586621681706992"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706992"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; ChangeT Identity [a]
+forall a. a -&gt; ChangeT Identity a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-147"></span><span>  </span><span class="annot"><a href="Agda.Utils.Update.html#updater1"><span class="hs-identifier hs-var">updater1</span></a></span><span> </span><span id="local-6989586621681706993"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706993"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681706994"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706994"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681706995"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681706995"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">:</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; [a] -&gt; [a])
+-&gt; ChangeT Identity a -&gt; ChangeT Identity ([a] -&gt; [a])
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706993"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681706994"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">ChangeT Identity ([a] -&gt; [a])
+-&gt; ChangeT Identity [a] -&gt; ChangeT Identity [a]
+forall a b.
+ChangeT Identity (a -&gt; b)
+-&gt; ChangeT Identity a -&gt; ChangeT Identity b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Updater a -&gt; [a] -&gt; ChangeT Identity [a]
+forall a. Updater a -&gt; Updater [a]
+forall (f :: * -&gt; *) a. Updater1 f =&gt; Updater a -&gt; Updater (f a)
+</span><a href="Agda.Utils.Update.html#updates1"><span class="hs-identifier hs-var">updates1</span></a></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681706993"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681706995"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="annot"><span class="hs-comment">-- ** Binary (bifunctors)</span></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><span class="hs-comment">-- | Like 'Bifunctor', but preserving sharing.</span></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">class</span><span> </span><span id="Updater2"><span class="annot"><a href="Agda.Utils.Update.html#Updater2"><span class="hs-identifier hs-var">Updater2</span></a></span></span><span> </span><span id="local-6989586621681706666"><span class="annot"><a href="#local-6989586621681706666"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="updater2"><span class="annot"><a href="Agda.Utils.Update.html#updater2"><span class="hs-identifier hs-type">updater2</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681706674"><span id="local-6989586621681706675"><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706674"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706675"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706666"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706674"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706675"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-154"></span><span>  </span><span id="updates2"><span class="annot"><a href="Agda.Utils.Update.html#updates2"><span class="hs-identifier hs-type">updates2</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681706664"><span id="local-6989586621681706665"><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706664"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706665"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706666"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706664"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706665"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-155"></span><span>  </span><span id="update2"><span class="annot"><a href="Agda.Utils.Update.html#update2"><span class="hs-identifier hs-type">update2</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681706670"><span id="local-6989586621681706671"><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706670"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#Updater"><span class="hs-identifier hs-type">Updater</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706671"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html#EndoFun"><span class="hs-identifier hs-type">EndoFun</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681706666"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706670"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681706671"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span>  </span><span id="local-6989586621681707001"><span class="annot"><a href="Agda.Utils.Update.html#updates2"><span class="hs-identifier hs-var hs-var">updates2</span></a></span><span> </span><span id="local-6989586621681707004"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707004"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681707005"><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707005"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UpdaterT Identity (f a b) -&gt; UpdaterT Identity (f a b)
+forall (m :: * -&gt; *) a. Monad m =&gt; UpdaterT m a -&gt; UpdaterT m a
+</span><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier hs-var">sharing</span></a></span><span> </span><span class="annot"><span class="annottext">(UpdaterT Identity (f a b) -&gt; UpdaterT Identity (f a b))
+-&gt; UpdaterT Identity (f a b) -&gt; UpdaterT Identity (f a b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Updater a -&gt; Updater b -&gt; UpdaterT Identity (f a b)
+forall a b. Updater a -&gt; Updater b -&gt; Updater (f a b)
+forall (f :: * -&gt; * -&gt; *) a b.
+Updater2 f =&gt;
+Updater a -&gt; Updater b -&gt; Updater (f a b)
+</span><a href="Agda.Utils.Update.html#updater2"><span class="hs-identifier hs-var">updater2</span></a></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707004"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707005"><span class="hs-identifier hs-var">f2</span></a></span></span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621681707006"><span class="annot"><a href="Agda.Utils.Update.html#update2"><span class="hs-identifier hs-var hs-var">update2</span></a></span><span>  </span><span id="local-6989586621681707008"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707008"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681707009"><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707009"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Updater (f a b) -&gt; EndoFun (f a b)
+forall a. Updater a -&gt; EndoFun a
+</span><a href="Agda.Utils.Update.html#evalUpdater"><span class="hs-identifier hs-var">evalUpdater</span></a></span><span> </span><span class="annot"><span class="annottext">(Updater (f a b) -&gt; EndoFun (f a b))
+-&gt; Updater (f a b) -&gt; EndoFun (f a b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Updater a -&gt; Updater b -&gt; Updater (f a b)
+forall a b. Updater a -&gt; Updater b -&gt; Updater (f a b)
+forall (f :: * -&gt; * -&gt; *) a b.
+Updater2 f =&gt;
+Updater a -&gt; Updater b -&gt; Updater (f a b)
+</span><a href="Agda.Utils.Update.html#updater2"><span class="hs-identifier hs-var">updater2</span></a></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707008"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707009"><span class="hs-identifier hs-var">f2</span></a></span></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681707012"><span id="local-6989586621681707016"><span class="annot"><a href="Agda.Utils.Update.html#Updater2"><span class="hs-identifier hs-type">Updater2</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-161"></span><span>  </span><span id="local-6989586621681707025"><span class="annot"><span class="annottext">updater2 :: forall a b. Updater a -&gt; Updater b -&gt; Updater (a, b)
+</span><a href="Agda.Utils.Update.html#updater2"><span class="hs-identifier hs-var hs-var hs-var">updater2</span></a></span></span><span> </span><span id="local-6989586621681707026"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707026"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681707027"><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707027"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681707028"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707028"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681707029"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681707029"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; (a, b))
+-&gt; ChangeT Identity a -&gt; ChangeT Identity (b -&gt; (a, b))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Updater a -&gt; Updater a
+forall (m :: * -&gt; *) a. Monad m =&gt; UpdaterT m a -&gt; UpdaterT m a
+</span><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier hs-var">sharing</span></a></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707026"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707028"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">ChangeT Identity (b -&gt; (a, b))
+-&gt; ChangeT Identity b -&gt; ChangeT Identity (a, b)
+forall a b.
+ChangeT Identity (a -&gt; b)
+-&gt; ChangeT Identity a -&gt; ChangeT Identity b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Updater b -&gt; Updater b
+forall (m :: * -&gt; *) a. Monad m =&gt; UpdaterT m a -&gt; UpdaterT m a
+</span><a href="Agda.Utils.Update.html#sharing"><span class="hs-identifier hs-var">sharing</span></a></span><span> </span><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707027"><span class="hs-identifier hs-var">f2</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681707029"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681707032"><span id="local-6989586621681707036"><span class="annot"><a href="Agda.Utils.Update.html#Updater2"><span class="hs-identifier hs-type">Updater2</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-164"></span><span>  </span><span id="local-6989586621681707041"><span class="annot"><span class="annottext">updater2 :: forall a b. Updater a -&gt; Updater b -&gt; Updater (Either a b)
+</span><a href="Agda.Utils.Update.html#updater2"><span class="hs-identifier hs-var hs-var hs-var">updater2</span></a></span></span><span> </span><span id="local-6989586621681707042"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707042"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681707043"><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707043"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681707044"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707044"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Either a b
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Either a b)
+-&gt; ChangeT Identity a -&gt; ChangeT Identity (Either a b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707042"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707044"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-165"></span><span>  </span><span class="annot"><a href="Agda.Utils.Update.html#updater2"><span class="hs-identifier hs-var">updater2</span></a></span><span> </span><span id="local-6989586621681707045"><span class="annot"><span class="annottext">Updater a
+</span><a href="#local-6989586621681707045"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681707046"><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707046"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681707047"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681707047"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Either a b
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Either a b)
+-&gt; ChangeT Identity b -&gt; ChangeT Identity (Either a b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Updater b
+</span><a href="#local-6989586621681707046"><span class="hs-identifier hs-var">f2</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681707047"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="hs-comment">{-- BEGIN MOCK
+
+-- * Mock updater
+
+type Change = Identity
+
+-- | Replace result of updating with original input if nothing has changed.
+{-# INLINE sharing #-}
+sharing :: Updater a -&gt; Updater a
+sharing f a = f a
+
+-- | Run an updater.
+{-# INLINE evalUpdater #-}
+evalUpdater :: Updater a -&gt; EndoFun a
+evalUpdater f a = runIdentity (f a)
+
+-- | Mark a computation as dirty.
+{-# INLINE dirty #-}
+dirty :: Updater a
+dirty = Identity
+
+{-# INLINE ifDirty #-}
+ifDirty :: Identity a -&gt; (a -&gt; Identity b) -&gt; (a -&gt; Identity b) -&gt; Identity b
+ifDirty m f g = m &gt;&gt;= f
+
+-- END MOCK -}</span><span>
+</span><span id="line-194"></span></pre></body></html>

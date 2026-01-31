@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | A abstract 'Range' type dedicated to keyword occurrences in the source.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html"><span class="hs-identifier">Agda.Syntax.Common.KeywordRange</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier">KwRange</span></a></span><span>  </span><span class="hs-comment">-- Do not export the constructor.</span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#kwRange"><span class="hs-identifier">kwRange</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">rnf</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- | Range dedicated to a keyword or fixed token sequence.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Motivation: by lacking a 'SetRange' instance we indicate that it cannot be updated.</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">newtype</span><span> </span><span id="KwRange"><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-var">KwRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="KwRange"><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-var">KwRange</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="theKwRange"><span class="annot"><span class="annottext">KwRange -&gt; Range
+</span><a href="Agda.Syntax.Common.KeywordRange.html#theKwRange"><span class="hs-identifier hs-var hs-var">theKwRange</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681735266"><span id="local-6989586621681735272"><span class="annot"><span class="annottext">KwRange -&gt; KwRange -&gt; Bool
+(KwRange -&gt; KwRange -&gt; Bool)
+-&gt; (KwRange -&gt; KwRange -&gt; Bool) -&gt; Eq KwRange
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: KwRange -&gt; KwRange -&gt; Bool
+== :: KwRange -&gt; KwRange -&gt; Bool
+$c/= :: KwRange -&gt; KwRange -&gt; Bool
+/= :: KwRange -&gt; KwRange -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681735286"><span id="local-6989586621681735292"><span id="local-6989586621681735297"><span id="local-6989586621681735302"><span id="local-6989586621681735307"><span id="local-6989586621681735312"><span id="local-6989586621681735317"><span class="annot"><span class="annottext">Eq KwRange
+Eq KwRange =&gt;
+(KwRange -&gt; KwRange -&gt; Ordering)
+-&gt; (KwRange -&gt; KwRange -&gt; Bool)
+-&gt; (KwRange -&gt; KwRange -&gt; Bool)
+-&gt; (KwRange -&gt; KwRange -&gt; Bool)
+-&gt; (KwRange -&gt; KwRange -&gt; Bool)
+-&gt; (KwRange -&gt; KwRange -&gt; KwRange)
+-&gt; (KwRange -&gt; KwRange -&gt; KwRange)
+-&gt; Ord KwRange
+KwRange -&gt; KwRange -&gt; Bool
+KwRange -&gt; KwRange -&gt; Ordering
+KwRange -&gt; KwRange -&gt; KwRange
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: KwRange -&gt; KwRange -&gt; Ordering
+compare :: KwRange -&gt; KwRange -&gt; Ordering
+$c&lt; :: KwRange -&gt; KwRange -&gt; Bool
+&lt; :: KwRange -&gt; KwRange -&gt; Bool
+$c&lt;= :: KwRange -&gt; KwRange -&gt; Bool
+&lt;= :: KwRange -&gt; KwRange -&gt; Bool
+$c&gt; :: KwRange -&gt; KwRange -&gt; Bool
+&gt; :: KwRange -&gt; KwRange -&gt; Bool
+$c&gt;= :: KwRange -&gt; KwRange -&gt; Bool
+&gt;= :: KwRange -&gt; KwRange -&gt; Bool
+$cmax :: KwRange -&gt; KwRange -&gt; KwRange
+max :: KwRange -&gt; KwRange -&gt; KwRange
+$cmin :: KwRange -&gt; KwRange -&gt; KwRange
+min :: KwRange -&gt; KwRange -&gt; KwRange
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681735339"><span id="local-6989586621681735346"><span id="local-6989586621681735350"><span class="annot"><span class="annottext">Int -&gt; KwRange -&gt; ShowS
+[KwRange] -&gt; ShowS
+KwRange -&gt; String
+(Int -&gt; KwRange -&gt; ShowS)
+-&gt; (KwRange -&gt; String) -&gt; ([KwRange] -&gt; ShowS) -&gt; Show KwRange
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; KwRange -&gt; ShowS
+showsPrec :: Int -&gt; KwRange -&gt; ShowS
+$cshow :: KwRange -&gt; String
+show :: KwRange -&gt; String
+$cshowList :: [KwRange] -&gt; ShowS
+showList :: [KwRange] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681735358"><span id="local-6989586621681735363"><span class="annot"><span class="annottext">KwRange
+KwRange -&gt; Bool
+KwRange -&gt; (KwRange -&gt; Bool) -&gt; Null KwRange
+forall a. a -&gt; (a -&gt; Bool) -&gt; Null a
+$cempty :: KwRange
+empty :: KwRange
+$cnull :: KwRange -&gt; Bool
+null :: KwRange -&gt; Bool
+</span><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Null</span></a></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="annot"><span class="hs-comment">-- | Create a keyword range.</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span id="local-6989586621681735242"><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#kwRange"><span class="hs-identifier hs-type">kwRange</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier hs-type">HasRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681735242"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681735242"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span></span><span>
+</span><span id="line-25"></span><span id="kwRange"><span class="annot"><span class="annottext">kwRange :: forall a. HasRange a =&gt; a -&gt; KwRange
+</span><a href="Agda.Syntax.Common.KeywordRange.html#kwRange"><span class="hs-identifier hs-var hs-var">kwRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; KwRange
+</span><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-var">KwRange</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; KwRange) -&gt; (a -&gt; Range) -&gt; a -&gt; KwRange
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- Instances</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier hs-type">HasRange</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>  </span><span id="local-6989586621681735377"><span class="annot"><span class="annottext">getRange :: KwRange -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var hs-var hs-var">getRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">KwRange -&gt; Range
+</span><a href="Agda.Syntax.Common.KeywordRange.html#theKwRange"><span class="hs-identifier hs-var">theKwRange</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>  </span><span id="local-6989586621681735382"><span class="annot"><span class="annottext">killRange :: KwRange -&gt; KwRange
+</span><a href="#local-6989586621681735382"><span class="hs-identifier hs-var hs-var hs-var">killRange</span></a></span></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">KwRange
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- no SetRange instance!!</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681735387"><span class="annot"><span class="annottext">rnf :: KwRange -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681735389"><span id="local-6989586621681735394"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-41"></span><span>  </span><span id="local-6989586621681735403"><span class="annot"><span class="annottext">prettyPrec :: Int -&gt; KwRange -&gt; Doc
+</span><a href="#local-6989586621681735403"><span class="hs-identifier hs-var hs-var hs-var">prettyPrec</span></a></span></span><span> </span><span id="local-6989586621681735405"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681735405"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Range -&gt; Doc
+forall a. Pretty a =&gt; Int -&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyPrec"><span class="hs-identifier hs-var">prettyPrec</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681735405"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; Doc) -&gt; (KwRange -&gt; Range) -&gt; KwRange -&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">KwRange -&gt; Range
+</span><a href="Agda.Syntax.Common.KeywordRange.html#theKwRange"><span class="hs-identifier hs-var">theKwRange</span></a></span><span>
+</span><span id="line-42"></span></pre></body></html>

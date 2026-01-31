@@ -1,0 +1,230 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-orphans #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Reduce.Monad</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Closure.html#enterClosure"><span class="hs-identifier">enterClosure</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#getConstInfo"><span class="hs-identifier">getConstInfo</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#askR"><span class="hs-identifier">askR</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#applyWhenVerboseS"><span class="hs-identifier">applyWhenVerboseS</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO.Unsafe</span></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">--instance only</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Builtin.html#HasBuiltins"><span class="hs-identifier hs-type">HasBuiltins</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier hs-type">ReduceM</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-27"></span><span>  </span><span id="local-6989586621681992079"><span class="annot"><span class="annottext">getBuiltinThing :: SomeBuiltin -&gt; ReduceM (Maybe (Builtin PrimFun))
+</span><a href="#local-6989586621681992079"><span class="hs-identifier hs-var hs-var hs-var">getBuiltinThing</span></a></span></span><span> </span><span id="local-6989586621681992081"><span class="annot"><span class="annottext">SomeBuiltin
+</span><a href="#local-6989586621681992081"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><span class="annottext">(Maybe (Builtin PrimFun)
+ -&gt; Maybe (Builtin PrimFun) -&gt; Maybe (Builtin PrimFun))
+-&gt; ReduceM (Maybe (Builtin PrimFun))
+-&gt; ReduceM (Maybe (Builtin PrimFun))
+-&gt; ReduceM (Maybe (Builtin PrimFun))
+forall (m :: * -&gt; *) a1 a2 r.
+Monad m =&gt;
+(a1 -&gt; a2 -&gt; r) -&gt; m a1 -&gt; m a2 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM2</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Builtin PrimFun -&gt; Builtin PrimFun -&gt; Builtin PrimFun)
+-&gt; Maybe (Builtin PrimFun)
+-&gt; Maybe (Builtin PrimFun)
+-&gt; Maybe (Builtin PrimFun)
+forall a. (a -&gt; a -&gt; a) -&gt; Maybe a -&gt; Maybe a -&gt; Maybe a
+</span><a href="Agda.Utils.Maybe.html#unionMaybeWith"><span class="hs-identifier hs-var">unionMaybeWith</span></a></span><span> </span><span class="annot"><span class="annottext">Builtin PrimFun -&gt; Builtin PrimFun -&gt; Builtin PrimFun
+forall a. Builtin a -&gt; Builtin a -&gt; Builtin a
+</span><a href="Agda.TypeChecking.Monad.Base.html#unionBuiltin"><span class="hs-identifier hs-var">unionBuiltin</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SomeBuiltin
+-&gt; Map SomeBuiltin (Builtin PrimFun) -&gt; Maybe (Builtin PrimFun)
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">SomeBuiltin
+</span><a href="#local-6989586621681992081"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">(Map SomeBuiltin (Builtin PrimFun) -&gt; Maybe (Builtin PrimFun))
+-&gt; ReduceM (Map SomeBuiltin (Builtin PrimFun))
+-&gt; ReduceM (Maybe (Builtin PrimFun))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState (Map SomeBuiltin (Builtin PrimFun))
+-&gt; ReduceM (Map SomeBuiltin (Builtin PrimFun))
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">(Map SomeBuiltin (Builtin PrimFun)
+ -&gt; f (Map SomeBuiltin (Builtin PrimFun)))
+-&gt; TCState -&gt; f TCState
+Lens' TCState (Map SomeBuiltin (Builtin PrimFun))
+</span><a href="Agda.TypeChecking.Monad.Base.html#stLocalBuiltins"><span class="hs-identifier hs-var">stLocalBuiltins</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SomeBuiltin
+-&gt; Map SomeBuiltin (Builtin PrimFun) -&gt; Maybe (Builtin PrimFun)
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">SomeBuiltin
+</span><a href="#local-6989586621681992081"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">(Map SomeBuiltin (Builtin PrimFun) -&gt; Maybe (Builtin PrimFun))
+-&gt; ReduceM (Map SomeBuiltin (Builtin PrimFun))
+-&gt; ReduceM (Maybe (Builtin PrimFun))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState (Map SomeBuiltin (Builtin PrimFun))
+-&gt; ReduceM (Map SomeBuiltin (Builtin PrimFun))
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">(Map SomeBuiltin (Builtin PrimFun)
+ -&gt; f (Map SomeBuiltin (Builtin PrimFun)))
+-&gt; TCState -&gt; f TCState
+Lens' TCState (Map SomeBuiltin (Builtin PrimFun))
+</span><a href="Agda.TypeChecking.Monad.Base.html#stImportedBuiltins"><span class="hs-identifier hs-var">stImportedBuiltins</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span id="local-6989586621681991947"><span id="local-6989586621681991948"><span id="local-6989586621681991950"><span class="annot"><a href="Agda.TypeChecking.Reduce.Monad.html#withFreshR"><span class="hs-identifier hs-type">withFreshR</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681991947"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#HasFresh"><span class="hs-identifier hs-type">HasFresh</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681991948"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681991948"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681991947"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681991950"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681991947"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681991950"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-33"></span><span id="withFreshR"><span class="annot"><span class="annottext">withFreshR :: forall (m :: * -&gt; *) i a.
+(ReadTCState m, HasFresh i) =&gt;
+(i -&gt; m a) -&gt; m a
+</span><a href="Agda.TypeChecking.Reduce.Monad.html#withFreshR"><span class="hs-identifier hs-var hs-var">withFreshR</span></a></span></span><span> </span><span id="local-6989586621681992103"><span class="annot"><span class="annottext">i -&gt; m a
+</span><a href="#local-6989586621681992103"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-34"></span><span>  </span><span id="local-6989586621681992104"><span class="annot"><a href="#local-6989586621681992104"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m TCState
+forall (m :: * -&gt; *). ReadTCState m =&gt; m TCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#getTCState"><span class="hs-identifier hs-var">getTCState</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681992106"><span class="annot"><a href="#local-6989586621681992106"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681992107"><span class="annot"><a href="#local-6989586621681992107"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#nextFresh"><span class="hs-identifier hs-type">nextFresh</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992104"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#withTCState"><span class="hs-identifier hs-type">withTCState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">const</span></span><span> </span><span class="annot"><a href="#local-6989586621681992107"><span class="hs-identifier hs-type">s'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681992103"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992106"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Context.html#MonadAddContext"><span class="hs-identifier hs-type">MonadAddContext</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier hs-type">ReduceM</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681992125"><span class="annot"><span class="annottext">withFreshName :: forall a. Range -&gt; ArgName -&gt; (Name -&gt; ReduceM a) -&gt; ReduceM a
+</span><a href="#local-6989586621681992125"><span class="hs-identifier hs-var hs-var hs-var">withFreshName</span></a></span></span><span> </span><span id="local-6989586621681992127"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681992127"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681992128"><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681992128"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681992129"><span class="annot"><span class="annottext">Name -&gt; ReduceM a
+</span><a href="#local-6989586621681992129"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NameId -&gt; ReduceM a) -&gt; ReduceM a
+forall (m :: * -&gt; *) i a.
+(ReadTCState m, HasFresh i) =&gt;
+(i -&gt; m a) -&gt; m a
+</span><a href="Agda.TypeChecking.Reduce.Monad.html#withFreshR"><span class="hs-identifier hs-var">withFreshR</span></a></span><span> </span><span class="annot"><span class="annottext">((NameId -&gt; ReduceM a) -&gt; ReduceM a)
+-&gt; (NameId -&gt; ReduceM a) -&gt; ReduceM a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681992130"><span class="annot"><span class="annottext">NameId
+</span><a href="#local-6989586621681992130"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; ReduceM a
+</span><a href="#local-6989586621681992129"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; NameId -&gt; ArgName -&gt; Name
+forall a. MkName a =&gt; Range -&gt; NameId -&gt; a -&gt; Name
+</span><a href="Agda.Syntax.Abstract.Name.html#mkName"><span class="hs-identifier hs-var">mkName</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681992127"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">NameId
+</span><a href="#local-6989586621681992130"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681992128"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>  </span><span id="local-6989586621681992133"><span class="annot"><span class="annottext">addCtx :: forall a. Name -&gt; Dom Type -&gt; ReduceM a -&gt; ReduceM a
+</span><a href="#local-6989586621681992133"><span class="hs-identifier hs-var hs-var hs-var">addCtx</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Dom Type -&gt; ReduceM a -&gt; ReduceM a
+forall (m :: * -&gt; *) a.
+MonadAddContext m =&gt;
+Name -&gt; Dom Type -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Context.html#defaultAddCtx"><span class="hs-identifier hs-var">defaultAddCtx</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span>  </span><span id="local-6989586621681992138"><span class="annot"><span class="annottext">addLetBinding' :: forall a.
+IsAxiom
+-&gt; Origin -&gt; Name -&gt; Term -&gt; Dom Type -&gt; ReduceM a -&gt; ReduceM a
+</span><a href="#local-6989586621681992138"><span class="hs-identifier hs-var hs-var hs-var">addLetBinding'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IsAxiom
+-&gt; Origin -&gt; Name -&gt; Term -&gt; Dom Type -&gt; ReduceM a -&gt; ReduceM a
+forall (m :: * -&gt; *) a.
+(ReadTCState m, MonadTCEnv m) =&gt;
+IsAxiom -&gt; Origin -&gt; Name -&gt; Term -&gt; Dom Type -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Context.html#defaultAddLetBinding%27"><span class="hs-identifier hs-var">defaultAddLetBinding'</span></a></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span>  </span><span id="local-6989586621681992156"><span class="annot"><span class="annottext">updateContext :: forall a.
+Substitution -&gt; (Context -&gt; Context) -&gt; ReduceM a -&gt; ReduceM a
+</span><a href="#local-6989586621681992156"><span class="hs-identifier hs-var hs-var hs-var">updateContext</span></a></span></span><span> </span><span id="local-6989586621681992158"><span class="annot"><span class="annottext">Substitution
+</span><a href="#local-6989586621681992158"><span class="hs-identifier hs-var">rho</span></a></span></span><span> </span><span id="local-6989586621681992159"><span class="annot"><span class="annottext">Context -&gt; Context
+</span><a href="#local-6989586621681992159"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681992160"><span class="annot"><span class="annottext">ReduceM a
+</span><a href="#local-6989586621681992160"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CheckpointId -&gt; ReduceM a) -&gt; ReduceM a
+forall (m :: * -&gt; *) i a.
+(ReadTCState m, HasFresh i) =&gt;
+(i -&gt; m a) -&gt; m a
+</span><a href="Agda.TypeChecking.Reduce.Monad.html#withFreshR"><span class="hs-identifier hs-var">withFreshR</span></a></span><span> </span><span class="annot"><span class="annottext">((CheckpointId -&gt; ReduceM a) -&gt; ReduceM a)
+-&gt; (CheckpointId -&gt; ReduceM a) -&gt; ReduceM a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681992161"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681992161"><span class="hs-identifier hs-var">chkpt</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><span class="annottext">(TCEnv -&gt; TCEnv) -&gt; ReduceM a -&gt; ReduceM a
+forall a. (TCEnv -&gt; TCEnv) -&gt; ReduceM a -&gt; ReduceM a
+forall (m :: * -&gt; *) a.
+MonadTCEnv m =&gt;
+(TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#localTC"><span class="hs-identifier hs-var">localTC</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681992163"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681992163"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621681992163"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envContext"><span class="hs-identifier hs-var">envContext</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681992159"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envContext"><span class="hs-identifier hs-var">envContext</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992163"><span class="hs-identifier hs-type">e</span></a></span><span>
+</span><span id="line-47"></span><span>                     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envCurrentCheckpoint"><span class="hs-identifier hs-var">envCurrentCheckpoint</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681992161"><span class="hs-identifier hs-type">chkpt</span></a></span><span>
+</span><span id="line-48"></span><span>                     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envCheckpoints"><span class="hs-identifier hs-var">envCheckpoints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.insert</span></span><span> </span><span class="annot"><a href="#local-6989586621681992161"><span class="hs-identifier hs-type">chkpt</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#IdS"><span class="hs-identifier hs-type">IdS</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-49"></span><span>                                          </span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-type">applySubst</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992158"><span class="hs-identifier hs-type">rho</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#envCheckpoints"><span class="hs-identifier hs-var">envCheckpoints</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992163"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>                     </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ReduceM a
+</span><a href="#local-6989586621681992160"><span class="hs-identifier hs-var">ret</span></a></span><span>
+</span><span id="line-51"></span><span>        </span><span class="hs-comment">-- let-bindings keep track of own their context</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier hs-type">ReduceM</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621681992193"><span class="annot"><span class="annottext">traceDebugMessage :: forall a. ArgName -&gt; VerboseLevel -&gt; Doc -&gt; ReduceM a -&gt; ReduceM a
+</span><a href="#local-6989586621681992193"><span class="hs-identifier hs-var hs-var hs-var">traceDebugMessage</span></a></span></span><span> </span><span id="local-6989586621681992195"><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681992195"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681992196"><span class="annot"><span class="annottext">VerboseLevel
+</span><a href="#local-6989586621681992196"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681992197"><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681992197"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681992198"><span class="annot"><span class="annottext">ReduceM a
+</span><a href="#local-6989586621681992198"><span class="hs-identifier hs-var">cont</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceEnv"><span class="hs-identifier hs-type">ReduceEnv</span></a></span><span> </span><span id="local-6989586621681992200"><span class="annot"><a href="#local-6989586621681992200"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621681992201"><span class="annot"><a href="#local-6989586621681992201"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ReduceM ReduceEnv
+</span><a href="Agda.TypeChecking.Monad.Base.html#askR"><span class="hs-identifier hs-var">askR</span></a></span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">unsafePerformIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-58"></span><span>      </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#runTCM"><span class="hs-identifier hs-type">runTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992200"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992201"><span class="hs-identifier hs-type">st</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#displayDebugMessage"><span class="hs-identifier hs-type">displayDebugMessage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992195"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992196"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992197"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><span id="line-59"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681992198"><span class="hs-identifier hs-type">cont</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>  </span><span id="local-6989586621681992211"><span class="annot"><span class="annottext">formatDebugMessage :: ArgName -&gt; VerboseLevel -&gt; TCM Doc -&gt; ReduceM Doc
+</span><a href="#local-6989586621681992211"><span class="hs-identifier hs-var hs-var hs-var">formatDebugMessage</span></a></span></span><span> </span><span id="local-6989586621681992213"><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681992213"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681992214"><span class="annot"><span class="annottext">VerboseLevel
+</span><a href="#local-6989586621681992214"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681992215"><span class="annot"><span class="annottext">TCM Doc
+</span><a href="#local-6989586621681992215"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceEnv"><span class="hs-identifier hs-type">ReduceEnv</span></a></span><span> </span><span id="local-6989586621681992216"><span class="annot"><a href="#local-6989586621681992216"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621681992217"><span class="annot"><a href="#local-6989586621681992217"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ReduceM ReduceEnv
+</span><a href="Agda.TypeChecking.Monad.Base.html#askR"><span class="hs-identifier hs-var">askR</span></a></span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">unsafePerformIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681992218"><span class="annot"><a href="#local-6989586621681992218"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#runTCM"><span class="hs-identifier hs-type">runTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992216"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992217"><span class="hs-identifier hs-type">st</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#formatDebugMessage"><span class="hs-identifier hs-type">formatDebugMessage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992213"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992214"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992215"><span class="hs-identifier hs-type">d</span></a></span><span>
+</span><span id="line-65"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681992218"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-cpp">
+
+#ifdef DEBUG
+</span><span>  </span><span class="hs-identifier">verboseBracket</span><span> </span><span class="hs-identifier">k</span><span> </span><span class="hs-identifier">n</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">applyWhenVerboseS</span><span> </span><span class="hs-identifier">k</span><span> </span><span class="hs-identifier">n</span><span> </span><span class="hs-operator">$</span><span>
+</span><span id="line-69"></span><span>    </span><span class="hs-identifier">bracket_</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">openVerboseBracket</span><span> </span><span class="hs-identifier">k</span><span> </span><span class="hs-identifier">n</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">const</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">closeVerboseBracket</span><span> </span><span class="hs-identifier">k</span><span> </span><span class="hs-identifier">n</span><span class="hs-special">)</span><span class="hs-cpp">
+#else
+</span><span>  </span><span id="local-6989586621681992219"><span class="annot"><span class="annottext">verboseBracket :: forall a.
+ArgName -&gt; VerboseLevel -&gt; ArgName -&gt; ReduceM a -&gt; ReduceM a
+</span><a href="#local-6989586621681992219"><span class="hs-identifier hs-var hs-var hs-var">verboseBracket</span></a></span></span><span> </span><span id="local-6989586621681992221"><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681992221"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681992222"><span class="annot"><span class="annottext">VerboseLevel
+</span><a href="#local-6989586621681992222"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681992223"><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681992223"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681992224"><span class="annot"><span class="annottext">ReduceM a
+</span><a href="#local-6989586621681992224"><span class="hs-identifier hs-var">ma</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReduceM a
+</span><a href="#local-6989586621681992224"><span class="hs-identifier hs-var">ma</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#verboseBracket"><span class="hs-pragma hs-type">verboseBracket</span></a></span><span> </span><span class="hs-pragma">#-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621681992227"><span class="annot"><span class="annottext">getVerbosity :: ReduceM Verbosity
+</span><a href="#local-6989586621681992227"><span class="hs-identifier hs-var hs-var hs-var">getVerbosity</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReduceM Verbosity
+forall (m :: * -&gt; *). HasOptions m =&gt; m Verbosity
+</span><a href="Agda.TypeChecking.Monad.Debug.html#defaultGetVerbosity"><span class="hs-identifier hs-var">defaultGetVerbosity</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621681992231"><span class="annot"><span class="annottext">getProfileOptions :: ReduceM ProfileOptions
+</span><a href="#local-6989586621681992231"><span class="hs-identifier hs-var hs-var hs-var">getProfileOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReduceM ProfileOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m ProfileOptions
+</span><a href="Agda.TypeChecking.Monad.Debug.html#defaultGetProfileOptions"><span class="hs-identifier hs-var">defaultGetProfileOptions</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621681992235"><span class="annot"><span class="annottext">isDebugPrinting :: ReduceM Bool
+</span><a href="#local-6989586621681992235"><span class="hs-identifier hs-var hs-var hs-var">isDebugPrinting</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReduceM Bool
+forall (m :: * -&gt; *). MonadTCEnv m =&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Debug.html#defaultIsDebugPrinting"><span class="hs-identifier hs-var">defaultIsDebugPrinting</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621681992239"><span class="annot"><span class="annottext">nowDebugPrinting :: forall a. ReduceM a -&gt; ReduceM a
+</span><a href="#local-6989586621681992239"><span class="hs-identifier hs-var hs-var hs-var">nowDebugPrinting</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReduceM a -&gt; ReduceM a
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Debug.html#defaultNowDebugPrinting"><span class="hs-identifier hs-var">defaultNowDebugPrinting</span></a></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681992253"><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#HasConstInfo"><span class="hs-identifier hs-type">HasConstInfo</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier hs-type">ReduceM</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-81"></span><span>  </span><span id="local-6989586621681992264"><span class="annot"><span class="annottext">getRewriteRulesFor :: QName -&gt; ReduceM RewriteRules
+</span><a href="#local-6989586621681992264"><span class="hs-identifier hs-var hs-var hs-var">getRewriteRulesFor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; ReduceM RewriteRules
+forall (m :: * -&gt; *).
+(ReadTCState m, MonadTCEnv m) =&gt;
+QName -&gt; m RewriteRules
+</span><a href="Agda.TypeChecking.Monad.Signature.html#defaultGetRewriteRulesFor"><span class="hs-identifier hs-var">defaultGetRewriteRulesFor</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span id="local-6989586621681992274"><span class="annot"><span class="annottext">getConstInfo' :: HasCallStack =&gt; QName -&gt; ReduceM (Either SigError Definition)
+</span><a href="#local-6989586621681992274"><span class="hs-identifier hs-var hs-var hs-var">getConstInfo'</span></a></span></span><span> </span><span id="local-6989586621681992276"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681992276"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-83"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceEnv"><span class="hs-identifier hs-type">ReduceEnv</span></a></span><span> </span><span id="local-6989586621681992277"><span class="annot"><a href="#local-6989586621681992277"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621681992278"><span class="annot"><a href="#local-6989586621681992278"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ReduceM ReduceEnv
+</span><a href="Agda.TypeChecking.Monad.Base.html#askR"><span class="hs-identifier hs-var">askR</span></a></span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#defaultGetConstInfo"><span class="hs-identifier hs-type">defaultGetConstInfo</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992278"><span class="hs-identifier hs-type">st</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992277"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992276"><span class="hs-identifier hs-type">q</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier hs-type">ReduceM</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-87"></span></pre></body></html>

@@ -1,0 +1,759 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html"><span class="hs-identifier">Agda.Syntax.Abstract.UsedNames</span></a></span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#allUsedNames"><span class="hs-identifier">allUsedNames</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#allBoundNames"><span class="hs-identifier">allBoundNames</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">foldMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html"><span class="hs-identifier">Agda.Syntax.Abstract</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#FieldAssignment%27"><span class="hs-identifier">FieldAssignment'</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | All names used in an abstract expression. This is used when rendering clauses to figure out</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--   which (implicit) pattern variables must be preserved. For example, the for @f : Nat &#8594; Nat@, the</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--   clause @f {n} = 0@ can be printed as @f = 0@ (dropping the @n@), but @f {n} = n@ must preserve</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--   the @n@.</span><span>
+</span><span id="line-22"></span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#allUsedNames"><span class="hs-identifier hs-type">allUsedNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Expr"><span class="hs-identifier hs-type">Expr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-23"></span><span id="allUsedNames"><span class="annot"><span class="annottext">allUsedNames :: Expr -&gt; Set Name
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#allUsedNames"><span class="hs-identifier hs-var hs-var">allUsedNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; Set Name
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#usedNames"><span class="hs-identifier hs-var">usedNames</span></a></span><span> </span><span class="annot"><span class="annottext">(BoundAndUsedNames -&gt; Set Name)
+-&gt; (Expr -&gt; BoundAndUsedNames) -&gt; Expr -&gt; Set Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span id="local-6989586621681898050"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#allBoundNames"><span class="hs-identifier hs-type">allBoundNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898050"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898050"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span></span><span>
+</span><span id="line-26"></span><span id="allBoundNames"><span class="annot"><span class="annottext">allBoundNames :: forall a. BoundAndUsed a =&gt; a -&gt; Set Name
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#allBoundNames"><span class="hs-identifier hs-var hs-var">allBoundNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; Set Name
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundNames"><span class="hs-identifier hs-var">boundNames</span></a></span><span> </span><span class="annot"><span class="annottext">(BoundAndUsedNames -&gt; Set Name)
+-&gt; (a -&gt; BoundAndUsedNames) -&gt; a -&gt; Set Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">data</span><span> </span><span id="BoundAndUsedNames"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-var">BoundAndUsedNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="BoundAndUsedNames"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-var">BoundAndUsedNames</span></a></span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="boundNames"><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; Set Name
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundNames"><span class="hs-identifier hs-var hs-var">boundNames</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="usedNames"><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; Set Name
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#usedNames"><span class="hs-identifier hs-var hs-var">usedNames</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="annot"><span class="hs-comment">-- | Bound names in first argument scope over second argument.</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898214"><span id="local-6989586621681898218"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span id="local-6989586621681898226"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898226"><span class="hs-identifier hs-var">bound1</span></a></span></span><span> </span><span id="local-6989586621681898227"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898227"><span class="hs-identifier hs-var">used1</span></a></span></span><span> </span><span id="local-6989586621681898228"><span class="annot"><span class="annottext">&lt;&gt; :: BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span id="local-6989586621681898229"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898229"><span class="hs-identifier hs-var">bound2</span></a></span></span><span> </span><span id="local-6989586621681898230"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898230"><span class="hs-identifier hs-var">used2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-var">BoundAndUsedNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898226"><span class="hs-identifier hs-var">bound1</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898229"><span class="hs-identifier hs-var">bound2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898227"><span class="hs-identifier hs-var">used1</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.difference</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898230"><span class="hs-identifier hs-var">used2</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898226"><span class="hs-identifier hs-var">bound1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898237"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681898243"><span class="annot"><span class="annottext">mempty :: BoundAndUsedNames
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-var">BoundAndUsedNames</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681898245"><span class="annot"><span class="annottext">mappend :: BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#singleUse"><span class="hs-identifier hs-type">singleUse</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span>
+</span><span id="line-42"></span><span id="singleUse"><span class="annot"><span class="annottext">singleUse :: Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#singleUse"><span class="hs-identifier hs-var hs-var">singleUse</span></a></span></span><span> </span><span id="local-6989586621681898247"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681898247"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-var">BoundAndUsedNames</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Set Name
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681898247"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#singleBind"><span class="hs-identifier hs-type">singleBind</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span>
+</span><span id="line-45"></span><span id="singleBind"><span class="annot"><span class="annottext">singleBind :: Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#singleBind"><span class="hs-identifier hs-var hs-var">singleBind</span></a></span></span><span> </span><span id="local-6989586621681898250"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681898250"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-var">BoundAndUsedNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Set Name
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681898250"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#noBindings"><span class="hs-identifier hs-type">noBindings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span>
+</span><span id="line-48"></span><span id="noBindings"><span class="annot"><span class="annottext">noBindings :: BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#noBindings"><span class="hs-identifier hs-var hs-var">noBindings</span></a></span></span><span> </span><span id="local-6989586621681898252"><span class="annot"><span class="annottext">BoundAndUsedNames
+</span><a href="#local-6989586621681898252"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+</span><a href="#local-6989586621681898252"><span class="hs-identifier hs-var">names</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundNames"><span class="hs-identifier hs-var">boundNames</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">mempty</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="annot"><span class="hs-comment">-- | Bound names in first argument do *not* scope over second argument.</span></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#parB"><span class="hs-identifier hs-type">parB</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span>
+</span><span id="line-52"></span><span id="parB"><span class="annot"><span class="annottext">parB :: BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parB"><span class="hs-identifier hs-var hs-var">parB</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span id="local-6989586621681898254"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898254"><span class="hs-identifier hs-var">bound1</span></a></span></span><span> </span><span id="local-6989586621681898255"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898255"><span class="hs-identifier hs-var">used1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span id="local-6989586621681898256"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898256"><span class="hs-identifier hs-var">bound2</span></a></span></span><span> </span><span id="local-6989586621681898257"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898257"><span class="hs-identifier hs-var">used2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-var">BoundAndUsedNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898254"><span class="hs-identifier hs-var">bound1</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898256"><span class="hs-identifier hs-var">bound2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898255"><span class="hs-identifier hs-var">used1</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681898257"><span class="hs-identifier hs-var">used2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span id="local-6989586621681898058"><span id="local-6989586621681898059"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-identifier hs-type">parBindings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898058"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898059"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898058"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898059"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span></span></span><span>
+</span><span id="line-56"></span><span id="parBindings"><span class="annot"><span class="annottext">parBindings :: forall a b.
+(BoundAndUsed a, BoundAndUsed b) =&gt;
+a -&gt; b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-identifier hs-var hs-var">parBindings</span></a></span></span><span> </span><span id="local-6989586621681898263"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681898263"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681898264"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681898264"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681898263"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parB"><span class="hs-operator hs-var">`parB`</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681898264"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span id="local-6989586621681898062"><span id="local-6989586621681898063"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-type">parBoundAndUsed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621681898062"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898063"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898062"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898063"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span></span></span><span>
+</span><span id="line-59"></span><span id="parBoundAndUsed"><span class="annot"><span class="annottext">parBoundAndUsed :: forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var hs-var">parBoundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames)
+-&gt; BoundAndUsedNames -&gt; f a -&gt; BoundAndUsedNames
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; f a -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a b.
+(BoundAndUsed a, BoundAndUsed b) =&gt;
+a -&gt; b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-identifier hs-var">parBindings</span></a></span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-keyword">class</span><span> </span><span id="BoundAndUsed"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-var">BoundAndUsed</span></a></span></span><span> </span><span id="local-6989586621681898049"><span class="annot"><a href="#local-6989586621681898049"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-62"></span><span>  </span><span id="boundAndUsed"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-type">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681898049"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="boundAndUsed"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-type">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681898069"><span id="local-6989586621681898070"><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681898049"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681898069"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898070"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621681898069"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898070"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681898049"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span></span></span><span>
+</span><span id="line-65"></span><span>  </span><span id="local-6989586621681898275"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; BoundAndUsedNames) -&gt; f b -&gt; BoundAndUsedNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; f a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsedNames"><span class="hs-identifier hs-type">BoundAndUsedNames</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681898285"><span class="annot"><span class="annottext">boundAndUsed :: BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898081"><span id="local-6989586621681898289"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898081"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898081"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898086"><span id="local-6989586621681898087"><span id="local-6989586621681898298"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898086"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Named"><span class="hs-identifier hs-type">Named</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898087"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898086"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898090"><span id="local-6989586621681898307"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898090"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898090"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898092"><span id="local-6989586621681898316"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898092"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681898092"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898094"><span id="local-6989586621681898325"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898094"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681898094"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898097"><span id="local-6989586621681898098"><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898097"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898098"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681898097"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898098"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621681898338"><span class="annot"><span class="annottext">boundAndUsed :: Either a b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; BoundAndUsedNames)
+-&gt; (b -&gt; BoundAndUsedNames) -&gt; Either a b -&gt; BoundAndUsedNames
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621681898343"><span class="annot"><span class="annottext">boundAndUsed :: ModuleName -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898105"><span id="local-6989586621681898106"><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898105"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898106"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681898105"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681898106"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-83"></span><span>  </span><span id="local-6989586621681898351"><span class="annot"><span class="annottext">boundAndUsed :: (a, b) -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681898352"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681898352"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681898353"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681898353"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681898352"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681898353"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Expr"><span class="hs-identifier hs-type">Expr</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621681898407"><span class="annot"><span class="annottext">boundAndUsed :: Expr -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#noBindings"><span class="hs-identifier hs-var">noBindings</span></a></span><span> </span><span class="annot"><span class="annottext">(BoundAndUsedNames -&gt; BoundAndUsedNames)
+-&gt; (Expr -&gt; BoundAndUsedNames) -&gt; Expr -&gt; BoundAndUsedNames
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-glyph">case</span><span>
+</span><span id="line-87"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621681898409"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681898409"><span class="hs-identifier hs-var">x</span></a></span></span><span>                     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#singleUse"><span class="hs-identifier hs-var">singleUse</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681898409"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Def%27"><span class="hs-identifier hs-type">Def'</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-90"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSyn"><span class="hs-identifier hs-type">PatternSyn</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-92"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Macro"><span class="hs-identifier hs-type">Macro</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-94"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#QuestionMark"><span class="hs-identifier hs-type">QuestionMark</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Underscore"><span class="hs-identifier hs-type">Underscore</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-96"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Dot"><span class="hs-identifier hs-type">Dot</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898419"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898419"><span class="hs-identifier hs-var">expr</span></a></span></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898419"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-97"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span class="annot"><span class="annottext">AppInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898421"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898421"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span id="local-6989586621681898422"><span class="annot"><span class="annottext">NamedArg Expr
+</span><a href="#local-6989586621681898422"><span class="hs-identifier hs-var">arg</span></a></span></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Expr, NamedArg Expr) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898421"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">NamedArg Expr
+</span><a href="#local-6989586621681898422"><span class="hs-identifier hs-var">arg</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#WithApp"><span class="hs-identifier hs-type">WithApp</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898424"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898424"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span id="local-6989586621681898425"><span class="annot"><span class="annottext">List1 Expr
+</span><a href="#local-6989586621681898425"><span class="hs-identifier hs-var">exprs</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Expr, List1 Expr) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898424"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">List1 Expr
+</span><a href="#local-6989586621681898425"><span class="hs-identifier hs-var">exprs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898427"><span class="annot"><span class="annottext">LamBinding
+</span><a href="#local-6989586621681898427"><span class="hs-identifier hs-var">bind</span></a></span></span><span> </span><span id="local-6989586621681898428"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898428"><span class="hs-identifier hs-var">expr</span></a></span></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(LamBinding, Expr) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LamBinding
+</span><a href="#local-6989586621681898427"><span class="hs-identifier hs-var">bind</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898428"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#AbsurdLam"><span class="hs-identifier hs-type">AbsurdLam</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-101"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#ExtendedLam"><span class="hs-identifier hs-type">ExtendedLam</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">DefInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Erased
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898431"><span class="annot"><span class="annottext">List1 Clause
+</span><a href="#local-6989586621681898431"><span class="hs-identifier hs-var">cs</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">List1 Clause -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">List1 Clause
+</span><a href="#local-6989586621681898431"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-102"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pi"><span class="hs-identifier hs-type">Pi</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898433"><span class="annot"><span class="annottext">Telescope1
+</span><a href="#local-6989586621681898433"><span class="hs-identifier hs-var">tel</span></a></span></span><span> </span><span id="local-6989586621681898434"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898434"><span class="hs-identifier hs-var">expr</span></a></span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Telescope1, Expr) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Telescope1
+</span><a href="#local-6989586621681898433"><span class="hs-identifier hs-var">tel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898434"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Generalized"><span class="hs-identifier hs-type">Generalized</span></a></span><span> </span><span class="annot"><span class="annottext">Set1 QName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898436"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898436"><span class="hs-identifier hs-var">expr</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898436"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-104"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Fun"><span class="hs-identifier hs-type">Fun</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898438"><span class="annot"><span class="annottext">Arg Expr
+</span><a href="#local-6989586621681898438"><span class="hs-identifier hs-var">arg</span></a></span></span><span> </span><span id="local-6989586621681898439"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898439"><span class="hs-identifier hs-var">expr</span></a></span></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Arg Expr, Expr) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg Expr
+</span><a href="#local-6989586621681898438"><span class="hs-identifier hs-var">arg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898439"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Let"><span class="hs-identifier hs-type">Let</span></a></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898441"><span class="annot"><span class="annottext">List1 LetBinding
+</span><a href="#local-6989586621681898441"><span class="hs-identifier hs-var">binds</span></a></span></span><span> </span><span id="local-6989586621681898442"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898442"><span class="hs-identifier hs-var">expr</span></a></span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(List1 LetBinding, Expr) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 LetBinding
+</span><a href="#local-6989586621681898441"><span class="hs-identifier hs-var">binds</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898442"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Rec"><span class="hs-identifier hs-type">Rec</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898444"><span class="annot"><span class="annottext">RecordAssigns
+</span><a href="#local-6989586621681898444"><span class="hs-keyword hs-var">as</span></a></span></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">RecordAssigns -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">RecordAssigns
+</span><a href="#local-6989586621681898444"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RecUpdate"><span class="hs-identifier hs-type">RecUpdate</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898446"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898446"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span id="local-6989586621681898447"><span class="annot"><span class="annottext">Assigns
+</span><a href="#local-6989586621681898447"><span class="hs-keyword hs-var">as</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898446"><span class="hs-identifier hs-var">expr</span></a></span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Assigns -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Assigns
+</span><a href="#local-6989586621681898447"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-108"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RecWhere"><span class="hs-identifier hs-type">RecWhere</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898449"><span class="annot"><span class="annottext">[LetBinding]
+</span><a href="#local-6989586621681898449"><span class="hs-identifier hs-var">bnd</span></a></span></span><span> </span><span id="local-6989586621681898450"><span class="annot"><span class="annottext">Assigns
+</span><a href="#local-6989586621681898450"><span class="hs-identifier hs-var">expr</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">([LetBinding], Assigns) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[LetBinding]
+</span><a href="#local-6989586621681898449"><span class="hs-identifier hs-var">bnd</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Assigns
+</span><a href="#local-6989586621681898450"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RecUpdateWhere"><span class="hs-identifier hs-type">RecUpdateWhere</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ExprInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898452"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898452"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681898453"><span class="annot"><span class="annottext">[LetBinding]
+</span><a href="#local-6989586621681898453"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="annot"><span class="annottext">Assigns
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Expr, [LetBinding]) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898452"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[LetBinding]
+</span><a href="#local-6989586621681898453"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#ScopedExpr"><span class="hs-identifier hs-type">ScopedExpr</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898455"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898455"><span class="hs-identifier hs-var">expr</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898455"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-111"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Quote"><span class="hs-identifier hs-type">Quote</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#QuoteTerm"><span class="hs-identifier hs-type">QuoteTerm</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-113"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Unquote"><span class="hs-identifier hs-type">Unquote</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-114"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#DontCare"><span class="hs-identifier hs-type">DontCare</span></a></span><span> </span><span id="local-6989586621681898460"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898460"><span class="hs-identifier hs-var">expr</span></a></span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898460"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Qualified"><span class="hs-identifier hs-type">Qualified</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898462"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898462"><span class="hs-identifier hs-var">b</span></a></span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898462"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-116"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Highlighted"><span class="hs-identifier hs-type">Highlighted</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898464"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898464"><span class="hs-identifier hs-var">b</span></a></span></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898464"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898120"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898120"><span class="hs-identifier hs-type">lhs</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Clause%27"><span class="hs-identifier hs-type">Clause'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898120"><span class="hs-identifier hs-type">lhs</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-comment">-- Note: where declarations are ignored. We use this only on expressions coming from</span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-comment">--       InternalToAbstract where there are no where decls.</span><span>
+</span><span id="line-121"></span><span>  </span><span id="local-6989586621681898470"><span class="annot"><span class="annottext">boundAndUsed :: Clause' lhs -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">clauseLHS :: forall lhs. Clause' lhs -&gt; lhs
+</span><a href="Agda.Syntax.Abstract.html#clauseLHS"><span class="hs-identifier hs-var">clauseLHS</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681898473"><span class="annot"><span class="annottext">lhs
+</span><a href="#local-6989586621681898473"><span class="hs-identifier hs-var">lhs</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">clauseRHS :: forall lhs. Clause' lhs -&gt; RHS
+</span><a href="Agda.Syntax.Abstract.html#clauseRHS"><span class="hs-identifier hs-var">clauseRHS</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681898475"><span class="annot"><span class="annottext">RHS
+</span><a href="#local-6989586621681898475"><span class="hs-identifier hs-var">rhs</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(lhs, RHS) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">lhs
+</span><a href="#local-6989586621681898473"><span class="hs-identifier hs-var">lhs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">RHS
+</span><a href="#local-6989586621681898475"><span class="hs-identifier hs-var">rhs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RHS"><span class="hs-identifier hs-type">RHS</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-124"></span><span>  </span><span id="local-6989586621681898495"><span class="annot"><span class="annottext">boundAndUsed :: RHS -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-glyph">case</span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RHS"><span class="hs-identifier hs-type">RHS</span></a></span><span> </span><span id="local-6989586621681898497"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898497"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe Expr
+</span><span class="hs-identifier">_</span></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Expr -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898497"><span class="hs-identifier hs-var">body</span></a></span><span>
+</span><span id="line-126"></span><span>    </span><span class="annot"><span class="annottext">RHS
+</span><a href="Agda.Syntax.Abstract.html#AbsurdRHS"><span class="hs-identifier hs-var">AbsurdRHS</span></a></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-127"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#WithRHS"><span class="hs-identifier hs-type">WithRHS</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898500"><span class="annot"><span class="annottext">List1 WithExpr
+</span><a href="#local-6989586621681898500"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span id="local-6989586621681898501"><span class="annot"><span class="annottext">List1 Clause
+</span><a href="#local-6989586621681898501"><span class="hs-identifier hs-var">cs</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(List1 WithExpr, List1 Clause) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 WithExpr
+</span><a href="#local-6989586621681898500"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">List1 Clause
+</span><a href="#local-6989586621681898501"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-128"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RewriteRHS"><span class="hs-identifier hs-type">RewriteRHS</span></a></span><span> </span><span id="local-6989586621681898503"><span class="annot"><span class="annottext">[RewriteEqn]
+</span><a href="#local-6989586621681898503"><span class="hs-identifier hs-var">eqns</span></a></span></span><span> </span><span class="annot"><span class="annottext">[ProblemEq]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898504"><span class="annot"><span class="annottext">RHS
+</span><a href="#local-6989586621681898504"><span class="hs-identifier hs-var">rhs</span></a></span></span><span> </span><span class="annot"><span class="annottext">WhereDeclarations
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">([RewriteEqn], RHS) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[RewriteEqn]
+</span><a href="#local-6989586621681898503"><span class="hs-identifier hs-var">eqns</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">RHS
+</span><a href="#local-6989586621681898504"><span class="hs-identifier hs-var">rhs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LHS"><span class="hs-identifier hs-type">LHS</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621681898508"><span class="annot"><span class="annottext">boundAndUsed :: LHS -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LHSCore -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">(LHSCore -&gt; BoundAndUsedNames)
+-&gt; (LHS -&gt; LHSCore) -&gt; LHS -&gt; BoundAndUsedNames
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">LHS -&gt; LHSCore
+</span><a href="Agda.Syntax.Abstract.html#lhsCore"><span class="hs-identifier hs-var">lhsCore</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898149"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898149"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#LHSCore%27"><span class="hs-identifier hs-type">LHSCore'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898149"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>  </span><span id="local-6989586621681898530"><span class="annot"><span class="annottext">boundAndUsed :: LHSCore' e -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-glyph">case</span><span>
+</span><span id="line-135"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LHSHead"><span class="hs-identifier hs-type">LHSHead</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898532"><span class="annot"><span class="annottext">[NamedArg (Pattern' e)]
+</span><a href="#local-6989586621681898532"><span class="hs-identifier hs-var">ps</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[NamedArg (Pattern' e)] -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg (Pattern' e)]
+</span><a href="#local-6989586621681898532"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-136"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LHSProj"><span class="hs-identifier hs-type">LHSProj</span></a></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898534"><span class="annot"><span class="annottext">NamedArg (LHSCore' e)
+</span><a href="#local-6989586621681898534"><span class="hs-identifier hs-var">lhs</span></a></span></span><span> </span><span id="local-6989586621681898535"><span class="annot"><span class="annottext">[NamedArg (Pattern' e)]
+</span><a href="#local-6989586621681898535"><span class="hs-identifier hs-var">ps</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NamedArg (LHSCore' e)
+</span><a href="#local-6989586621681898534"><span class="hs-identifier hs-var">lhs</span></a></span><span> </span><span class="annot"><span class="annottext">NamedArg (LHSCore' e) -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a b.
+(BoundAndUsed a, BoundAndUsed b) =&gt;
+a -&gt; b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-operator hs-var">`parBindings`</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg (Pattern' e)] -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg (Pattern' e)]
+</span><a href="#local-6989586621681898535"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-137"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LHSWith"><span class="hs-identifier hs-type">LHSWith</span></a></span><span> </span><span id="local-6989586621681898537"><span class="annot"><span class="annottext">LHSCore' e
+</span><a href="#local-6989586621681898537"><span class="hs-identifier hs-var">lhs</span></a></span></span><span> </span><span id="local-6989586621681898538"><span class="annot"><span class="annottext">List1 (Arg (Pattern' e))
+</span><a href="#local-6989586621681898538"><span class="hs-identifier hs-var">wps</span></a></span></span><span> </span><span id="local-6989586621681898539"><span class="annot"><span class="annottext">[NamedArg (Pattern' e)]
+</span><a href="#local-6989586621681898539"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LHSCore' e
+</span><a href="#local-6989586621681898537"><span class="hs-identifier hs-var">lhs</span></a></span><span> </span><span class="annot"><span class="annottext">LHSCore' e -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a b.
+(BoundAndUsed a, BoundAndUsed b) =&gt;
+a -&gt; b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-operator hs-var">`parBindings`</span></a></span><span> </span><span class="annot"><span class="annottext">List1 (Arg (Pattern' e)) -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">List1 (Arg (Pattern' e))
+</span><a href="#local-6989586621681898538"><span class="hs-identifier hs-var">wps</span></a></span><span>
+</span><span id="line-138"></span><span>                              </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a b.
+(BoundAndUsed a, BoundAndUsed b) =&gt;
+a -&gt; b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-operator hs-var">`parBindings`</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg (Pattern' e)] -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg (Pattern' e)]
+</span><a href="#local-6989586621681898539"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898140"><span id="local-6989586621681898141"><span id="local-6989586621681898142"><span id="local-6989586621681898143"><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898140"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898141"><span class="hs-identifier hs-type">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898142"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#RewriteEqn%27"><span class="hs-identifier hs-type">RewriteEqn'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898143"><span class="hs-identifier hs-type">q</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898140"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898141"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898142"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-141"></span><span>  </span><span id="local-6989586621681898555"><span class="annot"><span class="annottext">boundAndUsed :: RewriteEqn' q x p e -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Rewrite"><span class="hs-identifier hs-type">Rewrite</span></a></span><span> </span><span id="local-6989586621681898557"><span class="annot"><span class="annottext">List1 (q, e)
+</span><a href="#local-6989586621681898557"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty e -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">(NonEmpty e -&gt; BoundAndUsedNames)
+-&gt; NonEmpty e -&gt; BoundAndUsedNames
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(q, e) -&gt; e
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">((q, e) -&gt; e) -&gt; List1 (q, e) -&gt; NonEmpty e
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">List1 (q, e)
+</span><a href="#local-6989586621681898557"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-142"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Invert"><span class="hs-identifier hs-type">Invert</span></a></span><span> </span><span class="annot"><span class="annottext">q
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898561"><span class="annot"><span class="annottext">List1 (Named x (p, e))
+</span><a href="#local-6989586621681898561"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 (p, e) -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Named x (p, e) -&gt; (p, e)
+forall name a. Named name a -&gt; a
+</span><a href="Agda.Syntax.Common.html#namedThing"><span class="hs-identifier hs-var">namedThing</span></a></span><span> </span><span class="annot"><span class="annottext">(Named x (p, e) -&gt; (p, e))
+-&gt; List1 (Named x (p, e)) -&gt; List1 (p, e)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">List1 (Named x (p, e))
+</span><a href="#local-6989586621681898561"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Maybe x) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Named x (p, e) -&gt; Maybe x
+forall name a. Named name a -&gt; Maybe name
+</span><a href="Agda.Syntax.Common.html#nameOf"><span class="hs-identifier hs-var">nameOf</span></a></span><span> </span><span class="annot"><span class="annottext">(Named x (p, e) -&gt; Maybe x)
+-&gt; List1 (Named x (p, e)) -&gt; NonEmpty (Maybe x)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">List1 (Named x (p, e))
+</span><a href="#local-6989586621681898561"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#LeftLet"><span class="hs-identifier hs-type">LeftLet</span></a></span><span> </span><span id="local-6989586621681898565"><span class="annot"><span class="annottext">List1 (p, e)
+</span><a href="#local-6989586621681898565"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 (p, e) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">List1 (p, e)
+</span><a href="#local-6989586621681898565"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LetBinding"><span class="hs-identifier hs-type">LetBinding</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-146"></span><span>  </span><span id="local-6989586621681898576"><span class="annot"><span class="annottext">boundAndUsed :: LetBinding -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-glyph">case</span><span>   </span><span class="hs-comment">-- Note: binder last since it's not recursive</span><span>
+</span><span id="line-147"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LetBind"><span class="hs-identifier hs-type">LetBind</span></a></span><span> </span><span class="annot"><span class="annottext">LetInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898578"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898578"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681898579"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898579"><span class="hs-identifier hs-var">ty</span></a></span></span><span> </span><span id="local-6989586621681898580"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898580"><span class="hs-identifier hs-var">e</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">((Expr, Expr), BindName) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898579"><span class="hs-identifier hs-var">ty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898580"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898578"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LetAxiom"><span class="hs-identifier hs-type">LetAxiom</span></a></span><span> </span><span class="annot"><span class="annottext">LetInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898582"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898582"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681898583"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898583"><span class="hs-identifier hs-var">ty</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Expr, BindName) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898583"><span class="hs-identifier hs-var">ty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898582"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LetPatBind"><span class="hs-identifier hs-type">LetPatBind</span></a></span><span> </span><span class="annot"><span class="annottext">LetInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898585"><span class="annot"><span class="annottext">Pattern' Expr
+</span><a href="#local-6989586621681898585"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681898586"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898586"><span class="hs-identifier hs-var">e</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Expr, Pattern' Expr) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898586"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Pattern' Expr
+</span><a href="#local-6989586621681898585"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LetApply"><span class="hs-identifier hs-type">LetApply</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Erased
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898588"><span class="annot"><span class="annottext">ModuleApplication
+</span><a href="#local-6989586621681898588"><span class="hs-identifier hs-var">app</span></a></span></span><span> </span><span class="annot"><span class="annottext">ScopeCopyInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ImportDirective
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ModuleApplication -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleApplication
+</span><a href="#local-6989586621681898588"><span class="hs-identifier hs-var">app</span></a></span><span>
+</span><span id="line-151"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LetOpen"><span class="hs-identifier hs-type">LetOpen</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LamBinding"><span class="hs-identifier hs-type">LamBinding</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-154"></span><span>  </span><span id="local-6989586621681898597"><span class="annot"><span class="annottext">boundAndUsed :: LamBinding -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#DomainFree"><span class="hs-identifier hs-type">DomainFree</span></a></span><span> </span><span class="annot"><span class="annottext">TacticAttribute
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898599"><span class="annot"><span class="annottext">NamedArg Binder
+</span><a href="#local-6989586621681898599"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NamedArg Binder -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">NamedArg Binder
+</span><a href="#local-6989586621681898599"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#DomainFull"><span class="hs-identifier hs-type">DomainFull</span></a></span><span> </span><span id="local-6989586621681898601"><span class="annot"><span class="annottext">TypedBinding
+</span><a href="#local-6989586621681898601"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TypedBinding -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">TypedBinding
+</span><a href="#local-6989586621681898601"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#TypedBinding"><span class="hs-identifier hs-type">TypedBinding</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621681898611"><span class="annot"><span class="annottext">boundAndUsed :: TypedBinding -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#TBind"><span class="hs-identifier hs-type">TBind</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">TypedBindingInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898613"><span class="annot"><span class="annottext">List1 (NamedArg Binder)
+</span><a href="#local-6989586621681898613"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621681898614"><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898614"><span class="hs-identifier hs-var">ty</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Expr, List1 (NamedArg Binder)) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Expr
+</span><a href="#local-6989586621681898614"><span class="hs-identifier hs-var">ty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">List1 (NamedArg Binder)
+</span><a href="#local-6989586621681898613"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#TLet"><span class="hs-identifier hs-type">TLet</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898616"><span class="annot"><span class="annottext">List1 LetBinding
+</span><a href="#local-6989586621681898616"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 LetBinding -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">List1 LetBinding
+</span><a href="#local-6989586621681898616"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898177"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898177"><span class="hs-identifier hs-type">name</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Binder%27"><span class="hs-identifier hs-type">Binder'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898177"><span class="hs-identifier hs-type">name</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-162"></span><span>  </span><span id="local-6989586621681898622"><span class="annot"><span class="annottext">boundAndUsed :: Binder' name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Binder"><span class="hs-identifier hs-type">Binder</span></a></span><span> </span><span id="local-6989586621681898624"><span class="annot"><span class="annottext">Maybe (Pattern' Expr)
+</span><a href="#local-6989586621681898624"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="annot"><span class="annottext">BinderNameOrigin
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898625"><span class="annot"><span class="annottext">name
+</span><a href="#local-6989586621681898625"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (Pattern' Expr) -&gt; name -&gt; BoundAndUsedNames
+forall a b.
+(BoundAndUsed a, BoundAndUsed b) =&gt;
+a -&gt; b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-identifier hs-var">parBindings</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (Pattern' Expr)
+</span><a href="#local-6989586621681898624"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">name
+</span><a href="#local-6989586621681898625"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#BindName"><span class="hs-identifier hs-type">BindName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-165"></span><span>  </span><span id="local-6989586621681898627"><span class="annot"><span class="annottext">boundAndUsed :: BindName -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span id="local-6989586621681898628"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898628"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#singleBind"><span class="hs-identifier hs-var">singleBind</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BindName -&gt; Name
+</span><a href="Agda.Syntax.Abstract.html#unBind"><span class="hs-identifier hs-var">unBind</span></a></span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898628"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898139"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898139"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#Pattern%27"><span class="hs-identifier hs-type">Pattern'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898139"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-168"></span><span>  </span><span id="local-6989586621681898653"><span class="annot"><span class="annottext">boundAndUsed :: Pattern' e -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-glyph">case</span><span>
+</span><span id="line-169"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#VarP"><span class="hs-identifier hs-type">VarP</span></a></span><span> </span><span id="local-6989586621681898655"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898655"><span class="hs-identifier hs-var">x</span></a></span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BindName -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898655"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-170"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#ConP"><span class="hs-identifier hs-type">ConP</span></a></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898657"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898657"><span class="hs-identifier hs-var">ps</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NAPs e -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898657"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-171"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#ProjP"><span class="hs-identifier hs-type">ProjP</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-172"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#DefP"><span class="hs-identifier hs-type">DefP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898660"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898660"><span class="hs-identifier hs-var">ps</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NAPs e -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898660"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-173"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#WildP"><span class="hs-identifier hs-type">WildP</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-174"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#AsP"><span class="hs-identifier hs-type">AsP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898663"><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898663"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681898664"><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681898664"><span class="hs-identifier hs-var">p</span></a></span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BindName -&gt; Pattern' e -&gt; BoundAndUsedNames
+forall a b.
+(BoundAndUsed a, BoundAndUsed b) =&gt;
+a -&gt; b -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBindings"><span class="hs-identifier hs-var">parBindings</span></a></span><span> </span><span class="annot"><span class="annottext">BindName
+</span><a href="#local-6989586621681898663"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681898664"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-175"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#DotP"><span class="hs-identifier hs-type">DotP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898666"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681898666"><span class="hs-identifier hs-var">e</span></a></span></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">e -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681898666"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-176"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#AbsurdP"><span class="hs-identifier hs-type">AbsurdP</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-177"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#LitP"><span class="hs-identifier hs-type">LitP</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-178"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#PatternSynP"><span class="hs-identifier hs-type">PatternSynP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">AmbiguousQName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898670"><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898670"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NAPs e -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">NAPs e
+</span><a href="#local-6989586621681898670"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-179"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RecP"><span class="hs-identifier hs-type">RecP</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ConPatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898672"><span class="annot"><span class="annottext">[FieldAssignment' (Pattern' e)]
+</span><a href="#local-6989586621681898672"><span class="hs-keyword hs-var">as</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[FieldAssignment' (Pattern' e)] -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">[FieldAssignment' (Pattern' e)]
+</span><a href="#local-6989586621681898672"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-180"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#EqualP"><span class="hs-identifier hs-type">EqualP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898674"><span class="annot"><span class="annottext">List1 (e, e)
+</span><a href="#local-6989586621681898674"><span class="hs-identifier hs-var">eqs</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">List1 (e, e) -&gt; BoundAndUsedNames
+forall (f :: * -&gt; *) a.
+(Foldable f, BoundAndUsed a) =&gt;
+f a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#parBoundAndUsed"><span class="hs-identifier hs-var">parBoundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">List1 (e, e)
+</span><a href="#local-6989586621681898674"><span class="hs-identifier hs-var">eqs</span></a></span><span>
+</span><span id="line-181"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Abstract.html#WithP"><span class="hs-identifier hs-type">WithP</span></a></span><span> </span><span class="annot"><span class="annottext">PatInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898676"><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681898676"><span class="hs-identifier hs-var">p</span></a></span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pattern' e -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern' e
+</span><a href="#local-6989586621681898676"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681898118"><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898118"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#FieldAssignment%27"><span class="hs-identifier hs-type">FieldAssignment'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681898118"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-184"></span><span>  </span><span id="local-6989586621681898680"><span class="annot"><span class="annottext">boundAndUsed :: FieldAssignment' e -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#FieldAssignment"><span class="hs-identifier hs-type">FieldAssignment</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898682"><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681898682"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">e -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621681898682"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-185"></span><span>
+</span><span id="line-186"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#BoundAndUsed"><span class="hs-identifier hs-type">BoundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#ModuleApplication"><span class="hs-identifier hs-type">ModuleApplication</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-187"></span><span>  </span><span id="local-6989586621681898691"><span class="annot"><span class="annottext">boundAndUsed :: ModuleApplication -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var hs-var hs-var">boundAndUsed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.html#SectionApp"><span class="hs-identifier hs-type">SectionApp</span></a></span><span> </span><span id="local-6989586621681898693"><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681898693"><span class="hs-identifier hs-var">tel</span></a></span></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681898694"><span class="annot"><span class="annottext">[NamedArg Expr]
+</span><a href="#local-6989586621681898694"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#noBindings"><span class="hs-identifier hs-var">noBindings</span></a></span><span> </span><span class="annot"><span class="annottext">(BoundAndUsedNames -&gt; BoundAndUsedNames)
+-&gt; BoundAndUsedNames -&gt; BoundAndUsedNames
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Telescope, [NamedArg Expr]) -&gt; BoundAndUsedNames
+forall a. BoundAndUsed a =&gt; a -&gt; BoundAndUsedNames
+</span><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681898693"><span class="hs-identifier hs-var">tel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[NamedArg Expr]
+</span><a href="#local-6989586621681898694"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-188"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.UsedNames.html#boundAndUsed"><span class="hs-identifier hs-var">boundAndUsed</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html#RecordModuleInstance"><span class="hs-identifier hs-type">RecordModuleInstance</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BoundAndUsedNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-189"></span></pre></body></html>

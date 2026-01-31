@@ -1,0 +1,663 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Backend for generating highlighted, hyperlinked HTML from Agda sources.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html"><span class="hs-identifier">Agda.Interaction.Highlighting.HTML.Backend</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlBackend"><span class="hs-identifier">htmlBackend</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Base.html"><span class="hs-identifier">Agda.Interaction.Highlighting.HTML.Base</span></a></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(!!)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">concatMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadError</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">throwError</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier">ArgDescr</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier">ReqArg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier">NoArg</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier">OptDescr</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier">Flag</span></a></span><span>
+</span><span id="line-25"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.html"><span class="hs-identifier">Agda.Compiler.Backend</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend"><span class="hs-identifier">Backend</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend_boot"><span class="hs-identifier">Backend_boot</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend%27"><span class="hs-identifier">Backend'</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27_boot"><span class="hs-identifier">Backend'_boot</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier">Recompile</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Compiler.Common.html"><span class="hs-identifier">Agda.Compiler.Common</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier">IsMain</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.Common.html#curIF"><span class="hs-identifier">curIF</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier">TopLevelModuleName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier">MonadDebug</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier">ReadTCState</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier">Definition</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportS"><span class="hs-identifier">reportS</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="annot"><span class="hs-comment">-- | Options for HTML generation</span></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">data</span><span> </span><span id="HtmlFlags"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-var">HtmlFlags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HtmlFlags"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-var">HtmlFlags</span></a></span></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="htmlFlagEnabled"><span class="annot"><span class="annottext">HtmlFlags -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagEnabled"><span class="hs-identifier hs-var hs-var">htmlFlagEnabled</span></a></span></span><span>              </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="htmlFlagDir"><span class="annot"><span class="annottext">HtmlFlags -&gt; String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagDir"><span class="hs-identifier hs-var hs-var">htmlFlagDir</span></a></span></span><span>                  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="htmlFlagHighlight"><span class="annot"><span class="annottext">HtmlFlags -&gt; HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlight"><span class="hs-identifier hs-var hs-var">htmlFlagHighlight</span></a></span></span><span>            </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Base.html#HtmlHighlight"><span class="hs-identifier hs-type">HtmlHighlight</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="htmlFlagHighlightOccurrences"><span class="annot"><span class="annottext">HtmlFlags -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlightOccurrences"><span class="hs-identifier hs-var hs-var">htmlFlagHighlightOccurrences</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="htmlFlagCssFile"><span class="annot"><span class="annottext">HtmlFlags -&gt; Maybe String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagCssFile"><span class="hs-identifier hs-var hs-var">htmlFlagCssFile</span></a></span></span><span>              </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621682253359"><span id="local-6989586621682253371"><span class="annot"><span class="annottext">HtmlFlags -&gt; HtmlFlags -&gt; Bool
+(HtmlFlags -&gt; HtmlFlags -&gt; Bool)
+-&gt; (HtmlFlags -&gt; HtmlFlags -&gt; Bool) -&gt; Eq HtmlFlags
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: HtmlFlags -&gt; HtmlFlags -&gt; Bool
+== :: HtmlFlags -&gt; HtmlFlags -&gt; Bool
+$c/= :: HtmlFlags -&gt; HtmlFlags -&gt; Bool
+/= :: HtmlFlags -&gt; HtmlFlags -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682253377"><span id="local-6989586621682253379"><span class="annot"><span class="annottext">(forall x. HtmlFlags -&gt; Rep HtmlFlags x)
+-&gt; (forall x. Rep HtmlFlags x -&gt; HtmlFlags) -&gt; Generic HtmlFlags
+forall x. Rep HtmlFlags x -&gt; HtmlFlags
+forall x. HtmlFlags -&gt; Rep HtmlFlags x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. HtmlFlags -&gt; Rep HtmlFlags x
+from :: forall x. HtmlFlags -&gt; Rep HtmlFlags x
+$cto :: forall x. Rep HtmlFlags x -&gt; HtmlFlags
+to :: forall x. Rep HtmlFlags x -&gt; HtmlFlags
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682253385"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">data</span><span> </span><span id="HtmlCompileEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-var">HtmlCompileEnv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HtmlCompileEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-var">HtmlCompileEnv</span></a></span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="htmlCompileEnvOpts"><span class="annot"><span class="annottext">HtmlCompileEnv -&gt; HtmlOptions
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlCompileEnvOpts"><span class="hs-identifier hs-var hs-var">htmlCompileEnvOpts</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Base.html#HtmlOptions"><span class="hs-identifier hs-type">HtmlOptions</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">data</span><span> </span><span id="HtmlModuleEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModuleEnv"><span class="hs-identifier hs-var">HtmlModuleEnv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HtmlModuleEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModuleEnv"><span class="hs-identifier hs-var">HtmlModuleEnv</span></a></span></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="htmlModEnvCompileEnv"><span class="annot"><span class="annottext">HtmlModuleEnv -&gt; HtmlCompileEnv
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlModEnvCompileEnv"><span class="hs-identifier hs-var hs-var">htmlModEnvCompileEnv</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-type">HtmlCompileEnv</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="htmlModEnvName"><span class="annot"><span class="annottext">HtmlModuleEnv -&gt; TopLevelModuleName
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlModEnvName"><span class="hs-identifier hs-var hs-var">htmlModEnvName</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">data</span><span> </span><span id="HtmlModule"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModule"><span class="hs-identifier hs-var">HtmlModule</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HtmlModule"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModule"><span class="hs-identifier hs-var">HtmlModule</span></a></span></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">data</span><span> </span><span id="HtmlDef"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlDef"><span class="hs-identifier hs-var">HtmlDef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HtmlDef"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlDef"><span class="hs-identifier hs-var">HtmlDef</span></a></span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlBackend"><span class="hs-identifier hs-type">htmlBackend</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend"><span class="hs-identifier hs-type">Backend</span></a></span><span>
+</span><span id="line-63"></span><span id="htmlBackend"><span class="annot"><span class="annottext">htmlBackend :: Backend
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlBackend"><span class="hs-identifier hs-var hs-var">htmlBackend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Backend'_boot
+  Definition
+  TCM
+  HtmlFlags
+  HtmlCompileEnv
+  HtmlModuleEnv
+  HtmlModule
+  HtmlDef
+-&gt; Backend
+forall opts definition (tcm :: * -&gt; *) env menv mod def.
+NFData opts =&gt;
+Backend'_boot definition tcm opts env menv mod def
+-&gt; Backend_boot definition tcm
+</span><a href="Agda.Compiler.Backend.Base.html#Backend"><span class="hs-identifier hs-var">Backend</span></a></span><span> </span><span class="annot"><span class="annottext">Backend'_boot
+  Definition
+  TCM
+  HtmlFlags
+  HtmlCompileEnv
+  HtmlModuleEnv
+  HtmlModule
+  HtmlDef
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlBackend%27"><span class="hs-identifier hs-var">htmlBackend'</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlBackend%27"><span class="hs-identifier hs-type">htmlBackend'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend%27"><span class="hs-identifier hs-type">Backend'</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-type">HtmlCompileEnv</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModuleEnv"><span class="hs-identifier hs-type">HtmlModuleEnv</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModule"><span class="hs-identifier hs-type">HtmlModule</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlDef"><span class="hs-identifier hs-type">HtmlDef</span></a></span><span>
+</span><span id="line-66"></span><span id="htmlBackend%27"><span class="annot"><span class="annottext">htmlBackend' :: Backend'_boot
+  Definition
+  TCM
+  HtmlFlags
+  HtmlCompileEnv
+  HtmlModuleEnv
+  HtmlModule
+  HtmlDef
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlBackend%27"><span class="hs-identifier hs-var hs-var">htmlBackend'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27"><span class="hs-identifier hs-type">Backend'</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">backendName :: BackendName
+</span><a href="Agda.Compiler.Backend.Base.html#backendName"><span class="hs-identifier hs-var">backendName</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BackendName
+</span><span class="hs-string">&quot;HTML&quot;</span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">backendVersion :: Maybe BackendName
+</span><a href="Agda.Compiler.Backend.Base.html#backendVersion"><span class="hs-identifier hs-var">backendVersion</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe BackendName
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">options :: HtmlFlags
+</span><a href="Agda.Compiler.Backend.Base.html#options"><span class="hs-identifier hs-var">options</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#initialHtmlFlags"><span class="hs-identifier hs-var">initialHtmlFlags</span></a></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">commandLineFlags :: [OptDescr (Flag HtmlFlags)]
+</span><a href="Agda.Compiler.Backend.Base.html#commandLineFlags"><span class="hs-identifier hs-var">commandLineFlags</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[OptDescr (Flag HtmlFlags)]
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlags"><span class="hs-identifier hs-var">htmlFlags</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">isEnabled :: HtmlFlags -&gt; Bool
+</span><a href="Agda.Compiler.Backend.Base.html#isEnabled"><span class="hs-identifier hs-var">isEnabled</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagEnabled"><span class="hs-identifier hs-var">htmlFlagEnabled</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">preCompile :: HtmlFlags -&gt; TCM HtmlCompileEnv
+</span><a href="Agda.Compiler.Backend.Base.html#preCompile"><span class="hs-identifier hs-var">preCompile</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags -&gt; TCM HtmlCompileEnv
+forall (m :: * -&gt; *).
+(MonadIO m, MonadDebug m) =&gt;
+HtmlFlags -&gt; m HtmlCompileEnv
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#preCompileHtml"><span class="hs-identifier hs-var">preCompileHtml</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">preModule :: HtmlCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe String
+-&gt; TCM (Recompile HtmlModuleEnv HtmlModule)
+</span><a href="Agda.Compiler.Backend.Base.html#preModule"><span class="hs-identifier hs-var">preModule</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe String
+-&gt; TCM (Recompile HtmlModuleEnv HtmlModule)
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+HtmlCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe String
+-&gt; m (Recompile HtmlModuleEnv HtmlModule)
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#preModuleHtml"><span class="hs-identifier hs-var">preModuleHtml</span></a></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">compileDef :: HtmlCompileEnv
+-&gt; HtmlModuleEnv -&gt; IsMain -&gt; Definition -&gt; TCM HtmlDef
+</span><a href="Agda.Compiler.Backend.Base.html#compileDef"><span class="hs-identifier hs-var">compileDef</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlCompileEnv
+-&gt; HtmlModuleEnv -&gt; IsMain -&gt; Definition -&gt; TCM HtmlDef
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+HtmlCompileEnv
+-&gt; HtmlModuleEnv -&gt; IsMain -&gt; Definition -&gt; m HtmlDef
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#compileDefHtml"><span class="hs-identifier hs-var">compileDefHtml</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">postModule :: HtmlCompileEnv
+-&gt; HtmlModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [HtmlDef]
+-&gt; TCM HtmlModule
+</span><a href="Agda.Compiler.Backend.Base.html#postModule"><span class="hs-identifier hs-var">postModule</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlCompileEnv
+-&gt; HtmlModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [HtmlDef]
+-&gt; TCM HtmlModule
+forall (m :: * -&gt; *).
+(MonadIO m, MonadDebug m, ReadTCState m) =&gt;
+HtmlCompileEnv
+-&gt; HtmlModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [HtmlDef]
+-&gt; m HtmlModule
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#postModuleHtml"><span class="hs-identifier hs-var">postModuleHtml</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">postCompile :: HtmlCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName HtmlModule -&gt; TCM ()
+</span><a href="Agda.Compiler.Backend.Base.html#postCompile"><span class="hs-identifier hs-var">postCompile</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName HtmlModule -&gt; TCM ()
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+HtmlCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName HtmlModule -&gt; m ()
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#postCompileHtml"><span class="hs-identifier hs-var">postCompileHtml</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-comment">-- --only-scope-checking works, but with the caveat that cross-module links</span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-comment">-- will not have their definition site populated.</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scopeCheckingSuffices :: Bool
+</span><a href="Agda.Compiler.Backend.Base.html#scopeCheckingSuffices"><span class="hs-identifier hs-var">scopeCheckingSuffices</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">mayEraseType :: QName -&gt; TCM Bool
+</span><a href="Agda.Compiler.Backend.Base.html#mayEraseType"><span class="hs-identifier hs-var">mayEraseType</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCM Bool -&gt; QName -&gt; TCM Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">(TCM Bool -&gt; QName -&gt; TCM Bool) -&gt; TCM Bool -&gt; QName -&gt; TCM Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; TCM Bool
+forall a. a -&gt; TCM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">backendInteractTop :: Maybe (BackendCommandTop TCM)
+</span><a href="Agda.Compiler.Backend.Base.html#backendInteractTop"><span class="hs-identifier hs-var">backendInteractTop</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (BackendCommandTop TCM)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">backendInteractHole :: Maybe (BackendCommandHole TCM)
+</span><a href="Agda.Compiler.Backend.Base.html#backendInteractHole"><span class="hs-identifier hs-var">backendInteractHole</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (BackendCommandHole TCM)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#initialHtmlFlags"><span class="hs-identifier hs-type">initialHtmlFlags</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-86"></span><span id="initialHtmlFlags"><span class="annot"><span class="annottext">initialHtmlFlags :: HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#initialHtmlFlags"><span class="hs-identifier hs-var hs-var">initialHtmlFlags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">htmlFlagEnabled :: Bool
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagEnabled"><span class="hs-identifier hs-var">htmlFlagEnabled</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">htmlFlagDir :: String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagDir"><span class="hs-identifier hs-var">htmlFlagDir</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#defaultHTMLDir"><span class="hs-identifier hs-var">defaultHTMLDir</span></a></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">htmlFlagHighlight :: HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlight"><span class="hs-identifier hs-var">htmlFlagHighlight</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#HighlightAll"><span class="hs-identifier hs-var">HighlightAll</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-comment">-- Don't enable by default because it causes potential</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-comment">-- performance problems</span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">htmlFlagHighlightOccurrences :: Bool
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlightOccurrences"><span class="hs-identifier hs-var">htmlFlagHighlightOccurrences</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">htmlFlagCssFile :: Maybe String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagCssFile"><span class="hs-identifier hs-var">htmlFlagCssFile</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe String
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlOptsOfFlags"><span class="hs-identifier hs-type">htmlOptsOfFlags</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Base.html#HtmlOptions"><span class="hs-identifier hs-type">HtmlOptions</span></a></span><span>
+</span><span id="line-97"></span><span id="htmlOptsOfFlags"><span class="annot"><span class="annottext">htmlOptsOfFlags :: HtmlFlags -&gt; HtmlOptions
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlOptsOfFlags"><span class="hs-identifier hs-var hs-var">htmlOptsOfFlags</span></a></span></span><span> </span><span id="local-6989586621682253453"><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253453"><span class="hs-identifier hs-var">flags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Base.html#HtmlOptions"><span class="hs-identifier hs-type">HtmlOptions</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">htmlOptDir :: String
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#htmlOptDir"><span class="hs-identifier hs-var">htmlOptDir</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags -&gt; String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagDir"><span class="hs-identifier hs-var">htmlFlagDir</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253453"><span class="hs-identifier hs-var">flags</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">htmlOptHighlight :: HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#htmlOptHighlight"><span class="hs-identifier hs-var">htmlOptHighlight</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags -&gt; HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlight"><span class="hs-identifier hs-var">htmlFlagHighlight</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253453"><span class="hs-identifier hs-var">flags</span></a></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">htmlOptHighlightOccurrences :: Bool
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#htmlOptHighlightOccurrences"><span class="hs-identifier hs-var">htmlOptHighlightOccurrences</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlightOccurrences"><span class="hs-identifier hs-var">htmlFlagHighlightOccurrences</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253453"><span class="hs-identifier hs-var">flags</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">htmlOptCssFile :: Maybe String
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#htmlOptCssFile"><span class="hs-identifier hs-var">htmlOptCssFile</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags -&gt; Maybe String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagCssFile"><span class="hs-identifier hs-var">htmlFlagCssFile</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253453"><span class="hs-identifier hs-var">flags</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="annot"><span class="hs-comment">-- | The default output directory for HTML.</span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#defaultHTMLDir"><span class="hs-identifier hs-type">defaultHTMLDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-107"></span><span id="defaultHTMLDir"><span class="annot"><span class="annottext">defaultHTMLDir :: String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#defaultHTMLDir"><span class="hs-identifier hs-var hs-var">defaultHTMLDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;html&quot;</span></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlags"><span class="hs-identifier hs-type">htmlFlags</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-110"></span><span id="htmlFlags"><span class="annot"><span class="annottext">htmlFlags :: [OptDescr (Flag HtmlFlags)]
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlags"><span class="hs-identifier hs-var hs-var">htmlFlags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-111"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; [String]
+-&gt; ArgDescr (Flag HtmlFlags)
+-&gt; String
+-&gt; OptDescr (Flag HtmlFlags)
+forall a. String -&gt; [String] -&gt; ArgDescr a -&gt; String -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;html&quot;</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flag HtmlFlags -&gt; ArgDescr (Flag HtmlFlags)
+forall a. a -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-var">NoArg</span></a></span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlag"><span class="hs-identifier hs-var">htmlFlag</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>                    </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;generate HTML files with highlighted source code&quot;</span></span><span>
+</span><span id="line-113"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; [String]
+-&gt; ArgDescr (Flag HtmlFlags)
+-&gt; String
+-&gt; OptDescr (Flag HtmlFlags)
+forall a. String -&gt; [String] -&gt; ArgDescr a -&gt; String -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;html-dir&quot;</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(String -&gt; Flag HtmlFlags) -&gt; String -&gt; ArgDescr (Flag HtmlFlags)
+forall a. (String -&gt; a) -&gt; String -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-var">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlDirFlag"><span class="hs-identifier hs-var">htmlDirFlag</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;DIR&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span><span>                    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;directory in which HTML files are placed (default: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-115"></span><span>                     </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#defaultHTMLDir"><span class="hs-identifier hs-var">defaultHTMLDir</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;)&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-116"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; [String]
+-&gt; ArgDescr (Flag HtmlFlags)
+-&gt; String
+-&gt; OptDescr (Flag HtmlFlags)
+forall a. String -&gt; [String] -&gt; ArgDescr a -&gt; String -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;highlight-occurrences&quot;</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flag HtmlFlags -&gt; ArgDescr (Flag HtmlFlags)
+forall a. a -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-var">NoArg</span></a></span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#highlightOccurrencesFlag"><span class="hs-identifier hs-var">highlightOccurrencesFlag</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-117"></span><span>                    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;highlight all occurrences of hovered symbol in generated &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-118"></span><span>                     </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;HTML files&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; [String]
+-&gt; ArgDescr (Flag HtmlFlags)
+-&gt; String
+-&gt; OptDescr (Flag HtmlFlags)
+forall a. String -&gt; [String] -&gt; ArgDescr a -&gt; String -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;css&quot;</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(String -&gt; Flag HtmlFlags) -&gt; String -&gt; ArgDescr (Flag HtmlFlags)
+forall a. (String -&gt; a) -&gt; String -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-var">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#cssFlag"><span class="hs-identifier hs-var">cssFlag</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;URL&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>                    </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;the CSS file used by the HTML files (can be relative)&quot;</span></span><span>
+</span><span id="line-121"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; [String]
+-&gt; ArgDescr (Flag HtmlFlags)
+-&gt; String
+-&gt; OptDescr (Flag HtmlFlags)
+forall a. String -&gt; [String] -&gt; ArgDescr a -&gt; String -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;html-highlight&quot;</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(String -&gt; Flag HtmlFlags) -&gt; String -&gt; ArgDescr (Flag HtmlFlags)
+forall a. (String -&gt; a) -&gt; String -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-var">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlHighlightFlag"><span class="hs-identifier hs-var">htmlHighlightFlag</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;[code,all,auto]&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>                    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;whether to highlight only the code parts (code) or &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-123"></span><span>                     </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;the file as a whole (all) or &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-124"></span><span>                     </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;decide by source file type (auto)&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-125"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlag"><span class="hs-identifier hs-type">htmlFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-128"></span><span id="htmlFlag"><span class="annot"><span class="annottext">htmlFlag :: Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlag"><span class="hs-identifier hs-var hs-var">htmlFlag</span></a></span></span><span> </span><span id="local-6989586621682253465"><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253465"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags
+forall a. a -&gt; OptM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags -&gt; Flag HtmlFlags
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253465"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagEnabled"><span class="hs-identifier hs-var">htmlFlagEnabled</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlDirFlag"><span class="hs-identifier hs-type">htmlDirFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-131"></span><span id="htmlDirFlag"><span class="annot"><span class="annottext">htmlDirFlag :: String -&gt; Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlDirFlag"><span class="hs-identifier hs-var hs-var">htmlDirFlag</span></a></span></span><span> </span><span id="local-6989586621682253466"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682253466"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621682253467"><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253467"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags
+forall a. a -&gt; OptM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags -&gt; Flag HtmlFlags
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253467"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagDir"><span class="hs-identifier hs-var">htmlFlagDir</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682253466"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#cssFlag"><span class="hs-identifier hs-type">cssFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-134"></span><span id="cssFlag"><span class="annot"><span class="annottext">cssFlag :: String -&gt; Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#cssFlag"><span class="hs-identifier hs-var hs-var">cssFlag</span></a></span></span><span> </span><span id="local-6989586621682253468"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682253468"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621682253469"><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253469"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags
+forall a. a -&gt; OptM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags -&gt; Flag HtmlFlags
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253469"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagCssFile"><span class="hs-identifier hs-var">htmlFlagCssFile</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="#local-6989586621682253468"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#highlightOccurrencesFlag"><span class="hs-identifier hs-type">highlightOccurrencesFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-137"></span><span id="highlightOccurrencesFlag"><span class="annot"><span class="annottext">highlightOccurrencesFlag :: Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#highlightOccurrencesFlag"><span class="hs-identifier hs-var hs-var">highlightOccurrencesFlag</span></a></span></span><span> </span><span id="local-6989586621682253470"><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253470"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags
+forall a. a -&gt; OptM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Flag HtmlFlags -&gt; Flag HtmlFlags
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253470"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlightOccurrences"><span class="hs-identifier hs-var">htmlFlagHighlightOccurrences</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span id="local-6989586621682253251"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#parseHtmlHighlightFlag"><span class="hs-identifier hs-type">parseHtmlHighlightFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="#local-6989586621682253251"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682253251"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Base.html#HtmlHighlight"><span class="hs-identifier hs-type">HtmlHighlight</span></a></span></span><span>
+</span><span id="line-140"></span><span id="parseHtmlHighlightFlag"><span class="annot"><span class="annottext">parseHtmlHighlightFlag :: forall (m :: * -&gt; *).
+MonadError String m =&gt;
+String -&gt; m HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#parseHtmlHighlightFlag"><span class="hs-identifier hs-var hs-var">parseHtmlHighlightFlag</span></a></span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;code&quot;</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlHighlight -&gt; m HtmlHighlight
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#HighlightCode"><span class="hs-identifier hs-var">HighlightCode</span></a></span><span>
+</span><span id="line-141"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#parseHtmlHighlightFlag"><span class="hs-identifier hs-var">parseHtmlHighlightFlag</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;all&quot;</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlHighlight -&gt; m HtmlHighlight
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#HighlightAll"><span class="hs-identifier hs-var">HighlightAll</span></a></span><span>
+</span><span id="line-142"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#parseHtmlHighlightFlag"><span class="hs-identifier hs-var">parseHtmlHighlightFlag</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;auto&quot;</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlHighlight -&gt; m HtmlHighlight
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#HighlightAuto"><span class="hs-identifier hs-var">HighlightAuto</span></a></span><span>
+</span><span id="line-143"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#parseHtmlHighlightFlag"><span class="hs-identifier hs-var">parseHtmlHighlightFlag</span></a></span><span> </span><span id="local-6989586621682253492"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682253492"><span class="hs-identifier hs-var">opt</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; m HtmlHighlight
+forall a. String -&gt; m a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; m HtmlHighlight) -&gt; String -&gt; m HtmlHighlight
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Invalid option &lt;&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682253492"><span class="hs-identifier hs-var">opt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&gt;, expected &lt;all&gt;, &lt;auto&gt; or &lt;code&gt;&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlHighlightFlag"><span class="hs-identifier hs-type">htmlHighlightFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-146"></span><span id="htmlHighlightFlag"><span class="annot"><span class="annottext">htmlHighlightFlag :: String -&gt; Flag HtmlFlags
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlHighlightFlag"><span class="hs-identifier hs-var hs-var">htmlHighlightFlag</span></a></span></span><span> </span><span id="local-6989586621682253494"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682253494"><span class="hs-identifier hs-var">opt</span></a></span></span><span>    </span><span id="local-6989586621682253495"><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253495"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-147"></span><span>  </span><span id="local-6989586621682253496"><span class="annot"><a href="#local-6989586621682253496"><span class="hs-identifier hs-var">flag</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; OptM HtmlHighlight
+forall (m :: * -&gt; *).
+MonadError String m =&gt;
+String -&gt; m HtmlHighlight
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#parseHtmlHighlightFlag"><span class="hs-identifier hs-var">parseHtmlHighlightFlag</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621682253494"><span class="hs-identifier hs-var">opt</span></a></span><span>
+</span><span id="line-148"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621682253495"><span class="hs-identifier hs-type">o</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlFlagHighlight"><span class="hs-identifier hs-var">htmlFlagHighlight</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682253496"><span class="hs-identifier hs-type">flag</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span id="local-6989586621682253258"><span id="local-6989586621682253259"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#runLogHtmlWithMonadDebug"><span class="hs-identifier hs-type">runLogHtmlWithMonadDebug</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253258"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Base.html#LogHtmlT"><span class="hs-identifier hs-type">LogHtmlT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253258"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253259"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682253258"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253259"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-151"></span><span id="runLogHtmlWithMonadDebug"><span class="annot"><span class="annottext">runLogHtmlWithMonadDebug :: forall (m :: * -&gt; *) a. MonadDebug m =&gt; LogHtmlT m a -&gt; m a
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#runLogHtmlWithMonadDebug"><span class="hs-identifier hs-var hs-var">runLogHtmlWithMonadDebug</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlLogAction m -&gt; LogHtmlT m a -&gt; m a
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+HtmlLogAction m -&gt; LogHtmlT m a -&gt; m a
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#runLogHtmlWith"><span class="hs-identifier hs-var">runLogHtmlWith</span></a></span><span> </span><span class="annot"><span class="annottext">(HtmlLogAction m -&gt; LogHtmlT m a -&gt; m a)
+-&gt; HtmlLogAction m -&gt; LogHtmlT m a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; VerboseLevel -&gt; HtmlLogAction m
+forall a (m :: * -&gt; *).
+(ReportS a, MonadDebug m) =&gt;
+String -&gt; VerboseLevel -&gt; a -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+String -&gt; VerboseLevel -&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportS"><span class="hs-identifier hs-var">reportS</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;html&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span id="local-6989586621682253234"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#preCompileHtml"><span class="hs-identifier hs-type">preCompileHtml</span></a></span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621682253234"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253234"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlFlags"><span class="hs-identifier hs-type">HtmlFlags</span></a></span><span>
+</span><span id="line-156"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682253234"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-type">HtmlCompileEnv</span></a></span></span><span>
+</span><span id="line-157"></span><span id="preCompileHtml"><span class="annot"><span class="annottext">preCompileHtml :: forall (m :: * -&gt; *).
+(MonadIO m, MonadDebug m) =&gt;
+HtmlFlags -&gt; m HtmlCompileEnv
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#preCompileHtml"><span class="hs-identifier hs-var hs-var">preCompileHtml</span></a></span></span><span> </span><span id="local-6989586621682253519"><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253519"><span class="hs-identifier hs-var">flags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LogHtmlT m HtmlCompileEnv -&gt; m HtmlCompileEnv
+forall (m :: * -&gt; *) a. MonadDebug m =&gt; LogHtmlT m a -&gt; m a
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#runLogHtmlWithMonadDebug"><span class="hs-identifier hs-var">runLogHtmlWithMonadDebug</span></a></span><span> </span><span class="annot"><span class="annottext">(LogHtmlT m HtmlCompileEnv -&gt; m HtmlCompileEnv)
+-&gt; LogHtmlT m HtmlCompileEnv -&gt; m HtmlCompileEnv
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-158"></span><span>  </span><span class="annot"><span class="annottext">HtmlLogAction (ReaderT (HtmlLogAction m) m)
+forall (m :: * -&gt; *). MonadLogHtml m =&gt; HtmlLogAction m
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#logHtml"><span class="hs-identifier hs-var">logHtml</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlLogAction (ReaderT (HtmlLogAction m) m)
+-&gt; HtmlLogAction (ReaderT (HtmlLogAction m) m)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unlines</span></span><span>
+</span><span id="line-159"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Warning: HTML is currently generated for ALL files which can be&quot;</span></span><span>
+</span><span id="line-160"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;reached from the given module, including library files.&quot;</span></span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682253522"><span class="annot"><span class="annottext">opts :: HtmlOptions
+</span><a href="#local-6989586621682253522"><span class="hs-identifier hs-var hs-var hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlFlags -&gt; HtmlOptions
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlOptsOfFlags"><span class="hs-identifier hs-var">htmlOptsOfFlags</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlFlags
+</span><a href="#local-6989586621682253519"><span class="hs-identifier hs-var">flags</span></a></span><span>
+</span><span id="line-163"></span><span>  </span><span class="annot"><span class="annottext">HtmlOptions -&gt; ReaderT (HtmlLogAction m) m ()
+forall (m :: * -&gt; *). MonadIO m =&gt; HtmlOptions -&gt; m ()
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#prepareCommonDestinationAssets"><span class="hs-identifier hs-var">prepareCommonDestinationAssets</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlOptions
+</span><a href="#local-6989586621682253522"><span class="hs-identifier hs-var">opts</span></a></span><span>
+</span><span id="line-164"></span><span>  </span><span class="annot"><span class="annottext">HtmlCompileEnv -&gt; LogHtmlT m HtmlCompileEnv
+forall a. a -&gt; ReaderT (HtmlLogAction m) m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(HtmlCompileEnv -&gt; LogHtmlT m HtmlCompileEnv)
+-&gt; HtmlCompileEnv -&gt; LogHtmlT m HtmlCompileEnv
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HtmlOptions -&gt; HtmlCompileEnv
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-var">HtmlCompileEnv</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlOptions
+</span><a href="#local-6989586621682253522"><span class="hs-identifier hs-var">opts</span></a></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span id="local-6989586621682253235"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#preModuleHtml"><span class="hs-identifier hs-type">preModuleHtml</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621682253235"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-type">HtmlCompileEnv</span></a></span><span>
+</span><span id="line-169"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-170"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682253235"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier hs-type">Recompile</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModuleEnv"><span class="hs-identifier hs-type">HtmlModuleEnv</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModule"><span class="hs-identifier hs-type">HtmlModule</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-173"></span><span id="preModuleHtml"><span class="annot"><span class="annottext">preModuleHtml :: forall (m :: * -&gt; *).
+Applicative m =&gt;
+HtmlCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe String
+-&gt; m (Recompile HtmlModuleEnv HtmlModule)
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#preModuleHtml"><span class="hs-identifier hs-var hs-var">preModuleHtml</span></a></span></span><span> </span><span id="local-6989586621682253526"><span class="annot"><span class="annottext">HtmlCompileEnv
+</span><a href="#local-6989586621682253526"><span class="hs-identifier hs-var">cenv</span></a></span></span><span> </span><span id="local-6989586621682253527"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682253527"><span class="hs-identifier hs-var">_isMain</span></a></span></span><span> </span><span id="local-6989586621682253528"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682253528"><span class="hs-identifier hs-var">modName</span></a></span></span><span> </span><span id="local-6989586621682253529"><span class="annot"><span class="annottext">Maybe String
+</span><a href="#local-6989586621682253529"><span class="hs-identifier hs-var">_ifacePath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Recompile HtmlModuleEnv HtmlModule
+-&gt; m (Recompile HtmlModuleEnv HtmlModule)
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(Recompile HtmlModuleEnv HtmlModule
+ -&gt; m (Recompile HtmlModuleEnv HtmlModule))
+-&gt; Recompile HtmlModuleEnv HtmlModule
+-&gt; m (Recompile HtmlModuleEnv HtmlModule)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HtmlModuleEnv -&gt; Recompile HtmlModuleEnv HtmlModule
+forall menv mod. menv -&gt; Recompile menv mod
+</span><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier hs-var">Recompile</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HtmlCompileEnv -&gt; TopLevelModuleName -&gt; HtmlModuleEnv
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModuleEnv"><span class="hs-identifier hs-var">HtmlModuleEnv</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlCompileEnv
+</span><a href="#local-6989586621682253526"><span class="hs-identifier hs-var">cenv</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682253528"><span class="hs-identifier hs-var">modName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span id="local-6989586621682253236"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#compileDefHtml"><span class="hs-identifier hs-type">compileDefHtml</span></a></span><span>
+</span><span id="line-176"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621682253236"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-type">HtmlCompileEnv</span></a></span><span>
+</span><span id="line-178"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModuleEnv"><span class="hs-identifier hs-type">HtmlModuleEnv</span></a></span><span>
+</span><span id="line-179"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-180"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier hs-type">Definition</span></a></span><span>
+</span><span id="line-181"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682253236"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlDef"><span class="hs-identifier hs-type">HtmlDef</span></a></span></span><span>
+</span><span id="line-182"></span><span id="compileDefHtml"><span class="annot"><span class="annottext">compileDefHtml :: forall (m :: * -&gt; *).
+Applicative m =&gt;
+HtmlCompileEnv
+-&gt; HtmlModuleEnv -&gt; IsMain -&gt; Definition -&gt; m HtmlDef
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#compileDefHtml"><span class="hs-identifier hs-var hs-var">compileDefHtml</span></a></span></span><span> </span><span id="local-6989586621682253533"><span class="annot"><span class="annottext">HtmlCompileEnv
+</span><a href="#local-6989586621682253533"><span class="hs-identifier hs-var">_env</span></a></span></span><span> </span><span id="local-6989586621682253534"><span class="annot"><span class="annottext">HtmlModuleEnv
+</span><a href="#local-6989586621682253534"><span class="hs-identifier hs-var">_menv</span></a></span></span><span> </span><span id="local-6989586621682253535"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682253535"><span class="hs-identifier hs-var">_isMain</span></a></span></span><span> </span><span id="local-6989586621682253536"><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682253536"><span class="hs-identifier hs-var">_def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlDef -&gt; m HtmlDef
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">HtmlDef
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlDef"><span class="hs-identifier hs-var">HtmlDef</span></a></span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span id="local-6989586621682253237"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#postModuleHtml"><span class="hs-identifier hs-type">postModuleHtml</span></a></span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621682253237"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253237"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253237"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-type">HtmlCompileEnv</span></a></span><span>
+</span><span id="line-187"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModuleEnv"><span class="hs-identifier hs-type">HtmlModuleEnv</span></a></span><span>
+</span><span id="line-188"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-189"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-190"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlDef"><span class="hs-identifier hs-type">HtmlDef</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682253237"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModule"><span class="hs-identifier hs-type">HtmlModule</span></a></span></span><span>
+</span><span id="line-192"></span><span id="postModuleHtml"><span class="annot"><span class="annottext">postModuleHtml :: forall (m :: * -&gt; *).
+(MonadIO m, MonadDebug m, ReadTCState m) =&gt;
+HtmlCompileEnv
+-&gt; HtmlModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [HtmlDef]
+-&gt; m HtmlModule
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#postModuleHtml"><span class="hs-identifier hs-var hs-var">postModuleHtml</span></a></span></span><span> </span><span id="local-6989586621682253551"><span class="annot"><span class="annottext">HtmlCompileEnv
+</span><a href="#local-6989586621682253551"><span class="hs-identifier hs-var">_env</span></a></span></span><span> </span><span id="local-6989586621682253552"><span class="annot"><span class="annottext">HtmlModuleEnv
+</span><a href="#local-6989586621682253552"><span class="hs-identifier hs-var">menv</span></a></span></span><span> </span><span id="local-6989586621682253553"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682253553"><span class="hs-identifier hs-var">_isMain</span></a></span></span><span> </span><span id="local-6989586621682253554"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682253554"><span class="hs-identifier hs-var">_modName</span></a></span></span><span> </span><span id="local-6989586621682253555"><span class="annot"><span class="annottext">[HtmlDef]
+</span><a href="#local-6989586621682253555"><span class="hs-identifier hs-var">_defs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-193"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682253556"><span class="annot"><span class="annottext">generatePage :: HtmlInputSourceFile -&gt; ReaderT (HtmlLogAction m) m ()
+</span><a href="#local-6989586621682253556"><span class="hs-identifier hs-var hs-var hs-var">generatePage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HtmlOptions
+-&gt; HtmlInputSourceFile -&gt; ReaderT (HtmlLogAction m) m ()
+forall (m :: * -&gt; *).
+(MonadIO m, MonadLogHtml m) =&gt;
+HtmlOptions -&gt; HtmlInputSourceFile -&gt; m ()
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#defaultPageGen"><span class="hs-identifier hs-var">defaultPageGen</span></a></span><span> </span><span class="annot"><span class="annottext">(HtmlOptions
+ -&gt; HtmlInputSourceFile -&gt; ReaderT (HtmlLogAction m) m ())
+-&gt; (HtmlModuleEnv -&gt; HtmlOptions)
+-&gt; HtmlModuleEnv
+-&gt; HtmlInputSourceFile
+-&gt; ReaderT (HtmlLogAction m) m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">HtmlCompileEnv -&gt; HtmlOptions
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlCompileEnvOpts"><span class="hs-identifier hs-var">htmlCompileEnvOpts</span></a></span><span> </span><span class="annot"><span class="annottext">(HtmlCompileEnv -&gt; HtmlOptions)
+-&gt; (HtmlModuleEnv -&gt; HtmlCompileEnv)
+-&gt; HtmlModuleEnv
+-&gt; HtmlOptions
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">HtmlModuleEnv -&gt; HtmlCompileEnv
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlModEnvCompileEnv"><span class="hs-identifier hs-var">htmlModEnvCompileEnv</span></a></span><span> </span><span class="annot"><span class="annottext">(HtmlModuleEnv
+ -&gt; HtmlInputSourceFile -&gt; ReaderT (HtmlLogAction m) m ())
+-&gt; HtmlModuleEnv
+-&gt; HtmlInputSourceFile
+-&gt; ReaderT (HtmlLogAction m) m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HtmlModuleEnv
+</span><a href="#local-6989586621682253552"><span class="hs-identifier hs-var">menv</span></a></span><span>
+</span><span id="line-194"></span><span>  </span><span id="local-6989586621682253559"><span class="annot"><a href="#local-6989586621682253559"><span class="hs-identifier hs-var">htmlSrc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; Interface -&gt; HtmlInputSourceFile
+</span><a href="Agda.Interaction.Highlighting.HTML.Base.html#srcFileOfInterface"><span class="hs-identifier hs-var">srcFileOfInterface</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HtmlModuleEnv -&gt; TopLevelModuleName
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#htmlModEnvName"><span class="hs-identifier hs-var">htmlModEnvName</span></a></span><span> </span><span class="annot"><span class="annottext">HtmlModuleEnv
+</span><a href="#local-6989586621682253552"><span class="hs-identifier hs-var">menv</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Interface -&gt; HtmlInputSourceFile)
+-&gt; m Interface -&gt; m HtmlInputSourceFile
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m Interface
+forall (m :: * -&gt; *). ReadTCState m =&gt; m Interface
+</span><a href="Agda.Compiler.Common.html#curIF"><span class="hs-identifier hs-var">curIF</span></a></span><span>
+</span><span id="line-195"></span><span>  </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#runLogHtmlWithMonadDebug"><span class="hs-identifier hs-type">runLogHtmlWithMonadDebug</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621682253556"><span class="hs-identifier hs-type">generatePage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682253559"><span class="hs-identifier hs-type">htmlSrc</span></a></span><span>
+</span><span id="line-196"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModule"><span class="hs-identifier hs-type">HtmlModule</span></a></span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span id="local-6989586621682253238"><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#postCompileHtml"><span class="hs-identifier hs-type">postCompileHtml</span></a></span><span>
+</span><span id="line-199"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621682253238"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-200"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlCompileEnv"><span class="hs-identifier hs-type">HtmlCompileEnv</span></a></span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.HTML.Backend.html#HtmlModule"><span class="hs-identifier hs-type">HtmlModule</span></a></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682253238"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-204"></span><span id="postCompileHtml"><span class="annot"><span class="annottext">postCompileHtml :: forall (m :: * -&gt; *).
+Applicative m =&gt;
+HtmlCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName HtmlModule -&gt; m ()
+</span><a href="Agda.Interaction.Highlighting.HTML.Backend.html#postCompileHtml"><span class="hs-identifier hs-var hs-var">postCompileHtml</span></a></span></span><span> </span><span id="local-6989586621682253564"><span class="annot"><span class="annottext">HtmlCompileEnv
+</span><a href="#local-6989586621682253564"><span class="hs-identifier hs-var">_cenv</span></a></span></span><span> </span><span id="local-6989586621682253565"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682253565"><span class="hs-identifier hs-var">_isMain</span></a></span></span><span> </span><span id="local-6989586621682253566"><span class="annot"><span class="annottext">Map TopLevelModuleName HtmlModule
+</span><a href="#local-6989586621682253566"><span class="hs-identifier hs-var">_modulesByName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-205"></span></pre></body></html>

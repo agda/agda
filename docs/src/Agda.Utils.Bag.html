@@ -1,0 +1,560 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | A simple overlay over Data.Map to manage unordered sets with duplicates.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html"><span class="hs-identifier">Agda.Utils.Bag</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Text.Show.Functions</span></span><span>    </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- instance only</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span>              </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span>     </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-comment">-- NB: Not importing Agda.Utils.List1 to avoid import cycles.</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>               </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>               </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span>         </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- | A set with duplicates.</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   Faithfully stores elements which are equal with regard to (==).</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">newtype</span><span> </span><span id="Bag"><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span></span><span> </span><span id="local-6989586621681694512"><span class="annot"><a href="#local-6989586621681694512"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Bag"><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="bag"><span class="annot"><span class="annottext">forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var hs-var">bag</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681694512"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681694512"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>      </span><span class="hs-comment">-- ^ The list contains all occurrences of @a@ (not just the duplicates!).</span><span>
+</span><span id="line-26"></span><span>      </span><span class="hs-comment">--   Hence, the invariant: the list is never empty.</span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681694674"><span id="local-6989586621681694680"><span class="annot"><span class="annottext">Bag a -&gt; Bag a -&gt; Bool
+(Bag a -&gt; Bag a -&gt; Bool) -&gt; (Bag a -&gt; Bag a -&gt; Bool) -&gt; Eq (Bag a)
+forall a. Eq a =&gt; Bag a -&gt; Bag a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; Bag a -&gt; Bag a -&gt; Bool
+== :: Bag a -&gt; Bag a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; Bag a -&gt; Bag a -&gt; Bool
+/= :: Bag a -&gt; Bag a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681694693"><span id="local-6989586621681694699"><span id="local-6989586621681694704"><span id="local-6989586621681694709"><span id="local-6989586621681694714"><span id="local-6989586621681694719"><span id="local-6989586621681694724"><span class="annot"><span class="annottext">Eq (Bag a)
+Eq (Bag a) =&gt;
+(Bag a -&gt; Bag a -&gt; Ordering)
+-&gt; (Bag a -&gt; Bag a -&gt; Bool)
+-&gt; (Bag a -&gt; Bag a -&gt; Bool)
+-&gt; (Bag a -&gt; Bag a -&gt; Bool)
+-&gt; (Bag a -&gt; Bag a -&gt; Bool)
+-&gt; (Bag a -&gt; Bag a -&gt; Bag a)
+-&gt; (Bag a -&gt; Bag a -&gt; Bag a)
+-&gt; Ord (Bag a)
+Bag a -&gt; Bag a -&gt; Bool
+Bag a -&gt; Bag a -&gt; Ordering
+Bag a -&gt; Bag a -&gt; Bag a
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall a. Ord a =&gt; Eq (Bag a)
+forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bool
+forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Ordering
+forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bag a
+$ccompare :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Ordering
+compare :: Bag a -&gt; Bag a -&gt; Ordering
+$c&lt; :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bool
+&lt; :: Bag a -&gt; Bag a -&gt; Bool
+$c&lt;= :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bool
+&lt;= :: Bag a -&gt; Bag a -&gt; Bool
+$c&gt; :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bool
+&gt; :: Bag a -&gt; Bag a -&gt; Bool
+$c&gt;= :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bool
+&gt;= :: Bag a -&gt; Bag a -&gt; Bool
+$cmax :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bag a
+max :: Bag a -&gt; Bag a -&gt; Bag a
+$cmin :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bag a
+min :: Bag a -&gt; Bag a -&gt; Bag a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-comment">-- The list contains all occurrences of @a@ (not just the duplicates!).</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-comment">-- Hence the invariant: the list is never empty.</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-comment">-- This is slightly wasteful, but much easier to implement</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-comment">-- in terms of @Map@ as the alternative, which is to store</span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-comment">-- only the duplicates in the list.</span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-comment">-- See, e.g., implementation of 'union' which would be impossible</span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-comment">-- to do in the other representation.  We would need a</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-comment">-- 'Map.unionWithKey' that passes us *both* keys.</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-comment">-- But Map works under the assumption that Eq for keys is identity,</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-comment">-- it does not honor information in keys that goes beyond Ord.</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-42"></span><span class="annot"><span class="hs-comment">-- * Query</span></span><span>
+</span><span id="line-43"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="annot"><span class="hs-comment">-- | Is the bag empty?</span></span><span>
+</span><span id="line-46"></span><span id="local-6989586621681694531"><span class="annot"><a href="Agda.Utils.Bag.html#null"><span class="hs-identifier hs-type">null</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694531"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-47"></span><span id="null"><span class="annot"><span class="annottext">null :: forall a. Bag a -&gt; Bool
+</span><a href="Agda.Utils.Bag.html#null"><span class="hs-identifier hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; Bool
+forall k a. Map k a -&gt; Bool
+</span><span class="hs-identifier hs-var">Map.null</span></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Bool)
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="annot"><span class="hs-comment">-- | Number of elements in the bag.  Duplicates count. O(n).</span></span><span>
+</span><span id="line-50"></span><span id="local-6989586621681694538"><span class="annot"><a href="Agda.Utils.Bag.html#size"><span class="hs-identifier hs-type">size</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694538"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-51"></span><span id="size"><span class="annot"><span class="annottext">size :: forall a. Bag a -&gt; Int
+</span><a href="Agda.Utils.Bag.html#size"><span class="hs-identifier hs-var hs-var">size</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Sum Int -&gt; Int
+forall a. Sum a -&gt; a
+</span><span class="hs-identifier hs-var">getSum</span></span><span> </span><span class="annot"><span class="annottext">(Sum Int -&gt; Int) -&gt; (Bag a -&gt; Sum Int) -&gt; Bag a -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; Sum Int) -&gt; Map a (NonEmpty a) -&gt; Sum Int
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Map a a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Sum Int
+forall a. a -&gt; Sum a
+</span><span class="hs-identifier hs-var">Sum</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Sum Int) -&gt; (NonEmpty a -&gt; Int) -&gt; NonEmpty a -&gt; Sum Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; Int
+forall a. NonEmpty a -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Sum Int)
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; Sum Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | @(bag ! a)@ finds all elements equal to @a@.  O(log n).</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--   Total function, returns @[]@ if none are.</span><span>
+</span><span id="line-55"></span><span id="local-6989586621681694549"><span class="annot"><a href="Agda.Utils.Bag.html#%21"><span class="hs-operator hs-type">(!)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694549"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694549"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694549"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681694549"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-56"></span><span id="%21"><span class="annot"><span class="annottext">! :: forall a. Ord a =&gt; Bag a -&gt; a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#%21"><span class="hs-operator hs-var hs-var">(!)</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span id="local-6989586621681694757"><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694757"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681694758"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694758"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; (NonEmpty a -&gt; [a]) -&gt; Maybe (NonEmpty a) -&gt; [a]
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; [a]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">(Maybe (NonEmpty a) -&gt; [a]) -&gt; Maybe (NonEmpty a) -&gt; [a]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Map a (NonEmpty a) -&gt; Maybe (NonEmpty a)
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694758"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694757"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-comment">-- Note: not defined infix because of BangPatterns.</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="annot"><span class="hs-comment">-- | O(log n).</span></span><span>
+</span><span id="line-60"></span><span id="local-6989586621681694560"><span class="annot"><a href="Agda.Utils.Bag.html#member"><span class="hs-identifier hs-type">member</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694560"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694560"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694560"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-61"></span><span id="member"><span class="annot"><span class="annottext">member :: forall a. Ord a =&gt; a -&gt; Bag a -&gt; Bool
+</span><a href="Agda.Utils.Bag.html#member"><span class="hs-identifier hs-var hs-var">member</span></a></span></span><span> </span><span id="local-6989586621681694765"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694765"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (Bag a -&gt; Bool) -&gt; Bag a -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bag a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Bag a -&gt; Bool
+</span><a href="Agda.Utils.Bag.html#notMember"><span class="hs-identifier hs-var">notMember</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694765"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="annot"><span class="hs-comment">-- | O(log n).</span></span><span>
+</span><span id="line-64"></span><span id="local-6989586621681694768"><span class="annot"><a href="Agda.Utils.Bag.html#notMember"><span class="hs-identifier hs-type">notMember</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694768"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694768"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694768"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-65"></span><span id="notMember"><span class="annot"><span class="annottext">notMember :: forall a. Ord a =&gt; a -&gt; Bag a -&gt; Bool
+</span><a href="Agda.Utils.Bag.html#notMember"><span class="hs-identifier hs-var hs-var">notMember</span></a></span></span><span> </span><span id="local-6989586621681694773"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694773"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681694774"><span class="annot"><span class="annottext">Bag a
+</span><a href="#local-6989586621681694774"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">List.null</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bag a
+</span><a href="#local-6989586621681694774"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; a -&gt; [a]
+forall a. Ord a =&gt; Bag a -&gt; a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#%21"><span class="hs-operator hs-var">!</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694773"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="annot"><span class="hs-comment">-- | Return the multiplicity of the given element. O(log n + count _ _).</span></span><span>
+</span><span id="line-68"></span><span id="local-6989586621681694564"><span class="annot"><a href="Agda.Utils.Bag.html#count"><span class="hs-identifier hs-type">count</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694564"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694564"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694564"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-69"></span><span id="count"><span class="annot"><span class="annottext">count :: forall a. Ord a =&gt; a -&gt; Bag a -&gt; Int
+</span><a href="Agda.Utils.Bag.html#count"><span class="hs-identifier hs-var hs-var">count</span></a></span></span><span> </span><span id="local-6989586621681694779"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694779"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681694780"><span class="annot"><span class="annottext">Bag a
+</span><a href="#local-6989586621681694780"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bag a
+</span><a href="#local-6989586621681694780"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; a -&gt; [a]
+forall a. Ord a =&gt; Bag a -&gt; a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#%21"><span class="hs-operator hs-var">!</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694779"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-72"></span><span class="annot"><span class="hs-comment">-- * Construction</span></span><span>
+</span><span id="line-73"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="annot"><span class="hs-comment">-- | O(1)</span></span><span>
+</span><span id="line-76"></span><span id="local-6989586621681694566"><span class="annot"><a href="Agda.Utils.Bag.html#empty"><span class="hs-identifier hs-type">empty</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694566"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-77"></span><span id="empty"><span class="annot"><span class="annottext">empty :: forall a. Bag a
+</span><a href="Agda.Utils.Bag.html#empty"><span class="hs-identifier hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; Bag a
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Bag a) -&gt; Map a (NonEmpty a) -&gt; Bag a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a)
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="annot"><span class="hs-comment">-- | O(1)</span></span><span>
+</span><span id="line-80"></span><span id="local-6989586621681694570"><span class="annot"><a href="Agda.Utils.Bag.html#singleton"><span class="hs-identifier hs-type">singleton</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681694570"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694570"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-81"></span><span id="singleton"><span class="annot"><span class="annottext">singleton :: forall a. a -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#singleton"><span class="hs-identifier hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681694784"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694784"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; Bag a
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Bag a) -&gt; Map a (NonEmpty a) -&gt; Bag a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; NonEmpty a -&gt; Map a (NonEmpty a)
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694784"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694784"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span id="local-6989586621681694786"><span class="annot"><a href="Agda.Utils.Bag.html#union"><span class="hs-identifier hs-type">union</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694786"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694786"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694786"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694786"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-84"></span><span id="union"><span class="annot"><span class="annottext">union :: forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#union"><span class="hs-identifier hs-var hs-var">union</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span id="local-6989586621681694792"><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694792"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span id="local-6989586621681694793"><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694793"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; Bag a
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Bag a) -&gt; Map a (NonEmpty a) -&gt; Bag a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a)
+-&gt; Map a (NonEmpty a) -&gt; Map a (NonEmpty a) -&gt; Map a (NonEmpty a)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionWith</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694792"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694793"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span id="local-6989586621681694580"><span class="annot"><a href="Agda.Utils.Bag.html#unions"><span class="hs-identifier hs-type">unions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694580"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694580"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694580"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-87"></span><span id="unions"><span class="annot"><span class="annottext">unions :: forall a. Ord a =&gt; [Bag a] -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#unions"><span class="hs-identifier hs-var hs-var">unions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; Bag a
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Bag a)
+-&gt; ([Bag a] -&gt; Map a (NonEmpty a)) -&gt; [Bag a] -&gt; Bag a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a)
+-&gt; [Map a (NonEmpty a)] -&gt; Map a (NonEmpty a)
+forall (f :: * -&gt; *) k a.
+(Foldable f, Ord k) =&gt;
+(a -&gt; a -&gt; a) -&gt; f (Map k a) -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionsWith</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>  </span><span class="annot"><span class="annottext">([Map a (NonEmpty a)] -&gt; Map a (NonEmpty a))
+-&gt; ([Bag a] -&gt; [Map a (NonEmpty a)])
+-&gt; [Bag a]
+-&gt; Map a (NonEmpty a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Bag a -&gt; Map a (NonEmpty a)) -&gt; [Bag a] -&gt; [Map a (NonEmpty a)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">List.map</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><span class="hs-comment">-- | @insert a b = union b (singleton a)@</span></span><span>
+</span><span id="line-90"></span><span id="local-6989586621681694587"><span class="annot"><a href="Agda.Utils.Bag.html#insert"><span class="hs-identifier hs-type">insert</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694587"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694587"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694587"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694587"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-91"></span><span id="insert"><span class="annot"><span class="annottext">insert :: forall a. Ord a =&gt; a -&gt; Bag a -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#insert"><span class="hs-identifier hs-var hs-var">insert</span></a></span></span><span> </span><span id="local-6989586621681694805"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694805"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; Bag a
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Bag a)
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; Bag a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a)
+-&gt; a -&gt; NonEmpty a -&gt; Map a (NonEmpty a) -&gt; Map a (NonEmpty a)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insertWith</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694805"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694805"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Map a (NonEmpty a))
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; Map a (NonEmpty a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="annot"><span class="hs-comment">-- | @fromList = unions . map singleton@</span></span><span>
+</span><span id="line-94"></span><span id="local-6989586621681694591"><span class="annot"><a href="Agda.Utils.Bag.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694591"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681694591"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694591"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-95"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: forall a. Ord a =&gt; [a] -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#fromList"><span class="hs-identifier hs-var hs-var">fromList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; Bag a
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; Bag a)
+-&gt; ([a] -&gt; Map a (NonEmpty a)) -&gt; [a] -&gt; Bag a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a)
+-&gt; [(a, NonEmpty a)] -&gt; Map a (NonEmpty a)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">([(a, NonEmpty a)] -&gt; Map a (NonEmpty a))
+-&gt; ([a] -&gt; [(a, NonEmpty a)]) -&gt; [a] -&gt; Map a (NonEmpty a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; (a, NonEmpty a)) -&gt; [a] -&gt; [(a, NonEmpty a)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">List.map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681694812"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694812"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694812"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694812"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-98"></span><span class="annot"><span class="hs-comment">-- * Destruction</span></span><span>
+</span><span id="line-99"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="annot"><span class="hs-comment">-- | Returns the elements of the bag, grouped by equality (==).</span></span><span>
+</span><span id="line-102"></span><span id="local-6989586621681694595"><span class="annot"><a href="Agda.Utils.Bag.html#groups"><span class="hs-identifier hs-type">groups</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694595"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681694595"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-103"></span><span id="groups"><span class="annot"><span class="annottext">groups :: forall a. Bag a -&gt; [NonEmpty a]
+</span><a href="Agda.Utils.Bag.html#groups"><span class="hs-identifier hs-var hs-var">groups</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; [NonEmpty a]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; [NonEmpty a])
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; [NonEmpty a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="annot"><span class="hs-comment">-- | Returns the bag, with duplicates.</span></span><span>
+</span><span id="line-106"></span><span id="local-6989586621681694599"><span class="annot"><a href="Agda.Utils.Bag.html#toList"><span class="hs-identifier hs-type">toList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694599"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681694599"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-107"></span><span id="toList"><span class="annot"><span class="annottext">toList :: forall a. Bag a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#toList"><span class="hs-identifier hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; [a]) -&gt; [NonEmpty a] -&gt; [a]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; [a]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">([NonEmpty a] -&gt; [a]) -&gt; (Bag a -&gt; [NonEmpty a]) -&gt; Bag a -&gt; [a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; [NonEmpty a]
+forall a. Bag a -&gt; [NonEmpty a]
+</span><a href="Agda.Utils.Bag.html#groups"><span class="hs-identifier hs-var">groups</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="annot"><span class="hs-comment">-- | Returns the bag without duplicates.</span></span><span>
+</span><span id="line-110"></span><span id="local-6989586621681694818"><span class="annot"><a href="Agda.Utils.Bag.html#keys"><span class="hs-identifier hs-type">keys</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694818"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681694818"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-111"></span><span id="keys"><span class="annot"><span class="annottext">keys :: forall a. Bag a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#keys"><span class="hs-identifier hs-var hs-var">keys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; [a]
+forall k a. Map k a -&gt; [k]
+</span><span class="hs-identifier hs-var">Map.keys</span></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; [a])
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; [a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- Works because of the invariant!</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- keys = catMaybes . map listToMaybe . Map.elems . bag</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--   -- Map.keys does not work, as zero copies @(a,[])@</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--   -- should count as not present in the bag.</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="annot"><span class="hs-comment">-- | Returns the bag, with duplicates.</span></span><span>
+</span><span id="line-118"></span><span id="local-6989586621681694821"><span class="annot"><a href="Agda.Utils.Bag.html#elems"><span class="hs-identifier hs-type">elems</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694821"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681694821"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-119"></span><span id="elems"><span class="annot"><span class="annottext">elems :: forall a. Bag a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#elems"><span class="hs-identifier hs-var hs-var">elems</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; [a]
+forall a. Bag a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span id="local-6989586621681694823"><span class="annot"><a href="Agda.Utils.Bag.html#toAscList"><span class="hs-identifier hs-type">toAscList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694823"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681694823"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-122"></span><span id="toAscList"><span class="annot"><span class="annottext">toAscList :: forall a. Bag a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#toAscList"><span class="hs-identifier hs-var hs-var">toAscList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; [a]
+forall a. Bag a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-125"></span><span class="annot"><span class="hs-comment">-- * Traversal</span></span><span>
+</span><span id="line-126"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="annot"><span class="hs-comment">-- | O(n).</span></span><span>
+</span><span id="line-129"></span><span id="local-6989586621681694609"><span id="local-6989586621681694610"><span class="annot"><a href="Agda.Utils.Bag.html#map"><span class="hs-identifier hs-type">map</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694609"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694610"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694609"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694610"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694609"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-130"></span><span id="map"><span class="annot"><span class="annottext">map :: forall b a. Ord b =&gt; (a -&gt; b) -&gt; Bag a -&gt; Bag b
+</span><a href="Agda.Utils.Bag.html#map"><span class="hs-identifier hs-var hs-var">map</span></a></span></span><span> </span><span id="local-6989586621681694829"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681694829"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map b (NonEmpty b) -&gt; Bag b
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map b (NonEmpty b) -&gt; Bag b)
+-&gt; (Bag a -&gt; Map b (NonEmpty b)) -&gt; Bag a -&gt; Bag b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty b -&gt; NonEmpty b -&gt; NonEmpty b)
+-&gt; [(b, NonEmpty b)] -&gt; Map b (NonEmpty b)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty b -&gt; NonEmpty b -&gt; NonEmpty b
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">([(b, NonEmpty b)] -&gt; Map b (NonEmpty b))
+-&gt; (Bag a -&gt; [(b, NonEmpty b)]) -&gt; Bag a -&gt; Map b (NonEmpty b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; (b, NonEmpty b))
+-&gt; [NonEmpty a] -&gt; [(b, NonEmpty b)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">List.map</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; (b, NonEmpty b)
+</span><a href="#local-6989586621681694830"><span class="hs-identifier hs-var">ff</span></a></span><span> </span><span class="annot"><span class="annottext">([NonEmpty a] -&gt; [(b, NonEmpty b)])
+-&gt; (Bag a -&gt; [NonEmpty a]) -&gt; Bag a -&gt; [(b, NonEmpty b)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; [NonEmpty a]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; [NonEmpty a])
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; [NonEmpty a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>    </span><span id="local-6989586621681694830"><span class="annot"><span class="annottext">ff :: NonEmpty a -&gt; (b, NonEmpty b)
+</span><a href="#local-6989586621681694830"><span class="hs-identifier hs-var hs-var">ff</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681694831"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694831"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681694832"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681694832"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681694833"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681694833"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; [b] -&gt; NonEmpty b
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; [a] -&gt; [b]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">List.map</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681694829"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681694832"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681694833"><span class="annot"><span class="annottext">b :: b
+</span><a href="#local-6989586621681694833"><span class="hs-identifier hs-var hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681694829"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694831"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="annot"><a href="Agda.Utils.Bag.html#traverse%27"><span class="hs-identifier hs-type">traverse'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681694615"><span class="annot"><a href="#local-6989586621681694615"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681694614"><span class="annot"><a href="#local-6989586621681694614"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span id="local-6989586621681694613"><span class="annot"><a href="#local-6989586621681694613"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621681694613"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694614"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-135"></span><span>             </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694615"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694613"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694614"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694615"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694613"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694614"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span id="traverse%27"><span class="annot"><span class="annottext">traverse' :: forall a b (m :: * -&gt; *).
+(Applicative m, Ord b) =&gt;
+(a -&gt; m b) -&gt; Bag a -&gt; m (Bag b)
+</span><a href="Agda.Utils.Bag.html#traverse%27"><span class="hs-identifier hs-var hs-var">traverse'</span></a></span></span><span> </span><span id="local-6989586621681694849"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694849"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map b (NonEmpty b) -&gt; Bag b
+forall a. Map a (NonEmpty a) -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-var">Bag</span></a></span><span> </span><span class="annot"><span class="annottext">(Map b (NonEmpty b) -&gt; Bag b)
+-&gt; ([(b, NonEmpty b)] -&gt; Map b (NonEmpty b))
+-&gt; [(b, NonEmpty b)]
+-&gt; Bag b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty b -&gt; NonEmpty b -&gt; NonEmpty b)
+-&gt; [(b, NonEmpty b)] -&gt; Map b (NonEmpty b)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty b -&gt; NonEmpty b -&gt; NonEmpty b
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(b, NonEmpty b)] -&gt; Bag b)
+-&gt; (Bag a -&gt; m [(b, NonEmpty b)]) -&gt; Bag a -&gt; m (Bag b)
+forall (m :: * -&gt; *) b c a.
+Functor m =&gt;
+(b -&gt; c) -&gt; (a -&gt; m b) -&gt; a -&gt; m c
+</span><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator hs-var">&lt;.&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; m (b, NonEmpty b))
+-&gt; [NonEmpty a] -&gt; m [(b, NonEmpty b)]
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; [a] -&gt; f [b]
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; m (b, NonEmpty b)
+</span><a href="#local-6989586621681694852"><span class="hs-identifier hs-var">trav</span></a></span><span> </span><span class="annot"><span class="annottext">([NonEmpty a] -&gt; m [(b, NonEmpty b)])
+-&gt; (Bag a -&gt; [NonEmpty a]) -&gt; Bag a -&gt; m [(b, NonEmpty b)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; [NonEmpty a]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map a (NonEmpty a) -&gt; [NonEmpty a])
+-&gt; (Bag a -&gt; Map a (NonEmpty a)) -&gt; Bag a -&gt; [NonEmpty a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Map a (NonEmpty a)
+forall a. Bag a -&gt; Map a (NonEmpty a)
+</span><a href="Agda.Utils.Bag.html#bag"><span class="hs-identifier hs-var">bag</span></a></span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-138"></span><span>    </span><span class="annot"><a href="#local-6989586621681694852"><span class="hs-identifier hs-type">trav</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681694615"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694613"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694614"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681694614"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span>    </span><span id="local-6989586621681694852"><span class="annot"><span class="annottext">trav :: NonEmpty a -&gt; m (b, NonEmpty b)
+</span><a href="#local-6989586621681694852"><span class="hs-identifier hs-var hs-var">trav</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681694853"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694853"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681694854"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681694854"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681694855"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681694855"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681694856"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681694856"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681694855"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681694855"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; [b] -&gt; NonEmpty b
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681694856"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(b -&gt; [b] -&gt; (b, NonEmpty b)) -&gt; m b -&gt; m ([b] -&gt; (b, NonEmpty b))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694849"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694853"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m ([b] -&gt; (b, NonEmpty b)) -&gt; m [b] -&gt; m (b, NonEmpty b)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m b) -&gt; [a] -&gt; m [b]
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; [a] -&gt; f [b]
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694849"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681694854"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- Instances</span><span>
+</span><span id="line-144"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681694636"><span id="local-6989586621681694861"><span id="local-6989586621681694865"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681694636"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694636"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-147"></span><span>  </span><span id="local-6989586621681694872"><span class="annot"><span class="annottext">showsPrec :: Int -&gt; Bag a -&gt; ShowS
+</span><a href="#local-6989586621681694872"><span class="hs-identifier hs-var hs-var hs-var">showsPrec</span></a></span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span id="local-6989586621681694874"><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694874"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Agda.Utils.Bag.Bag (&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; ShowS -&gt; ShowS
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a) -&gt; ShowS
+forall a. Show a =&gt; a -&gt; ShowS
+</span><span class="hs-identifier hs-var">shows</span></span><span> </span><span class="annot"><span class="annottext">Map a (NonEmpty a)
+</span><a href="#local-6989586621681694874"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; ShowS -&gt; ShowS
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">')'</span></span><span class="annot"><span class="annottext">Char -&gt; ShowS
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681694645"><span id="local-6989586621681694879"><span id="local-6989586621681694883"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694645"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694645"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-150"></span><span>  </span><span id="local-6989586621681694889"><span class="annot"><span class="annottext">&lt;&gt; :: Bag a -&gt; Bag a -&gt; Bag a
+</span><span class="hs-operator hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Bag a -&gt; Bag a
+forall a. Ord a =&gt; Bag a -&gt; Bag a -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#union"><span class="hs-identifier hs-var">union</span></a></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681694648"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681694648"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694648"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621681694898"><span class="annot"><span class="annottext">mempty :: Bag a
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bag a
+forall a. Bag a
+</span><a href="Agda.Utils.Bag.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-154"></span><span>  </span><span id="local-6989586621681694900"><span class="annot"><span class="annottext">mappend :: Bag a -&gt; Bag a -&gt; Bag a
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; Bag a -&gt; Bag a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-155"></span><span>  </span><span id="local-6989586621681694902"><span class="annot"><span class="annottext">mconcat :: [Bag a] -&gt; Bag a
+</span><span class="hs-identifier hs-var hs-var hs-var">mconcat</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Bag a] -&gt; Bag a
+forall a. Ord a =&gt; [Bag a] -&gt; Bag a
+</span><a href="Agda.Utils.Bag.html#unions"><span class="hs-identifier hs-var">unions</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681694904"><span id="local-6989586621681694911"><span id="local-6989586621681694916"><span id="local-6989586621681694919"><span id="local-6989586621681694922"><span id="local-6989586621681694925"><span id="local-6989586621681694928"><span id="local-6989586621681694931"><span id="local-6989586621681694934"><span id="local-6989586621681694937"><span id="local-6989586621681694940"><span id="local-6989586621681694943"><span id="local-6989586621681694948"><span id="local-6989586621681694953"><span id="local-6989586621681694958"><span id="local-6989586621681694963"><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="Agda.Utils.Bag.html#Bag"><span class="hs-identifier hs-type">Bag</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621681694971"><span class="annot"><span class="annottext">foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Bag a -&gt; m
+</span><span class="hs-identifier hs-var hs-var hs-var">foldMap</span></span></span><span> </span><span id="local-6989586621681694972"><span class="annot"><span class="annottext">a -&gt; m
+</span><a href="#local-6989586621681694972"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m) -&gt; [a] -&gt; m
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m
+</span><a href="#local-6989586621681694972"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; m) -&gt; (Bag a -&gt; [a]) -&gt; Bag a -&gt; m
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bag a -&gt; [a]
+forall a. Bag a -&gt; [a]
+</span><a href="Agda.Utils.Bag.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- not a Functor (only works for 'Ord'ered types)</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- not Traversable (only works for 'Ord'ered types)</span><span>
+</span><span id="line-162"></span></pre></body></html>

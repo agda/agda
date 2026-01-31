@@ -1,0 +1,379 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP                        #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">{-| Operations on file names. -}</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier">AbsolutePath</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier">AbsolutePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier">filePath</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier">mkAbsolute</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#absolute"><span class="hs-identifier">absolute</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#canonicalizeAbsolutePath"><span class="hs-identifier">canonicalizeAbsolutePath</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#sameFile"><span class="hs-identifier">sameFile</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#doesFileExistCaseSensitive"><span class="hs-identifier">doesFileExistCaseSensitive</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#isNewerThan"><span class="hs-identifier">isNewerThan</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#relativizeAbsolutePath"><span class="hs-identifier">relativizeAbsolutePath</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#makeRelativeCanonical"><span class="hs-identifier">makeRelativeCanonical</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#stripAnyOfExtensions"><span class="hs-identifier">stripAnyOfExtensions</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">liftA2</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span class="hs-cpp">
+#ifdef mingw32_HOST_OS
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Exception</span><span>   </span><span class="hs-special">(</span><span> </span><span class="hs-identifier">bracket</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Win32</span><span>        </span><span class="hs-special">(</span><span> </span><span class="hs-identifier">findFirstFile</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">findClose</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">getFindDataFileName</span><span> </span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Hashable</span></span><span>       </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Hashable</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">catMaybes</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">listToMaybe</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span>           </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Text</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Text</span></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Directory</span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | Paths which are known to be absolute.</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- Note that the 'Eq' and 'Ord' instances do not check if different</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- paths point to the same files or directories.</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">newtype</span><span> </span><span id="AbsolutePath"><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-var">AbsolutePath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="AbsolutePath"><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-var">AbsolutePath</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="textPath"><span class="annot"><span class="annottext">AbsolutePath -&gt; Text
+</span><a href="Agda.Utils.FileName.html#textPath"><span class="hs-identifier hs-var hs-var">textPath</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681717848"><span id="local-6989586621681717854"><span id="local-6989586621681717858"><span class="annot"><span class="annottext">Int -&gt; AbsolutePath -&gt; ShowS
+[AbsolutePath] -&gt; ShowS
+AbsolutePath -&gt; FilePath
+(Int -&gt; AbsolutePath -&gt; ShowS)
+-&gt; (AbsolutePath -&gt; FilePath)
+-&gt; ([AbsolutePath] -&gt; ShowS)
+-&gt; Show AbsolutePath
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; FilePath) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; AbsolutePath -&gt; ShowS
+showsPrec :: Int -&gt; AbsolutePath -&gt; ShowS
+$cshow :: AbsolutePath -&gt; FilePath
+show :: AbsolutePath -&gt; FilePath
+$cshowList :: [AbsolutePath] -&gt; ShowS
+showList :: [AbsolutePath] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681717863"><span id="local-6989586621681717868"><span class="annot"><span class="annottext">AbsolutePath -&gt; AbsolutePath -&gt; Bool
+(AbsolutePath -&gt; AbsolutePath -&gt; Bool)
+-&gt; (AbsolutePath -&gt; AbsolutePath -&gt; Bool) -&gt; Eq AbsolutePath
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+== :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+$c/= :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+/= :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681717877"><span id="local-6989586621681717882"><span id="local-6989586621681717886"><span id="local-6989586621681717890"><span id="local-6989586621681717894"><span id="local-6989586621681717898"><span id="local-6989586621681717902"><span class="annot"><span class="annottext">Eq AbsolutePath
+Eq AbsolutePath =&gt;
+(AbsolutePath -&gt; AbsolutePath -&gt; Ordering)
+-&gt; (AbsolutePath -&gt; AbsolutePath -&gt; Bool)
+-&gt; (AbsolutePath -&gt; AbsolutePath -&gt; Bool)
+-&gt; (AbsolutePath -&gt; AbsolutePath -&gt; Bool)
+-&gt; (AbsolutePath -&gt; AbsolutePath -&gt; Bool)
+-&gt; (AbsolutePath -&gt; AbsolutePath -&gt; AbsolutePath)
+-&gt; (AbsolutePath -&gt; AbsolutePath -&gt; AbsolutePath)
+-&gt; Ord AbsolutePath
+AbsolutePath -&gt; AbsolutePath -&gt; Bool
+AbsolutePath -&gt; AbsolutePath -&gt; Ordering
+AbsolutePath -&gt; AbsolutePath -&gt; AbsolutePath
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: AbsolutePath -&gt; AbsolutePath -&gt; Ordering
+compare :: AbsolutePath -&gt; AbsolutePath -&gt; Ordering
+$c&lt; :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+&lt; :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+$c&lt;= :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+&lt;= :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+$c&gt; :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+&gt; :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+$c&gt;= :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+&gt;= :: AbsolutePath -&gt; AbsolutePath -&gt; Bool
+$cmax :: AbsolutePath -&gt; AbsolutePath -&gt; AbsolutePath
+max :: AbsolutePath -&gt; AbsolutePath -&gt; AbsolutePath
+$cmin :: AbsolutePath -&gt; AbsolutePath -&gt; AbsolutePath
+min :: AbsolutePath -&gt; AbsolutePath -&gt; AbsolutePath
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681717916"><span id="local-6989586621681717921"><span class="annot"><span class="annottext">Eq AbsolutePath
+Eq AbsolutePath =&gt;
+(Int -&gt; AbsolutePath -&gt; Int)
+-&gt; (AbsolutePath -&gt; Int) -&gt; Hashable AbsolutePath
+Int -&gt; AbsolutePath -&gt; Int
+AbsolutePath -&gt; Int
+forall a. Eq a =&gt; (Int -&gt; a -&gt; Int) -&gt; (a -&gt; Int) -&gt; Hashable a
+$chashWithSalt :: Int -&gt; AbsolutePath -&gt; Int
+hashWithSalt :: Int -&gt; AbsolutePath -&gt; Int
+$chash :: AbsolutePath -&gt; Int
+hash :: AbsolutePath -&gt; Int
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Hashable</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681717929"><span class="annot"><span class="annottext">AbsolutePath -&gt; ()
+(AbsolutePath -&gt; ()) -&gt; NFData AbsolutePath
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: AbsolutePath -&gt; ()
+rnf :: AbsolutePath -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681717937"><span id="local-6989586621681717942"><span class="annot"><span class="annottext">AbsolutePath
+AbsolutePath -&gt; Bool
+AbsolutePath -&gt; (AbsolutePath -&gt; Bool) -&gt; Null AbsolutePath
+forall a. a -&gt; (a -&gt; Bool) -&gt; Null a
+$cempty :: AbsolutePath
+empty :: AbsolutePath
+$cnull :: AbsolutePath -&gt; Bool
+null :: AbsolutePath -&gt; Bool
+</span><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Null</span></a></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="annot"><span class="hs-comment">-- | Extract the 'AbsolutePath' to be used as 'FilePath'.</span></span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-type">filePath</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-49"></span><span id="filePath"><span class="annot"><span class="annottext">filePath :: AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var hs-var">filePath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; FilePath
+</span><span class="hs-identifier hs-var">Text.unpack</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; FilePath)
+-&gt; (AbsolutePath -&gt; Text) -&gt; AbsolutePath -&gt; FilePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; Text
+</span><a href="Agda.Utils.FileName.html#textPath"><span class="hs-identifier hs-var">textPath</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | Constructs 'AbsolutePath's.</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- Precondition: The path must be absolute and valid.</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier hs-type">mkAbsolute</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-56"></span><span id="mkAbsolute"><span class="annot"><span class="annottext">mkAbsolute :: FilePath -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier hs-var hs-var">mkAbsolute</span></a></span></span><span> </span><span id="local-6989586621681717951"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717951"><span class="hs-identifier hs-var">f</span></a></span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Bool
+</span><span class="hs-identifier hs-var">isAbsolute</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717951"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-58"></span><span>      </span><span class="annot"><span class="annottext">Text -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-var">AbsolutePath</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; AbsolutePath) -&gt; Text -&gt; AbsolutePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Text
+</span><span class="hs-identifier hs-var">Text.pack</span></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; Text) -&gt; FilePath -&gt; Text
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><span class="hs-identifier hs-var">dropTrailingPathSeparator</span></span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; ShowS
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><span class="hs-identifier hs-var">normalise</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717951"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-59"></span><span>        </span><span class="hs-comment">-- normalize does not resolve symlinks</span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen 2019-07-16</span><span>
+</span><span id="line-63"></span><span class="hs-comment">---- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--rootName :: AbsolutePath -&gt; String</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--rootName = dropExtension . snd . splitFileName . filePath</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- | Makes the path absolute.</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- This function may raise an @\_\_IMPOSSIBLE\_\_@ error if</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- 'canonicalizePath' does not return an absolute path.</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><a href="Agda.Utils.FileName.html#absolute"><span class="hs-identifier hs-type">absolute</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-73"></span><span id="absolute"><span class="annot"><span class="annottext">absolute :: FilePath -&gt; IO AbsolutePath
+</span><a href="Agda.Utils.FileName.html#absolute"><span class="hs-identifier hs-var hs-var">absolute</span></a></span></span><span> </span><span id="local-6989586621681717958"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717958"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier hs-var">mkAbsolute</span></a></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; AbsolutePath) -&gt; IO FilePath -&gt; IO AbsolutePath
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-comment">-- canonicalizePath sometimes truncates paths pointing to</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-comment">-- non-existing files/directories.</span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621681717960"><span class="annot"><a href="#local-6989586621681717960"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesFileExist</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717958"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; IO Bool -&gt; IO Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#or2M"><span class="hs-operator hs-var">`or2M`</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesDirectoryExist</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717958"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621681717960"><span class="hs-identifier hs-type">ex</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-comment">-- Andreas, 2020-08-11, issue #4828</span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-comment">-- Do not use @canonicalizePath@ on the full path as it resolves symlinks,</span><span>
+</span><span id="line-80"></span><span>    </span><span class="hs-comment">-- which leads to wrong placement of the .agdai file.</span><span>
+</span><span id="line-81"></span><span>    </span><span id="local-6989586621681717964"><span class="annot"><a href="#local-6989586621681717964"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">canonicalizePath</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">takeDirectory</span></span><span> </span><span class="annot"><a href="#local-6989586621681717958"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681717964"><span class="hs-identifier hs-type">dir</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">takeFileName</span></span><span> </span><span class="annot"><a href="#local-6989586621681717958"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>   </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-84"></span><span>    </span><span id="local-6989586621681717968"><span class="annot"><a href="#local-6989586621681717968"><span class="hs-identifier hs-var">cwd</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">getCurrentDirectory</span></span><span>
+</span><span id="line-85"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681717968"><span class="hs-identifier hs-type">cwd</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;/&gt;</span></span><span> </span><span class="annot"><a href="#local-6989586621681717958"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="annot"><span class="hs-comment">-- | Resolve symlinks etc.  Preserves 'sameFile'.</span></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><a href="Agda.Utils.FileName.html#canonicalizeAbsolutePath"><span class="hs-identifier hs-type">canonicalizeAbsolutePath</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-90"></span><span id="canonicalizeAbsolutePath"><span class="annot"><span class="annottext">canonicalizeAbsolutePath :: AbsolutePath -&gt; IO AbsolutePath
+</span><a href="Agda.Utils.FileName.html#canonicalizeAbsolutePath"><span class="hs-identifier hs-var hs-var">canonicalizeAbsolutePath</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span id="local-6989586621681717970"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681717970"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-91"></span><span>  </span><span class="annot"><span class="annottext">Text -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-var">AbsolutePath</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; AbsolutePath)
+-&gt; (FilePath -&gt; Text) -&gt; FilePath -&gt; AbsolutePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Text
+</span><span class="hs-identifier hs-var">Text.pack</span></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; AbsolutePath) -&gt; IO FilePath -&gt; IO AbsolutePath
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO FilePath
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; FilePath
+</span><span class="hs-identifier hs-var">Text.unpack</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681717970"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | Tries to establish if the two file paths point to the same file</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- (or directory). False negatives may be returned.</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="annot"><a href="Agda.Utils.FileName.html#sameFile"><span class="hs-identifier hs-type">sameFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-97"></span><span id="sameFile"><span class="annot"><span class="annottext">sameFile :: AbsolutePath -&gt; AbsolutePath -&gt; IO Bool
+</span><a href="Agda.Utils.FileName.html#sameFile"><span class="hs-identifier hs-var hs-var">sameFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; FilePath -&gt; Bool)
+-&gt; IO FilePath -&gt; IO FilePath -&gt; IO Bool
+forall a b c. (a -&gt; b -&gt; c) -&gt; IO a -&gt; IO b -&gt; IO c
+forall (f :: * -&gt; *) a b c.
+Applicative f =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c
+</span><span class="hs-identifier hs-var">liftA2</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; Bool
+</span><span class="hs-identifier hs-var">equalFilePath</span></span><span> </span><span class="annot"><span class="annottext">(IO FilePath -&gt; IO FilePath -&gt; IO Bool)
+-&gt; (AbsolutePath -&gt; IO FilePath)
+-&gt; AbsolutePath
+-&gt; AbsolutePath
+-&gt; IO Bool
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; IO FilePath
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; IO FilePath)
+-&gt; (AbsolutePath -&gt; FilePath) -&gt; AbsolutePath -&gt; IO FilePath
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- | Case-sensitive 'doesFileExist' for Windows.</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- This is case-sensitive only on the file name part, not on the directory part.</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- (Ideally, path components coming from module name components should be</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--  checked case-sensitively and the other path components should be checked</span><span>
+</span><span id="line-104"></span><span class="hs-comment">--  case insensitively.)</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Agda.Utils.FileName.html#doesFileExistCaseSensitive"><span class="hs-identifier hs-type">doesFileExistCaseSensitive</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-cpp">
+#ifdef mingw32_HOST_OS
+</span><span class="hs-identifier">doesFileExistCaseSensitive</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-identifier">doesFileExist</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-special">`</span><span class="hs-identifier">and2M</span><span class="hs-special">`</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-identifier">bracket</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">findFirstFile</span><span> </span><span class="hs-identifier">f</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">findClose</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">fst</span><span class="hs-special">)</span><span> </span><span class="hs-operator">$</span><span>
+</span><span id="line-111"></span><span>      </span><span class="hs-identifier">fmap</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">takeFileName</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-operator">==</span><span class="hs-special">)</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">getFindDataFileName</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">snd</span><span class="hs-cpp">
+#else
+</span><span id="doesFileExistCaseSensitive"><span class="annot"><span class="annottext">doesFileExistCaseSensitive :: FilePath -&gt; IO Bool
+</span><a href="Agda.Utils.FileName.html#doesFileExistCaseSensitive"><span class="hs-identifier hs-var hs-var">doesFileExistCaseSensitive</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesFileExist</span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- | True if the first file is newer than the second file. If a file doesn't</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- exist it is considered to be infinitely old.</span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Agda.Utils.FileName.html#isNewerThan"><span class="hs-identifier hs-type">isNewerThan</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-119"></span><span id="isNewerThan"><span class="annot"><span class="annottext">isNewerThan :: FilePath -&gt; FilePath -&gt; IO Bool
+</span><a href="Agda.Utils.FileName.html#isNewerThan"><span class="hs-identifier hs-var hs-var">isNewerThan</span></a></span></span><span> </span><span id="local-6989586621681717972"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717972"><span class="hs-identifier hs-var">new</span></a></span></span><span> </span><span id="local-6989586621681717973"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717973"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-120"></span><span>    </span><span id="local-6989586621681717974"><span class="annot"><a href="#local-6989586621681717974"><span class="hs-identifier hs-var">newExist</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesFileExist</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717972"><span class="hs-identifier hs-var">new</span></a></span><span>
+</span><span id="line-121"></span><span>    </span><span id="local-6989586621681717975"><span class="annot"><a href="#local-6989586621681717975"><span class="hs-identifier hs-var">oldExist</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">doesFileExist</span></span><span> </span><span class="annot"><a href="#local-6989586621681717973"><span class="hs-identifier hs-type">old</span></a></span><span>
+</span><span id="line-122"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="hs-identifier hs-type">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681717974"><span class="hs-identifier hs-type">newExist</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&amp;&amp;</span></span><span> </span><span class="annot"><a href="#local-6989586621681717975"><span class="hs-identifier hs-type">oldExist</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-123"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681717974"><span class="hs-identifier hs-type">newExist</span></a></span><span>
+</span><span id="line-124"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-125"></span><span>            </span><span id="local-6989586621681717978"><span class="annot"><a href="#local-6989586621681717978"><span class="hs-identifier hs-var">newT</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">getModificationTime</span></span><span> </span><span class="annot"><a href="#local-6989586621681717972"><span class="hs-identifier hs-type">new</span></a></span><span>
+</span><span id="line-126"></span><span>            </span><span id="local-6989586621681717980"><span class="annot"><a href="#local-6989586621681717980"><span class="hs-identifier hs-var">oldT</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">getModificationTime</span></span><span> </span><span class="annot"><a href="#local-6989586621681717973"><span class="hs-identifier hs-type">old</span></a></span><span>
+</span><span id="line-127"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681717978"><span class="hs-identifier hs-type">newT</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&gt;=</span></span><span> </span><span class="annot"><a href="#local-6989586621681717980"><span class="hs-identifier hs-type">oldT</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- | A partial version of 'System.FilePath.makeRelative' with flipped arguments,</span><span>
+</span><span id="line-130"></span><span class="hs-comment">--   returning 'Nothing' if the given path cannot be relativized to the given @root@.</span><span>
+</span><span id="line-131"></span><span class="annot"><a href="Agda.Utils.FileName.html#relativizeAbsolutePath"><span class="hs-identifier hs-type">relativizeAbsolutePath</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-132"></span><span>     </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-133"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The absolute path we seek to relativize.</span></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-135"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The root for relativization.</span></span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-137"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The relative path, if any.</span></span><span>
+</span><span id="line-138"></span><span id="relativizeAbsolutePath"><span class="annot"><span class="annottext">relativizeAbsolutePath :: AbsolutePath -&gt; AbsolutePath -&gt; Maybe FilePath
+</span><a href="Agda.Utils.FileName.html#relativizeAbsolutePath"><span class="hs-identifier hs-var hs-var">relativizeAbsolutePath</span></a></span></span><span> </span><span id="local-6989586621681717982"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681717982"><span class="hs-identifier hs-var">apath</span></a></span></span><span> </span><span id="local-6989586621681717983"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681717983"><span class="hs-identifier hs-var">aroot</span></a></span></span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717984"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717985"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Maybe FilePath
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717984"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-141"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-142"></span><span>  </span><span id="local-6989586621681717985"><span class="annot"><span class="annottext">path :: FilePath
+</span><a href="#local-6989586621681717985"><span class="hs-identifier hs-var hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681717982"><span class="hs-identifier hs-var">apath</span></a></span><span>
+</span><span id="line-143"></span><span>  </span><span id="local-6989586621681717986"><span class="annot"><span class="annottext">root :: FilePath
+</span><a href="#local-6989586621681717986"><span class="hs-identifier hs-var hs-var">root</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; FilePath
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681717983"><span class="hs-identifier hs-var">aroot</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span id="local-6989586621681717984"><span class="annot"><span class="annottext">rest :: FilePath
+</span><a href="#local-6989586621681717984"><span class="hs-identifier hs-var hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; ShowS
+</span><span class="hs-identifier hs-var">makeRelative</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717986"><span class="hs-identifier hs-var">root</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717985"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-145"></span><span>    </span><span class="hs-comment">-- Andreas, 2022-10-10</span><span>
+</span><span id="line-146"></span><span>    </span><span class="hs-comment">-- See https://gitlab.haskell.org/haskell/filepath/-/issues/130.</span><span>
+</span><span id="line-147"></span><span>    </span><span class="hs-comment">-- 'System.FilePath.makeRelative' is strangely enough a total function,</span><span>
+</span><span id="line-148"></span><span>    </span><span class="hs-comment">-- and it returns the original @path@ if it could not be relativized to</span><span>
+</span><span id="line-149"></span><span>    </span><span class="hs-comment">-- the @root@, or if the @root@ was &quot;.&quot;.</span><span>
+</span><span id="line-150"></span><span>    </span><span class="hs-comment">-- In our case, the @root@ is absolute, so we should expect @rest@ to</span><span>
+</span><span id="line-151"></span><span>    </span><span class="hs-comment">-- always be different from @path@ if @path@ is relative to @root@.</span><span>
+</span><span id="line-152"></span><span>    </span><span class="hs-comment">-- In the extreme case, @root = &quot;/&quot;@ and @path == &quot;/&quot; ++ rest@.</span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- -- Andreas, 2024-11-10, extracted from 'stripPrimitiveLibDir':</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- -- This is a simple implementation of 'relativizeAbsolutePath' using 'splitDirectories'.</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- stripDir :: AbsolutePath -&gt; AbsolutePath -&gt; Maybe FilePath</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- stripDir dir file =</span><span>
+</span><span id="line-158"></span><span class="hs-comment">--   joinPath &lt;$&gt; List.stripPrefix (split dir) (split file)</span><span>
+</span><span id="line-159"></span><span class="hs-comment">--   where</span><span>
+</span><span id="line-160"></span><span class="hs-comment">--     split = splitDirectories . filePath</span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- | Makes a path relative to a root without assuming that either path is</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- canonical.</span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="annot"><a href="Agda.Utils.FileName.html#makeRelativeCanonical"><span class="hs-identifier hs-type">makeRelativeCanonical</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-166"></span><span id="makeRelativeCanonical"><span class="annot"><span class="annottext">makeRelativeCanonical :: FilePath -&gt; FilePath -&gt; IO FilePath
+</span><a href="Agda.Utils.FileName.html#makeRelativeCanonical"><span class="hs-identifier hs-var hs-var">makeRelativeCanonical</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; ShowS) -&gt; IO FilePath -&gt; IO FilePath -&gt; IO FilePath
+forall a b c. (a -&gt; b -&gt; c) -&gt; IO a -&gt; IO b -&gt; IO c
+forall (f :: * -&gt; *) a b c.
+Applicative f =&gt;
+(a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c
+</span><span class="hs-identifier hs-var">liftA2</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; ShowS
+</span><span class="hs-identifier hs-var">makeRelative</span></span><span> </span><span class="annot"><span class="annottext">(IO FilePath -&gt; IO FilePath -&gt; IO FilePath)
+-&gt; (FilePath -&gt; IO FilePath) -&gt; FilePath -&gt; FilePath -&gt; IO FilePath
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO FilePath
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="annot"><span class="hs-comment">-- | Generalizes 'stripExtension'.</span></span><span>
+</span><span id="line-169"></span><span class="annot"><a href="Agda.Utils.FileName.html#stripAnyOfExtensions"><span class="hs-identifier hs-type">stripAnyOfExtensions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-170"></span><span id="stripAnyOfExtensions"><span class="annot"><span class="annottext">stripAnyOfExtensions :: [FilePath] -&gt; FilePath -&gt; Maybe FilePath
+</span><a href="Agda.Utils.FileName.html#stripAnyOfExtensions"><span class="hs-identifier hs-var hs-var">stripAnyOfExtensions</span></a></span></span><span> </span><span id="local-6989586621681717988"><span class="annot"><span class="annottext">[FilePath]
+</span><a href="#local-6989586621681717988"><span class="hs-identifier hs-var">exts</span></a></span></span><span> </span><span id="local-6989586621681717989"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717989"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[FilePath] -&gt; Maybe FilePath
+forall a. [a] -&gt; Maybe a
+</span><span class="hs-identifier hs-var">listToMaybe</span></span><span> </span><span class="annot"><span class="annottext">([FilePath] -&gt; Maybe FilePath) -&gt; [FilePath] -&gt; Maybe FilePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Maybe FilePath] -&gt; [FilePath]
+forall a. [Maybe a] -&gt; [a]
+</span><span class="hs-identifier hs-var">catMaybes</span></span><span> </span><span class="annot"><span class="annottext">([Maybe FilePath] -&gt; [FilePath]) -&gt; [Maybe FilePath] -&gt; [FilePath]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; Maybe FilePath) -&gt; [FilePath] -&gt; [Maybe FilePath]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; Maybe FilePath
+</span><span class="hs-operator hs-var">`stripExtension`</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681717989"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[FilePath]
+</span><a href="#local-6989586621681717988"><span class="hs-identifier hs-var">exts</span></a></span><span>
+</span><span id="line-171"></span></pre></body></html>

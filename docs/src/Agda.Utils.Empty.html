@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | An empty type with some useful instances.</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html"><span class="hs-identifier">Agda.Utils.Empty</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">evaluate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">data</span><span> </span><span id="Empty"><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-var">Empty</span></a></span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- | Values of type 'Empty' are not forced, because 'Empty' is used as</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- a constructor argument in 'Agda.Syntax.Internal.Substitution''.</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-type">Empty</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>  </span><span id="local-6989586621681696941"><span class="annot"><span class="annottext">rnf :: Empty -&gt; ()
+</span><a href="#local-6989586621681696941"><span class="hs-identifier hs-var hs-var hs-var">rnf</span></a></span></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681696945"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-type">Empty</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><span class="annottext">Empty
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681696949"><span class="annot"><span class="annottext">== :: Empty -&gt; Empty -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var">==</span></span></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681696954"><span id="local-6989586621681696958"><span id="local-6989586621681696961"><span id="local-6989586621681696964"><span id="local-6989586621681696967"><span id="local-6989586621681696970"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-type">Empty</span></a></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-24"></span><span>  </span><span id="local-6989586621681696973"><span class="annot"><span class="annottext">compare :: Empty -&gt; Empty -&gt; Ordering
+</span><a href="#local-6989586621681696973"><span class="hs-identifier hs-var hs-var hs-var">compare</span></a></span></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681696977"><span id="local-6989586621681696981"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-type">Empty</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-27"></span><span>  </span><span id="local-6989586621681696988"><span class="annot"><span class="annottext">showsPrec :: Int -&gt; Empty -&gt; ShowS
+</span><a href="#local-6989586621681696988"><span class="hs-identifier hs-var hs-var hs-var">showsPrec</span></a></span></span><span> </span><span id="local-6989586621681696990"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681696990"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; ShowS -&gt; ShowS
+</span><span class="hs-identifier hs-var">showParen</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681696990"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">9</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ShowS -&gt; ShowS) -&gt; ShowS -&gt; ShowS
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+</span><span class="hs-identifier hs-var">showString</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;error \&quot;Agda.Utils.Empty.Empty\&quot;&quot;</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span id="local-6989586621681696910"><span class="annot"><a href="Agda.Utils.Empty.html#absurd"><span class="hs-identifier hs-type">absurd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-type">Empty</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681696910"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-30"></span><span id="absurd"><span class="annot"><span class="annottext">absurd :: forall a. Empty -&gt; a
+</span><a href="Agda.Utils.Empty.html#absurd"><span class="hs-identifier hs-var hs-var">absurd</span></a></span></span><span> </span><span id="local-6989586621681696997"><span class="annot"><span class="annottext">Empty
+</span><a href="#local-6989586621681696997"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Empty -&gt; a -&gt; a
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-identifier hs-var">seq</span></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><a href="#local-6989586621681696997"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">a
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | @toImpossible e@ extracts the @Impossible@ value raised via</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   @__IMPOSSIBLE__@ to create the element @e@ of type @Empty@.</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--   It proceeds by evaluating @e@ to weak head normal form and</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--   catching the exception.</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--   We are forced to wrap things in a @Maybe@ because of</span><span>
+</span><span id="line-38"></span><span class="hs-comment">--   @catchImpossible@'s type.</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Agda.Utils.Empty.html#toImpossible"><span class="hs-identifier hs-type">toImpossible</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-type">Empty</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html#Impossible"><span class="hs-identifier hs-type">Impossible</span></a></span><span>
+</span><span id="line-41"></span><span id="toImpossible"><span class="annot"><span class="annottext">toImpossible :: Empty -&gt; IO Impossible
+</span><a href="Agda.Utils.Empty.html#toImpossible"><span class="hs-identifier hs-var hs-var">toImpossible</span></a></span></span><span> </span><span id="local-6989586621681697000"><span class="annot"><span class="annottext">Empty
+</span><a href="#local-6989586621681697000"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621681697001"><span class="annot"><a href="#local-6989586621681697001"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO (Maybe Impossible)
+-&gt; (Impossible -&gt; IO (Maybe Impossible)) -&gt; IO (Maybe Impossible)
+forall a. IO a -&gt; (Impossible -&gt; IO a) -&gt; IO a
+forall (m :: * -&gt; *) a.
+CatchImpossible m =&gt;
+m a -&gt; (Impossible -&gt; m a) -&gt; m a
+</span><a href="Agda.Utils.Impossible.html#catchImpossible"><span class="hs-identifier hs-var">catchImpossible</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Impossible
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Maybe Impossible -&gt; IO Empty -&gt; IO (Maybe Impossible)
+forall a b. a -&gt; IO b -&gt; IO a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Empty -&gt; IO Empty
+forall a. a -&gt; IO a
+</span><span class="hs-identifier hs-var">evaluate</span></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><a href="#local-6989586621681697000"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Impossible -&gt; IO (Maybe Impossible)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Impossible -&gt; IO (Maybe Impossible))
+-&gt; (Impossible -&gt; Maybe Impossible)
+-&gt; Impossible
+-&gt; IO (Maybe Impossible)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Impossible -&gt; Maybe Impossible
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621681697001"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681697005"><span class="annot"><span class="annottext">Impossible
+</span><a href="#local-6989586621681697005"><span class="hs-identifier hs-var">i</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Impossible -&gt; IO Impossible
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Impossible
+</span><a href="#local-6989586621681697005"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><span class="annottext">Maybe Impossible
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Empty -&gt; IO Impossible
+forall a. Empty -&gt; a
+</span><a href="Agda.Utils.Empty.html#absurd"><span class="hs-identifier hs-var">absurd</span></a></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><a href="#local-6989586621681697000"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-comment">-- this should never happen</span><span>
+</span><span id="line-46"></span></pre></body></html>

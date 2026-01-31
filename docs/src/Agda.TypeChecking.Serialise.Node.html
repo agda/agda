@@ -1,0 +1,816 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE Strict, MagicHash, AllowAmbiguousTypes, UnboxedTuples, CPP #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Node</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Word</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html"><span class="hs-identifier">Agda.Utils.Serialize</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Word.html"><span class="hs-identifier">Agda.Utils.Word</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Hashable</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span class="hs-cpp">
+
+#include &quot;MachDeps.h&quot;
+</span><span>
+</span><span id="line-17"></span><span class="annot"><span class="hs-comment">-- | Constructor tag (maybe omitted) and argument indices.</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">data</span><span> </span><span id="Node"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-var">Node</span></a></span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="N0"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="N1%23"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-var">N1#</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="N2%23"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-var">N2#</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="N3%23"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-var">N3#</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="N4%23"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-var">N4#</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="N5%23"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-var">N5#</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="N6%23"><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-var">N6#</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721354"><span id="local-6989586621681721379"><span id="local-6989586621681721382"><span class="annot"><span class="annottext">Int -&gt; Node -&gt; ShowS
+[Node] -&gt; ShowS
+Node -&gt; String
+(Int -&gt; Node -&gt; ShowS)
+-&gt; (Node -&gt; String) -&gt; ([Node] -&gt; ShowS) -&gt; Show Node
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Node -&gt; ShowS
+showsPrec :: Int -&gt; Node -&gt; ShowS
+$cshow :: Node -&gt; String
+show :: Node -&gt; String
+$cshowList :: [Node] -&gt; ShowS
+showList :: [Node] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-type">N1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">pattern</span><span> </span><span id="N1"><span id="%24mN1"><span id="%24bN1"><span class="annot"><span class="annottext">$mN1 :: forall {r}. Node -&gt; (Word32 -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+$bN1 :: Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-identifier hs-var hs-var hs-var">N1</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681721389"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-type">N1#</span></a></span><span> </span><span id="local-6989586621681721389"><span class="annot"><a href="#local-6989586621681721389"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-30"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-pragma hs-type">N1</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2"><span class="hs-identifier hs-type">N2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">pattern</span><span> </span><span id="N2"><span id="%24mN2"><span id="%24bN2"><span class="annot"><span class="annottext">$mN2 :: forall {r}. Node -&gt; (Word32 -&gt; Word32 -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+$bN2 :: Word32 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N2"><span class="hs-identifier hs-var hs-var hs-var">N2</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681721393"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721394"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-type">N2#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721393"><span class="annot"><a href="#local-6989586621681721393"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721394"><span class="annot"><a href="#local-6989586621681721394"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2"><span class="hs-identifier hs-var">N2</span></a></span><span> </span><span id="local-6989586621681721396"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721396"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721397"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721397"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-var">N2#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721396"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721397"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2"><span class="hs-pragma hs-type">N2</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-identifier hs-type">N3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">pattern</span><span> </span><span id="N3"><span id="%24mN3"><span id="%24bN3"><span class="annot"><span class="annottext">$mN3 :: forall {r}.
+Node -&gt; (Word32 -&gt; Word32 -&gt; Word32 -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+$bN3 :: Word32 -&gt; Word32 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-identifier hs-var hs-var hs-var">N3</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681721402"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721403"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721404"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-type">N3#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721402"><span class="annot"><a href="#local-6989586621681721402"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721403"><span class="annot"><a href="#local-6989586621681721403"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span id="local-6989586621681721404"><span class="annot"><a href="#local-6989586621681721404"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-identifier hs-var">N3</span></a></span><span> </span><span id="local-6989586621681721405"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721405"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721406"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721406"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681721407"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721407"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-var">N3#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721405"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721406"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721407"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-40"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-pragma hs-type">N3</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4"><span class="hs-identifier hs-type">N4</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">pattern</span><span> </span><span id="N4"><span id="%24mN4"><span id="%24bN4"><span class="annot"><span class="annottext">$mN4 :: forall {r}.
+Node
+-&gt; (Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+$bN4 :: Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N4"><span class="hs-identifier hs-var hs-var hs-var">N4</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681721411"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721412"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721413"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721414"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-type">N4#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721411"><span class="annot"><a href="#local-6989586621681721411"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721412"><span class="annot"><a href="#local-6989586621681721412"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721413"><span class="annot"><a href="#local-6989586621681721413"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721414"><span class="annot"><a href="#local-6989586621681721414"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4"><span class="hs-identifier hs-var">N4</span></a></span><span> </span><span id="local-6989586621681721415"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721415"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721416"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721416"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681721417"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721417"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681721418"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721418"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-var">N4#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721415"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721416"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721417"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721418"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4"><span class="hs-pragma hs-type">N4</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5"><span class="hs-identifier hs-type">N5</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">pattern</span><span> </span><span id="N5"><span id="%24mN5"><span id="%24bN5"><span class="annot"><span class="annottext">$mN5 :: forall {r}.
+Node
+-&gt; (Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; r)
+-&gt; ((# #) -&gt; r)
+-&gt; r
+$bN5 :: Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N5"><span class="hs-identifier hs-var hs-var hs-var">N5</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681721422"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721423"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721424"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721425"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721426"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-type">N5#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721422"><span class="annot"><a href="#local-6989586621681721422"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721423"><span class="annot"><a href="#local-6989586621681721423"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721424"><span class="annot"><a href="#local-6989586621681721424"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721425"><span class="annot"><a href="#local-6989586621681721425"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span id="local-6989586621681721426"><span class="annot"><a href="#local-6989586621681721426"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5"><span class="hs-identifier hs-var">N5</span></a></span><span> </span><span id="local-6989586621681721427"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721427"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721428"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721428"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681721429"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721429"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681721430"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721430"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681721431"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721431"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-var">N5#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721427"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721428"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721429"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721430"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721431"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-50"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5"><span class="hs-pragma hs-type">N5</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6"><span class="hs-identifier hs-type">N6</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">pattern</span><span> </span><span id="N6"><span id="%24mN6"><span id="%24bN6"><span class="annot"><span class="annottext">$mN6 :: forall {r}.
+Node
+-&gt; (Word32
+    -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; r)
+-&gt; ((# #) -&gt; r)
+-&gt; r
+$bN6 :: Word32
+-&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Node -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N6"><span class="hs-identifier hs-var hs-var hs-var">N6</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681721435"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721436"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721437"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721438"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721439"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721440"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721441"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-type">N6#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721435"><span class="annot"><a href="#local-6989586621681721435"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721436"><span class="annot"><a href="#local-6989586621681721436"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721437"><span class="annot"><a href="#local-6989586621681721437"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721438"><span class="annot"><a href="#local-6989586621681721438"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Word.html#splitW64"><span class="hs-identifier hs-type">splitW64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721439"><span class="annot"><a href="#local-6989586621681721439"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721440"><span class="annot"><a href="#local-6989586621681721440"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span id="local-6989586621681721441"><span class="annot"><a href="#local-6989586621681721441"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6"><span class="hs-identifier hs-var">N6</span></a></span><span> </span><span id="local-6989586621681721442"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721442"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721443"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721443"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681721444"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721444"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681721445"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721445"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681721446"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721446"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681721447"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721447"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681721448"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721448"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word64 -&gt; Node -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-var">N6#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721442"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721443"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721444"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721445"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Word64
+</span><a href="Agda.Utils.Word.html#packW64"><span class="hs-identifier hs-var">packW64</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721446"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721447"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721448"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-55"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6"><span class="hs-pragma hs-type">N6</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-56"></span><span class="hs-pragma">{-# complete</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-pragma hs-type">N0</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1"><span class="hs-pragma hs-type">N1</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2"><span class="hs-pragma hs-type">N2</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3"><span class="hs-pragma hs-type">N3</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4"><span class="hs-pragma hs-type">N4</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5"><span class="hs-pragma hs-type">N5</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6"><span class="hs-pragma hs-type">N6</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681721451"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>          </span><span id="local-6989586621681721470"><span class="annot"><span class="annottext">== :: Node -&gt; Node -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var">==</span></span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-type">N1#</span></a></span><span> </span><span id="local-6989586621681721471"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721471"><span class="hs-identifier hs-var">a</span></a></span></span><span>       </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-type">N1#</span></a></span><span> </span><span id="local-6989586621681721472"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721472"><span class="hs-identifier hs-var">a'</span></a></span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721471"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721472"><span class="hs-identifier hs-var">a'</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-type">N2#</span></a></span><span> </span><span id="local-6989586621681721473"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721473"><span class="hs-identifier hs-var">ab</span></a></span></span><span>      </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-type">N2#</span></a></span><span> </span><span id="local-6989586621681721474"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721474"><span class="hs-identifier hs-var">ab'</span></a></span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721473"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721474"><span class="hs-identifier hs-var">ab'</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-type">N3#</span></a></span><span> </span><span id="local-6989586621681721475"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721475"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721476"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721476"><span class="hs-identifier hs-var">c</span></a></span></span><span>    </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-type">N3#</span></a></span><span> </span><span id="local-6989586621681721477"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721477"><span class="hs-identifier hs-var">ab'</span></a></span></span><span> </span><span id="local-6989586621681721478"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721478"><span class="hs-identifier hs-var">c'</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721475"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721477"><span class="hs-identifier hs-var">ab'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721476"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721478"><span class="hs-identifier hs-var">c'</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-type">N4#</span></a></span><span> </span><span id="local-6989586621681721480"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721480"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721481"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721481"><span class="hs-identifier hs-var">cd</span></a></span></span><span>   </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-type">N4#</span></a></span><span> </span><span id="local-6989586621681721482"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721482"><span class="hs-identifier hs-var">ab'</span></a></span></span><span> </span><span id="local-6989586621681721483"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721483"><span class="hs-identifier hs-var">cd'</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721480"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721482"><span class="hs-identifier hs-var">ab'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721481"><span class="hs-identifier hs-var">cd</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721483"><span class="hs-identifier hs-var">cd'</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-type">N5#</span></a></span><span> </span><span id="local-6989586621681721484"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721484"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721485"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721485"><span class="hs-identifier hs-var">cd</span></a></span></span><span> </span><span id="local-6989586621681721486"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721486"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-type">N5#</span></a></span><span> </span><span id="local-6989586621681721487"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721487"><span class="hs-identifier hs-var">ab'</span></a></span></span><span> </span><span id="local-6989586621681721488"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721488"><span class="hs-identifier hs-var">cd'</span></a></span></span><span> </span><span id="local-6989586621681721489"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721489"><span class="hs-identifier hs-var">e'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721484"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721487"><span class="hs-identifier hs-var">ab'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721485"><span class="hs-identifier hs-var">cd</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721488"><span class="hs-identifier hs-var">cd'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721486"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Word32 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721489"><span class="hs-identifier hs-var">e'</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-type">N6#</span></a></span><span> </span><span id="local-6989586621681721490"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721490"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721491"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721491"><span class="hs-identifier hs-var">cd</span></a></span></span><span> </span><span id="local-6989586621681721492"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721492"><span class="hs-identifier hs-var">ef</span></a></span></span><span> </span><span id="local-6989586621681721493"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721493"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-type">N6#</span></a></span><span> </span><span id="local-6989586621681721494"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721494"><span class="hs-identifier hs-var">ab'</span></a></span></span><span> </span><span id="local-6989586621681721495"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721495"><span class="hs-identifier hs-var">cd'</span></a></span></span><span> </span><span id="local-6989586621681721496"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721496"><span class="hs-identifier hs-var">ef'</span></a></span></span><span> </span><span id="local-6989586621681721497"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721497"><span class="hs-identifier hs-var">n'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721490"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721494"><span class="hs-identifier hs-var">ab'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721491"><span class="hs-identifier hs-var">cd</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721495"><span class="hs-identifier hs-var">cd'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721492"><span class="hs-identifier hs-var">ef</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721496"><span class="hs-identifier hs-var">ef'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721493"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Node -&gt; Node -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721497"><span class="hs-identifier hs-var">n'</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="annot"><span class="annottext">Node
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Hashable</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-comment">-- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm</span><span>
+</span><span id="line-71"></span><span>  </span><span id="local-6989586621681721538"><span class="annot"><span class="annottext">hashWithSalt :: Int -&gt; Node -&gt; Int
+</span><a href="#local-6989586621681721538"><span class="hs-identifier hs-var hs-var hs-var">hashWithSalt</span></a></span></span><span> </span><span id="local-6989586621681721540"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721540"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621681721541"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721541"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word -&gt; Node -&gt; Word
+</span><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721540"><span class="hs-identifier hs-var">h</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721541"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>    </span><span id="local-6989586621681721543"><span class="annot"><span class="annottext">xor :: Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721543"><span class="hs-identifier hs-var hs-var">xor</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">W#</span></span><span> </span><span id="local-6989586621681721544"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721544"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">W#</span></span><span> </span><span id="local-6989586621681721545"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721545"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word
+</span><span class="hs-identifier hs-var">W#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; Word#
+</span><span class="hs-identifier hs-var">xor#</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721544"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721545"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><a href="#local-6989586621681721546"><span class="hs-identifier hs-type">foldedMul</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span>
+</span><span id="line-75"></span><span>    </span><span id="local-6989586621681721546"><span class="annot"><span class="annottext">foldedMul :: Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721546"><span class="hs-identifier hs-var hs-var">foldedMul</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">W#</span></span><span> </span><span id="local-6989586621681721547"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721547"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">W#</span></span><span> </span><span id="local-6989586621681721548"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721548"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; (# Word#, Word# #)
+</span><span class="hs-identifier hs-var">timesWord2#</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721547"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721548"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">of</span><span> </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681721549"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721549"><span class="hs-identifier hs-var">hi</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721550"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721550"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word
+</span><span class="hs-identifier hs-var">W#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; Word#
+</span><span class="hs-identifier hs-var">xor#</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721549"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681721550"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><a href="#local-6989586621681721551"><span class="hs-identifier hs-type">combine</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span>
+</span><span id="line-78"></span><span>    </span><span id="local-6989586621681721551"><span class="annot"><span class="annottext">combine :: Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-identifier hs-var hs-var">combine</span></a></span></span><span> </span><span id="local-6989586621681721552"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721552"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681721553"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721553"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721546"><span class="hs-identifier hs-var">foldedMul</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721543"><span class="hs-identifier hs-var">xor</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721552"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721553"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721554"><span class="hs-identifier hs-var">factor</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-79"></span><span>      </span><span class="hs-comment">-- We use a version of fibonacci hashing, where our multiplier is the</span><span>
+</span><span id="line-80"></span><span>      </span><span class="hs-comment">-- nearest prime to 2^64/phi or 2^32/phi. See https://stackoverflow.com/q/4113278.</span><span class="hs-cpp">
+#if WORD_SIZE_IN_BITS == 64
+</span><span>      </span><span id="local-6989586621681721554"><span class="annot"><span class="annottext">factor :: Word
+</span><a href="#local-6989586621681721554"><span class="hs-identifier hs-var hs-var">factor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">11400714819323198549</span></span><span class="hs-cpp">
+#else
+</span><span>      </span><span class="hs-identifier">factor</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-number">2654435741</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-87"></span><span>    </span><span class="annot"><a href="#local-6989586621681721542"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span>
+</span><span id="line-88"></span><span>    </span><span id="local-6989586621681721542"><span class="annot"><span class="annottext">go :: Word -&gt; Node -&gt; Word
+</span><a href="#local-6989586621681721542"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681721556"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721556"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721556"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681721557"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721557"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-type">N1#</span></a></span><span> </span><span id="local-6989586621681721558"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721558"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721557"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721558"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-90"></span><span>    </span><span class="annot"><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681721559"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721559"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-type">N2#</span></a></span><span> </span><span id="local-6989586621681721560"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721560"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721559"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721560"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681721561"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721561"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-type">N3#</span></a></span><span> </span><span id="local-6989586621681721562"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721562"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721563"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721563"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721561"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721562"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721563"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-92"></span><span>    </span><span class="annot"><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681721564"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721564"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-type">N4#</span></a></span><span> </span><span id="local-6989586621681721565"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721565"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721566"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721566"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721564"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721565"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721566"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681721567"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721567"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-type">N5#</span></a></span><span> </span><span id="local-6989586621681721568"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721568"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721569"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721569"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681721570"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721570"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721567"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721568"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721569"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-94"></span><span>                        </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721570"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681721571"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721571"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-type">N6#</span></a></span><span> </span><span id="local-6989586621681721572"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721572"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681721573"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721573"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681721574"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721574"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681721575"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721575"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681721576"><span class="annot"><span class="annottext">h' :: Word
+</span><a href="#local-6989586621681721576"><span class="hs-identifier hs-var hs-var">h'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721571"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721572"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-96"></span><span>                                   </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721573"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="#local-6989586621681721551"><span class="hs-operator hs-var">`combine`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721574"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-97"></span><span>                         </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Node -&gt; Word
+</span><a href="#local-6989586621681721542"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621681721576"><span class="hs-identifier hs-var">h'</span></a></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721575"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621681721578"><span class="annot"><span class="annottext">hash :: Node -&gt; Int
+</span><a href="#local-6989586621681721578"><span class="hs-identifier hs-var hs-var hs-var">hash</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Node -&gt; Int
+forall a. Hashable a =&gt; Int -&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">hashWithSalt</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721580"><span class="hs-identifier hs-var">seed</span></a></span><span> </span><span class="hs-keyword">where</span><span class="hs-cpp">
+#if WORD_SIZE_IN_BITS == 64
+</span><span>      </span><span id="local-6989586621681721580"><span class="annot"><span class="annottext">seed :: Int
+</span><a href="#local-6989586621681721580"><span class="hs-identifier hs-var hs-var">seed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3032525626373534813</span></span><span class="hs-cpp">
+#else
+</span><span>      </span><span class="hs-identifier">seed</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-number">1103515245</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#Serialize"><span class="hs-identifier hs-type">Serialize</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-109"></span><span>  </span><span id="local-6989586621681721611"><span class="annot"><span class="annottext">size :: Node -&gt; Int
+</span><a href="#local-6989586621681721611"><span class="hs-identifier hs-var hs-var hs-var">size</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Node -&gt; Int
+</span><a href="#local-6989586621681721613"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-identifier">SIZEOF_HSINT</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>    </span><span class="annot"><a href="#local-6989586621681721613"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-111"></span><span>    </span><span id="local-6989586621681721613"><span class="annot"><span class="annottext">go :: Int -&gt; Node -&gt; Int
+</span><a href="#local-6989586621681721613"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681721614"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-112"></span><span>      </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-113"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-type">N1#</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-identifier">SIZEOF_WORD32</span><span>
+</span><span id="line-114"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-type">N2#</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span>
+</span><span id="line-115"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-type">N3#</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span> </span><span class="hs-operator">+</span><span> </span><span class="hs-identifier">SIZEOF_WORD32</span><span>
+</span><span id="line-116"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-type">N4#</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span> </span><span class="hs-operator">+</span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span>
+</span><span id="line-117"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-type">N5#</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span> </span><span class="hs-operator">+</span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span> </span><span class="hs-operator">+</span><span> </span><span class="hs-identifier">SIZEOF_WORD32</span><span>
+</span><span id="line-118"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-type">N6#</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681721616"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721616"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Node -&gt; Int
+</span><a href="#local-6989586621681721613"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721614"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span> </span><span class="hs-operator">+</span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span> </span><span class="hs-operator">+</span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">n</span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span>  </span><span id="local-6989586621681721658"><span class="annot"><span class="annottext">put :: Node -&gt; Put
+</span><a href="#local-6989586621681721658"><span class="hs-identifier hs-var hs-var hs-var">put</span></a></span></span><span> </span><span id="local-6989586621681721660"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721660"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Addr# -&gt; RW -&gt; (# Addr#, RW #)) -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#Put"><span class="hs-identifier hs-var">Put</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681721662"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721662"><span class="hs-identifier hs-var">hd</span></a></span></span><span> </span><span id="local-6989586621681721663"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721663"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">let</span><span>
+</span><span id="line-121"></span><span>    </span><span class="annot"><a href="#local-6989586621681721664"><span class="hs-identifier hs-type">setHeader</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#Put"><span class="hs-identifier hs-type">Put</span></a></span><span>
+</span><span id="line-122"></span><span>    </span><span id="local-6989586621681721664"><span class="annot"><span class="annottext">setHeader :: Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721664"><span class="hs-identifier hs-var hs-var">setHeader</span></a></span></span><span> </span><span id="local-6989586621681721665"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721665"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681721666"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721666"><span class="hs-identifier hs-var">hd</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Addr# -&gt; RW -&gt; (# Addr#, RW #)) -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#Put"><span class="hs-identifier hs-var">Put</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681721667"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721667"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681721668"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721668"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721665"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721666"><span class="hs-identifier hs-var">hd</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721668"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-123"></span><span>      </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721670"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721670"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721667"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721670"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><a href="#local-6989586621681721671"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#Put"><span class="hs-identifier hs-type">Put</span></a></span><span>
+</span><span id="line-126"></span><span>    </span><span id="local-6989586621681721671"><span class="annot"><span class="annottext">go :: Node -&gt; Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721671"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681721672"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721672"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681721673"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681721674"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Addr# -&gt; RW -&gt; (# Addr#, RW #)) -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#Put"><span class="hs-identifier hs-var">Put</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681721675"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681721676"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721672"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-127"></span><span>      </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721664"><span class="hs-identifier hs-var">setHeader</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-128"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-type">N1#</span></a></span><span> </span><span id="local-6989586621681721677"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721677"><span class="hs-identifier hs-var">a</span></a></span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721677"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721664"><span class="hs-identifier hs-var">setHeader</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-129"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-type">N2#</span></a></span><span> </span><span id="local-6989586621681721678"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721678"><span class="hs-identifier hs-var">ab</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721678"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721664"><span class="hs-identifier hs-var">setHeader</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-130"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-type">N3#</span></a></span><span> </span><span id="local-6989586621681721679"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721679"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721680"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721680"><span class="hs-identifier hs-var">c</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721679"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721680"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721664"><span class="hs-identifier hs-var">setHeader</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-131"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-type">N4#</span></a></span><span> </span><span id="local-6989586621681721681"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721681"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721682"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721682"><span class="hs-identifier hs-var">cd</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721681"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721682"><span class="hs-identifier hs-var">cd</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721664"><span class="hs-identifier hs-var">setHeader</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-132"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-type">N5#</span></a></span><span> </span><span id="local-6989586621681721683"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721683"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721684"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721684"><span class="hs-identifier hs-var">cd</span></a></span></span><span> </span><span id="local-6989586621681721685"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721685"><span class="hs-identifier hs-var">e</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721683"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721684"><span class="hs-identifier hs-var">cd</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681721685"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721664"><span class="hs-identifier hs-var">setHeader</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-133"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-type">N6#</span></a></span><span> </span><span id="local-6989586621681721686"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721686"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621681721687"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721687"><span class="hs-identifier hs-var">cd</span></a></span></span><span> </span><span id="local-6989586621681721688"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721688"><span class="hs-identifier hs-var">ef</span></a></span></span><span> </span><span id="local-6989586621681721689"><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721689"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721686"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721687"><span class="hs-identifier hs-var">cd</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall a. Serialize a =&gt; a -&gt; Put
+</span><a href="Agda.Utils.Serialize.html#put"><span class="hs-identifier hs-var">put</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681721688"><span class="hs-identifier hs-var">ef</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Node -&gt; Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721671"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721689"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721673"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">6</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721674"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721675"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721676"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span>    </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW #)
+</span><a href="Agda.Utils.Serialize.html#unPut"><span class="hs-identifier hs-var">unPut</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Node -&gt; Int -&gt; Addr# -&gt; Put
+</span><a href="#local-6989586621681721671"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="#local-6989586621681721660"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721662"><span class="hs-identifier hs-var">hd</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Addr# -&gt; Int# -&gt; Addr#
+</span><span class="hs-identifier hs-var">plusAddr#</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721662"><span class="hs-identifier hs-var">hd</span></a></span><span> </span><span class="hs-identifier">SIZEOF_HSINT#</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">s</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span>  </span><span id="local-6989586621681721726"><span class="annot"><span class="annottext">get :: Get Node
+</span><a href="#local-6989586621681721726"><span class="hs-identifier hs-var hs-var hs-var">get</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-special">{</span><span id="local-6989586621681721728"><span class="annot"><a href="#local-6989586621681721728"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Get Int
+forall a. Serialize a =&gt; Get a
+</span><a href="Agda.Utils.Serialize.html#get"><span class="hs-identifier hs-var">get</span></a></span><span class="hs-special">;</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#ensure"><span class="hs-identifier hs-type">ensure</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">unsafeShiftL</span></span><span> </span><span class="annot"><a href="#local-6989586621681721728"><span class="hs-identifier hs-type">l</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">Addr#
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Get Node
+</span><a href="#local-6989586621681721731"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721728"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-138"></span><span>    </span><span class="annot"><a href="#local-6989586621681721732"><span class="hs-identifier hs-type">g32</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#Get"><span class="hs-identifier hs-type">Get</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span class="hs-special">;</span><span> </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621681721732"><span class="hs-pragma hs-type">g32</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-139"></span><span>    </span><span id="local-6989586621681721732"><span class="annot"><span class="annottext">g32 :: Get Word32
+</span><a href="#local-6989586621681721732"><span class="hs-identifier hs-var hs-var">g32</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Word32 #)) -&gt; Get Word32
+forall a. (Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)) -&gt; Get a
+</span><a href="Agda.Utils.Serialize.html#Get"><span class="hs-identifier hs-var">Get</span></a></span><span> </span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">Addr#
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681721734"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721734"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681721735"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721735"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; Int# -&gt; RW -&gt; (# RW, Word32# #)
+forall d. Addr# -&gt; Int# -&gt; State# d -&gt; (# State# d, Word32# #)
+</span><span class="hs-identifier hs-var">readWord32OffAddr#</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721734"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721735"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-140"></span><span>            </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681721736"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721736"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721737"><span class="annot"><span class="annottext">Word32#
+</span><a href="#local-6989586621681721737"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; Int# -&gt; Addr#
+</span><span class="hs-identifier hs-var">plusAddr#</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721734"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="hs-identifier">SIZEOF_WORD32#</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">W32#</span><span> </span><span class="hs-identifier">x</span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-141"></span><span>    </span><span class="annot"><a href="#local-6989586621681721739"><span class="hs-identifier hs-type">g64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#Get"><span class="hs-identifier hs-type">Get</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span class="hs-special">;</span><span> </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621681721739"><span class="hs-pragma hs-type">g64</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-142"></span><span>    </span><span id="local-6989586621681721739"><span class="annot"><span class="annottext">g64 :: Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var hs-var">g64</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Word64 #)) -&gt; Get Word64
+forall a. (Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)) -&gt; Get a
+</span><a href="Agda.Utils.Serialize.html#Get"><span class="hs-identifier hs-var">Get</span></a></span><span> </span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">Addr#
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681721740"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721740"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681721741"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721741"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; Int# -&gt; RW -&gt; (# RW, Word64# #)
+forall d. Addr# -&gt; Int# -&gt; State# d -&gt; (# State# d, Word64# #)
+</span><span class="hs-identifier hs-var">readWord64OffAddr#</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721740"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721741"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-143"></span><span>            </span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681721742"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721742"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721743"><span class="annot"><span class="annottext">Word64#
+</span><a href="#local-6989586621681721743"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(#</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; Int# -&gt; Addr#
+</span><span class="hs-identifier hs-var">plusAddr#</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721740"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="hs-identifier">SIZEOF_WORD64#</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">W64#</span><span> </span><span class="hs-identifier">x</span><span> </span><span class="hs-special">#)</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>    </span><span class="annot"><a href="#local-6989586621681721731"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Serialize.html#Get"><span class="hs-identifier hs-type">Get</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Node.html#Node"><span class="hs-identifier hs-type">Node</span></a></span><span>
+</span><span id="line-146"></span><span>    </span><span id="local-6989586621681721731"><span class="annot"><span class="annottext">go :: Int -&gt; Get Node
+</span><a href="#local-6989586621681721731"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681721745"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721745"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)) -&gt; Get Node
+forall a. (Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)) -&gt; Get a
+</span><a href="Agda.Utils.Serialize.html#Get"><span class="hs-identifier hs-var">Get</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681721746"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681721747"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681721748"><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721745"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-147"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Get Node -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Node -&gt; Get Node
+forall a. a -&gt; Get a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N0"><span class="hs-identifier hs-var">N0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-148"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Get Node -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N1%23"><span class="hs-identifier hs-var">N1#</span></a></span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; Node) -&gt; Get Word32 -&gt; Get Node
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word32
+</span><a href="#local-6989586621681721732"><span class="hs-identifier hs-var">g32</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-149"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Get Node -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N2%23"><span class="hs-identifier hs-var">N2#</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Node) -&gt; Get Word64 -&gt; Get Node
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-150"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Get Node -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N3%23"><span class="hs-identifier hs-var">N3#</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Word32 -&gt; Node) -&gt; Get Word64 -&gt; Get (Word32 -&gt; Node)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span> </span><span class="annot"><span class="annottext">Get (Word32 -&gt; Node) -&gt; Get Word32 -&gt; Get Node
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word32
+</span><a href="#local-6989586621681721732"><span class="hs-identifier hs-var">g32</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-151"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Get Node -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N4%23"><span class="hs-identifier hs-var">N4#</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Word64 -&gt; Node) -&gt; Get Word64 -&gt; Get (Word64 -&gt; Node)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span> </span><span class="annot"><span class="annottext">Get (Word64 -&gt; Node) -&gt; Get Word64 -&gt; Get Node
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-152"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Get Node -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word32 -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N5%23"><span class="hs-identifier hs-var">N5#</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Word64 -&gt; Word32 -&gt; Node)
+-&gt; Get Word64 -&gt; Get (Word64 -&gt; Word32 -&gt; Node)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span> </span><span class="annot"><span class="annottext">Get (Word64 -&gt; Word32 -&gt; Node)
+-&gt; Get Word64 -&gt; Get (Word32 -&gt; Node)
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span> </span><span class="annot"><span class="annottext">Get (Word32 -&gt; Node) -&gt; Get Word32 -&gt; Get Node
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word32
+</span><a href="#local-6989586621681721732"><span class="hs-identifier hs-var">g32</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-153"></span><span>      </span><span id="local-6989586621681721751"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721751"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Get Node -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, Node #)
+forall a. Get a -&gt; Addr# -&gt; Addr# -&gt; RW -&gt; (# Addr#, RW, a #)
+</span><a href="Agda.Utils.Serialize.html#unGet"><span class="hs-identifier hs-var">unGet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word64 -&gt; Node -&gt; Node
+</span><a href="Agda.TypeChecking.Serialise.Node.html#N6%23"><span class="hs-identifier hs-var">N6#</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Word64 -&gt; Word64 -&gt; Node -&gt; Node)
+-&gt; Get Word64 -&gt; Get (Word64 -&gt; Word64 -&gt; Node -&gt; Node)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span> </span><span class="annot"><span class="annottext">Get (Word64 -&gt; Word64 -&gt; Node -&gt; Node)
+-&gt; Get Word64 -&gt; Get (Word64 -&gt; Node -&gt; Node)
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span> </span><span class="annot"><span class="annottext">Get (Word64 -&gt; Node -&gt; Node) -&gt; Get Word64 -&gt; Get (Node -&gt; Node)
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+</span><a href="#local-6989586621681721739"><span class="hs-identifier hs-var">g64</span></a></span><span> </span><span class="annot"><span class="annottext">Get (Node -&gt; Node) -&gt; Get Node -&gt; Get Node
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Get Node
+</span><a href="#local-6989586621681721731"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681721751"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">6</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721746"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621681721747"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RW
+</span><a href="#local-6989586621681721748"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-154"></span></pre></body></html>

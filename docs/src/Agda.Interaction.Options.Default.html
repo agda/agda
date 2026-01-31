@@ -1,0 +1,430 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Default values for the options.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Default.html"><span class="hs-identifier">Agda.Interaction.Options.Default</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html"><span class="hs-identifier">Agda.Interaction.Options.ProfileOptions</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- Null instance</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html"><span class="hs-identifier">Agda.Interaction.Options.Types</span></a></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html"><span class="hs-identifier">Agda.Interaction.Options.Warnings</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#defaultWarningMode"><span class="hs-identifier">defaultWarningMode</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Termination.CutOff.html"><span class="hs-identifier">Agda.Termination.CutOff</span></a></span><span>           </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Termination.CutOff.html#defaultCutOff"><span class="hs-identifier">defaultCutOff</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html"><span class="hs-identifier">Agda.Utils.WithDefault</span></a></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="annot"><a href="Agda.Interaction.Options.Default.html#defaultOptions"><span class="hs-identifier hs-type">defaultOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span>
+</span><span id="line-15"></span><span id="defaultOptions"><span class="annot"><span class="annottext">defaultOptions :: CommandLineOptions
+</span><a href="Agda.Interaction.Options.Default.html#defaultOptions"><span class="hs-identifier hs-var hs-var">defaultOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Options"><span class="hs-identifier hs-type">Options</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">optProgramName :: FilePath
+</span><a href="Agda.Interaction.Options.Types.html#optProgramName"><span class="hs-identifier hs-var">optProgramName</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;agda&quot;</span></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optInputFile :: Maybe FilePath
+</span><a href="Agda.Interaction.Options.Types.html#optInputFile"><span class="hs-identifier hs-var">optInputFile</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optIncludePaths :: [FilePath]
+</span><a href="Agda.Interaction.Options.Types.html#optIncludePaths"><span class="hs-identifier hs-var">optIncludePaths</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optAbsoluteIncludePaths :: [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Types.html#optAbsoluteIncludePaths"><span class="hs-identifier hs-var">optAbsoluteIncludePaths</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optLibraries :: [LibName]
+</span><a href="Agda.Interaction.Options.Types.html#optLibraries"><span class="hs-identifier hs-var">optLibraries</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optOverrideLibrariesFile :: Maybe FilePath
+</span><a href="Agda.Interaction.Options.Types.html#optOverrideLibrariesFile"><span class="hs-identifier hs-var">optOverrideLibrariesFile</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optDefaultLibs :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optDefaultLibs"><span class="hs-identifier hs-var">optDefaultLibs</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optUseLibs :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optUseLibs"><span class="hs-identifier hs-var">optUseLibs</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optTraceImports :: Integer
+</span><a href="Agda.Interaction.Options.Types.html#optTraceImports"><span class="hs-identifier hs-var">optTraceImports</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optTrustedExecutables :: Map ExeName FilePath
+</span><a href="Agda.Interaction.Options.Types.html#optTrustedExecutables"><span class="hs-identifier hs-var">optTrustedExecutables</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map ExeName FilePath
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optPrintAgdaDataDir :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optPrintAgdaDataDir"><span class="hs-identifier hs-var">optPrintAgdaDataDir</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optPrintAgdaAppDir :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optPrintAgdaAppDir"><span class="hs-identifier hs-var">optPrintAgdaAppDir</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optPrintOptions :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optPrintOptions"><span class="hs-identifier hs-var">optPrintOptions</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optPrintVersion :: Maybe PrintAgdaVersion
+</span><a href="Agda.Interaction.Options.Types.html#optPrintVersion"><span class="hs-identifier hs-var">optPrintVersion</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe PrintAgdaVersion
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optPrintHelp :: Maybe Help
+</span><a href="Agda.Interaction.Options.Types.html#optPrintHelp"><span class="hs-identifier hs-var">optPrintHelp</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Help
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optBuildLibrary :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optBuildLibrary"><span class="hs-identifier hs-var">optBuildLibrary</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optSetup :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optSetup"><span class="hs-identifier hs-var">optSetup</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optEmacsMode :: Set EmacsModeCommand
+</span><a href="Agda.Interaction.Options.Types.html#optEmacsMode"><span class="hs-identifier hs-var">optEmacsMode</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set EmacsModeCommand
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optInteractive :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optInteractive"><span class="hs-identifier hs-var">optInteractive</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optGHCiInteraction :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optGHCiInteraction"><span class="hs-identifier hs-var">optGHCiInteraction</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optJSONInteraction :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optJSONInteraction"><span class="hs-identifier hs-var">optJSONInteraction</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optExitOnError :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optExitOnError"><span class="hs-identifier hs-var">optExitOnError</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optCompileDir :: Maybe FilePath
+</span><a href="Agda.Interaction.Options.Types.html#optCompileDir"><span class="hs-identifier hs-var">optCompileDir</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optGenerateVimFile :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optGenerateVimFile"><span class="hs-identifier hs-var">optGenerateVimFile</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optIgnoreInterfaces :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optIgnoreInterfaces"><span class="hs-identifier hs-var">optIgnoreInterfaces</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optIgnoreAllInterfaces :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optIgnoreAllInterfaces"><span class="hs-identifier hs-var">optIgnoreAllInterfaces</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optWriteInterfaces :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optWriteInterfaces"><span class="hs-identifier hs-var">optWriteInterfaces</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optPragmaOptions :: PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#optPragmaOptions"><span class="hs-identifier hs-var">optPragmaOptions</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="Agda.Interaction.Options.Default.html#defaultPragmaOptions"><span class="hs-identifier hs-var">defaultPragmaOptions</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optOnlyScopeChecking :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optOnlyScopeChecking"><span class="hs-identifier hs-var">optOnlyScopeChecking</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optTransliterate :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optTransliterate"><span class="hs-identifier hs-var">optTransliterate</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optDiagnosticsColour :: DiagnosticsColours
+</span><a href="Agda.Interaction.Options.Types.html#optDiagnosticsColour"><span class="hs-identifier hs-var">optDiagnosticsColour</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DiagnosticsColours
+</span><a href="Agda.Interaction.Options.Types.html#AutoColour"><span class="hs-identifier hs-var">AutoColour</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optMdOnlyAgdaBlocks :: Bool
+</span><a href="Agda.Interaction.Options.Types.html#optMdOnlyAgdaBlocks"><span class="hs-identifier hs-var">optMdOnlyAgdaBlocks</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">optParallelChecking :: Parallelism
+</span><a href="Agda.Interaction.Options.Types.html#optParallelChecking"><span class="hs-identifier hs-var">optParallelChecking</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parallelism
+</span><a href="Agda.Interaction.Options.Types.html#Sequential"><span class="hs-identifier hs-var">Sequential</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Agda.Interaction.Options.Default.html#defaultPragmaOptions"><span class="hs-identifier hs-type">defaultPragmaOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span>
+</span><span id="line-52"></span><span id="defaultPragmaOptions"><span class="annot"><span class="annottext">defaultPragmaOptions :: PragmaOptions
+</span><a href="Agda.Interaction.Options.Default.html#defaultPragmaOptions"><span class="hs-identifier hs-var hs-var">defaultPragmaOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_optShowImplicit :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optShowImplicit"><span class="hs-identifier hs-var">_optShowImplicit</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optShowGeneralized :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optShowGeneralized"><span class="hs-identifier hs-var">_optShowGeneralized</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optShowIrrelevant :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optShowIrrelevant"><span class="hs-identifier hs-var">_optShowIrrelevant</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optUseUnicode :: WithDefault' UnicodeOrAscii 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optUseUnicode"><span class="hs-identifier hs-var">_optUseUnicode</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault' UnicodeOrAscii 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="hs-comment">-- UnicodeOk</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optVerbose :: Verbosity
+</span><a href="Agda.Interaction.Options.Types.html#_optVerbose"><span class="hs-identifier hs-var">_optVerbose</span></a></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Verbosity
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optProfiling :: ProfileOptions
+</span><a href="Agda.Interaction.Options.Types.html#_optProfiling"><span class="hs-identifier hs-var">_optProfiling</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ProfileOptions
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optProp :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optProp"><span class="hs-identifier hs-var">_optProp</span></a></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optLevelUniverse :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optLevelUniverse"><span class="hs-identifier hs-var">_optLevelUniverse</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optTwoLevel :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optTwoLevel"><span class="hs-identifier hs-var">_optTwoLevel</span></a></span><span>                   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optAllowUnsolved :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAllowUnsolved"><span class="hs-identifier hs-var">_optAllowUnsolved</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optAllowIncompleteMatch :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAllowIncompleteMatch"><span class="hs-identifier hs-var">_optAllowIncompleteMatch</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optPositivityCheck :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPositivityCheck"><span class="hs-identifier hs-var">_optPositivityCheck</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optTerminationCheck :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optTerminationCheck"><span class="hs-identifier hs-var">_optTerminationCheck</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optTerminationDepth :: CutOff
+</span><a href="Agda.Interaction.Options.Types.html#_optTerminationDepth"><span class="hs-identifier hs-var">_optTerminationDepth</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CutOff
+</span><a href="Agda.Termination.CutOff.html#defaultCutOff"><span class="hs-identifier hs-var">defaultCutOff</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optUniverseCheck :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optUniverseCheck"><span class="hs-identifier hs-var">_optUniverseCheck</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optOmegaInOmega :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optOmegaInOmega"><span class="hs-identifier hs-var">_optOmegaInOmega</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCumulativity :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCumulativity"><span class="hs-identifier hs-var">_optCumulativity</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optSizedTypes :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optSizedTypes"><span class="hs-identifier hs-var">_optSizedTypes</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optGuardedness :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optGuardedness"><span class="hs-identifier hs-var">_optGuardedness</span></a></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optInjectiveTypeConstructors :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optInjectiveTypeConstructors"><span class="hs-identifier hs-var">_optInjectiveTypeConstructors</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optUniversePolymorphism :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optUniversePolymorphism"><span class="hs-identifier hs-var">_optUniversePolymorphism</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optIrrelevantProjections :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optIrrelevantProjections"><span class="hs-identifier hs-var">_optIrrelevantProjections</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optExperimentalIrrelevance :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optExperimentalIrrelevance"><span class="hs-identifier hs-var">_optExperimentalIrrelevance</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optWithoutK :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optWithoutK"><span class="hs-identifier hs-var">_optWithoutK</span></a></span><span>                   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCubicalCompatible :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCubicalCompatible"><span class="hs-identifier hs-var">_optCubicalCompatible</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCopatterns :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optCopatterns"><span class="hs-identifier hs-var">_optCopatterns</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optPatternMatching :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPatternMatching"><span class="hs-identifier hs-var">_optPatternMatching</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optExactSplit :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optExactSplit"><span class="hs-identifier hs-var">_optExactSplit</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optHiddenArgumentPuns :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optHiddenArgumentPuns"><span class="hs-identifier hs-var">_optHiddenArgumentPuns</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optEta :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optEta"><span class="hs-identifier hs-var">_optEta</span></a></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optForcing :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optForcing"><span class="hs-identifier hs-var">_optForcing</span></a></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optProjectionLike :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optProjectionLike"><span class="hs-identifier hs-var">_optProjectionLike</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optErasure :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optErasure"><span class="hs-identifier hs-var">_optErasure</span></a></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optErasedMatches :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optErasedMatches"><span class="hs-identifier hs-var">_optErasedMatches</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optEraseRecordParameters :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optEraseRecordParameters"><span class="hs-identifier hs-var">_optEraseRecordParameters</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optRewriting :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optRewriting"><span class="hs-identifier hs-var">_optRewriting</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCubical :: Maybe Cubical
+</span><a href="Agda.Interaction.Options.Types.html#_optCubical"><span class="hs-identifier hs-var">_optCubical</span></a></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Cubical
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optGuarded :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optGuarded"><span class="hs-identifier hs-var">_optGuarded</span></a></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optFirstOrder :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optFirstOrder"><span class="hs-identifier hs-var">_optFirstOrder</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optRequireUniqueMetaSolutions :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optRequireUniqueMetaSolutions"><span class="hs-identifier hs-var">_optRequireUniqueMetaSolutions</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optPostfixProjections :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPostfixProjections"><span class="hs-identifier hs-var">_optPostfixProjections</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optKeepPatternVariables :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optKeepPatternVariables"><span class="hs-identifier hs-var">_optKeepPatternVariables</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optInferAbsurdClauses :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optInferAbsurdClauses"><span class="hs-identifier hs-var">_optInferAbsurdClauses</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optInstanceSearchDepth :: Int
+</span><a href="Agda.Interaction.Options.Types.html#_optInstanceSearchDepth"><span class="hs-identifier hs-var">_optInstanceSearchDepth</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">500</span></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optBacktrackingInstances :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optBacktrackingInstances"><span class="hs-identifier hs-var">_optBacktrackingInstances</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optQualifiedInstances :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optQualifiedInstances"><span class="hs-identifier hs-var">_optQualifiedInstances</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optInversionMaxDepth :: Int
+</span><a href="Agda.Interaction.Options.Types.html#_optInversionMaxDepth"><span class="hs-identifier hs-var">_optInversionMaxDepth</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">50</span></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optSafe :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optSafe"><span class="hs-identifier hs-var">_optSafe</span></a></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optDoubleCheck :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optDoubleCheck"><span class="hs-identifier hs-var">_optDoubleCheck</span></a></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optSyntacticEquality :: Maybe Int
+</span><a href="Agda.Interaction.Options.Types.html#_optSyntacticEquality"><span class="hs-identifier hs-var">_optSyntacticEquality</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optWarningMode :: WarningMode
+</span><a href="Agda.Interaction.Options.Types.html#_optWarningMode"><span class="hs-identifier hs-var">_optWarningMode</span></a></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WarningMode
+</span><a href="Agda.Interaction.Options.Warnings.html#defaultWarningMode"><span class="hs-identifier hs-var">defaultWarningMode</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCompileMain :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optCompileMain"><span class="hs-identifier hs-var">_optCompileMain</span></a></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCaching :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optCaching"><span class="hs-identifier hs-var">_optCaching</span></a></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCountClusters :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCountClusters"><span class="hs-identifier hs-var">_optCountClusters</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optAutoInline :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAutoInline"><span class="hs-identifier hs-var">_optAutoInline</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optPrintPatternSynonyms :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPrintPatternSynonyms"><span class="hs-identifier hs-var">_optPrintPatternSynonyms</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optFastReduce :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optFastReduce"><span class="hs-identifier hs-var">_optFastReduce</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCallByName :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCallByName"><span class="hs-identifier hs-var">_optCallByName</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optConfluenceCheck :: Maybe ConfluenceCheck
+</span><a href="Agda.Interaction.Options.Types.html#_optConfluenceCheck"><span class="hs-identifier hs-var">_optConfluenceCheck</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe ConfluenceCheck
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optCohesion :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCohesion"><span class="hs-identifier hs-var">_optCohesion</span></a></span><span>                   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optFlatSplit :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optFlatSplit"><span class="hs-identifier hs-var">_optFlatSplit</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optPolarity :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optPolarity"><span class="hs-identifier hs-var">_optPolarity</span></a></span><span>                   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optOccurrence :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optOccurrence"><span class="hs-identifier hs-var">_optOccurrence</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optImportSorts :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optImportSorts"><span class="hs-identifier hs-var">_optImportSorts</span></a></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optLoadPrimitives :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optLoadPrimitives"><span class="hs-identifier hs-var">_optLoadPrimitives</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optAllowExec :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAllowExec"><span class="hs-identifier hs-var">_optAllowExec</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optSaveMetas :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optSaveMetas"><span class="hs-identifier hs-var">_optSaveMetas</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optShowIdentitySubstitutions :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optShowIdentitySubstitutions"><span class="hs-identifier hs-var">_optShowIdentitySubstitutions</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optKeepCoveringClauses :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optKeepCoveringClauses"><span class="hs-identifier hs-var">_optKeepCoveringClauses</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-122"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optForcedArgumentRecursion :: WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optForcedArgumentRecursion"><span class="hs-identifier hs-var">_optForcedArgumentRecursion</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'True
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-123"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optLargeIndices :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optLargeIndices"><span class="hs-identifier hs-var">_optLargeIndices</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optExperimentalLazyInstances :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optExperimentalLazyInstances"><span class="hs-identifier hs-var">_optExperimentalLazyInstances</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_optQuoteMetas :: WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optQuoteMetas"><span class="hs-identifier hs-var">_optQuoteMetas</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WithDefault 'False
+forall a (b :: Bool). WithDefault' a b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- Null instances</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621681817168"><span class="annot"><span class="annottext">empty :: CommandLineOptions
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="Agda.Interaction.Options.Default.html#defaultOptions"><span class="hs-identifier hs-var">defaultOptions</span></a></span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621681817171"><span class="annot"><span class="annottext">null :: CommandLineOptions -&gt; Bool
+</span><a href="#local-6989586621681817171"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681817176"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621681817181"><span class="annot"><span class="annottext">empty :: PragmaOptions
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="Agda.Interaction.Options.Default.html#defaultPragmaOptions"><span class="hs-identifier hs-var">defaultPragmaOptions</span></a></span><span>
+</span><span id="line-136"></span></pre></body></html>

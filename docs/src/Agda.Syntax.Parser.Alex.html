@@ -1,0 +1,427 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">{-| This module defines the things required by Alex and some other
+    Alex related things.
+-}</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html"><span class="hs-identifier">Agda.Syntax.Parser.Alex</span></a></span><span>
+</span><span id="line-7"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-comment">-- * Alex requirements</span></span><span>
+</span><span id="line-8"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier">AlexInput</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#lensLexInput"><span class="hs-identifier">lensLexInput</span></a></span><span>
+</span><span id="line-10"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexInputPrevChar"><span class="hs-identifier">alexInputPrevChar</span></a></span><span>
+</span><span id="line-11"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexGetChar"><span class="hs-identifier">alexGetChar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexGetByte"><span class="hs-identifier">alexGetByte</span></a></span><span>
+</span><span id="line-12"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Lex actions</span></span><span>
+</span><span id="line-13"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier">LexAction</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier">LexPredicate</span></a></span><span>
+</span><span id="line-14"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#.%26%26."><span class="hs-operator">(.&amp;&amp;.)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#.%7C%7C."><span class="hs-operator">(.||.)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#not%27"><span class="hs-identifier">not'</span></a></span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#PreviousInput"><span class="hs-identifier">PreviousInput</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#CurrentInput"><span class="hs-identifier">CurrentInput</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#TokenLength"><span class="hs-identifier">TokenLength</span></a></span><span>
+</span><span id="line-16"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Monad operations</span></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#getLexInput"><span class="hs-identifier">getLexInput</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#setLexInput"><span class="hs-identifier">setLexInput</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html"><span class="hs-identifier">Agda.Syntax.Parser.Monad</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="annot"><span class="hs-comment">-- | This is what the lexer manipulates.</span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">data</span><span> </span><span id="AlexInput"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-var">AlexInput</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="AlexInput"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-var">AlexInput</span></a></span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="lexSrcFile"><span class="annot"><span class="annottext">AlexInput -&gt; SrcFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var hs-var">lexSrcFile</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Position.html#SrcFile"><span class="hs-identifier hs-type">SrcFile</span></a></span><span>              </span><span class="annot"><span class="hs-comment">-- ^ File.</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lexPos"><span class="annot"><span class="annottext">AlexInput -&gt; PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var hs-var">lexPos</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Position.html#PositionWithoutFile"><span class="hs-identifier hs-type">PositionWithoutFile</span></a></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Current position.</span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lexInput"><span class="annot"><span class="annottext">AlexInput -&gt; String
+</span><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var hs-var">lexInput</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>                </span><span class="annot"><span class="hs-comment">-- ^ Current input.</span></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lexPrevChar"><span class="annot"><span class="annottext">AlexInput -&gt; Char
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPrevChar"><span class="hs-identifier hs-var hs-var">lexPrevChar</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>                 </span><span class="annot"><span class="hs-comment">-- ^ Previously read character.</span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><span class="hs-comment">-- | A lens for 'lexInput'.</span></span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#lensLexInput"><span class="hs-identifier hs-type">lensLexInput</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-41"></span><span id="lensLexInput"><span class="annot"><span class="annottext">lensLexInput :: Lens' AlexInput String
+</span><a href="Agda.Syntax.Parser.Alex.html#lensLexInput"><span class="hs-identifier hs-var hs-var">lensLexInput</span></a></span></span><span> </span><span id="local-6989586621681835286"><span class="annot"><span class="annottext">String -&gt; f String
+</span><a href="#local-6989586621681835286"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681835287"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835287"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; f String
+</span><a href="#local-6989586621681835286"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexInput -&gt; String
+</span><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var">lexInput</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835287"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f String -&gt; (String -&gt; AlexInput) -&gt; f AlexInput
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681835289"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681835289"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835287"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var">lexInput</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681835289"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | Get the previously lexed character. Same as 'lexPrevChar'. Alex needs this</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   to be defined to handle \&quot;patterns with a left-context\&quot;.</span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexInputPrevChar"><span class="hs-identifier hs-type">alexInputPrevChar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-46"></span><span id="alexInputPrevChar"><span class="annot"><span class="annottext">alexInputPrevChar :: AlexInput -&gt; Char
+</span><a href="Agda.Syntax.Parser.Alex.html#alexInputPrevChar"><span class="hs-identifier hs-var hs-var">alexInputPrevChar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AlexInput -&gt; Char
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPrevChar"><span class="hs-identifier hs-var">lexPrevChar</span></a></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Returns the next character, and updates the 'AlexInput' value.</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- This function is not suitable for use by Alex 2, because it can</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- return non-ASCII characters.</span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexGetChar"><span class="hs-identifier hs-type">alexGetChar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span id="alexGetChar"><span class="annot"><span class="annottext">alexGetChar :: AlexInput -&gt; Maybe (Char, AlexInput)
+</span><a href="Agda.Syntax.Parser.Alex.html#alexGetChar"><span class="hs-identifier hs-var hs-var">alexGetChar</span></a></span></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">lexInput :: AlexInput -&gt; String
+</span><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var">lexInput</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>              </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (Char, AlexInput)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexGetChar"><span class="hs-identifier hs-var">alexGetChar</span></a></span><span> </span><span id="local-6989586621681835290"><span class="annot"><span class="annottext">inp :: AlexInput
+</span><a href="#local-6989586621681835290"><span class="hs-identifier hs-var">inp</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">lexInput :: AlexInput -&gt; String
+</span><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var">lexInput</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681835291"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835291"><span class="hs-identifier hs-var">c</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681835292"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681835292"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">lexPos :: AlexInput -&gt; PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var">lexPos</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681835293"><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681835293"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><span class="annottext">(Char, AlexInput) -&gt; Maybe (Char, AlexInput)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835291"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span>
+</span><span id="line-56"></span><span>                 </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">lexSrcFile :: SrcFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var">lexSrcFile</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AlexInput -&gt; SrcFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var">lexSrcFile</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835290"><span class="hs-identifier hs-var">inp</span></a></span><span>
+</span><span id="line-57"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">lexInput :: String
+</span><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var">lexInput</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681835292"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-58"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">lexPos :: PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var">lexPos</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; Char -&gt; PositionWithoutFile
+forall a. Position' a -&gt; Char -&gt; Position' a
+</span><a href="Agda.Syntax.Position.html#movePos"><span class="hs-identifier hs-var">movePos</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681835293"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835291"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-59"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">lexPrevChar :: Char
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPrevChar"><span class="hs-identifier hs-var">lexPrevChar</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835291"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-60"></span><span>                 </span><span class="hs-special">}</span><span>
+</span><span id="line-61"></span><span>         </span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | Returns the next byte, and updates the 'AlexInput' value.</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- A trick is used to handle the fact that there are more than 256</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- Unicode code points. The function translates characters to bytes in</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- the following way:</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- * Whitespace characters other than \'\\t\' and \'\\n\' are</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--   translated to \' \'.</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- * Non-ASCII alphabetical characters are translated to \'z\'.</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- * Other non-ASCII printable characters are translated to \'+\'.</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- * Everything else is translated to \'\\1\'.</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Note that it is important that there are no keywords containing</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- \'z\', \'+\', \' \' or \'\\1\'.</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- This function is used by Alex (version 3).</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#alexGetByte"><span class="hs-identifier hs-type">alexGetByte</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span id="alexGetByte"><span class="annot"><span class="annottext">alexGetByte :: AlexInput -&gt; Maybe (Word8, AlexInput)
+</span><a href="Agda.Syntax.Parser.Alex.html#alexGetByte"><span class="hs-identifier hs-var hs-var">alexGetByte</span></a></span></span><span> </span><span id="local-6989586621681835295"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835295"><span class="hs-identifier hs-var">ai</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">(Char -&gt; Word8) -&gt; (Char, AlexInput) -&gt; (Word8, AlexInput)
+forall a b c. (a -&gt; b) -&gt; (a, c) -&gt; (b, c)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Word8
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Word8) -&gt; (Char -&gt; Int) -&gt; Char -&gt; Word8
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Int) -&gt; (Char -&gt; Char) -&gt; Char -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="#local-6989586621681835299"><span class="hs-identifier hs-var">toASCII</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Char, AlexInput) -&gt; (Word8, AlexInput))
+-&gt; Maybe (Char, AlexInput) -&gt; Maybe (Word8, AlexInput)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">AlexInput -&gt; Maybe (Char, AlexInput)
+</span><a href="Agda.Syntax.Parser.Alex.html#alexGetChar"><span class="hs-identifier hs-var">alexGetChar</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835295"><span class="hs-identifier hs-var">ai</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-84"></span><span>  </span><span id="local-6989586621681835299"><span class="annot"><span class="annottext">toASCII :: Char -&gt; Char
+</span><a href="#local-6989586621681835299"><span class="hs-identifier hs-var hs-var">toASCII</span></a></span></span><span> </span><span id="local-6989586621681835304"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\t'</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isAscii</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isPrint</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isAlpha</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681835304"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'z'</span></span><span>
+</span><span id="line-88"></span><span>                                                         </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'+'</span></span><span>
+</span><span id="line-89"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\1'</span></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-comment">{--------------------------------------------------------------------------
+    Monad operations
+ --------------------------------------------------------------------------}</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#getLexInput"><span class="hs-identifier hs-type">getLexInput</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span>
+</span><span id="line-96"></span><span id="getLexInput"><span class="annot"><span class="annottext">getLexInput :: Parser AlexInput
+</span><a href="Agda.Syntax.Parser.Alex.html#getLexInput"><span class="hs-identifier hs-var hs-var">getLexInput</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ParseState -&gt; AlexInput) -&gt; Parser AlexInput
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; AlexInput
+</span><a href="#local-6989586621681835312"><span class="hs-identifier hs-var">getInp</span></a></span><span>
+</span><span id="line-97"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>        </span><span id="local-6989586621681835312"><span class="annot"><span class="annottext">getInp :: ParseState -&gt; AlexInput
+</span><a href="#local-6989586621681835312"><span class="hs-identifier hs-var hs-var">getInp</span></a></span></span><span> </span><span id="local-6989586621681835313"><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835313"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span>
+</span><span id="line-99"></span><span>                    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">lexSrcFile :: SrcFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var">lexSrcFile</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; SrcFile
+</span><a href="Agda.Syntax.Parser.Monad.html#parseSrcFile"><span class="hs-identifier hs-var">parseSrcFile</span></a></span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835313"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-100"></span><span>                    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">lexPos :: PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var">lexPos</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Monad.html#parsePos"><span class="hs-identifier hs-var">parsePos</span></a></span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835313"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-101"></span><span>                    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">lexInput :: String
+</span><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var">lexInput</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; String
+</span><a href="Agda.Syntax.Parser.Monad.html#parseInp"><span class="hs-identifier hs-var">parseInp</span></a></span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835313"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-102"></span><span>                    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">lexPrevChar :: Char
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPrevChar"><span class="hs-identifier hs-var">lexPrevChar</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; Char
+</span><a href="Agda.Syntax.Parser.Monad.html#parsePrevChar"><span class="hs-identifier hs-var">parsePrevChar</span></a></span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835313"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-103"></span><span>                    </span><span class="hs-special">}</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#setLexInput"><span class="hs-identifier hs-type">setLexInput</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span id="setLexInput"><span class="annot"><span class="annottext">setLexInput :: AlexInput -&gt; Parser ()
+</span><a href="Agda.Syntax.Parser.Alex.html#setLexInput"><span class="hs-identifier hs-var hs-var">setLexInput</span></a></span></span><span> </span><span id="local-6989586621681835318"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835318"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ParseState -&gt; ParseState) -&gt; Parser ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; ParseState
+</span><a href="#local-6989586621681835320"><span class="hs-identifier hs-var">upd</span></a></span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-108"></span><span>        </span><span id="local-6989586621681835320"><span class="annot"><span class="annottext">upd :: ParseState -&gt; ParseState
+</span><a href="#local-6989586621681835320"><span class="hs-identifier hs-var hs-var">upd</span></a></span></span><span> </span><span id="local-6989586621681835321"><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835321"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835321"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseSrcFile"><span class="hs-identifier hs-var">parseSrcFile</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var">lexSrcFile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835318"><span class="hs-identifier hs-type">inp</span></a></span><span>
+</span><span id="line-109"></span><span>                  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parsePos"><span class="hs-identifier hs-var">parsePos</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var">lexPos</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835318"><span class="hs-identifier hs-type">inp</span></a></span><span>
+</span><span id="line-110"></span><span>                  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseInp"><span class="hs-identifier hs-var">parseInp</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#lexInput"><span class="hs-identifier hs-var">lexInput</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835318"><span class="hs-identifier hs-type">inp</span></a></span><span>
+</span><span id="line-111"></span><span>                  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parsePrevChar"><span class="hs-identifier hs-var">parsePrevChar</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#lexPrevChar"><span class="hs-identifier hs-var">lexPrevChar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835318"><span class="hs-identifier hs-type">inp</span></a></span><span>
+</span><span id="line-112"></span><span>                  </span><span class="hs-special">}</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-comment">{--------------------------------------------------------------------------
+    Lex actions
+ --------------------------------------------------------------------------}</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-keyword">type</span><span> </span><span id="PreviousInput"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#PreviousInput"><span class="hs-identifier hs-var">PreviousInput</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span>
+</span><span id="line-119"></span><span class="hs-keyword">type</span><span> </span><span id="CurrentInput"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#CurrentInput"><span class="hs-identifier hs-var">CurrentInput</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#AlexInput"><span class="hs-identifier hs-type">AlexInput</span></a></span><span>
+</span><span id="line-120"></span><span class="hs-keyword">type</span><span> </span><span id="TokenLength"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#TokenLength"><span class="hs-identifier hs-var">TokenLength</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- | In the lexer, regular expressions are associated with lex actions who's</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--   task it is to construct the tokens.</span><span>
+</span><span id="line-124"></span><span class="hs-keyword">newtype</span><span> </span><span id="LexAction"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span></span><span> </span><span id="local-6989586621681835214"><span class="annot"><a href="#local-6989586621681835214"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="LexAction"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="runLexAction"><span class="annot"><span class="annottext">forall r. LexAction r -&gt; AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r
+</span><a href="Agda.Syntax.Parser.Alex.html#runLexAction"><span class="hs-identifier hs-var hs-var">runLexAction</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#PreviousInput"><span class="hs-identifier hs-type">PreviousInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#CurrentInput"><span class="hs-identifier hs-type">CurrentInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#TokenLength"><span class="hs-identifier hs-type">TokenLength</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835214"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681835325"><span id="local-6989586621681835329"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; LexAction a -&gt; LexAction b)
+-&gt; (forall a b. a -&gt; LexAction b -&gt; LexAction a)
+-&gt; Functor LexAction
+forall a b. a -&gt; LexAction b -&gt; LexAction a
+forall a b. (a -&gt; b) -&gt; LexAction a -&gt; LexAction b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; LexAction a -&gt; LexAction b
+fmap :: forall a b. (a -&gt; b) -&gt; LexAction a -&gt; LexAction b
+$c&lt;$ :: forall a b. a -&gt; LexAction b -&gt; LexAction a
+&lt;$ :: forall a b. a -&gt; LexAction b -&gt; LexAction a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681835339"><span id="local-6989586621681835343"><span id="local-6989586621681835346"><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-type">LexAction</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-129"></span><span>  </span><span id="local-6989586621681835351"><span class="annot"><span class="annottext">pure :: forall a. a -&gt; LexAction a
+</span><span class="hs-identifier hs-var hs-var hs-var">pure</span></span></span><span> </span><span id="local-6989586621681835352"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681835352"><span class="hs-identifier hs-var">r</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser a) -&gt; LexAction a
+forall r.
+(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r) -&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser a) -&gt; LexAction a)
+-&gt; (AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser a) -&gt; LexAction a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Parser a
+forall a. a -&gt; Parser a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681835352"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-130"></span><span>  </span><span id="local-6989586621681835354"><span class="annot"><span class="annottext">LexAction (a -&gt; b)
+</span><a href="#local-6989586621681835354"><span class="hs-identifier hs-var">mf</span></a></span></span><span> </span><span id="local-6989586621681835355"><span class="annot"><span class="annottext">&lt;*&gt; :: forall a b. LexAction (a -&gt; b) -&gt; LexAction a -&gt; LexAction b
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;*&gt;</span></span></span><span> </span><span id="local-6989586621681835356"><span class="annot"><span class="annottext">LexAction a
+</span><a href="#local-6989586621681835356"><span class="hs-identifier hs-var">mr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser b) -&gt; LexAction b
+forall r.
+(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r) -&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser b) -&gt; LexAction b)
+-&gt; (AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser b) -&gt; LexAction b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681835357"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835357"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681835358"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835358"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681835359"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835359"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LexAction (a -&gt; b)
+-&gt; AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser (a -&gt; b)
+forall r. LexAction r -&gt; AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r
+</span><a href="Agda.Syntax.Parser.Alex.html#runLexAction"><span class="hs-identifier hs-var">runLexAction</span></a></span><span> </span><span class="annot"><span class="annottext">LexAction (a -&gt; b)
+</span><a href="#local-6989586621681835354"><span class="hs-identifier hs-var">mf</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835357"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835358"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835359"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Parser (a -&gt; b) -&gt; Parser a -&gt; Parser b
+forall a b. Parser (a -&gt; b) -&gt; Parser a -&gt; Parser b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">LexAction a -&gt; AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser a
+forall r. LexAction r -&gt; AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r
+</span><a href="Agda.Syntax.Parser.Alex.html#runLexAction"><span class="hs-identifier hs-var">runLexAction</span></a></span><span> </span><span class="annot"><span class="annottext">LexAction a
+</span><a href="#local-6989586621681835356"><span class="hs-identifier hs-var">mr</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835357"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835358"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835359"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681835364"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-type">LexAction</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-133"></span><span>  </span><span id="local-6989586621681835370"><span class="annot"><span class="annottext">return :: forall a. a -&gt; LexAction a
+</span><span class="hs-identifier hs-var hs-var hs-var">return</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; LexAction a
+forall a. a -&gt; LexAction a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span>
+</span><span id="line-134"></span><span>  </span><span id="local-6989586621681835373"><span class="annot"><span class="annottext">LexAction a
+</span><a href="#local-6989586621681835373"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681835374"><span class="annot"><span class="annottext">&gt;&gt;= :: forall a b. LexAction a -&gt; (a -&gt; LexAction b) -&gt; LexAction b
+</span><span class="hs-operator hs-var hs-var hs-var">&gt;&gt;=</span></span></span><span> </span><span id="local-6989586621681835375"><span class="annot"><span class="annottext">a -&gt; LexAction b
+</span><a href="#local-6989586621681835375"><span class="hs-identifier hs-var">k</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser b) -&gt; LexAction b
+forall r.
+(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r) -&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser b) -&gt; LexAction b)
+-&gt; (AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser b) -&gt; LexAction b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681835376"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835376"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681835377"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835377"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681835378"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835378"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-135"></span><span>    </span><span id="local-6989586621681835379"><span class="annot"><a href="#local-6989586621681835379"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LexAction a -&gt; AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser a
+forall r. LexAction r -&gt; AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r
+</span><a href="Agda.Syntax.Parser.Alex.html#runLexAction"><span class="hs-identifier hs-var">runLexAction</span></a></span><span> </span><span class="annot"><span class="annottext">LexAction a
+</span><a href="#local-6989586621681835373"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835376"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835377"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835378"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-136"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#runLexAction"><span class="hs-identifier hs-var">runLexAction</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681835375"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835379"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681835376"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835377"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681835378"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681835385"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseState"><span class="hs-identifier hs-type">ParseState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-type">LexAction</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-139"></span><span>  </span><span id="local-6989586621681835390"><span class="annot"><span class="annottext">get :: LexAction ParseState
+</span><a href="#local-6989586621681835390"><span class="hs-identifier hs-var hs-var hs-var">get</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser ParseState)
+-&gt; LexAction ParseState
+forall r.
+(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r) -&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser ParseState)
+ -&gt; LexAction ParseState)
+-&gt; (AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser ParseState)
+-&gt; LexAction ParseState
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Parser ParseState
+forall s (m :: * -&gt; *). MonadState s m =&gt; m s
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-140"></span><span>  </span><span id="local-6989586621681835393"><span class="annot"><span class="annottext">put :: ParseState -&gt; LexAction ()
+</span><a href="#local-6989586621681835393"><span class="hs-identifier hs-var hs-var hs-var">put</span></a></span></span><span> </span><span id="local-6989586621681835395"><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835395"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser ()) -&gt; LexAction ()
+forall r.
+(AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser r) -&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser ()) -&gt; LexAction ())
+-&gt; (AlexInput -&gt; AlexInput -&gt; Int -&gt; Parser ()) -&gt; LexAction ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; Parser ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; s -&gt; m ()
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681835395"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- | Sometimes regular expressions aren't enough. Alex provides a way to do</span><span>
+</span><span id="line-143"></span><span class="hs-comment">--   arbitrary computations to see if the input matches. This is done with a</span><span>
+</span><span id="line-144"></span><span class="hs-comment">--   lex predicate.</span><span>
+</span><span id="line-145"></span><span class="hs-keyword">type</span><span> </span><span id="LexPredicate"><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-var">LexPredicate</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LexState"><span class="hs-identifier hs-type">LexState</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseFlags"><span class="hs-identifier hs-type">ParseFlags</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#PreviousInput"><span class="hs-identifier hs-type">PreviousInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#TokenLength"><span class="hs-identifier hs-type">TokenLength</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#CurrentInput"><span class="hs-identifier hs-type">CurrentInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="annot"><span class="hs-comment">-- | Conjunction of 'LexPredicate's.</span></span><span>
+</span><span id="line-148"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#.%26%26."><span class="hs-operator hs-type">(.&amp;&amp;.)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span>
+</span><span id="line-149"></span><span id="local-6989586621681835397"><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835397"><span class="hs-identifier hs-var">p1</span></a></span></span><span> </span><span id=".%26%26."><span class="annot"><span class="annottext">.&amp;&amp;. :: LexPredicate -&gt; LexPredicate -&gt; LexPredicate
+</span><a href="Agda.Syntax.Parser.Alex.html#.%26%26."><span class="hs-operator hs-var hs-var">.&amp;&amp;.</span></a></span></span><span> </span><span id="local-6989586621681835398"><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835398"><span class="hs-identifier hs-var">p2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681835399"><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835399"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681835400"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835400"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681835401"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835401"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span id="local-6989586621681835402"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835402"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835397"><span class="hs-identifier hs-var">p1</span></a></span><span> </span><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835399"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835400"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835401"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835402"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835398"><span class="hs-identifier hs-var">p2</span></a></span><span> </span><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835399"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835400"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835401"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835402"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><span class="hs-comment">-- | Disjunction of 'LexPredicate's.</span></span><span>
+</span><span id="line-152"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#.%7C%7C."><span class="hs-operator hs-type">(.||.)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span>
+</span><span id="line-153"></span><span id="local-6989586621681835403"><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835403"><span class="hs-identifier hs-var">p1</span></a></span></span><span> </span><span id=".%7C%7C."><span class="annot"><span class="annottext">.||. :: LexPredicate -&gt; LexPredicate -&gt; LexPredicate
+</span><a href="Agda.Syntax.Parser.Alex.html#.%7C%7C."><span class="hs-operator hs-var hs-var">.||.</span></a></span></span><span> </span><span id="local-6989586621681835404"><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835404"><span class="hs-identifier hs-var">p2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681835405"><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835405"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681835406"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835406"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681835407"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835407"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span id="local-6989586621681835408"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835408"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835403"><span class="hs-identifier hs-var">p1</span></a></span><span> </span><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835405"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835406"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835407"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835408"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835404"><span class="hs-identifier hs-var">p2</span></a></span><span> </span><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835405"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835406"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835407"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835408"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="annot"><span class="hs-comment">-- | Negation of 'LexPredicate's.</span></span><span>
+</span><span id="line-156"></span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#not%27"><span class="hs-identifier hs-type">not'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexPredicate"><span class="hs-identifier hs-type">LexPredicate</span></a></span><span>
+</span><span id="line-157"></span><span id="not%27"><span class="annot"><span class="annottext">not' :: LexPredicate -&gt; LexPredicate
+</span><a href="Agda.Syntax.Parser.Alex.html#not%27"><span class="hs-identifier hs-var hs-var">not'</span></a></span></span><span> </span><span id="local-6989586621681835410"><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835410"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681835411"><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835411"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681835412"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835412"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681835413"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835413"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span id="local-6989586621681835414"><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835414"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LexPredicate
+</span><a href="#local-6989586621681835410"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">([Int], ParseFlags)
+</span><a href="#local-6989586621681835411"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835412"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681835413"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">AlexInput
+</span><a href="#local-6989586621681835414"><span class="hs-identifier hs-var">u</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-158"></span></pre></body></html>

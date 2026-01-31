@@ -1,0 +1,490 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621681720926"><span id="local-6989586621681720927"></span></span><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html"><span class="hs-identifier">Agda.Interaction.Options.ProfileOptions</span></a></span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier">ProfileOption</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier">ProfileOptions</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#noProfileOptions"><span class="hs-identifier">noProfileOptions</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#addProfileOption"><span class="hs-identifier">addProfileOption</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#containsProfileOption"><span class="hs-identifier">containsProfileOption</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#profileOptionsToList"><span class="hs-identifier">profileOptionsToList</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#profileOptionsFromList"><span class="hs-identifier">profileOptionsFromList</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#validProfileOptionStrings"><span class="hs-identifier">validProfileOptionStrings</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">intercalate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">toLower</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.EditDistance</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">restrictedDamerauLevenshteinDistance</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">defaultEditCosts</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier">Null</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier">empty</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- | Various things that can be measured when checking an Agda development. Turned on with</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--   the `--profile` flag, for instance `--profile=sharing` to turn on the 'Sharing' option.</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--   'Internal', 'Modules', and 'Definitions' are mutually exclusive.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--   NOTE: Changing this data type requires bumping the interface version number in</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--   'Agda.TypeChecking.Serialise.currentInterfaceVersion'.</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">data</span><span> </span><span id="ProfileOption"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-var">ProfileOption</span></a></span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Internal"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Internal"><span class="hs-identifier hs-var">Internal</span></a></span></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ Measure time taken by various parts of the system (type checking, serialization, etc)</span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Modules"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Modules"><span class="hs-identifier hs-var">Modules</span></a></span></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Measure time spent on individual (Agda) modules</span></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Definitions"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Definitions"><span class="hs-identifier hs-var">Definitions</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Measure time spent on individual (Agda) definitions</span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Sharing"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Sharing"><span class="hs-identifier hs-var">Sharing</span></a></span></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Measure things related to sharing</span></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Serialize"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Serialize"><span class="hs-identifier hs-var">Serialize</span></a></span></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Collect detailed statistics about serialization</span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Constraints"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Constraints"><span class="hs-identifier hs-var">Constraints</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Collect statistics about constraint solving</span></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Metas"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Metas"><span class="hs-identifier hs-var">Metas</span></a></span></span><span>        </span><span class="annot"><span class="hs-comment">-- ^ Count number of created metavariables</span></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Interactive"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Interactive"><span class="hs-identifier hs-var">Interactive</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Measure time of interactive commands</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Conversion"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Conversion"><span class="hs-identifier hs-var">Conversion</span></a></span></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ Collect statistics about conversion checking</span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Instances"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Instances"><span class="hs-identifier hs-var">Instances</span></a></span></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Collect statistics about instance search</span></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Sections"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#Sections"><span class="hs-identifier hs-var">Sections</span></a></span></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ Collect statistics about section applications</span></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681720997"><span id="local-6989586621681720999"><span id="local-6989586621681721002"><span class="annot"><span class="annottext">Int -&gt; ProfileOption -&gt; ShowS
+[ProfileOption] -&gt; ShowS
+ProfileOption -&gt; String
+(Int -&gt; ProfileOption -&gt; ShowS)
+-&gt; (ProfileOption -&gt; String)
+-&gt; ([ProfileOption] -&gt; ShowS)
+-&gt; Show ProfileOption
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; ProfileOption -&gt; ShowS
+showsPrec :: Int -&gt; ProfileOption -&gt; ShowS
+$cshow :: ProfileOption -&gt; String
+show :: ProfileOption -&gt; String
+$cshowList :: [ProfileOption] -&gt; ShowS
+showList :: [ProfileOption] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721007"><span id="local-6989586621681721012"><span class="annot"><span class="annottext">ProfileOption -&gt; ProfileOption -&gt; Bool
+(ProfileOption -&gt; ProfileOption -&gt; Bool)
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; Bool) -&gt; Eq ProfileOption
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ProfileOption -&gt; ProfileOption -&gt; Bool
+== :: ProfileOption -&gt; ProfileOption -&gt; Bool
+$c/= :: ProfileOption -&gt; ProfileOption -&gt; Bool
+/= :: ProfileOption -&gt; ProfileOption -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721018"><span id="local-6989586621681721022"><span id="local-6989586621681721026"><span id="local-6989586621681721029"><span id="local-6989586621681721032"><span id="local-6989586621681721035"><span id="local-6989586621681721038"><span class="annot"><span class="annottext">Eq ProfileOption
+Eq ProfileOption =&gt;
+(ProfileOption -&gt; ProfileOption -&gt; Ordering)
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; Bool)
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; Bool)
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; Bool)
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; Bool)
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; ProfileOption)
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; ProfileOption)
+-&gt; Ord ProfileOption
+ProfileOption -&gt; ProfileOption -&gt; Bool
+ProfileOption -&gt; ProfileOption -&gt; Ordering
+ProfileOption -&gt; ProfileOption -&gt; ProfileOption
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: ProfileOption -&gt; ProfileOption -&gt; Ordering
+compare :: ProfileOption -&gt; ProfileOption -&gt; Ordering
+$c&lt; :: ProfileOption -&gt; ProfileOption -&gt; Bool
+&lt; :: ProfileOption -&gt; ProfileOption -&gt; Bool
+$c&lt;= :: ProfileOption -&gt; ProfileOption -&gt; Bool
+&lt;= :: ProfileOption -&gt; ProfileOption -&gt; Bool
+$c&gt; :: ProfileOption -&gt; ProfileOption -&gt; Bool
+&gt; :: ProfileOption -&gt; ProfileOption -&gt; Bool
+$c&gt;= :: ProfileOption -&gt; ProfileOption -&gt; Bool
+&gt;= :: ProfileOption -&gt; ProfileOption -&gt; Bool
+$cmax :: ProfileOption -&gt; ProfileOption -&gt; ProfileOption
+max :: ProfileOption -&gt; ProfileOption -&gt; ProfileOption
+$cmin :: ProfileOption -&gt; ProfileOption -&gt; ProfileOption
+min :: ProfileOption -&gt; ProfileOption -&gt; ProfileOption
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721046"><span id="local-6989586621681721053"><span id="local-6989586621681721058"><span id="local-6989586621681721064"><span id="local-6989586621681721067"><span id="local-6989586621681721072"><span id="local-6989586621681721079"><span id="local-6989586621681721082"><span class="annot"><span class="annottext">Int -&gt; ProfileOption
+ProfileOption -&gt; Int
+ProfileOption -&gt; [ProfileOption]
+ProfileOption -&gt; ProfileOption
+ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+ProfileOption -&gt; ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+(ProfileOption -&gt; ProfileOption)
+-&gt; (ProfileOption -&gt; ProfileOption)
+-&gt; (Int -&gt; ProfileOption)
+-&gt; (ProfileOption -&gt; Int)
+-&gt; (ProfileOption -&gt; [ProfileOption])
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; [ProfileOption])
+-&gt; (ProfileOption -&gt; ProfileOption -&gt; [ProfileOption])
+-&gt; (ProfileOption
+    -&gt; ProfileOption -&gt; ProfileOption -&gt; [ProfileOption])
+-&gt; Enum ProfileOption
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: ProfileOption -&gt; ProfileOption
+succ :: ProfileOption -&gt; ProfileOption
+$cpred :: ProfileOption -&gt; ProfileOption
+pred :: ProfileOption -&gt; ProfileOption
+$ctoEnum :: Int -&gt; ProfileOption
+toEnum :: Int -&gt; ProfileOption
+$cfromEnum :: ProfileOption -&gt; Int
+fromEnum :: ProfileOption -&gt; Int
+$cenumFrom :: ProfileOption -&gt; [ProfileOption]
+enumFrom :: ProfileOption -&gt; [ProfileOption]
+$cenumFromThen :: ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+enumFromThen :: ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+$cenumFromTo :: ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+enumFromTo :: ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+$cenumFromThenTo :: ProfileOption -&gt; ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+enumFromThenTo :: ProfileOption -&gt; ProfileOption -&gt; ProfileOption -&gt; [ProfileOption]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721090"><span id="local-6989586621681721092"><span class="annot"><span class="annottext">ProfileOption
+ProfileOption -&gt; ProfileOption -&gt; Bounded ProfileOption
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: ProfileOption
+minBound :: ProfileOption
+$cmaxBound :: ProfileOption
+maxBound :: ProfileOption
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721097"><span id="local-6989586621681721099"><span class="annot"><span class="annottext">(forall x. ProfileOption -&gt; Rep ProfileOption x)
+-&gt; (forall x. Rep ProfileOption x -&gt; ProfileOption)
+-&gt; Generic ProfileOption
+forall x. Rep ProfileOption x -&gt; ProfileOption
+forall x. ProfileOption -&gt; Rep ProfileOption x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. ProfileOption -&gt; Rep ProfileOption x
+from :: forall x. ProfileOption -&gt; Rep ProfileOption x
+$cto :: forall x. Rep ProfileOption x -&gt; ProfileOption
+to :: forall x. Rep ProfileOption x -&gt; ProfileOption
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681721105"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="annot"><span class="hs-comment">-- | A set of 'ProfileOption's</span></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">newtype</span><span> </span><span id="ProfileOptions"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-var">ProfileOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ProfileOpts"><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-var">ProfileOpts</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unProfileOpts"><span class="annot"><span class="annottext">ProfileOptions -&gt; Set ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#unProfileOpts"><span class="hs-identifier hs-var hs-var">unProfileOpts</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681721140"><span id="local-6989586621681721145"><span id="local-6989586621681721149"><span class="annot"><span class="annottext">Int -&gt; ProfileOptions -&gt; ShowS
+[ProfileOptions] -&gt; ShowS
+ProfileOptions -&gt; String
+(Int -&gt; ProfileOptions -&gt; ShowS)
+-&gt; (ProfileOptions -&gt; String)
+-&gt; ([ProfileOptions] -&gt; ShowS)
+-&gt; Show ProfileOptions
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; ProfileOptions -&gt; ShowS
+showsPrec :: Int -&gt; ProfileOptions -&gt; ShowS
+$cshow :: ProfileOptions -&gt; String
+show :: ProfileOptions -&gt; String
+$cshowList :: [ProfileOptions] -&gt; ShowS
+showList :: [ProfileOptions] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721152"><span id="local-6989586621681721157"><span class="annot"><span class="annottext">ProfileOptions -&gt; ProfileOptions -&gt; Bool
+(ProfileOptions -&gt; ProfileOptions -&gt; Bool)
+-&gt; (ProfileOptions -&gt; ProfileOptions -&gt; Bool) -&gt; Eq ProfileOptions
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ProfileOptions -&gt; ProfileOptions -&gt; Bool
+== :: ProfileOptions -&gt; ProfileOptions -&gt; Bool
+$c/= :: ProfileOptions -&gt; ProfileOptions -&gt; Bool
+/= :: ProfileOptions -&gt; ProfileOptions -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721163"><span class="annot"><span class="annottext">ProfileOptions -&gt; ()
+(ProfileOptions -&gt; ()) -&gt; NFData ProfileOptions
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: ProfileOptions -&gt; ()
+rnf :: ProfileOptions -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681721171"><span id="local-6989586621681721176"><span class="annot"><span class="annottext">ProfileOptions
+ProfileOptions -&gt; Bool
+ProfileOptions -&gt; (ProfileOptions -&gt; Bool) -&gt; Null ProfileOptions
+forall a. a -&gt; (a -&gt; Bool) -&gt; Null a
+$cempty :: ProfileOptions
+empty :: ProfileOptions
+$cnull :: ProfileOptions -&gt; Bool
+null :: ProfileOptions -&gt; Bool
+</span><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Null</span></a></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><span class="hs-comment">-- | The empty set of profiling options.</span></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#noProfileOptions"><span class="hs-identifier hs-type">noProfileOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span>
+</span><span id="line-55"></span><span id="noProfileOptions"><span class="annot"><span class="annottext">noProfileOptions :: ProfileOptions
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#noProfileOptions"><span class="hs-identifier hs-var hs-var">noProfileOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ProfileOptions
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#addAllProfileOptions"><span class="hs-identifier hs-type">addAllProfileOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span>
+</span><span id="line-58"></span><span id="addAllProfileOptions"><span class="annot"><span class="annottext">addAllProfileOptions :: ProfileOptions -&gt; ProfileOptions
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#addAllProfileOptions"><span class="hs-identifier hs-var hs-var">addAllProfileOptions</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-type">ProfileOpts</span></a></span><span> </span><span id="local-6989586621681721182"><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721182"><span class="hs-identifier hs-var">opts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set ProfileOption -&gt; ProfileOptions
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-var">ProfileOpts</span></a></span><span> </span><span class="annot"><span class="annottext">(Set ProfileOption -&gt; ProfileOptions)
+-&gt; Set ProfileOption -&gt; ProfileOptions
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Set ProfileOption -&gt; ProfileOption -&gt; Set ProfileOption)
+-&gt; Set ProfileOption -&gt; [ProfileOption] -&gt; Set ProfileOption
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl</span></span><span> </span><span class="annot"><span class="annottext">Set ProfileOption -&gt; ProfileOption -&gt; Set ProfileOption
+</span><a href="#local-6989586621681721184"><span class="hs-identifier hs-var">ins</span></a></span><span> </span><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721182"><span class="hs-identifier hs-var">opts</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ProfileOption
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">ProfileOption
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-60"></span><span>    </span><span id="local-6989586621681721184"><span class="annot"><span class="annottext">ins :: Set ProfileOption -&gt; ProfileOption -&gt; Set ProfileOption
+</span><a href="#local-6989586621681721184"><span class="hs-identifier hs-var hs-var">ins</span></a></span></span><span> </span><span id="local-6989586621681721188"><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721188"><span class="hs-identifier hs-var">os</span></a></span></span><span> </span><span id="local-6989586621681721189"><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721189"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">(ProfileOption -&gt; Bool) -&gt; Set ProfileOption -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProfileOption -&gt; ProfileOption -&gt; Bool
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#incompatible"><span class="hs-identifier hs-var">incompatible</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721189"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721188"><span class="hs-identifier hs-var">os</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721188"><span class="hs-identifier hs-var">os</span></a></span><span>
+</span><span id="line-61"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; Set ProfileOption -&gt; Set ProfileOption
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.insert</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721189"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721188"><span class="hs-identifier hs-var">os</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="annot"><span class="hs-comment">-- | Strings accepted by 'addProfileOption'</span></span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#validProfileOptionStrings"><span class="hs-identifier hs-type">validProfileOptionStrings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-65"></span><span id="validProfileOptionStrings"><span class="annot"><span class="annottext">validProfileOptionStrings :: [String]
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#validProfileOptionStrings"><span class="hs-identifier hs-var hs-var">validProfileOptionStrings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;all&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; [String]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(ProfileOption -&gt; String) -&gt; [ProfileOption] -&gt; [String]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; String
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#optName"><span class="hs-identifier hs-var">optName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ProfileOption
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">ProfileOption
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#parseOpt"><span class="hs-identifier hs-type">parseOpt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span>
+</span><span id="line-68"></span><span id="parseOpt"><span class="annot"><span class="annottext">parseOpt :: String -&gt; Either String ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#parseOpt"><span class="hs-identifier hs-var hs-var">parseOpt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681721195"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721195"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">String -&gt; Map String ProfileOption -&gt; Maybe ProfileOption
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721195"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Map String ProfileOption
+</span><a href="#local-6989586621681721197"><span class="hs-identifier hs-var">names</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="annottext">Maybe ProfileOption
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String ProfileOption
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Either String ProfileOption)
+-&gt; String -&gt; Either String ProfileOption
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><a href="#local-6989586621681721198"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721195"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681721199"><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721199"><span class="hs-identifier hs-var">o</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; Either String ProfileOption
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721199"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>    </span><span id="local-6989586621681721197"><span class="annot"><span class="annottext">names :: Map String ProfileOption
+</span><a href="#local-6989586621681721197"><span class="hs-identifier hs-var hs-var">names</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(String, ProfileOption)] -&gt; Map String ProfileOption
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProfileOption -&gt; String
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#optName"><span class="hs-identifier hs-var">optName</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721206"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721206"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681721206"><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721206"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ProfileOption
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">ProfileOption
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621681721209"><span class="annot"><span class="annottext">close :: String -&gt; String -&gt; Bool
+</span><a href="#local-6989586621681721209"><span class="hs-identifier hs-var hs-var">close</span></a></span></span><span> </span><span id="local-6989586621681721210"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721210"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681721211"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721211"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">EditCosts -&gt; String -&gt; String -&gt; Int
+</span><span class="hs-identifier hs-var">restrictedDamerauLevenshteinDistance</span></span><span> </span><span class="annot"><span class="annottext">EditCosts
+</span><span class="hs-identifier hs-var">defaultEditCosts</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721210"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721211"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span>
+</span><span id="line-75"></span><span>    </span><span id="local-6989586621681721198"><span class="annot"><span class="annottext">err :: ShowS
+</span><a href="#local-6989586621681721198"><span class="hs-identifier hs-var hs-var">err</span></a></span></span><span>  </span><span id="local-6989586621681721216"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721216"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Not a valid profiling option: '&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721216"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;'. &quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><a href="#local-6989586621681721218"><span class="hs-identifier hs-var">hint</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721216"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-76"></span><span>    </span><span id="local-6989586621681721218"><span class="annot"><span class="annottext">hint :: ShowS
+</span><a href="#local-6989586621681721218"><span class="hs-identifier hs-var hs-var">hint</span></a></span></span><span> </span><span id="local-6989586621681721228"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721228"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">(String -&gt; Bool) -&gt; [String] -&gt; [String]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+</span><a href="#local-6989586621681721209"><span class="hs-identifier hs-var">close</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721228"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map String ProfileOption -&gt; [String]
+forall k a. Map k a -&gt; [k]
+</span><span class="hs-identifier hs-var">Map.keys</span></span><span> </span><span class="annot"><span class="annottext">Map String ProfileOption
+</span><a href="#local-6989586621681721197"><span class="hs-identifier hs-var">names</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-77"></span><span>               </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Valid options are &quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; String
+forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">intercalate</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;, &quot;</span></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; String) -&gt; [String] -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Map String ProfileOption -&gt; [String]
+forall k a. Map k a -&gt; [k]
+</span><span class="hs-identifier hs-var">Map.keys</span></span><span> </span><span class="annot"><span class="annottext">Map String ProfileOption
+</span><a href="#local-6989586621681721197"><span class="hs-identifier hs-var">names</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;, or all.&quot;</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-78"></span><span>               </span><span id="local-6989586621681721230"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681721230"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Did you mean &quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; String
+forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">intercalate</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; or &quot;</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681721230"><span class="hs-identifier hs-var">ss</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;?&quot;</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#optName"><span class="hs-identifier hs-type">optName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-81"></span><span id="optName"><span class="annot"><span class="annottext">optName :: ProfileOption -&gt; String
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#optName"><span class="hs-identifier hs-var hs-var">optName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Char) -&gt; ShowS
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><span class="hs-identifier hs-var">toLower</span></span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; (ProfileOption -&gt; String) -&gt; ProfileOption -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#incompatible"><span class="hs-identifier hs-type">incompatible</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-84"></span><span id="incompatible"><span class="annot"><span class="annottext">incompatible :: ProfileOption -&gt; ProfileOption -&gt; Bool
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#incompatible"><span class="hs-identifier hs-var hs-var">incompatible</span></a></span></span><span> </span><span id="local-6989586621681721233"><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721233"><span class="hs-identifier hs-var">o1</span></a></span></span><span> </span><span id="local-6989586621681721234"><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721234"><span class="hs-identifier hs-var">o2</span></a></span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721233"><span class="hs-identifier hs-var">o1</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; ProfileOption -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721234"><span class="hs-identifier hs-var">o2</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([ProfileOption] -&gt; Bool) -&gt; [[ProfileOption]] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681721235"><span class="annot"><span class="annottext">[ProfileOption]
+</span><a href="#local-6989586621681721235"><span class="hs-identifier hs-var">set</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; [ProfileOption] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">elem</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721233"><span class="hs-identifier hs-var">o1</span></a></span><span> </span><span class="annot"><span class="annottext">[ProfileOption]
+</span><a href="#local-6989586621681721235"><span class="hs-identifier hs-var">set</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; [ProfileOption] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">elem</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721234"><span class="hs-identifier hs-var">o2</span></a></span><span> </span><span class="annot"><span class="annottext">[ProfileOption]
+</span><a href="#local-6989586621681721235"><span class="hs-identifier hs-var">set</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[ProfileOption]]
+</span><a href="#local-6989586621681721238"><span class="hs-identifier hs-var">sets</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-88"></span><span>    </span><span id="local-6989586621681721238"><span class="annot"><span class="annottext">sets :: [[ProfileOption]]
+</span><a href="#local-6989586621681721238"><span class="hs-identifier hs-var hs-var">sets</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#Internal"><span class="hs-identifier hs-var">Internal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#Modules"><span class="hs-identifier hs-var">Modules</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#Definitions"><span class="hs-identifier hs-var">Definitions</span></a></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- | Parse and add a profiling option to a set of profiling options. Returns `Left` with a helpful</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--   error message if the option doesn't parse or if it's incompatible with existing options.</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--   The special string &quot;all&quot; adds all options compatible with the given set and prefering the first</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--   of incompatible options. So `--profile=all` sets 'Internal' over 'Modules' and 'Definitions',</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--   but `--profile=modules --profile=all` sets 'Modules' and not 'Internal'.</span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#addProfileOption"><span class="hs-identifier hs-type">addProfileOption</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span>
+</span><span id="line-96"></span><span id="addProfileOption"><span class="annot"><span class="annottext">addProfileOption :: String -&gt; ProfileOptions -&gt; Either String ProfileOptions
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#addProfileOption"><span class="hs-identifier hs-var hs-var">addProfileOption</span></a></span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;all&quot;</span></span><span> </span><span id="local-6989586621681721239"><span class="annot"><span class="annottext">ProfileOptions
+</span><a href="#local-6989586621681721239"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ProfileOptions -&gt; Either String ProfileOptions
+forall a. a -&gt; Either String a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(ProfileOptions -&gt; Either String ProfileOptions)
+-&gt; ProfileOptions -&gt; Either String ProfileOptions
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ProfileOptions -&gt; ProfileOptions
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#addAllProfileOptions"><span class="hs-identifier hs-var">addAllProfileOptions</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOptions
+</span><a href="#local-6989586621681721239"><span class="hs-identifier hs-var">opts</span></a></span><span>
+</span><span id="line-97"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#addProfileOption"><span class="hs-identifier hs-var">addProfileOption</span></a></span><span> </span><span id="local-6989586621681721240"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721240"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-type">ProfileOpts</span></a></span><span> </span><span id="local-6989586621681721241"><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721241"><span class="hs-identifier hs-var">opts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621681721242"><span class="annot"><a href="#local-6989586621681721242"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#parseOpt"><span class="hs-identifier hs-var">parseOpt</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721240"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="annot"><a href="Agda.Utils.List1.html#ifNull"><span class="hs-identifier hs-type">List1.ifNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#incompatible"><span class="hs-identifier hs-type">incompatible</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721242"><span class="hs-identifier hs-type">o</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set.toList</span></span><span> </span><span class="annot"><a href="#local-6989586621681721241"><span class="hs-identifier hs-type">opts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>    </span><span class="hs-comment">{-then-}</span><span>
+</span><span id="line-101"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-type">ProfileOpts</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set.insert</span></span><span> </span><span class="annot"><a href="#local-6989586621681721242"><span class="hs-identifier hs-type">o</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681721241"><span class="hs-identifier hs-type">opts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>    </span><span class="hs-comment">{-else-}</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681721245"><span class="annot"><span class="annottext">List1 ProfileOption
+</span><a href="#local-6989586621681721245"><span class="hs-identifier hs-var">conflicts</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-103"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; Either String ProfileOptions
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Either String ProfileOptions)
+-&gt; String -&gt; Either String ProfileOptions
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Cannot use profiling option '&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681721240"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;' with '&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; String
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#optName"><span class="hs-identifier hs-var">optName</span></a></span><span> </span><span class="annot"><span class="annottext">(ProfileOption -&gt; String) -&gt; ProfileOption -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">List1 ProfileOption -&gt; ProfileOption
+forall a. NonEmpty a -&gt; a
+</span><span class="hs-identifier hs-var">List1.head</span></span><span> </span><span class="annot"><span class="annottext">(List1 ProfileOption -&gt; ProfileOption)
+-&gt; List1 ProfileOption -&gt; ProfileOption
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">List1 ProfileOption
+</span><a href="#local-6989586621681721245"><span class="hs-identifier hs-var">conflicts</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;'&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="annot"><span class="hs-comment">-- | Check if a given profiling option is present in a set of profiling options.</span></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#containsProfileOption"><span class="hs-identifier hs-type">containsProfileOption</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-107"></span><span id="containsProfileOption"><span class="annot"><span class="annottext">containsProfileOption :: ProfileOption -&gt; ProfileOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#containsProfileOption"><span class="hs-identifier hs-var hs-var">containsProfileOption</span></a></span></span><span> </span><span id="local-6989586621681721247"><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721247"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-type">ProfileOpts</span></a></span><span> </span><span id="local-6989586621681721248"><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721248"><span class="hs-identifier hs-var">opts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; Set ProfileOption -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="#local-6989586621681721247"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721248"><span class="hs-identifier hs-var">opts</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="annot"><span class="hs-comment">-- | Use only for serialization.</span></span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#profileOptionsToList"><span class="hs-identifier hs-type">profileOptionsToList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-111"></span><span id="profileOptionsToList"><span class="annot"><span class="annottext">profileOptionsToList :: ProfileOptions -&gt; [ProfileOption]
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#profileOptionsToList"><span class="hs-identifier hs-var hs-var">profileOptionsToList</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-type">ProfileOpts</span></a></span><span> </span><span id="local-6989586621681721250"><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721250"><span class="hs-identifier hs-var">opts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set ProfileOption -&gt; [ProfileOption]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set ProfileOption
+</span><a href="#local-6989586621681721250"><span class="hs-identifier hs-var">opts</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="annot"><span class="hs-comment">-- | Use only for serialization.</span></span><span>
+</span><span id="line-114"></span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#profileOptionsFromList"><span class="hs-identifier hs-type">profileOptionsFromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOption"><span class="hs-identifier hs-type">ProfileOption</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span>
+</span><span id="line-115"></span><span id="profileOptionsFromList"><span class="annot"><span class="annottext">profileOptionsFromList :: [ProfileOption] -&gt; ProfileOptions
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#profileOptionsFromList"><span class="hs-identifier hs-var hs-var">profileOptionsFromList</span></a></span></span><span> </span><span id="local-6989586621681721251"><span class="annot"><span class="annottext">[ProfileOption]
+</span><a href="#local-6989586621681721251"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set ProfileOption -&gt; ProfileOptions
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOpts"><span class="hs-identifier hs-var">ProfileOpts</span></a></span><span> </span><span class="annot"><span class="annottext">(Set ProfileOption -&gt; ProfileOptions)
+-&gt; Set ProfileOption -&gt; ProfileOptions
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[ProfileOption] -&gt; Set ProfileOption
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">[ProfileOption]
+</span><a href="#local-6989586621681721251"><span class="hs-identifier hs-var">opts</span></a></span><span>
+</span><span id="line-116"></span></pre></body></html>

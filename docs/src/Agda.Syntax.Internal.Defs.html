@@ -1,0 +1,438 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Extract used definitions from terms.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html"><span class="hs-identifier">Agda.Syntax.Internal.Defs</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Fold</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- | @getDefs' lookup emb a@ extracts all used definitions</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--   (functions, data/record types) from @a@, embedded into a monoid via @emb@.</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--   Instantiations of meta variables are obtained via @lookup@.</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--   Typical monoid instances would be @[QName]@ or @Set QName@.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--   Note that @emb@ can also choose to discard a used definition</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--   by mapping to the unit of the monoid.</span><span>
+</span><span id="line-22"></span><span id="local-6989586621681784298"><span id="local-6989586621681784300"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs%27"><span class="hs-identifier hs-type">getDefs'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784298"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681784300"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784300"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784298"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784300"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-23"></span><span id="getDefs%27"><span class="annot"><span class="annottext">getDefs' :: forall a b.
+(GetDefs a, Monoid b) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; b) -&gt; a -&gt; b
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs%27"><span class="hs-identifier hs-var hs-var">getDefs'</span></a></span></span><span> </span><span id="local-6989586621681784430"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681784430"><span class="hs-identifier hs-var">lookup</span></a></span></span><span> </span><span id="local-6989586621681784431"><span class="annot"><span class="annottext">QName -&gt; b
+</span><a href="#local-6989586621681784431"><span class="hs-identifier hs-var">emb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Writer b () -&gt; b
+forall w a. Writer w a -&gt; w
+</span><span class="hs-identifier hs-var">execWriter</span></span><span> </span><span class="annot"><span class="annottext">(Writer b () -&gt; b) -&gt; (a -&gt; Writer b ()) -&gt; a -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ReaderT (GetDefsEnv b) (WriterT b Identity) ()
+-&gt; GetDefsEnv b -&gt; Writer b ()
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-operator hs-var">`runReaderT`</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; b) -&gt; GetDefsEnv b
+forall b. (MetaId -&gt; Maybe Term) -&gt; (QName -&gt; b) -&gt; GetDefsEnv b
+</span><a href="Agda.Syntax.Internal.Defs.html#GetDefsEnv"><span class="hs-identifier hs-var">GetDefsEnv</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681784430"><span class="hs-identifier hs-var">lookup</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; b
+</span><a href="#local-6989586621681784431"><span class="hs-identifier hs-var">emb</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ReaderT (GetDefsEnv b) (WriterT b Identity) () -&gt; Writer b ())
+-&gt; (a -&gt; ReaderT (GetDefsEnv b) (WriterT b Identity) ())
+-&gt; a
+-&gt; Writer b ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ReaderT (GetDefsEnv b) (WriterT b Identity) ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; a -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><span class="hs-comment">-- | Inputs to and outputs of @getDefs'@ are organized as a monad.</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">type</span><span> </span><span id="GetDefsM"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefsM"><span class="hs-identifier hs-var">GetDefsM</span></a></span></span><span> </span><span id="local-6989586621681784437"><span class="annot"><a href="#local-6989586621681784437"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefsEnv"><span class="hs-identifier hs-type">GetDefsEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784437"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Writer</span></span><span> </span><span class="annot"><a href="#local-6989586621681784437"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">data</span><span> </span><span id="GetDefsEnv"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefsEnv"><span class="hs-identifier hs-var">GetDefsEnv</span></a></span></span><span> </span><span id="local-6989586621681784322"><span class="annot"><a href="#local-6989586621681784322"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="GetDefsEnv"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefsEnv"><span class="hs-identifier hs-var">GetDefsEnv</span></a></span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="lookupMeta"><span class="annot"><span class="annottext">forall b. GetDefsEnv b -&gt; MetaId -&gt; Maybe Term
+</span><a href="Agda.Syntax.Internal.Defs.html#lookupMeta"><span class="hs-identifier hs-var hs-var">lookupMeta</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="embDef"><span class="annot"><span class="annottext">forall b. GetDefsEnv b -&gt; QName -&gt; b
+</span><a href="Agda.Syntax.Internal.Defs.html#embDef"><span class="hs-identifier hs-var hs-var">embDef</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784322"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="annot"><span class="hs-comment">-- | What it takes to get the used definitions.</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681784327"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadGetDefs"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#MonadGetDefs"><span class="hs-identifier hs-var">MonadGetDefs</span></a></span></span><span> </span><span id="local-6989586621681784327"><span class="annot"><a href="#local-6989586621681784327"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-35"></span><span>  </span><span id="doDef"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#doDef"><span class="hs-identifier hs-type">doDef</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784327"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>  </span><span id="doMeta"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#doMeta"><span class="hs-identifier hs-type">doMeta</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784327"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784311"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681784311"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#MonadGetDefs"><span class="hs-identifier hs-type">MonadGetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefsM"><span class="hs-identifier hs-type">GetDefsM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784311"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681784463"><span class="annot"><span class="annottext">doDef :: QName -&gt; GetDefsM b ()
+</span><a href="Agda.Syntax.Internal.Defs.html#doDef"><span class="hs-identifier hs-var hs-var hs-var">doDef</span></a></span></span><span>  </span><span id="local-6989586621681784464"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681784464"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; GetDefsM b ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; GetDefsM b ())
+-&gt; ((QName -&gt; b) -&gt; b) -&gt; (QName -&gt; b) -&gt; GetDefsM b ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(QName -&gt; b) -&gt; QName -&gt; b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681784464"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((QName -&gt; b) -&gt; GetDefsM b ())
+-&gt; ReaderT (GetDefsEnv b) (WriterT b Identity) (QName -&gt; b)
+-&gt; GetDefsM b ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(GetDefsEnv b -&gt; QName -&gt; b)
+-&gt; ReaderT (GetDefsEnv b) (WriterT b Identity) (QName -&gt; b)
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="annot"><span class="annottext">GetDefsEnv b -&gt; QName -&gt; b
+forall b. GetDefsEnv b -&gt; QName -&gt; b
+</span><a href="Agda.Syntax.Internal.Defs.html#embDef"><span class="hs-identifier hs-var">embDef</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span id="local-6989586621681784477"><span class="annot"><span class="annottext">doMeta :: MetaId -&gt; GetDefsM b ()
+</span><a href="Agda.Syntax.Internal.Defs.html#doMeta"><span class="hs-identifier hs-var hs-var hs-var">doMeta</span></a></span></span><span> </span><span id="local-6989586621681784478"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784478"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Term -&gt; GetDefsM b ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Maybe Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Term -&gt; GetDefsM b ())
+-&gt; ((MetaId -&gt; Maybe Term) -&gt; Maybe Term)
+-&gt; (MetaId -&gt; Maybe Term)
+-&gt; GetDefsM b ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; MetaId -&gt; Maybe Term
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784478"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((MetaId -&gt; Maybe Term) -&gt; GetDefsM b ())
+-&gt; ReaderT
+     (GetDefsEnv b) (WriterT b Identity) (MetaId -&gt; Maybe Term)
+-&gt; GetDefsM b ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(GetDefsEnv b -&gt; MetaId -&gt; Maybe Term)
+-&gt; ReaderT
+     (GetDefsEnv b) (WriterT b Identity) (MetaId -&gt; Maybe Term)
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="annot"><span class="annottext">GetDefsEnv b -&gt; MetaId -&gt; Maybe Term
+forall b. GetDefsEnv b -&gt; MetaId -&gt; Maybe Term
+</span><a href="Agda.Syntax.Internal.Defs.html#lookupMeta"><span class="hs-identifier hs-var">lookupMeta</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- | Getting the used definitions.</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- Note: in contrast to 'Agda.Syntax.Internal.Generic.foldTerm'</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- @getDefs@ also collects from sorts in terms.</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- Thus, this is not an instance of @foldTerm@.</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">class</span><span> </span><span id="GetDefs"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-var">GetDefs</span></a></span></span><span> </span><span id="local-6989586621681784323"><span class="annot"><a href="#local-6989586621681784323"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-49"></span><span>  </span><span id="getDefs"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-type">getDefs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681784324"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#MonadGetDefs"><span class="hs-identifier hs-type">MonadGetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784324"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784323"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784324"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="getDefs"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-type">getDefs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681784355"><span id="local-6989586621681784356"><span id="local-6989586621681784357"><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#MonadGetDefs"><span class="hs-identifier hs-type">MonadGetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784355"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621681784356"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784357"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681784356"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784357"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681784323"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784323"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681784355"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681784480"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var">getDefs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; m ()) -&gt; f b -&gt; m ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">Fold.mapM_</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; b -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621681784500"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; Clause -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Term -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Maybe Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Term -&gt; m ()) -&gt; (Clause -&gt; Maybe Term) -&gt; Clause -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Clause -&gt; Maybe Term
+</span><a href="Agda.Syntax.Internal.html#clauseBody"><span class="hs-identifier hs-var">clauseBody</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>  </span><span id="local-6989586621681784544"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-type">Def</span></a></span><span> </span><span id="local-6989586621681784546"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681784546"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681784547"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784547"><span class="hs-identifier hs-var">vs</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; QName -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#doDef"><span class="hs-identifier hs-var">doDef</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681784546"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Elims -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784547"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span> </span><span class="annot"><span class="annottext">ConHead
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ConInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681784549"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784549"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Elims -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784549"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span> </span><span id="local-6989586621681784551"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681784551"><span class="hs-identifier hs-var">l</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621681784553"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681784553"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681784554"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784554"><span class="hs-identifier hs-var">vs</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Elims -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784554"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681784556"><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681784556"><span class="hs-identifier hs-var">v</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Abs Term -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Abs Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681784556"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-64"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Pi"><span class="hs-identifier hs-type">Pi</span></a></span><span> </span><span id="local-6989586621681784558"><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621681784558"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681784559"><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621681784559"><span class="hs-identifier hs-var">b</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Dom Type -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Dom Type -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621681784558"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Abs Type -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Abs Type -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621681784559"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-65"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span id="local-6989586621681784561"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784561"><span class="hs-identifier hs-var">s</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784561"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span id="local-6989586621681784563"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681784563"><span class="hs-identifier hs-var">l</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Level -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Level -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681784563"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaV"><span class="hs-identifier hs-type">MetaV</span></a></span><span> </span><span id="local-6989586621681784565"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784565"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681784566"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784566"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; MetaId -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784565"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Elims -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784566"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DontCare"><span class="hs-identifier hs-type">DontCare</span></a></span><span> </span><span id="local-6989586621681784568"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681784568"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681784568"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Dummy"><span class="hs-identifier hs-type">Dummy</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621681784573"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; MetaId -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681784574"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784574"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; MetaId -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#doMeta"><span class="hs-identifier hs-var">doMeta</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784574"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621681784583"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; Type -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#El"><span class="hs-identifier hs-type">El</span></a></span><span> </span><span id="local-6989586621681784585"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784585"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681784586"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681784586"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784585"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681784586"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621681784624"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681784626"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681784626"><span class="hs-identifier hs-var">l</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Level -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Level -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681784626"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Inf"><span class="hs-identifier hs-type">Inf</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#SizeUniv"><span class="hs-identifier hs-var">SizeUniv</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#LockUniv"><span class="hs-identifier hs-var">LockUniv</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#LevelUniv"><span class="hs-identifier hs-var">LevelUniv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#IntervalUniv"><span class="hs-identifier hs-var">IntervalUniv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#PiSort"><span class="hs-identifier hs-type">PiSort</span></a></span><span> </span><span id="local-6989586621681784633"><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621681784633"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681784634"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784634"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621681784635"><span class="annot"><span class="annottext">Abs Sort
+</span><a href="#local-6989586621681784635"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Dom' Term Term -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Dom' Term Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621681784633"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784634"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Abs Sort -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Abs Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Sort
+</span><a href="#local-6989586621681784635"><span class="hs-identifier hs-var">s2</span></a></span><span>
+</span><span id="line-86"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#FunSort"><span class="hs-identifier hs-type">FunSort</span></a></span><span> </span><span id="local-6989586621681784637"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784637"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621681784638"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784638"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784637"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784638"><span class="hs-identifier hs-var">s2</span></a></span><span>
+</span><span id="line-87"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#UnivSort"><span class="hs-identifier hs-type">UnivSort</span></a></span><span> </span><span id="local-6989586621681784640"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784640"><span class="hs-identifier hs-var">s</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Sort -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681784640"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaS"><span class="hs-identifier hs-type">MetaS</span></a></span><span> </span><span id="local-6989586621681784642"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784642"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681784643"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784643"><span class="hs-identifier hs-var">es</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; MetaId -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681784642"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Elims -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784643"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DefS"><span class="hs-identifier hs-type">DefS</span></a></span><span> </span><span id="local-6989586621681784645"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681784645"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681784646"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784646"><span class="hs-identifier hs-var">es</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; QName -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#doDef"><span class="hs-identifier hs-var">doDef</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681784645"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Elims -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681784646"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-90"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DummyS"><span class="hs-identifier hs-type">DummyS</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>  </span><span id="local-6989586621681784654"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; Level -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-type">Max</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681784656"><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621681784656"><span class="hs-identifier hs-var">ls</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[PlusLevel' Term] -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; [PlusLevel' Term] -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621681784656"><span class="hs-identifier hs-var">ls</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#PlusLevel"><span class="hs-identifier hs-type">PlusLevel</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621681784662"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; PlusLevel' Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-type">Plus</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681784664"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681784664"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; Term -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681784664"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- collection instances</span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784354"><span id="local-6989586621681784667"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784354"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681784354"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-101"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784381"><span id="local-6989586621681784677"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784381"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681784381"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>       </span><span class="hs-keyword">where</span><span>
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784380"><span id="local-6989586621681784687"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784380"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784380"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784407"><span id="local-6989586621681784697"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784407"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784407"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-104"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784379"><span id="local-6989586621681784708"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784379"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784379"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-105"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784378"><span id="local-6989586621681784718"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784378"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784378"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681784415"><span id="local-6989586621681784416"><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784415"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681784416"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681784415"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681784416"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-108"></span><span>  </span><span id="local-6989586621681784737"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; (a, b) -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681784738"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681784738"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681784739"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681784739"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; a -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681784738"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+forall a b. m a -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *). MonadGetDefs m =&gt; b -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681784739"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621681784750"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; Telescope -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Dom (ArgName, Type)] -&gt; m ()
+forall a (m :: * -&gt; *). (GetDefs a, MonadGetDefs m) =&gt; a -&gt; m ()
+forall (m :: * -&gt; *).
+MonadGetDefs m =&gt;
+[Dom (ArgName, Type)] -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">([Dom (ArgName, Type)] -&gt; m ())
+-&gt; (Telescope -&gt; [Dom (ArgName, Type)]) -&gt; Telescope -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; [Dom (ArgName, Type)]
+forall t. Tele (Dom t) -&gt; [Dom (ArgName, t)]
+</span><a href="Agda.Syntax.Internal.html#telToList"><span class="hs-identifier hs-var">telToList</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- no defs here</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-keyword">instance</span><span> </span><span class="hs-pragma">{-# OVERLAPPING</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-116"></span><span>  </span><span id="local-6989586621681784756"><span class="annot"><span class="annottext">getDefs :: forall (m :: * -&gt; *). MonadGetDefs m =&gt; ArgName -&gt; m ()
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-117"></span></pre></body></html>

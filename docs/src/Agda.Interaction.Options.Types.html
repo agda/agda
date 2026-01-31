@@ -1,0 +1,742 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DataKinds #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- | A module defining the types exported by &quot;Agda.Interaction.Options&quot; for use in the rest of the codebase.</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- This is a boot module to avoid cyclic module dependencies.</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Only put types and trivial instances here.</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html"><span class="hs-identifier">Agda.Interaction.Options.Types</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>                   </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">NFData</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Functor</span></span><span>                      </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>                          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span>                          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>                      </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Generic</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>                </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Cubical"><span class="hs-identifier">Cubical</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html"><span class="hs-identifier">Agda.Syntax.Concrete.Glyph</span></a></span><span>        </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier">UnicodeOrAscii</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Interaction.Library.html"><span class="hs-identifier">Agda.Interaction.Library</span></a></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeName"><span class="hs-identifier">ExeName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier">LibName</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Interaction.Options.Help.html"><span class="hs-identifier">Agda.Interaction.Options.Help</span></a></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#Help"><span class="hs-identifier">Help</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html"><span class="hs-identifier">Agda.Interaction.Options.Warnings</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#WarningMode"><span class="hs-identifier">WarningMode</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Termination.CutOff.html"><span class="hs-identifier">Agda.Termination.CutOff</span></a></span><span>           </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Termination.CutOff.html#CutOff"><span class="hs-identifier">CutOff</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>               </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier">AbsolutePath</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>                   </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier">Lens'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator">(^.)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier">over</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>                  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#String1"><span class="hs-identifier">String1</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html"><span class="hs-identifier">Agda.Utils.Maybe.Strict</span></a></span><span>           </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Strict</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html"><span class="hs-identifier">Agda.Interaction.Options.ProfileOptions</span></a></span><span>         </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier">ProfileOptions</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Utils.Trie.html"><span class="hs-identifier">Agda.Utils.Trie</span></a></span><span>                   </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier">Trie</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Utils.WithDefault.html"><span class="hs-identifier">Agda.Utils.WithDefault</span></a></span><span>            </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier">WithDefault</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault%27"><span class="hs-identifier">WithDefault'</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-34"></span><span class="annot"><span class="hs-comment">-- * Option records</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- Don't forget to update</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--   doc/user-manual/tools/command-line-options.rst</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- if you make changes to the command-line options!</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">data</span><span> </span><span id="CommandLineOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-var">CommandLineOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Options"><span class="annot"><a href="Agda.Interaction.Options.Types.html#Options"><span class="hs-identifier hs-var">Options</span></a></span></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="optProgramName"><span class="annot"><span class="annottext">CommandLineOptions -&gt; String
+</span><a href="Agda.Interaction.Options.Types.html#optProgramName"><span class="hs-identifier hs-var hs-var">optProgramName</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optInputFile"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Maybe String
+</span><a href="Agda.Interaction.Options.Types.html#optInputFile"><span class="hs-identifier hs-var hs-var">optInputFile</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optIncludePaths"><span class="annot"><span class="annottext">CommandLineOptions -&gt; [String]
+</span><a href="Agda.Interaction.Options.Types.html#optIncludePaths"><span class="hs-identifier hs-var hs-var">optIncludePaths</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span class="hs-special">]</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optAbsoluteIncludePaths"><span class="annot"><span class="annottext">CommandLineOptions -&gt; [AbsolutePath]
+</span><a href="Agda.Interaction.Options.Types.html#optAbsoluteIncludePaths"><span class="hs-identifier hs-var hs-var">optAbsoluteIncludePaths</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-45"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ The list should not contain duplicates.</span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optLibraries"><span class="annot"><span class="annottext">CommandLineOptions -&gt; [LibName]
+</span><a href="Agda.Interaction.Options.Types.html#optLibraries"><span class="hs-identifier hs-var hs-var">optLibraries</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optOverrideLibrariesFile"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Maybe String
+</span><a href="Agda.Interaction.Options.Types.html#optOverrideLibrariesFile"><span class="hs-identifier hs-var hs-var">optOverrideLibrariesFile</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-48"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Use this (if 'Just') instead of @~\/.agda\/libraries@.</span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optDefaultLibs"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optDefaultLibs"><span class="hs-identifier hs-var hs-var">optDefaultLibs</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-50"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Use @~\/.agda\/defaults@.</span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optUseLibs"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optUseLibs"><span class="hs-identifier hs-var hs-var">optUseLibs</span></a></span></span><span>               </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-52"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ look for @.agda-lib@ files.</span></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optTraceImports"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Integer
+</span><a href="Agda.Interaction.Options.Types.html#optTraceImports"><span class="hs-identifier hs-var hs-var">optTraceImports</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-54"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Configure notifications about imported modules.</span></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optTrustedExecutables"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Map ExeName String
+</span><a href="Agda.Interaction.Options.Types.html#optTrustedExecutables"><span class="hs-identifier hs-var hs-var">optTrustedExecutables</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeName"><span class="hs-identifier hs-type">ExeName</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-56"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Map names of trusted executables to absolute paths.</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-comment">-- Setup and printing</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optPrintAgdaDataDir"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optPrintAgdaDataDir"><span class="hs-identifier hs-var hs-var">optPrintAgdaDataDir</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optPrintAgdaAppDir"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optPrintAgdaAppDir"><span class="hs-identifier hs-var hs-var">optPrintAgdaAppDir</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optPrintOptions"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optPrintOptions"><span class="hs-identifier hs-var hs-var">optPrintOptions</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-62"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Print all options as a simple list (for implementing bash completion).</span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optPrintVersion"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Maybe PrintAgdaVersion
+</span><a href="Agda.Interaction.Options.Types.html#optPrintVersion"><span class="hs-identifier hs-var hs-var">optPrintVersion</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PrintAgdaVersion"><span class="hs-identifier hs-type">PrintAgdaVersion</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optPrintHelp"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Maybe Help
+</span><a href="Agda.Interaction.Options.Types.html#optPrintHelp"><span class="hs-identifier hs-var hs-var">optPrintHelp</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#Help"><span class="hs-identifier hs-type">Help</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optBuildLibrary"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optBuildLibrary"><span class="hs-identifier hs-var hs-var">optBuildLibrary</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-66"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ @--build-library@: Build all modules in the current library.</span></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optSetup"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optSetup"><span class="hs-identifier hs-var hs-var">optSetup</span></a></span></span><span>                 </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-68"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Force Agda to self-setup at startup.</span></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optEmacsMode"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Set EmacsModeCommand
+</span><a href="Agda.Interaction.Options.Types.html#optEmacsMode"><span class="hs-identifier hs-var hs-var">optEmacsMode</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#EmacsModeCommand"><span class="hs-identifier hs-type">EmacsModeCommand</span></a></span><span>
+</span><span id="line-70"></span><span>      </span><span class="hs-comment">-- ^ Emacs mode administration</span><span>
+</span><span id="line-71"></span><span>      </span><span class="hs-comment">--   (formerly done by the @agda-mode@ executable).</span><span>
+</span><span id="line-72"></span><span>      </span><span class="hs-comment">--   Accepted subcommands: @locate@, @setup@, @compile@.</span><span>
+</span><span id="line-73"></span><span>      </span><span class="hs-comment">--   Can be given several times,</span><span>
+</span><span id="line-74"></span><span>      </span><span class="hs-comment">--   subcommands are accumulated in the set.</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optInteractive"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optInteractive"><span class="hs-identifier hs-var hs-var">optInteractive</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-77"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Agda REPL (@-I@).</span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optGHCiInteraction"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optGHCiInteraction"><span class="hs-identifier hs-var hs-var">optGHCiInteraction</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-79"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ @--interaction@ mode.</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optJSONInteraction"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optJSONInteraction"><span class="hs-identifier hs-var hs-var">optJSONInteraction</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-81"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ @--interaction-json@ mode.</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optExitOnError"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optExitOnError"><span class="hs-identifier hs-var hs-var">optExitOnError</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-83"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Exit if an interactive command fails.</span></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optCompileDir"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Maybe String
+</span><a href="Agda.Interaction.Options.Types.html#optCompileDir"><span class="hs-identifier hs-var hs-var">optCompileDir</span></a></span></span><span>            </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-85"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ In the absence of a path the project root is used.</span></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optGenerateVimFile"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optGenerateVimFile"><span class="hs-identifier hs-var hs-var">optGenerateVimFile</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optIgnoreInterfaces"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optIgnoreInterfaces"><span class="hs-identifier hs-var hs-var">optIgnoreInterfaces</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optIgnoreAllInterfaces"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optIgnoreAllInterfaces"><span class="hs-identifier hs-var hs-var">optIgnoreAllInterfaces</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optWriteInterfaces"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optWriteInterfaces"><span class="hs-identifier hs-var hs-var">optWriteInterfaces</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optPragmaOptions"><span class="annot"><span class="annottext">CommandLineOptions -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#optPragmaOptions"><span class="hs-identifier hs-var hs-var">optPragmaOptions</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optOnlyScopeChecking"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optOnlyScopeChecking"><span class="hs-identifier hs-var hs-var">optOnlyScopeChecking</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-92"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Should the top-level module only be scope-checked, and not type-checked?</span></span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optTransliterate"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optTransliterate"><span class="hs-identifier hs-var hs-var">optTransliterate</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-94"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Should code points that are not supported by the locale be transliterated?</span></span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optDiagnosticsColour"><span class="annot"><span class="annottext">CommandLineOptions -&gt; DiagnosticsColours
+</span><a href="Agda.Interaction.Options.Types.html#optDiagnosticsColour"><span class="hs-identifier hs-var hs-var">optDiagnosticsColour</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#DiagnosticsColours"><span class="hs-identifier hs-type">DiagnosticsColours</span></a></span><span>
+</span><span id="line-96"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Configure colour output.</span></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optMdOnlyAgdaBlocks"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optMdOnlyAgdaBlocks"><span class="hs-identifier hs-var hs-var">optMdOnlyAgdaBlocks</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-98"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ In literate Markdown/Typst, only treat @```agda@ blocks as code.</span></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="optParallelChecking"><span class="annot"><span class="annottext">CommandLineOptions -&gt; Parallelism
+</span><a href="Agda.Interaction.Options.Types.html#optParallelChecking"><span class="hs-identifier hs-var hs-var">optParallelChecking</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Parallelism"><span class="hs-identifier hs-type">Parallelism</span></a></span><span>
+</span><span id="line-100"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Should imports be type-checked in parallel?</span></span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681815518"><span id="local-6989586621681815571"><span id="local-6989586621681815575"><span class="annot"><span class="annottext">Int -&gt; CommandLineOptions -&gt; ShowS
+[CommandLineOptions] -&gt; ShowS
+CommandLineOptions -&gt; String
+(Int -&gt; CommandLineOptions -&gt; ShowS)
+-&gt; (CommandLineOptions -&gt; String)
+-&gt; ([CommandLineOptions] -&gt; ShowS)
+-&gt; Show CommandLineOptions
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; CommandLineOptions -&gt; ShowS
+showsPrec :: Int -&gt; CommandLineOptions -&gt; ShowS
+$cshow :: CommandLineOptions -&gt; String
+show :: CommandLineOptions -&gt; String
+$cshowList :: [CommandLineOptions] -&gt; ShowS
+showList :: [CommandLineOptions] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815587"><span id="local-6989586621681815589"><span class="annot"><span class="annottext">(forall x. CommandLineOptions -&gt; Rep CommandLineOptions x)
+-&gt; (forall x. Rep CommandLineOptions x -&gt; CommandLineOptions)
+-&gt; Generic CommandLineOptions
+forall x. Rep CommandLineOptions x -&gt; CommandLineOptions
+forall x. CommandLineOptions -&gt; Rep CommandLineOptions x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. CommandLineOptions -&gt; Rep CommandLineOptions x
+from :: forall x. CommandLineOptions -&gt; Rep CommandLineOptions x
+$cto :: forall x. Rep CommandLineOptions x -&gt; CommandLineOptions
+to :: forall x. Rep CommandLineOptions x -&gt; CommandLineOptions
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="annot"><span class="hs-comment">-- | Options which can be set in a pragma.</span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-keyword">data</span><span> </span><span id="PragmaOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-var">PragmaOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="PragmaOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-var">PragmaOptions</span></a></span></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="_optShowImplicit"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optShowImplicit"><span class="hs-identifier hs-var hs-var">_optShowImplicit</span></a></span></span><span>              </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optShowGeneralized"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optShowGeneralized"><span class="hs-identifier hs-var hs-var">_optShowGeneralized</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-109"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Show generalized parameters in Pi types</span></span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optShowIrrelevant"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optShowIrrelevant"><span class="hs-identifier hs-var hs-var">_optShowIrrelevant</span></a></span></span><span>            </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optUseUnicode"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault' UnicodeOrAscii 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optUseUnicode"><span class="hs-identifier hs-var hs-var">_optUseUnicode</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault%27"><span class="hs-identifier hs-type">WithDefault'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="hs-comment">-- Would like to write UnicodeOk instead of True here</span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optVerbose"><span class="annot"><span class="annottext">PragmaOptions -&gt; Verbosity
+</span><a href="Agda.Interaction.Options.Types.html#_optVerbose"><span class="hs-identifier hs-var hs-var">_optVerbose</span></a></span></span><span>                   </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-type">Verbosity</span></a></span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optProfiling"><span class="annot"><span class="annottext">PragmaOptions -&gt; ProfileOptions
+</span><a href="Agda.Interaction.Options.Types.html#_optProfiling"><span class="hs-identifier hs-var hs-var">_optProfiling</span></a></span></span><span>                 </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html#ProfileOptions"><span class="hs-identifier hs-type">ProfileOptions</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optProp"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optProp"><span class="hs-identifier hs-var hs-var">_optProp</span></a></span></span><span>                      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optLevelUniverse"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optLevelUniverse"><span class="hs-identifier hs-var hs-var">_optLevelUniverse</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optTwoLevel"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optTwoLevel"><span class="hs-identifier hs-var hs-var">_optTwoLevel</span></a></span></span><span>                  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optAllowUnsolved"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAllowUnsolved"><span class="hs-identifier hs-var hs-var">_optAllowUnsolved</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optAllowIncompleteMatch"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAllowIncompleteMatch"><span class="hs-identifier hs-var hs-var">_optAllowIncompleteMatch</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optPositivityCheck"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPositivityCheck"><span class="hs-identifier hs-var hs-var">_optPositivityCheck</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optTerminationCheck"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optTerminationCheck"><span class="hs-identifier hs-var hs-var">_optTerminationCheck</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optTerminationDepth"><span class="annot"><span class="annottext">PragmaOptions -&gt; CutOff
+</span><a href="Agda.Interaction.Options.Types.html#_optTerminationDepth"><span class="hs-identifier hs-var hs-var">_optTerminationDepth</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Termination.CutOff.html#CutOff"><span class="hs-identifier hs-type">CutOff</span></a></span><span>
+</span><span id="line-122"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Cut off structural order comparison at some depth in termination checker?</span></span><span>
+</span><span id="line-123"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optUniverseCheck"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optUniverseCheck"><span class="hs-identifier hs-var hs-var">_optUniverseCheck</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optOmegaInOmega"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optOmegaInOmega"><span class="hs-identifier hs-var hs-var">_optOmegaInOmega</span></a></span></span><span>              </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCumulativity"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCumulativity"><span class="hs-identifier hs-var hs-var">_optCumulativity</span></a></span></span><span>              </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optSizedTypes"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optSizedTypes"><span class="hs-identifier hs-var hs-var">_optSizedTypes</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optGuardedness"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optGuardedness"><span class="hs-identifier hs-var hs-var">_optGuardedness</span></a></span></span><span>               </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optInjectiveTypeConstructors"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optInjectiveTypeConstructors"><span class="hs-identifier hs-var hs-var">_optInjectiveTypeConstructors</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optUniversePolymorphism"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optUniversePolymorphism"><span class="hs-identifier hs-var hs-var">_optUniversePolymorphism</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optIrrelevantProjections"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optIrrelevantProjections"><span class="hs-identifier hs-var hs-var">_optIrrelevantProjections</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-131"></span><span>      </span><span class="hs-comment">-- off by default in &gt; 2.5.4, see issue #2170</span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optExperimentalIrrelevance"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optExperimentalIrrelevance"><span class="hs-identifier hs-var hs-var">_optExperimentalIrrelevance</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-133"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ irrelevant levels, irrelevant data matching</span></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optWithoutK"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optWithoutK"><span class="hs-identifier hs-var hs-var">_optWithoutK</span></a></span></span><span>                  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCubicalCompatible"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCubicalCompatible"><span class="hs-identifier hs-var hs-var">_optCubicalCompatible</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCopatterns"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optCopatterns"><span class="hs-identifier hs-var hs-var">_optCopatterns</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-137"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Allow definitions by copattern matching?</span></span><span>
+</span><span id="line-138"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optPatternMatching"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPatternMatching"><span class="hs-identifier hs-var hs-var">_optPatternMatching</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-139"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Is pattern matching allowed in the current file?</span></span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optExactSplit"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optExactSplit"><span class="hs-identifier hs-var hs-var">_optExactSplit</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-141"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optHiddenArgumentPuns"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optHiddenArgumentPuns"><span class="hs-identifier hs-var hs-var">_optHiddenArgumentPuns</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-142"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Should patterns of the form @{x}@ or @&#10627; x &#10628;@ be interpreted as puns?</span></span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optEta"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optEta"><span class="hs-identifier hs-var hs-var">_optEta</span></a></span></span><span>                       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optForcing"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optForcing"><span class="hs-identifier hs-var hs-var">_optForcing</span></a></span></span><span>                   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-145"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Perform the forcing analysis on data constructors?</span></span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optProjectionLike"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optProjectionLike"><span class="hs-identifier hs-var hs-var">_optProjectionLike</span></a></span></span><span>            </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-147"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Perform the projection-likeness analysis on functions?</span></span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optErasure"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optErasure"><span class="hs-identifier hs-var hs-var">_optErasure</span></a></span></span><span>                   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optErasedMatches"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optErasedMatches"><span class="hs-identifier hs-var hs-var">_optErasedMatches</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-150"></span><span>      </span><span class="hs-comment">-- ^ Allow matching in erased positions for single-constructor,</span><span>
+</span><span id="line-151"></span><span>      </span><span class="hs-comment">-- non-indexed data/record types. (This kind of matching is always</span><span>
+</span><span id="line-152"></span><span>      </span><span class="hs-comment">-- allowed for record types with &#951;-equality.)</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optEraseRecordParameters"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optEraseRecordParameters"><span class="hs-identifier hs-var hs-var">_optEraseRecordParameters</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-154"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Mark parameters of record modules as erased?</span></span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optRewriting"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optRewriting"><span class="hs-identifier hs-var hs-var">_optRewriting</span></a></span></span><span>                 </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-156"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Can rewrite rules be added and used?</span></span><span>
+</span><span id="line-157"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCubical"><span class="annot"><span class="annottext">PragmaOptions -&gt; Maybe Cubical
+</span><a href="Agda.Interaction.Options.Types.html#_optCubical"><span class="hs-identifier hs-var hs-var">_optCubical</span></a></span></span><span>                   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Cubical"><span class="hs-identifier hs-type">Cubical</span></a></span><span>
+</span><span id="line-158"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optGuarded"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optGuarded"><span class="hs-identifier hs-var hs-var">_optGuarded</span></a></span></span><span>                   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-159"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optFirstOrder"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optFirstOrder"><span class="hs-identifier hs-var hs-var">_optFirstOrder</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-160"></span><span>      </span><span class="hs-comment">-- ^ Should we speculatively unify function applications as if they were injective? Implies</span><span>
+</span><span id="line-161"></span><span>      </span><span class="hs-comment">--   optRequireUniqueMetaSolutions.</span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optRequireUniqueMetaSolutions"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optRequireUniqueMetaSolutions"><span class="hs-identifier hs-var hs-var">_optRequireUniqueMetaSolutions</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-163"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Forbid non-unique meta solutions allowed. For instance from INJECTIVE_FOR_INFERENCE pragmas.</span></span><span>
+</span><span id="line-164"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optPostfixProjections"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPostfixProjections"><span class="hs-identifier hs-var hs-var">_optPostfixProjections</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-165"></span><span>      </span><span class="hs-comment">-- ^ Should system generated projections 'ProjSystem' be printed</span><span>
+</span><span id="line-166"></span><span>      </span><span class="hs-comment">--   postfix (True) or prefix (False).</span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optKeepPatternVariables"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optKeepPatternVariables"><span class="hs-identifier hs-var hs-var">_optKeepPatternVariables</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-168"></span><span>      </span><span class="hs-comment">-- ^ Should case splitting replace variables with dot patterns</span><span>
+</span><span id="line-169"></span><span>      </span><span class="hs-comment">--   (False) or keep them as variables (True).</span><span>
+</span><span id="line-170"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optInferAbsurdClauses"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optInferAbsurdClauses"><span class="hs-identifier hs-var hs-var">_optInferAbsurdClauses</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-171"></span><span>      </span><span class="hs-comment">-- ^ Should case splitting and coverage checking try to discharge absurd clauses?</span><span>
+</span><span id="line-172"></span><span>      </span><span class="hs-comment">--   Default: 'True', but 'False' might make coverage checking considerably faster in some cases.</span><span>
+</span><span id="line-173"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optInstanceSearchDepth"><span class="annot"><span class="annottext">PragmaOptions -&gt; Int
+</span><a href="Agda.Interaction.Options.Types.html#_optInstanceSearchDepth"><span class="hs-identifier hs-var hs-var">_optInstanceSearchDepth</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-174"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optBacktrackingInstances"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optBacktrackingInstances"><span class="hs-identifier hs-var hs-var">_optBacktrackingInstances</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-175"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optQualifiedInstances"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optQualifiedInstances"><span class="hs-identifier hs-var hs-var">_optQualifiedInstances</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-176"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Should instance search consider instances with qualified names?</span></span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optInversionMaxDepth"><span class="annot"><span class="annottext">PragmaOptions -&gt; Int
+</span><a href="Agda.Interaction.Options.Types.html#_optInversionMaxDepth"><span class="hs-identifier hs-var hs-var">_optInversionMaxDepth</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-178"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optSafe"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optSafe"><span class="hs-identifier hs-var hs-var">_optSafe</span></a></span></span><span>                      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-179"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optDoubleCheck"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optDoubleCheck"><span class="hs-identifier hs-var hs-var">_optDoubleCheck</span></a></span></span><span>               </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-180"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optSyntacticEquality"><span class="annot"><span class="annottext">PragmaOptions -&gt; Maybe Int
+</span><a href="Agda.Interaction.Options.Types.html#_optSyntacticEquality"><span class="hs-identifier hs-var hs-var">_optSyntacticEquality</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Strict.Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-181"></span><span>      </span><span class="hs-comment">-- ^ Should the conversion checker use the syntactic equality shortcut?</span><span>
+</span><span id="line-182"></span><span>      </span><span class="hs-comment">-- 'Nothing' means that it should.</span><span>
+</span><span id="line-183"></span><span>      </span><span class="hs-comment">-- @'Just' n@, for a non-negative number @n@, means that syntactic equality</span><span>
+</span><span id="line-184"></span><span>      </span><span class="hs-comment">-- checking gets @n@ units of fuel.</span><span>
+</span><span id="line-185"></span><span>      </span><span class="hs-comment">-- If the fuel becomes zero, then syntactic equality checking is turned off.</span><span>
+</span><span id="line-186"></span><span>      </span><span class="hs-comment">-- The fuel counter is decreased in the failure continuation of</span><span>
+</span><span id="line-187"></span><span>      </span><span class="hs-comment">-- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.</span><span>
+</span><span id="line-188"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optWarningMode"><span class="annot"><span class="annottext">PragmaOptions -&gt; WarningMode
+</span><a href="Agda.Interaction.Options.Types.html#_optWarningMode"><span class="hs-identifier hs-var hs-var">_optWarningMode</span></a></span></span><span>               </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#WarningMode"><span class="hs-identifier hs-type">WarningMode</span></a></span><span>
+</span><span id="line-189"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCompileMain"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optCompileMain"><span class="hs-identifier hs-var hs-var">_optCompileMain</span></a></span></span><span>               </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-190"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Treat the module given at the command line or via interaction as main module in compilation?</span></span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCaching"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optCaching"><span class="hs-identifier hs-var hs-var">_optCaching</span></a></span></span><span>                   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCountClusters"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCountClusters"><span class="hs-identifier hs-var hs-var">_optCountClusters</span></a></span></span><span>             </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-193"></span><span>      </span><span class="hs-comment">-- ^ Count extended grapheme clusters rather than code points</span><span>
+</span><span id="line-194"></span><span>      </span><span class="hs-comment">--   when generating LaTeX.</span><span>
+</span><span id="line-195"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optAutoInline"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAutoInline"><span class="hs-identifier hs-var hs-var">_optAutoInline</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-196"></span><span>      </span><span class="hs-comment">-- ^ Automatic compile-time inlining for simple definitions</span><span>
+</span><span id="line-197"></span><span>      </span><span class="hs-comment">--   (unless marked @NOINLINE@).</span><span>
+</span><span id="line-198"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optPrintPatternSynonyms"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optPrintPatternSynonyms"><span class="hs-identifier hs-var hs-var">_optPrintPatternSynonyms</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-199"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optFastReduce"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optFastReduce"><span class="hs-identifier hs-var hs-var">_optFastReduce</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-200"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Use the Agda abstract machine ('fastReduce')?</span></span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCallByName"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCallByName"><span class="hs-identifier hs-var hs-var">_optCallByName</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-202"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Use call-by-name instead of call-by-need.</span></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optConfluenceCheck"><span class="annot"><span class="annottext">PragmaOptions -&gt; Maybe ConfluenceCheck
+</span><a href="Agda.Interaction.Options.Types.html#_optConfluenceCheck"><span class="hs-identifier hs-var hs-var">_optConfluenceCheck</span></a></span></span><span>           </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#ConfluenceCheck"><span class="hs-identifier hs-type">ConfluenceCheck</span></a></span><span>
+</span><span id="line-204"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Check confluence of rewrite rules?</span></span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optCohesion"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optCohesion"><span class="hs-identifier hs-var hs-var">_optCohesion</span></a></span></span><span>                  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-206"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Are the cohesion modalities available?</span></span><span>
+</span><span id="line-207"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optFlatSplit"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optFlatSplit"><span class="hs-identifier hs-var hs-var">_optFlatSplit</span></a></span></span><span>                 </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-208"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Can we split on a @(\@flat x : A)@ argument?</span></span><span>
+</span><span id="line-209"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optPolarity"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optPolarity"><span class="hs-identifier hs-var hs-var">_optPolarity</span></a></span></span><span>                  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-210"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Can we use modal polarities (@++, @+, etc.)?</span></span><span>
+</span><span id="line-211"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optOccurrence"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optOccurrence"><span class="hs-identifier hs-var hs-var">_optOccurrence</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-212"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Perform automated occurrence analysis for functions?</span></span><span>
+</span><span id="line-213"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optImportSorts"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optImportSorts"><span class="hs-identifier hs-var hs-var">_optImportSorts</span></a></span></span><span>               </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-214"></span><span>      </span><span class="hs-comment">-- ^ Should every top-level module start with an implicit statement</span><span>
+</span><span id="line-215"></span><span>      </span><span class="hs-comment">--   @open import Agda.Primitive using (Set; Prop)@?</span><span>
+</span><span id="line-216"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optLoadPrimitives"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optLoadPrimitives"><span class="hs-identifier hs-var hs-var">_optLoadPrimitives</span></a></span></span><span>            </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-217"></span><span>      </span><span class="hs-comment">-- ^ Should we load the primitive modules at all?</span><span>
+</span><span id="line-218"></span><span>      </span><span class="hs-comment">--   This is a stronger form of 'optImportSorts'.</span><span>
+</span><span id="line-219"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optAllowExec"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optAllowExec"><span class="hs-identifier hs-var hs-var">_optAllowExec</span></a></span></span><span>                 </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-220"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Allow running external @executables@ from meta programs.</span></span><span>
+</span><span id="line-221"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optSaveMetas"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optSaveMetas"><span class="hs-identifier hs-var hs-var">_optSaveMetas</span></a></span></span><span>                 </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-222"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Save meta-variables to interface files.</span></span><span>
+</span><span id="line-223"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optShowIdentitySubstitutions"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optShowIdentitySubstitutions"><span class="hs-identifier hs-var hs-var">_optShowIdentitySubstitutions</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-224"></span><span>      </span><span class="hs-comment">-- ^ Show identity substitutions when pretty-printing terms</span><span>
+</span><span id="line-225"></span><span>      </span><span class="hs-comment">--   (i.e. always show all arguments of a metavariable).</span><span>
+</span><span id="line-226"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optKeepCoveringClauses"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optKeepCoveringClauses"><span class="hs-identifier hs-var hs-var">_optKeepCoveringClauses</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-227"></span><span>      </span><span class="hs-comment">-- ^ Do not discard clauses constructed by the coverage checker</span><span>
+</span><span id="line-228"></span><span>      </span><span class="hs-comment">--   (needed for some external backends).</span><span>
+</span><span id="line-229"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optLargeIndices"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optLargeIndices"><span class="hs-identifier hs-var hs-var">_optLargeIndices</span></a></span></span><span>              </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-230"></span><span>      </span><span class="hs-comment">-- ^ Allow large indices, and large forced arguments in</span><span>
+</span><span id="line-231"></span><span>      </span><span class="hs-comment">-- constructors.</span><span>
+</span><span id="line-232"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optForcedArgumentRecursion"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'True
+</span><a href="Agda.Interaction.Options.Types.html#_optForcedArgumentRecursion"><span class="hs-identifier hs-var hs-var">_optForcedArgumentRecursion</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span>
+</span><span id="line-233"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Allow recursion on forced constructor arguments.</span></span><span>
+</span><span id="line-234"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optExperimentalLazyInstances"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optExperimentalLazyInstances"><span class="hs-identifier hs-var hs-var">_optExperimentalLazyInstances</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-235"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Defer instance search based on discrimination tree results</span></span><span>
+</span><span id="line-236"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_optQuoteMetas"><span class="annot"><span class="annottext">PragmaOptions -&gt; WithDefault 'False
+</span><a href="Agda.Interaction.Options.Types.html#_optQuoteMetas"><span class="hs-identifier hs-var hs-var">_optQuoteMetas</span></a></span></span><span>                </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="hs-special">'</span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span>
+</span><span id="line-237"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-238"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681815669"><span id="local-6989586621681815756"><span id="local-6989586621681815759"><span class="annot"><span class="annottext">Int -&gt; PragmaOptions -&gt; ShowS
+[PragmaOptions] -&gt; ShowS
+PragmaOptions -&gt; String
+(Int -&gt; PragmaOptions -&gt; ShowS)
+-&gt; (PragmaOptions -&gt; String)
+-&gt; ([PragmaOptions] -&gt; ShowS)
+-&gt; Show PragmaOptions
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; PragmaOptions -&gt; ShowS
+showsPrec :: Int -&gt; PragmaOptions -&gt; ShowS
+$cshow :: PragmaOptions -&gt; String
+show :: PragmaOptions -&gt; String
+$cshowList :: [PragmaOptions] -&gt; ShowS
+showList :: [PragmaOptions] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815770"><span id="local-6989586621681815857"><span class="annot"><span class="annottext">PragmaOptions -&gt; PragmaOptions -&gt; Bool
+(PragmaOptions -&gt; PragmaOptions -&gt; Bool)
+-&gt; (PragmaOptions -&gt; PragmaOptions -&gt; Bool) -&gt; Eq PragmaOptions
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: PragmaOptions -&gt; PragmaOptions -&gt; Bool
+== :: PragmaOptions -&gt; PragmaOptions -&gt; Bool
+$c/= :: PragmaOptions -&gt; PragmaOptions -&gt; Bool
+/= :: PragmaOptions -&gt; PragmaOptions -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815872"><span id="local-6989586621681815874"><span class="annot"><span class="annottext">(forall x. PragmaOptions -&gt; Rep PragmaOptions x)
+-&gt; (forall x. Rep PragmaOptions x -&gt; PragmaOptions)
+-&gt; Generic PragmaOptions
+forall x. Rep PragmaOptions x -&gt; PragmaOptions
+forall x. PragmaOptions -&gt; Rep PragmaOptions x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. PragmaOptions -&gt; Rep PragmaOptions x
+from :: forall x. PragmaOptions -&gt; Rep PragmaOptions x
+$cto :: forall x. Rep PragmaOptions x -&gt; PragmaOptions
+to :: forall x. Rep PragmaOptions x -&gt; PragmaOptions
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-239"></span><span>
+</span><span id="line-240"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-241"></span><span class="annot"><span class="hs-comment">-- * Auxiliary structures (by default in alphabetic order)</span></span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span class="hs-keyword">data</span><span> </span><span id="ConfluenceCheck"><span class="annot"><a href="Agda.Interaction.Options.Types.html#ConfluenceCheck"><span class="hs-identifier hs-var">ConfluenceCheck</span></a></span></span><span>
+</span><span id="line-244"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="LocalConfluenceCheck"><span class="annot"><a href="Agda.Interaction.Options.Types.html#LocalConfluenceCheck"><span class="hs-identifier hs-var">LocalConfluenceCheck</span></a></span></span><span>
+</span><span id="line-245"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="GlobalConfluenceCheck"><span class="annot"><a href="Agda.Interaction.Options.Types.html#GlobalConfluenceCheck"><span class="hs-identifier hs-var">GlobalConfluenceCheck</span></a></span></span><span>
+</span><span id="line-246"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681815879"><span id="local-6989586621681815881"><span id="local-6989586621681815884"><span class="annot"><span class="annottext">Int -&gt; ConfluenceCheck -&gt; ShowS
+[ConfluenceCheck] -&gt; ShowS
+ConfluenceCheck -&gt; String
+(Int -&gt; ConfluenceCheck -&gt; ShowS)
+-&gt; (ConfluenceCheck -&gt; String)
+-&gt; ([ConfluenceCheck] -&gt; ShowS)
+-&gt; Show ConfluenceCheck
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; ConfluenceCheck -&gt; ShowS
+showsPrec :: Int -&gt; ConfluenceCheck -&gt; ShowS
+$cshow :: ConfluenceCheck -&gt; String
+show :: ConfluenceCheck -&gt; String
+$cshowList :: [ConfluenceCheck] -&gt; ShowS
+showList :: [ConfluenceCheck] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815887"><span id="local-6989586621681815892"><span class="annot"><span class="annottext">ConfluenceCheck -&gt; ConfluenceCheck -&gt; Bool
+(ConfluenceCheck -&gt; ConfluenceCheck -&gt; Bool)
+-&gt; (ConfluenceCheck -&gt; ConfluenceCheck -&gt; Bool)
+-&gt; Eq ConfluenceCheck
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ConfluenceCheck -&gt; ConfluenceCheck -&gt; Bool
+== :: ConfluenceCheck -&gt; ConfluenceCheck -&gt; Bool
+$c/= :: ConfluenceCheck -&gt; ConfluenceCheck -&gt; Bool
+/= :: ConfluenceCheck -&gt; ConfluenceCheck -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815895"><span id="local-6989586621681815897"><span class="annot"><span class="annottext">(forall x. ConfluenceCheck -&gt; Rep ConfluenceCheck x)
+-&gt; (forall x. Rep ConfluenceCheck x -&gt; ConfluenceCheck)
+-&gt; Generic ConfluenceCheck
+forall x. Rep ConfluenceCheck x -&gt; ConfluenceCheck
+forall x. ConfluenceCheck -&gt; Rep ConfluenceCheck x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. ConfluenceCheck -&gt; Rep ConfluenceCheck x
+from :: forall x. ConfluenceCheck -&gt; Rep ConfluenceCheck x
+$cto :: forall x. Rep ConfluenceCheck x -&gt; ConfluenceCheck
+to :: forall x. Rep ConfluenceCheck x -&gt; ConfluenceCheck
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-247"></span><span>
+</span><span id="line-248"></span><span class="hs-keyword">data</span><span> </span><span id="DiagnosticsColours"><span class="annot"><a href="Agda.Interaction.Options.Types.html#DiagnosticsColours"><span class="hs-identifier hs-var">DiagnosticsColours</span></a></span></span><span>
+</span><span id="line-249"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="AlwaysColour"><span class="annot"><a href="Agda.Interaction.Options.Types.html#AlwaysColour"><span class="hs-identifier hs-var">AlwaysColour</span></a></span></span><span>
+</span><span id="line-250"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="NeverColour"><span class="annot"><a href="Agda.Interaction.Options.Types.html#NeverColour"><span class="hs-identifier hs-var">NeverColour</span></a></span></span><span>
+</span><span id="line-251"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="AutoColour"><span class="annot"><a href="Agda.Interaction.Options.Types.html#AutoColour"><span class="hs-identifier hs-var">AutoColour</span></a></span></span><span>
+</span><span id="line-252"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681815903"><span id="local-6989586621681815905"><span id="local-6989586621681815908"><span class="annot"><span class="annottext">Int -&gt; DiagnosticsColours -&gt; ShowS
+[DiagnosticsColours] -&gt; ShowS
+DiagnosticsColours -&gt; String
+(Int -&gt; DiagnosticsColours -&gt; ShowS)
+-&gt; (DiagnosticsColours -&gt; String)
+-&gt; ([DiagnosticsColours] -&gt; ShowS)
+-&gt; Show DiagnosticsColours
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; DiagnosticsColours -&gt; ShowS
+showsPrec :: Int -&gt; DiagnosticsColours -&gt; ShowS
+$cshow :: DiagnosticsColours -&gt; String
+show :: DiagnosticsColours -&gt; String
+$cshowList :: [DiagnosticsColours] -&gt; ShowS
+showList :: [DiagnosticsColours] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815911"><span id="local-6989586621681815913"><span class="annot"><span class="annottext">(forall x. DiagnosticsColours -&gt; Rep DiagnosticsColours x)
+-&gt; (forall x. Rep DiagnosticsColours x -&gt; DiagnosticsColours)
+-&gt; Generic DiagnosticsColours
+forall x. Rep DiagnosticsColours x -&gt; DiagnosticsColours
+forall x. DiagnosticsColours -&gt; Rep DiagnosticsColours x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. DiagnosticsColours -&gt; Rep DiagnosticsColours x
+from :: forall x. DiagnosticsColours -&gt; Rep DiagnosticsColours x
+$cto :: forall x. Rep DiagnosticsColours x -&gt; DiagnosticsColours
+to :: forall x. Rep DiagnosticsColours x -&gt; DiagnosticsColours
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-253"></span><span>
+</span><span id="line-254"></span><span class="hs-keyword">data</span><span> </span><span id="Parallelism"><span class="annot"><a href="Agda.Interaction.Options.Types.html#Parallelism"><span class="hs-identifier hs-var">Parallelism</span></a></span></span><span>
+</span><span id="line-255"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Sequential"><span class="annot"><a href="Agda.Interaction.Options.Types.html#Sequential"><span class="hs-identifier hs-var">Sequential</span></a></span></span><span>
+</span><span id="line-256"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Parallel"><span class="annot"><a href="Agda.Interaction.Options.Types.html#Parallel"><span class="hs-identifier hs-var">Parallel</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-257"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681815918"><span id="local-6989586621681815923"><span id="local-6989586621681815926"><span class="annot"><span class="annottext">Int -&gt; Parallelism -&gt; ShowS
+[Parallelism] -&gt; ShowS
+Parallelism -&gt; String
+(Int -&gt; Parallelism -&gt; ShowS)
+-&gt; (Parallelism -&gt; String)
+-&gt; ([Parallelism] -&gt; ShowS)
+-&gt; Show Parallelism
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Parallelism -&gt; ShowS
+showsPrec :: Int -&gt; Parallelism -&gt; ShowS
+$cshow :: Parallelism -&gt; String
+show :: Parallelism -&gt; String
+$cshowList :: [Parallelism] -&gt; ShowS
+showList :: [Parallelism] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815929"><span id="local-6989586621681815931"><span class="annot"><span class="annottext">(forall x. Parallelism -&gt; Rep Parallelism x)
+-&gt; (forall x. Rep Parallelism x -&gt; Parallelism)
+-&gt; Generic Parallelism
+forall x. Rep Parallelism x -&gt; Parallelism
+forall x. Parallelism -&gt; Rep Parallelism x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Parallelism -&gt; Rep Parallelism x
+from :: forall x. Parallelism -&gt; Rep Parallelism x
+$cto :: forall x. Rep Parallelism x -&gt; Parallelism
+to :: forall x. Rep Parallelism x -&gt; Parallelism
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-258"></span><span>
+</span><span id="line-259"></span><span class="hs-comment">-- | If several @--emacs-mode@ commands are given,</span><span>
+</span><span id="line-260"></span><span class="hs-comment">--   they are executed in the order as given in this datatype.</span><span>
+</span><span id="line-261"></span><span class="hs-keyword">data</span><span> </span><span id="EmacsModeCommand"><span class="annot"><a href="Agda.Interaction.Options.Types.html#EmacsModeCommand"><span class="hs-identifier hs-var">EmacsModeCommand</span></a></span></span><span>
+</span><span id="line-262"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="EmacsModeCompile"><span class="annot"><a href="Agda.Interaction.Options.Types.html#EmacsModeCompile"><span class="hs-identifier hs-var">EmacsModeCompile</span></a></span></span><span>
+</span><span id="line-263"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Compile the @.el@ files to @.elc@.</span></span><span>
+</span><span id="line-264"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="EmacsModeSetup"><span class="annot"><a href="Agda.Interaction.Options.Types.html#EmacsModeSetup"><span class="hs-identifier hs-var">EmacsModeSetup</span></a></span></span><span>
+</span><span id="line-265"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Add the initialization lines to @.emacs@.</span></span><span>
+</span><span id="line-266"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="EmacsModeLocate"><span class="annot"><a href="Agda.Interaction.Options.Types.html#EmacsModeLocate"><span class="hs-identifier hs-var">EmacsModeLocate</span></a></span></span><span>
+</span><span id="line-267"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Print the installation location of @agda2.el@.</span></span><span>
+</span><span id="line-268"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681815937"><span id="local-6989586621681815941"><span class="annot"><span class="annottext">EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+(EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool)
+-&gt; (EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool)
+-&gt; Eq EmacsModeCommand
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+== :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+$c/= :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+/= :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815947"><span id="local-6989586621681815951"><span id="local-6989586621681815955"><span id="local-6989586621681815959"><span id="local-6989586621681815962"><span id="local-6989586621681815965"><span id="local-6989586621681815968"><span class="annot"><span class="annottext">Eq EmacsModeCommand
+Eq EmacsModeCommand =&gt;
+(EmacsModeCommand -&gt; EmacsModeCommand -&gt; Ordering)
+-&gt; (EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool)
+-&gt; (EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool)
+-&gt; (EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool)
+-&gt; (EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool)
+-&gt; (EmacsModeCommand -&gt; EmacsModeCommand -&gt; EmacsModeCommand)
+-&gt; (EmacsModeCommand -&gt; EmacsModeCommand -&gt; EmacsModeCommand)
+-&gt; Ord EmacsModeCommand
+EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+EmacsModeCommand -&gt; EmacsModeCommand -&gt; Ordering
+EmacsModeCommand -&gt; EmacsModeCommand -&gt; EmacsModeCommand
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Ordering
+compare :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Ordering
+$c&lt; :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+&lt; :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+$c&lt;= :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+&lt;= :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+$c&gt; :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+&gt; :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+$c&gt;= :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+&gt;= :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; Bool
+$cmax :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; EmacsModeCommand
+max :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; EmacsModeCommand
+$cmin :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; EmacsModeCommand
+min :: EmacsModeCommand -&gt; EmacsModeCommand -&gt; EmacsModeCommand
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815976"><span id="local-6989586621681815978"><span id="local-6989586621681815981"><span class="annot"><span class="annottext">Int -&gt; EmacsModeCommand -&gt; ShowS
+[EmacsModeCommand] -&gt; ShowS
+EmacsModeCommand -&gt; String
+(Int -&gt; EmacsModeCommand -&gt; ShowS)
+-&gt; (EmacsModeCommand -&gt; String)
+-&gt; ([EmacsModeCommand] -&gt; ShowS)
+-&gt; Show EmacsModeCommand
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; EmacsModeCommand -&gt; ShowS
+showsPrec :: Int -&gt; EmacsModeCommand -&gt; ShowS
+$cshow :: EmacsModeCommand -&gt; String
+show :: EmacsModeCommand -&gt; String
+$cshowList :: [EmacsModeCommand] -&gt; ShowS
+showList :: [EmacsModeCommand] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815984"><span id="local-6989586621681815986"><span class="annot"><span class="annottext">(forall x. EmacsModeCommand -&gt; Rep EmacsModeCommand x)
+-&gt; (forall x. Rep EmacsModeCommand x -&gt; EmacsModeCommand)
+-&gt; Generic EmacsModeCommand
+forall x. Rep EmacsModeCommand x -&gt; EmacsModeCommand
+forall x. EmacsModeCommand -&gt; Rep EmacsModeCommand x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. EmacsModeCommand -&gt; Rep EmacsModeCommand x
+from :: forall x. EmacsModeCommand -&gt; Rep EmacsModeCommand x
+$cto :: forall x. Rep EmacsModeCommand x -&gt; EmacsModeCommand
+to :: forall x. Rep EmacsModeCommand x -&gt; EmacsModeCommand
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-269"></span><span>
+</span><span id="line-270"></span><span class="annot"><span class="hs-comment">-- | Infective or coinfective?</span></span><span>
+</span><span id="line-271"></span><span class="hs-keyword">data</span><span> </span><span id="InfectiveCoinfective"><span class="annot"><a href="Agda.Interaction.Options.Types.html#InfectiveCoinfective"><span class="hs-identifier hs-var">InfectiveCoinfective</span></a></span></span><span>
+</span><span id="line-272"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Infective"><span class="annot"><a href="Agda.Interaction.Options.Types.html#Infective"><span class="hs-identifier hs-var">Infective</span></a></span></span><span>
+</span><span id="line-273"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Coinfective"><span class="annot"><a href="Agda.Interaction.Options.Types.html#Coinfective"><span class="hs-identifier hs-var">Coinfective</span></a></span></span><span>
+</span><span id="line-274"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681815991"><span id="local-6989586621681815995"><span class="annot"><span class="annottext">InfectiveCoinfective -&gt; InfectiveCoinfective -&gt; Bool
+(InfectiveCoinfective -&gt; InfectiveCoinfective -&gt; Bool)
+-&gt; (InfectiveCoinfective -&gt; InfectiveCoinfective -&gt; Bool)
+-&gt; Eq InfectiveCoinfective
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: InfectiveCoinfective -&gt; InfectiveCoinfective -&gt; Bool
+== :: InfectiveCoinfective -&gt; InfectiveCoinfective -&gt; Bool
+$c/= :: InfectiveCoinfective -&gt; InfectiveCoinfective -&gt; Bool
+/= :: InfectiveCoinfective -&gt; InfectiveCoinfective -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681815999"><span id="local-6989586621681816001"><span id="local-6989586621681816005"><span class="annot"><span class="annottext">Int -&gt; InfectiveCoinfective -&gt; ShowS
+[InfectiveCoinfective] -&gt; ShowS
+InfectiveCoinfective -&gt; String
+(Int -&gt; InfectiveCoinfective -&gt; ShowS)
+-&gt; (InfectiveCoinfective -&gt; String)
+-&gt; ([InfectiveCoinfective] -&gt; ShowS)
+-&gt; Show InfectiveCoinfective
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; InfectiveCoinfective -&gt; ShowS
+showsPrec :: Int -&gt; InfectiveCoinfective -&gt; ShowS
+$cshow :: InfectiveCoinfective -&gt; String
+show :: InfectiveCoinfective -&gt; String
+$cshowList :: [InfectiveCoinfective] -&gt; ShowS
+showList :: [InfectiveCoinfective] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681816008"><span id="local-6989586621681816010"><span class="annot"><span class="annottext">(forall x. InfectiveCoinfective -&gt; Rep InfectiveCoinfective x)
+-&gt; (forall x. Rep InfectiveCoinfective x -&gt; InfectiveCoinfective)
+-&gt; Generic InfectiveCoinfective
+forall x. Rep InfectiveCoinfective x -&gt; InfectiveCoinfective
+forall x. InfectiveCoinfective -&gt; Rep InfectiveCoinfective x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. InfectiveCoinfective -&gt; Rep InfectiveCoinfective x
+from :: forall x. InfectiveCoinfective -&gt; Rep InfectiveCoinfective x
+$cto :: forall x. Rep InfectiveCoinfective x -&gt; InfectiveCoinfective
+to :: forall x. Rep InfectiveCoinfective x -&gt; InfectiveCoinfective
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-275"></span><span>
+</span><span id="line-276"></span><span class="annot"><span class="hs-comment">-- | Options @--version@ and @--numeric-version@ (last wins).</span></span><span>
+</span><span id="line-277"></span><span class="hs-keyword">data</span><span> </span><span id="PrintAgdaVersion"><span class="annot"><a href="Agda.Interaction.Options.Types.html#PrintAgdaVersion"><span class="hs-identifier hs-var">PrintAgdaVersion</span></a></span></span><span>
+</span><span id="line-278"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="PrintAgdaVersion"><span class="annot"><a href="Agda.Interaction.Options.Types.html#PrintAgdaVersion"><span class="hs-identifier hs-var">PrintAgdaVersion</span></a></span></span><span>
+</span><span id="line-279"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Print Agda version information.</span></span><span>
+</span><span id="line-280"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="PrintAgdaNumericVersion"><span class="annot"><a href="Agda.Interaction.Options.Types.html#PrintAgdaNumericVersion"><span class="hs-identifier hs-var">PrintAgdaNumericVersion</span></a></span></span><span>
+</span><span id="line-281"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Print Agda version number.</span></span><span>
+</span><span id="line-282"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681816015"><span id="local-6989586621681816017"><span id="local-6989586621681816020"><span class="annot"><span class="annottext">Int -&gt; PrintAgdaVersion -&gt; ShowS
+[PrintAgdaVersion] -&gt; ShowS
+PrintAgdaVersion -&gt; String
+(Int -&gt; PrintAgdaVersion -&gt; ShowS)
+-&gt; (PrintAgdaVersion -&gt; String)
+-&gt; ([PrintAgdaVersion] -&gt; ShowS)
+-&gt; Show PrintAgdaVersion
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; PrintAgdaVersion -&gt; ShowS
+showsPrec :: Int -&gt; PrintAgdaVersion -&gt; ShowS
+$cshow :: PrintAgdaVersion -&gt; String
+show :: PrintAgdaVersion -&gt; String
+$cshowList :: [PrintAgdaVersion] -&gt; ShowS
+showList :: [PrintAgdaVersion] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681816023"><span id="local-6989586621681816025"><span class="annot"><span class="annottext">(forall x. PrintAgdaVersion -&gt; Rep PrintAgdaVersion x)
+-&gt; (forall x. Rep PrintAgdaVersion x -&gt; PrintAgdaVersion)
+-&gt; Generic PrintAgdaVersion
+forall x. Rep PrintAgdaVersion x -&gt; PrintAgdaVersion
+forall x. PrintAgdaVersion -&gt; Rep PrintAgdaVersion x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. PrintAgdaVersion -&gt; Rep PrintAgdaVersion x
+from :: forall x. PrintAgdaVersion -&gt; Rep PrintAgdaVersion x
+$cto :: forall x. Rep PrintAgdaVersion x -&gt; PrintAgdaVersion
+to :: forall x. Rep PrintAgdaVersion x -&gt; PrintAgdaVersion
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-283"></span><span>
+</span><span id="line-284"></span><span class="hs-keyword">type</span><span> </span><span id="VerboseKey"><span class="annot"><a href="Agda.Interaction.Options.Types.html#VerboseKey"><span class="hs-identifier hs-var">VerboseKey</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-285"></span><span class="hs-keyword">type</span><span> </span><span id="VerboseKeyItem"><span class="annot"><a href="Agda.Interaction.Options.Types.html#VerboseKeyItem"><span class="hs-identifier hs-var">VerboseKeyItem</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#String1"><span class="hs-identifier hs-type">String1</span></a></span><span>
+</span><span id="line-286"></span><span class="hs-keyword">type</span><span> </span><span id="VerboseLevel"><span class="annot"><a href="Agda.Interaction.Options.Types.html#VerboseLevel"><span class="hs-identifier hs-var">VerboseLevel</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-287"></span><span>
+</span><span id="line-288"></span><span class="hs-comment">-- | 'Strict.Nothing' is used if no verbosity options have been given,</span><span>
+</span><span id="line-289"></span><span class="hs-comment">-- thus making it possible to handle the default case relatively</span><span>
+</span><span id="line-290"></span><span class="hs-comment">-- quickly. Note that 'Strict.Nothing' corresponds to a trie with</span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- verbosity level 1 for the empty path.</span><span>
+</span><span id="line-292"></span><span class="hs-keyword">type</span><span> </span><span id="Verbosity"><span class="annot"><a href="Agda.Interaction.Options.Types.html#Verbosity"><span class="hs-identifier hs-var">Verbosity</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Strict.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#VerboseKeyItem"><span class="hs-identifier hs-type">VerboseKeyItem</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#VerboseLevel"><span class="hs-identifier hs-type">VerboseLevel</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-293"></span><span>
+</span><span id="line-294"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-295"></span><span class="annot"><span class="hs-comment">-- * Lenses</span></span><span>
+</span><span id="line-296"></span><span>
+</span><span id="line-297"></span><span class="hs-keyword">class</span><span> </span><span id="LensPragmaOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#LensPragmaOptions"><span class="hs-identifier hs-var">LensPragmaOptions</span></a></span></span><span> </span><span id="local-6989586621681815428"><span class="annot"><a href="#local-6989586621681815428"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-298"></span><span>  </span><span id="getPragmaOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#getPragmaOptions"><span class="hs-identifier hs-type">getPragmaOptions</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681815428"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span>
+</span><span id="line-299"></span><span>  </span><span id="setPragmaOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#setPragmaOptions"><span class="hs-identifier hs-type">setPragmaOptions</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681815428"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681815428"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-300"></span><span>  </span><span id="mapPragmaOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#mapPragmaOptions"><span class="hs-identifier hs-type">mapPragmaOptions</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681815428"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681815428"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-301"></span><span>  </span><span id="lensPragmaOptions"><span class="annot"><a href="Agda.Interaction.Options.Types.html#lensPragmaOptions"><span class="hs-identifier hs-type">lensPragmaOptions</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681815428"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span><span>
+</span><span id="line-302"></span><span>
+</span><span id="line-303"></span><span>  </span><span class="hs-pragma">{-# MINIMAL</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#lensPragmaOptions"><span class="hs-pragma hs-type">lensPragmaOptions</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-304"></span><span>  </span><span id="local-6989586621681816035"><span class="annot"><a href="Agda.Interaction.Options.Types.html#getPragmaOptions"><span class="hs-identifier hs-var hs-var">getPragmaOptions</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Lens' a PragmaOptions -&gt; PragmaOptions
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; f PragmaOptions) -&gt; a -&gt; f a
+forall a. LensPragmaOptions a =&gt; Lens' a PragmaOptions
+Lens' a PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#lensPragmaOptions"><span class="hs-identifier hs-var">lensPragmaOptions</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-305"></span><span>  </span><span id="local-6989586621681816041"><span class="annot"><a href="Agda.Interaction.Options.Types.html#setPragmaOptions"><span class="hs-identifier hs-var hs-var">setPragmaOptions</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a
+forall a.
+LensPragmaOptions a =&gt;
+(PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a
+</span><a href="Agda.Interaction.Options.Types.html#mapPragmaOptions"><span class="hs-identifier hs-var">mapPragmaOptions</span></a></span><span> </span><span class="annot"><span class="annottext">((PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a)
+-&gt; (PragmaOptions -&gt; PragmaOptions -&gt; PragmaOptions)
+-&gt; PragmaOptions
+-&gt; a
+-&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; PragmaOptions -&gt; PragmaOptions
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span></span><span>
+</span><span id="line-306"></span><span>  </span><span id="local-6989586621681816045"><span class="annot"><a href="Agda.Interaction.Options.Types.html#mapPragmaOptions"><span class="hs-identifier hs-var hs-var">mapPragmaOptions</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' a PragmaOptions -&gt; (PragmaOptions -&gt; PragmaOptions) -&gt; a -&gt; a
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; f PragmaOptions) -&gt; a -&gt; f a
+forall a. LensPragmaOptions a =&gt; Lens' a PragmaOptions
+Lens' a PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#lensPragmaOptions"><span class="hs-identifier hs-var">lensPragmaOptions</span></a></span></span><span>
+</span><span id="line-307"></span><span>
+</span><span id="line-308"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816050"><span id="local-6989586621681816054"><span id="local-6989586621681816057"><span class="annot"><a href="Agda.Interaction.Options.Types.html#LensPragmaOptions"><span class="hs-identifier hs-type">LensPragmaOptions</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-309"></span><span>  </span><span id="local-6989586621681816063"><span class="annot"><span class="annottext">lensPragmaOptions :: Lens' CommandLineOptions PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#lensPragmaOptions"><span class="hs-identifier hs-var hs-var hs-var">lensPragmaOptions</span></a></span></span><span> </span><span id="local-6989586621681816064"><span class="annot"><span class="annottext">PragmaOptions -&gt; f PragmaOptions
+</span><a href="#local-6989586621681816064"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681816065"><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681816065"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; f PragmaOptions
+</span><a href="#local-6989586621681816064"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CommandLineOptions -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#optPragmaOptions"><span class="hs-identifier hs-var">optPragmaOptions</span></a></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681816065"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f PragmaOptions
+-&gt; (PragmaOptions -&gt; CommandLineOptions) -&gt; f CommandLineOptions
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681816066"><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="#local-6989586621681816066"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681816065"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optPragmaOptions"><span class="hs-identifier hs-var">optPragmaOptions</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681816066"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-310"></span><span>
+</span><span id="line-311"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-312"></span><span class="hs-comment">-- NFData instances</span><span>
+</span><span id="line-313"></span><span>
+</span><span id="line-314"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816068"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier hs-type">CommandLineOptions</span></a></span></span><span>
+</span><span id="line-315"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816196"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PragmaOptions"><span class="hs-identifier hs-type">PragmaOptions</span></a></span></span><span>
+</span><span id="line-316"></span><span>
+</span><span id="line-317"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816385"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#ConfluenceCheck"><span class="hs-identifier hs-type">ConfluenceCheck</span></a></span></span><span>
+</span><span id="line-318"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816397"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Parallelism"><span class="hs-identifier hs-type">Parallelism</span></a></span></span><span>
+</span><span id="line-319"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816411"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#DiagnosticsColours"><span class="hs-identifier hs-type">DiagnosticsColours</span></a></span></span><span>
+</span><span id="line-320"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816423"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#EmacsModeCommand"><span class="hs-identifier hs-type">EmacsModeCommand</span></a></span></span><span>
+</span><span id="line-321"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816435"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#InfectiveCoinfective"><span class="hs-identifier hs-type">InfectiveCoinfective</span></a></span></span><span>
+</span><span id="line-322"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681816446"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#PrintAgdaVersion"><span class="hs-identifier hs-type">PrintAgdaVersion</span></a></span></span><span>
+</span><span id="line-323"></span></pre></body></html>

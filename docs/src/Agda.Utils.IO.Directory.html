@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.IO.Directory.html"><span class="hs-identifier">Agda.Utils.IO.Directory</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.IO.Directory.html#copyDirContent"><span class="hs-identifier">copyDirContent</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IO.Directory.html#copyIfChanged"><span class="hs-identifier">copyIfChanged</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IO.Directory.html#findWithInfo"><span class="hs-identifier">findWithInfo</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">WriterT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">execWriterT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">tell</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">lift</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span>      </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">BS</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Endo</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Endo</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">appEndo</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Directory</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath.Find</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Find</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- | Search a directory recursively, with recursion controlled by a</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--   'RecursionPredicate'.  Lazily return a unsorted list of all files</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--   matching the given 'FilterPredicate'.  Any errors that occur are</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   ignored, with warnings printed to 'stderr'.</span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Agda.Utils.IO.Directory.html#findWithInfo"><span class="hs-identifier hs-type">findWithInfo</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Find.RecursionPredicate</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Control recursion into subdirectories.</span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Find.FilterPredicate</span></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ Decide whether a file appears in the result.</span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>                 </span><span class="annot"><span class="hs-comment">-- ^ Directory to start searching.</span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Find.FileInfo</span></span><span class="hs-special">]</span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Files that matched the 'FilterPredicate'.</span></span><span>
+</span><span id="line-31"></span><span id="findWithInfo"><span class="annot"><span class="annottext">findWithInfo :: RecursionPredicate
+-&gt; RecursionPredicate -&gt; FilePath -&gt; IO [FileInfo]
+</span><a href="Agda.Utils.IO.Directory.html#findWithInfo"><span class="hs-identifier hs-var hs-var">findWithInfo</span></a></span></span><span> </span><span id="local-6989586621681696274"><span class="annot"><span class="annottext">RecursionPredicate
+</span><a href="#local-6989586621681696274"><span class="hs-identifier hs-var">recurse</span></a></span></span><span> </span><span id="local-6989586621681696275"><span class="annot"><span class="annottext">RecursionPredicate
+</span><a href="#local-6989586621681696275"><span class="hs-identifier hs-var">filt</span></a></span></span><span> </span><span id="local-6989586621681696276"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696276"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RecursionPredicate
+-&gt; ([FileInfo] -&gt; FileInfo -&gt; [FileInfo])
+-&gt; [FileInfo]
+-&gt; FilePath
+-&gt; IO [FileInfo]
+forall a.
+RecursionPredicate -&gt; (a -&gt; FileInfo -&gt; a) -&gt; a -&gt; FilePath -&gt; IO a
+</span><span class="hs-identifier hs-var">Find.fold</span></span><span> </span><span class="annot"><span class="annottext">RecursionPredicate
+</span><a href="#local-6989586621681696274"><span class="hs-identifier hs-var">recurse</span></a></span><span> </span><span class="annot"><span class="annottext">[FileInfo] -&gt; FileInfo -&gt; [FileInfo]
+</span><a href="#local-6989586621681696278"><span class="hs-identifier hs-var">act</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696276"><span class="hs-identifier hs-var">dir</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-comment">-- Add file to list front when it matches the filter</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="#local-6989586621681696278"><span class="hs-identifier hs-type">act</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Find.FileInfo</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Find.FileInfo</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Find.FileInfo</span></span><span class="hs-special">]</span><span>
+</span><span id="line-35"></span><span>  </span><span id="local-6989586621681696278"><span class="annot"><span class="annottext">act :: [FileInfo] -&gt; FileInfo -&gt; [FileInfo]
+</span><a href="#local-6989586621681696278"><span class="hs-identifier hs-var hs-var">act</span></a></span></span><span> </span><span id="local-6989586621681696279"><span class="annot"><span class="annottext">[FileInfo]
+</span><a href="#local-6989586621681696279"><span class="hs-identifier hs-var">fs</span></a></span></span><span> </span><span id="local-6989586621681696280"><span class="annot"><span class="annottext">FileInfo
+</span><a href="#local-6989586621681696280"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">RecursionPredicate -&gt; FileInfo -&gt; Bool
+forall a. FindClause a -&gt; FileInfo -&gt; a
+</span><span class="hs-identifier hs-var">Find.evalClause</span></span><span> </span><span class="annot"><span class="annottext">RecursionPredicate
+</span><a href="#local-6989586621681696275"><span class="hs-identifier hs-var">filt</span></a></span><span> </span><span class="annot"><span class="annottext">FileInfo
+</span><a href="#local-6989586621681696280"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">FileInfo
+</span><a href="#local-6989586621681696280"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">FileInfo -&gt; [FileInfo] -&gt; [FileInfo]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[FileInfo]
+</span><a href="#local-6989586621681696279"><span class="hs-identifier hs-var">fs</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">[FileInfo]
+</span><a href="#local-6989586621681696279"><span class="hs-identifier hs-var">fs</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | @copyDirContent src dest@ recursively copies directory @src@ onto @dest@.</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--   First, a to-do list of copy actions is created.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   Then, the to-do list is carried out.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--   This avoids copying files we have just created again, which can happen</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   if @src@ and @dest@ are not disjoint.</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   (See issue #2705.)</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Agda.Utils.IO.Directory.html#copyDirContent"><span class="hs-identifier hs-type">copyDirContent</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span id="copyDirContent"><span class="annot"><span class="annottext">copyDirContent :: FilePath -&gt; FilePath -&gt; IO ()
+</span><a href="Agda.Utils.IO.Directory.html#copyDirContent"><span class="hs-identifier hs-var hs-var">copyDirContent</span></a></span></span><span> </span><span id="local-6989586621681696282"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696282"><span class="hs-identifier hs-var">src</span></a></span></span><span> </span><span id="local-6989586621681696283"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696283"><span class="hs-identifier hs-var">dest</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CopyDirAction -&gt; IO ()) -&gt; [CopyDirAction] -&gt; IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">CopyDirAction -&gt; IO ()
+</span><a href="Agda.Utils.IO.Directory.html#performAction"><span class="hs-identifier hs-var">performAction</span></a></span><span> </span><span class="annot"><span class="annottext">([CopyDirAction] -&gt; IO ()) -&gt; IO [CopyDirAction] -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Endo [CopyDirAction] -&gt; [CopyDirAction] -&gt; [CopyDirAction]
+forall a. Endo a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">`appEndo`</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Endo [CopyDirAction] -&gt; [CopyDirAction])
+-&gt; IO (Endo [CopyDirAction]) -&gt; IO [CopyDirAction]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">WriterT (Endo [CopyDirAction]) IO () -&gt; IO (Endo [CopyDirAction])
+forall (m :: * -&gt; *) w a. Monad m =&gt; WriterT w m a -&gt; m w
+</span><span class="hs-identifier hs-var">execWriterT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; WriterT (Endo [CopyDirAction]) IO ()
+</span><a href="Agda.Utils.IO.Directory.html#copyDirContentDryRun"><span class="hs-identifier hs-var">copyDirContentDryRun</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696282"><span class="hs-identifier hs-var">src</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696283"><span class="hs-identifier hs-var">dest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | Action to be carried out for copying a directory recursively.</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">data</span><span> </span><span id="CopyDirAction"><span class="annot"><a href="Agda.Utils.IO.Directory.html#CopyDirAction"><span class="hs-identifier hs-var">CopyDirAction</span></a></span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="MkDir"><span class="annot"><a href="Agda.Utils.IO.Directory.html#MkDir"><span class="hs-identifier hs-var">MkDir</span></a></span></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-55"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Create directory if missing.</span></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CopyFile"><span class="annot"><a href="Agda.Utils.IO.Directory.html#CopyFile"><span class="hs-identifier hs-var">CopyFile</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-57"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Copy file if changed.</span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | Perform scheduled 'CopyDirAction'.</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--</span><span>
+</span><span id="line-61"></span><span class="annot"><a href="Agda.Utils.IO.Directory.html#performAction"><span class="hs-identifier hs-type">performAction</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IO.Directory.html#CopyDirAction"><span class="hs-identifier hs-type">CopyDirAction</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span id="performAction"><span class="annot"><span class="annottext">performAction :: CopyDirAction -&gt; IO ()
+</span><a href="Agda.Utils.IO.Directory.html#performAction"><span class="hs-identifier hs-var hs-var">performAction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="Agda.Utils.IO.Directory.html#MkDir"><span class="hs-identifier hs-type">MkDir</span></a></span><span> </span><span id="local-6989586621681696291"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696291"><span class="hs-identifier hs-var">d</span></a></span></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; FilePath -&gt; IO ()
+</span><span class="hs-identifier hs-var">createDirectoryIfMissing</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696291"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><a href="Agda.Utils.IO.Directory.html#CopyFile"><span class="hs-identifier hs-type">CopyFile</span></a></span><span> </span><span id="local-6989586621681696293"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696293"><span class="hs-identifier hs-var">src</span></a></span></span><span> </span><span id="local-6989586621681696294"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696294"><span class="hs-identifier hs-var">dest</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; IO ()
+</span><a href="Agda.Utils.IO.Directory.html#copyIfChanged"><span class="hs-identifier hs-var">copyIfChanged</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696293"><span class="hs-identifier hs-var">src</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696294"><span class="hs-identifier hs-var">dest</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- | @copyDirContentDryRun src dest@ creates a to-do list</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   for recursively copying directory @src@ onto @dest@.</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Agda.Utils.IO.Directory.html#copyDirContentDryRun"><span class="hs-identifier hs-type">copyDirContentDryRun</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Endo</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.IO.Directory.html#CopyDirAction"><span class="hs-identifier hs-type">CopyDirAction</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span id="copyDirContentDryRun"><span class="annot"><span class="annottext">copyDirContentDryRun :: FilePath -&gt; FilePath -&gt; WriterT (Endo [CopyDirAction]) IO ()
+</span><a href="Agda.Utils.IO.Directory.html#copyDirContentDryRun"><span class="hs-identifier hs-var hs-var">copyDirContentDryRun</span></a></span></span><span> </span><span id="local-6989586621681696295"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696295"><span class="hs-identifier hs-var">src</span></a></span></span><span> </span><span id="local-6989586621681696296"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696296"><span class="hs-identifier hs-var">dest</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-71"></span><span>  </span><span class="annot"><span class="annottext">Endo [CopyDirAction] -&gt; WriterT (Endo [CopyDirAction]) IO ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">(Endo [CopyDirAction] -&gt; WriterT (Endo [CopyDirAction]) IO ())
+-&gt; Endo [CopyDirAction] -&gt; WriterT (Endo [CopyDirAction]) IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">([CopyDirAction] -&gt; [CopyDirAction]) -&gt; Endo [CopyDirAction]
+forall a. (a -&gt; a) -&gt; Endo a
+</span><span class="hs-identifier hs-var">Endo</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; CopyDirAction
+</span><a href="Agda.Utils.IO.Directory.html#MkDir"><span class="hs-identifier hs-var">MkDir</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696296"><span class="hs-identifier hs-var">dest</span></a></span><span> </span><span class="annot"><span class="annottext">CopyDirAction -&gt; [CopyDirAction] -&gt; [CopyDirAction]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621681696297"><span class="annot"><a href="#local-6989586621681696297"><span class="hs-identifier hs-var">chlds</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [FilePath] -&gt; WriterT (Endo [CopyDirAction]) IO [FilePath]
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m a -&gt; WriterT (Endo [CopyDirAction]) m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(IO [FilePath] -&gt; WriterT (Endo [CopyDirAction]) IO [FilePath])
+-&gt; IO [FilePath] -&gt; WriterT (Endo [CopyDirAction]) IO [FilePath]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO [FilePath]
+</span><span class="hs-identifier hs-var">getDirectoryContents</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696295"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">forM_</span></span><span> </span><span class="annot"><a href="#local-6989586621681696297"><span class="hs-identifier hs-type">chlds</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681696300"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621681696301"><span class="annot"><a href="#local-6989586621681696301"><span class="hs-identifier hs-var">isDir</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; WriterT (Endo [CopyDirAction]) IO Bool
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m a -&gt; WriterT (Endo [CopyDirAction]) m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(IO Bool -&gt; WriterT (Endo [CopyDirAction]) IO Bool)
+-&gt; IO Bool -&gt; WriterT (Endo [CopyDirAction]) IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesDirectoryExist</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696295"><span class="hs-identifier hs-var">src</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621681696301"><span class="hs-identifier hs-type">isDir</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-76"></span><span>      </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;.&quot;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;..&quot;</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; WriterT (Endo [CopyDirAction]) IO ()
+forall a. a -&gt; WriterT (Endo [CopyDirAction]) IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>      </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; WriterT (Endo [CopyDirAction]) IO ()
+</span><a href="Agda.Utils.IO.Directory.html#copyDirContentDryRun"><span class="hs-identifier hs-var">copyDirContentDryRun</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696295"><span class="hs-identifier hs-var">src</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696296"><span class="hs-identifier hs-var">dest</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>      </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Endo [CopyDirAction] -&gt; WriterT (Endo [CopyDirAction]) IO ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">(Endo [CopyDirAction] -&gt; WriterT (Endo [CopyDirAction]) IO ())
+-&gt; Endo [CopyDirAction] -&gt; WriterT (Endo [CopyDirAction]) IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">([CopyDirAction] -&gt; [CopyDirAction]) -&gt; Endo [CopyDirAction]
+forall a. (a -&gt; a) -&gt; Endo a
+</span><span class="hs-identifier hs-var">Endo</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; CopyDirAction
+</span><a href="Agda.Utils.IO.Directory.html#CopyFile"><span class="hs-identifier hs-var">CopyFile</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696295"><span class="hs-identifier hs-var">src</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696296"><span class="hs-identifier hs-var">dest</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; FilePath
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696300"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">CopyDirAction -&gt; [CopyDirAction] -&gt; [CopyDirAction]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- | @copyIfChanged src dst@ makes sure that @dst@ exists</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   and has the same content as @dst@.</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--</span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Agda.Utils.IO.Directory.html#copyIfChanged"><span class="hs-identifier hs-type">copyIfChanged</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span id="copyIfChanged"><span class="annot"><span class="annottext">copyIfChanged :: FilePath -&gt; FilePath -&gt; IO ()
+</span><a href="Agda.Utils.IO.Directory.html#copyIfChanged"><span class="hs-identifier hs-var hs-var">copyIfChanged</span></a></span></span><span> </span><span id="local-6989586621681696305"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696305"><span class="hs-identifier hs-var">src</span></a></span></span><span> </span><span id="local-6989586621681696306"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696306"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-85"></span><span>  </span><span id="local-6989586621681696307"><span class="annot"><a href="#local-6989586621681696307"><span class="hs-identifier hs-var">exist</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO Bool
+</span><span class="hs-identifier hs-var">doesFileExist</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621681696306"><span class="hs-identifier hs-var">dst</span></a></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="hs-identifier hs-type">not</span></span><span> </span><span class="annot"><a href="#local-6989586621681696307"><span class="hs-identifier hs-type">exist</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">copyFile</span></span><span> </span><span class="annot"><a href="#local-6989586621681696305"><span class="hs-identifier hs-type">src</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696306"><span class="hs-identifier hs-type">dst</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-87"></span><span>    </span><span id="local-6989586621681696311"><span class="annot"><a href="#local-6989586621681696311"><span class="hs-identifier hs-var">new</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">BS.readFile</span></span><span> </span><span class="annot"><a href="#local-6989586621681696305"><span class="hs-identifier hs-type">src</span></a></span><span>
+</span><span id="line-88"></span><span>    </span><span id="local-6989586621681696313"><span class="annot"><a href="#local-6989586621681696313"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">BS.readFile</span></span><span> </span><span class="annot"><a href="#local-6989586621681696306"><span class="hs-identifier hs-type">dst</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681696313"><span class="hs-identifier hs-type">old</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">==</span></span><span> </span><span class="annot"><a href="#local-6989586621681696311"><span class="hs-identifier hs-type">new</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">copyFile</span></span><span> </span><span class="annot"><a href="#local-6989586621681696305"><span class="hs-identifier hs-type">src</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696306"><span class="hs-identifier hs-type">dst</span></a></span><span>
+</span><span id="line-90"></span></pre></body></html>

@@ -1,0 +1,887 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE UndecidableInstances       #-}</span><span> </span><span class="hs-comment">-- Due to underdetermined var in IsVarSet multi-param typeclass</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Computing the free variables of a term.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- The distinction between rigid and strongly rigid occurrences comes from:</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- The main idea is that x = t(x) is unsolvable if x occurs strongly rigidly</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- in t.  It might have a solution if the occurrence is not strongly rigid, e.g.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--   x = \f -&gt; suc (f (x (\ y -&gt; k)))  has  x = \f -&gt; suc (f (suc k))</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- [Jason C. Reed, PhD thesis, page 106]</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- Under coinductive constructors, occurrences are never strongly rigid.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- Also, function types and lambdas do not establish strong rigidity.</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Only inductive constructors do so.</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- (See issue 1271).</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- If you need the occurrence information for all free variables, you can use</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- @freeVars@ which has amoungst others this instance</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--    freeVars :: Term -&gt; VarMap</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- From @VarMap@, specific information can be extracted, e.g.,</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--    relevantVars :: VarMap -&gt; VarSet</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--    relevantVars = filterVarMap isRelevant</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- To just check the status of a single free variable, there are more</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- efficient methods, e.g.,</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--    freeIn :: Nat -&gt; Term -&gt; Bool</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- Tailored optimized variable checks can be implemented as semimodules to 'VarOcc',</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- see, for example, 'VarCounts' or 'SingleFlexRig'.</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html"><span class="hs-identifier">Agda.TypeChecking.Free</span></a></span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier">VarCounts</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier">Free</span></a></span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier">IsVarSet</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier">IgnoreSorts</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#freeVars"><span class="hs-identifier">freeVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#freeVars%27"><span class="hs-identifier">freeVars'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#filterVarMap"><span class="hs-identifier">filterVarMap</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#filterVarMapToList"><span class="hs-identifier">filterVarMapToList</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier">runFree</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#rigidVars"><span class="hs-identifier">rigidVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#stronglyRigidVars"><span class="hs-identifier">stronglyRigidVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#unguardedVars"><span class="hs-identifier">unguardedVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#allVars"><span class="hs-identifier">allVars</span></a></span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#flexibleVars"><span class="hs-identifier">flexibleVars</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#allFreeVars"><span class="hs-identifier">allFreeVars</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#allRelevantVars"><span class="hs-identifier">allRelevantVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#allRelevantVarsIgnoring"><span class="hs-identifier">allRelevantVarsIgnoring</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#freeVarsIgnore"><span class="hs-identifier">freeVarsIgnore</span></a></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#freeIn"><span class="hs-identifier">freeIn</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#freeInIgnoringSorts"><span class="hs-identifier">freeInIgnoringSorts</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#isBinderUsed"><span class="hs-identifier">isBinderUsed</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#relevantIn"><span class="hs-identifier">relevantIn</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#relevantInIgnoringSortAnn"><span class="hs-identifier">relevantInIgnoringSortAnn</span></a></span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#FlexRig%27"><span class="hs-identifier">FlexRig'</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#FlexRig"><span class="hs-identifier">FlexRig</span></a></span><span>
+</span><span id="line-54"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#LensFlexRig"><span class="hs-identifier">LensFlexRig</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#isFlexible"><span class="hs-identifier">isFlexible</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#isUnguarded"><span class="hs-identifier">isUnguarded</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#isStronglyRigid"><span class="hs-identifier">isStronglyRigid</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#isWeaklyRigid"><span class="hs-identifier">isWeaklyRigid</span></a></span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc%27"><span class="hs-identifier">VarOcc'</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier">VarOcc</span></a></span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#varOccurrenceIn"><span class="hs-identifier">varOccurrenceIn</span></a></span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#flexRigOccurrenceIn"><span class="hs-identifier">flexRigOccurrenceIn</span></a></span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#closed"><span class="hs-identifier">closed</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#MetaSet"><span class="hs-identifier">MetaSet</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#insertMetaSet"><span class="hs-identifier">insertMetaSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#foldrMetaSet"><span class="hs-identifier">foldrMetaSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#metaSetToBlocker"><span class="hs-identifier">metaSetToBlocker</span></a></span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Any</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">All</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Benchmarking.html"><span class="hs-identifier">Agda.Benchmarking</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Bench</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier">Arg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NamedArg"><span class="hs-identifier">NamedArg</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html"><span class="hs-identifier">Agda.TypeChecking.Free.Lazy</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-comment">-- ( Free(..) , FreeEnv(..), initFreeEnv</span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-comment">-- , FlexRig, FlexRig'(..)</span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-comment">-- , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar</span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-comment">-- , MetaSet, insertMetaSet, foldrMetaSet</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-comment">-- , IsVarSet(..), runFreeM</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-comment">-- )</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier">VarSet</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">VarSet</span></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-87"></span><span class="annot"><span class="hs-comment">-- * Simple variable set implementations.</span></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- In most cases we don't care about the VarOcc.</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681795964"><span class="annot"><span class="annottext">withVarOcc :: VarOcc' () -&gt; VarSet -&gt; VarSet
+</span><a href="#local-6989586621681795964"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span class="annot"><span class="annottext">VarOcc' ()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; VarSet
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-93"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681795981"><span class="annot"><span class="annottext">withVarOcc :: VarOcc' () -&gt; [Int] -&gt; [Int]
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span class="annot"><span class="annottext">VarOcc' ()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; [Int]
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681795995"><span class="annot"><span class="annottext">withVarOcc :: VarOcc' () -&gt; Any -&gt; Any
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span class="annot"><span class="annottext">VarOcc' ()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Any -&gt; Any
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">All</span></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681796010"><span class="annot"><span class="annottext">withVarOcc :: VarOcc' () -&gt; All -&gt; All
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span class="annot"><span class="annottext">VarOcc' ()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">All -&gt; All
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-98"></span><span class="annot"><span class="hs-comment">-- * Plain variable occurrence counting.</span></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-keyword">newtype</span><span> </span><span id="VarCounts"><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-var">VarCounts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="VarCounts"><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-var">VarCounts</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="varCounts"><span class="annot"><span class="annottext">VarCounts -&gt; IntMap Int
+</span><a href="Agda.TypeChecking.Free.html#varCounts"><span class="hs-identifier hs-var hs-var">varCounts</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681796014"><span id="local-6989586621681796018"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-type">VarCounts</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-type">VarCounts</span></a></span><span> </span><span id="local-6989586621681796025"><span class="annot"><span class="annottext">IntMap Int
+</span><a href="#local-6989586621681796025"><span class="hs-identifier hs-var">fv1</span></a></span></span><span> </span><span id="local-6989586621681796026"><span class="annot"><span class="annottext">&lt;&gt; :: VarCounts -&gt; VarCounts -&gt; VarCounts
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-type">VarCounts</span></a></span><span> </span><span id="local-6989586621681796027"><span class="annot"><span class="annottext">IntMap Int
+</span><a href="#local-6989586621681796027"><span class="hs-identifier hs-var">fv2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap Int -&gt; VarCounts
+</span><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-var">VarCounts</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Int -&gt; Int -&gt; Int) -&gt; IntMap Int -&gt; IntMap Int -&gt; IntMap Int
+forall a. (a -&gt; a -&gt; a) -&gt; IntMap a -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.unionWith</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="annot"><span class="annottext">IntMap Int
+</span><a href="#local-6989586621681796025"><span class="hs-identifier hs-var">fv1</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap Int
+</span><a href="#local-6989586621681796027"><span class="hs-identifier hs-var">fv2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681796035"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-type">VarCounts</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-106"></span><span>  </span><span id="local-6989586621681796039"><span class="annot"><span class="annottext">mempty :: VarCounts
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap Int -&gt; VarCounts
+</span><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-var">VarCounts</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap Int
+forall a. IntMap a
+</span><span class="hs-identifier hs-var">IntMap.empty</span></span><span>
+</span><span id="line-107"></span><span>  </span><span id="local-6989586621681796042"><span class="annot"><span class="annottext">mappend :: VarCounts -&gt; VarCounts -&gt; VarCounts
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarCounts -&gt; VarCounts -&gt; VarCounts
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-type">VarCounts</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621681796055"><span class="annot"><span class="annottext">withVarOcc :: VarOcc' () -&gt; VarCounts -&gt; VarCounts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span class="annot"><span class="annottext">VarOcc' ()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarCounts -&gt; VarCounts
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Variable"><span class="hs-identifier hs-type">Variable</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-type">VarCounts</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621681796060"><span class="annot"><span class="annottext">singleton :: Int -&gt; VarCounts
+</span><a href="#local-6989586621681796060"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681796062"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796062"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap Int -&gt; VarCounts
+</span><a href="Agda.TypeChecking.Free.html#VarCounts"><span class="hs-identifier hs-var">VarCounts</span></a></span><span> </span><span class="annot"><span class="annottext">(IntMap Int -&gt; VarCounts) -&gt; IntMap Int -&gt; VarCounts
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; IntMap Int
+forall a. Int -&gt; a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.singleton</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796062"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-116"></span><span class="annot"><span class="hs-comment">-- * Collecting free variables (generic).</span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- | Collect all free variables together with information about their occurrence.</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- Doesn't go inside solved metas, but collects the variables from a</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- metavariable application @X ts@ as @flexibleVars@.</span><span>
+</span><span id="line-122"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#freeVars"><span class="hs-pragma hs-type">freeVars</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621681796064"><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-pragma hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681796064"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681796064"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-pragma hs-type">VarMap</span></a></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-123"></span><span id="local-6989586621681795783"><span id="local-6989586621681795784"><span id="local-6989586621681795785"><span class="annot"><a href="Agda.TypeChecking.Free.html#freeVars"><span class="hs-identifier hs-type">freeVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795783"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795784"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Variable"><span class="hs-identifier hs-type">Variable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795784"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795785"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795785"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795784"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-124"></span><span id="freeVars"><span class="annot"><span class="annottext">freeVars :: forall a c t. (IsVarSet a c, Singleton Int c, Free t) =&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#freeVars"><span class="hs-identifier hs-var hs-var">freeVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; t -&gt; c
+forall a c t.
+(IsVarSet a c, Singleton Int c, Free t) =&gt;
+IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#freeVarsIgnore"><span class="hs-identifier hs-var">freeVarsIgnore</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreNot"><span class="hs-identifier hs-var">IgnoreNot</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span id="local-6989586621681795790"><span id="local-6989586621681795791"><span id="local-6989586621681795792"><span class="annot"><a href="Agda.TypeChecking.Free.html#freeVarsIgnore"><span class="hs-identifier hs-type">freeVarsIgnore</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795790"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795791"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Variable"><span class="hs-identifier hs-type">Variable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795791"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795792"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-127"></span><span>                  </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795792"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795791"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-128"></span><span id="freeVarsIgnore"><span class="annot"><span class="annottext">freeVarsIgnore :: forall a c t.
+(IsVarSet a c, Singleton Int c, Free t) =&gt;
+IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#freeVarsIgnore"><span class="hs-identifier hs-var hs-var">freeVarsIgnore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="annot"><span class="annottext">SingleVar c
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- Specialization to typical monoids</span><span>
+</span><span id="line-131"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-pragma hs-type">runFree</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621681796078"><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-pragma hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681796078"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#SingleVar"><span class="hs-pragma hs-type">SingleVar</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">Any</span></span><span>      </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-pragma hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681796078"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">Any</span></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- Specialization to Term</span><span>
+</span><span id="line-133"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-pragma hs-type">runFree</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#SingleVar"><span class="hs-pragma hs-type">SingleVar</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">Any</span></span><span>      </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-pragma hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">Any</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="annot"><span class="hs-comment">-- | Compute free variables.</span></span><span>
+</span><span id="line-136"></span><span id="local-6989586621681795797"><span id="local-6989586621681795798"><span id="local-6989586621681795799"><span class="annot"><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-type">runFree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795797"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795798"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795799"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#SingleVar"><span class="hs-identifier hs-type">SingleVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795798"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795799"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795798"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-137"></span><span id="runFree"><span class="annot"><span class="annottext">runFree :: forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var hs-var">runFree</span></a></span></span><span> </span><span id="local-6989586621681796084"><span class="annot"><span class="annottext">SingleVar c
+</span><a href="#local-6989586621681796084"><span class="hs-identifier hs-var">single</span></a></span></span><span> </span><span id="local-6989586621681796085"><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796085"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681796086"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621681796086"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-comment">-- bench $  -- Benchmarking is expensive (4% on std-lib)</span><span>
+</span><span id="line-138"></span><span>  </span><span class="annot"><span class="annottext">SingleVar c -&gt; IgnoreSorts -&gt; FreeM a c -&gt; c
+forall a c.
+IsVarSet a c =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; FreeM a c -&gt; c
+</span><a href="Agda.TypeChecking.Free.Lazy.html#runFreeM"><span class="hs-identifier hs-var">runFreeM</span></a></span><span> </span><span class="annot"><span class="annottext">SingleVar c
+</span><a href="#local-6989586621681796084"><span class="hs-identifier hs-var">single</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796085"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t -&gt; FreeM a c
+forall t a c. (Free t, IsVarSet a c) =&gt; t -&gt; FreeM a c
+forall a c. IsVarSet a c =&gt; t -&gt; FreeM a c
+</span><a href="Agda.TypeChecking.Free.Lazy.html#freeVars%27"><span class="hs-identifier hs-var">freeVars'</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621681796086"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-140"></span><span>  </span><span id="local-6989586621681796088"><span class="annot"><span class="annottext">bench :: a -&gt; a
+</span><a href="#local-6989586621681796088"><span class="hs-identifier hs-var hs-var">bench</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Account -&gt; a -&gt; a
+forall a. Account -&gt; a -&gt; a
+</span><a href="Agda.Benchmarking.html#billToPure"><span class="hs-identifier hs-var">Bench.billToPure</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Phase
+</span><a href="Agda.Benchmarking.html#Typing"><span class="hs-identifier hs-var">Bench.Typing</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Phase
+</span><a href="Agda.Benchmarking.html#Free"><span class="hs-identifier hs-var">Bench.Free</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-143"></span><span class="annot"><span class="hs-comment">-- * Occurrence computation for a single variable.</span></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="annot"><span class="hs-comment">-- ** Full free occurrence info for a single variable.</span></span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="annot"><span class="hs-comment">-- | Get the full occurrence information of a free variable.</span></span><span>
+</span><span id="line-148"></span><span id="local-6989586621681795813"><span class="annot"><a href="Agda.TypeChecking.Free.html#varOccurrenceIn"><span class="hs-identifier hs-type">varOccurrenceIn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795813"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795813"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span></span><span>
+</span><span id="line-149"></span><span id="varOccurrenceIn"><span class="annot"><span class="annottext">varOccurrenceIn :: forall a. Free a =&gt; Int -&gt; a -&gt; Maybe VarOcc
+</span><a href="Agda.TypeChecking.Free.html#varOccurrenceIn"><span class="hs-identifier hs-var hs-var">varOccurrenceIn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; Int -&gt; a -&gt; Maybe VarOcc
+forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Maybe VarOcc
+</span><a href="Agda.TypeChecking.Free.html#varOccurrenceIn%27"><span class="hs-identifier hs-var">varOccurrenceIn'</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreNot"><span class="hs-identifier hs-var">IgnoreNot</span></a></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span id="local-6989586621681795816"><span class="annot"><a href="Agda.TypeChecking.Free.html#varOccurrenceIn%27"><span class="hs-identifier hs-type">varOccurrenceIn'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795816"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795816"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span></span><span>
+</span><span id="line-152"></span><span id="varOccurrenceIn%27"><span class="annot"><span class="annottext">varOccurrenceIn' :: forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Maybe VarOcc
+</span><a href="Agda.TypeChecking.Free.html#varOccurrenceIn%27"><span class="hs-identifier hs-var hs-var">varOccurrenceIn'</span></a></span></span><span> </span><span id="local-6989586621681796104"><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796104"><span class="hs-identifier hs-var">ig</span></a></span></span><span> </span><span id="local-6989586621681796105"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796105"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681796106"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796106"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleVarOcc -&gt; Maybe VarOcc
+</span><a href="Agda.TypeChecking.Free.html#theSingleVarOcc"><span class="hs-identifier hs-var">theSingleVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">(SingleVarOcc -&gt; Maybe VarOcc) -&gt; SingleVarOcc -&gt; Maybe VarOcc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SingleVar SingleVarOcc -&gt; IgnoreSorts -&gt; a -&gt; SingleVarOcc
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="annot"><span class="annottext">SingleVar SingleVarOcc
+</span><a href="#local-6989586621681796108"><span class="hs-identifier hs-var">sg</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796104"><span class="hs-identifier hs-var">ig</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796106"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-154"></span><span>  </span><span id="local-6989586621681796108"><span class="annot"><span class="annottext">sg :: SingleVar SingleVarOcc
+</span><a href="#local-6989586621681796108"><span class="hs-identifier hs-var hs-var">sg</span></a></span></span><span> </span><span id="local-6989586621681796109"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796109"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796105"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796109"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">SingleVarOcc
+</span><a href="Agda.TypeChecking.Free.html#oneSingleVarOcc"><span class="hs-identifier hs-var">oneSingleVarOcc</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">SingleVarOcc
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-155"></span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- | &quot;Collection&quot; just keeping track of the occurrence of a single variable.</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--   'Nothing' means variable does not occur freely.</span><span>
+</span><span id="line-158"></span><span class="hs-keyword">newtype</span><span> </span><span id="SingleVarOcc"><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-var">SingleVarOcc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SingleVarOcc"><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-var">SingleVarOcc</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="theSingleVarOcc"><span class="annot"><span class="annottext">SingleVarOcc -&gt; Maybe VarOcc
+</span><a href="Agda.TypeChecking.Free.html#theSingleVarOcc"><span class="hs-identifier hs-var hs-var">theSingleVarOcc</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#oneSingleVarOcc"><span class="hs-identifier hs-type">oneSingleVarOcc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span><span>
+</span><span id="line-161"></span><span id="oneSingleVarOcc"><span class="annot"><span class="annottext">oneSingleVarOcc :: SingleVarOcc
+</span><a href="Agda.TypeChecking.Free.html#oneSingleVarOcc"><span class="hs-identifier hs-var hs-var">oneSingleVarOcc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe VarOcc -&gt; SingleVarOcc
+</span><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-var">SingleVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe VarOcc -&gt; SingleVarOcc) -&gt; Maybe VarOcc -&gt; SingleVarOcc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarOcc -&gt; Maybe VarOcc
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; Maybe VarOcc) -&gt; VarOcc -&gt; Maybe VarOcc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarOcc
+forall a. VarOcc' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#oneVarOcc"><span class="hs-identifier hs-var">oneVarOcc</span></a></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- | Hereditary Semigroup instance for 'Maybe'.</span><span>
+</span><span id="line-164"></span><span class="hs-comment">--   (The default instance for 'Maybe' may not be the hereditary one.)</span><span>
+</span><span id="line-165"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681796115"><span id="local-6989586621681796119"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-166"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe VarOcc
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span id="local-6989586621681796127"><span class="annot"><span class="annottext">&lt;&gt; :: SingleVarOcc -&gt; SingleVarOcc -&gt; SingleVarOcc
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681796128"><span class="annot"><span class="annottext">SingleVarOcc
+</span><a href="#local-6989586621681796128"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleVarOcc
+</span><a href="#local-6989586621681796128"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span id="local-6989586621681796129"><span class="annot"><span class="annottext">SingleVarOcc
+</span><a href="#local-6989586621681796129"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe VarOcc
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleVarOcc
+</span><a href="#local-6989586621681796129"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-168"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681796130"><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796130"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681796131"><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796131"><span class="hs-identifier hs-var">o'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe VarOcc -&gt; SingleVarOcc
+</span><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-var">SingleVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe VarOcc -&gt; SingleVarOcc) -&gt; Maybe VarOcc -&gt; SingleVarOcc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarOcc -&gt; Maybe VarOcc
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; Maybe VarOcc) -&gt; VarOcc -&gt; Maybe VarOcc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796130"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">VarOcc -&gt; VarOcc -&gt; VarOcc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796131"><span class="hs-identifier hs-var">o'</span></a></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681796137"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-171"></span><span>  </span><span id="local-6989586621681796139"><span class="annot"><span class="annottext">mempty :: SingleVarOcc
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe VarOcc -&gt; SingleVarOcc
+</span><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-var">SingleVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe VarOcc
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-172"></span><span>  </span><span id="local-6989586621681796141"><span class="annot"><span class="annottext">mappend :: SingleVarOcc -&gt; SingleVarOcc -&gt; SingleVarOcc
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleVarOcc -&gt; SingleVarOcc -&gt; SingleVarOcc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#MetaSet"><span class="hs-identifier hs-type">MetaSet</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-type">SingleVarOcc</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-175"></span><span>  </span><span id="local-6989586621681796158"><span class="annot"><span class="annottext">withVarOcc :: VarOcc -&gt; SingleVarOcc -&gt; SingleVarOcc
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span id="local-6989586621681796159"><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796159"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe VarOcc -&gt; SingleVarOcc
+</span><a href="Agda.TypeChecking.Free.html#SingleVarOcc"><span class="hs-identifier hs-var">SingleVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe VarOcc -&gt; SingleVarOcc)
+-&gt; (SingleVarOcc -&gt; Maybe VarOcc) -&gt; SingleVarOcc -&gt; SingleVarOcc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; VarOcc) -&gt; Maybe VarOcc -&gt; Maybe VarOcc
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VarOcc -&gt; VarOcc -&gt; VarOcc
+forall a. Semigroup a =&gt; VarOcc' a -&gt; VarOcc' a -&gt; VarOcc' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#composeVarOcc"><span class="hs-identifier hs-var">composeVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796159"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe VarOcc -&gt; Maybe VarOcc)
+-&gt; (SingleVarOcc -&gt; Maybe VarOcc) -&gt; SingleVarOcc -&gt; Maybe VarOcc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SingleVarOcc -&gt; Maybe VarOcc
+</span><a href="Agda.TypeChecking.Free.html#theSingleVarOcc"><span class="hs-identifier hs-var">theSingleVarOcc</span></a></span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="annot"><span class="hs-comment">-- ** Flexible /rigid occurrence info for a single variable.</span></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="annot"><span class="hs-comment">-- | Get the full occurrence information of a free variable.</span></span><span>
+</span><span id="line-180"></span><span id="local-6989586621681795831"><span class="annot"><a href="Agda.TypeChecking.Free.html#flexRigOccurrenceIn"><span class="hs-identifier hs-type">flexRigOccurrenceIn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795831"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795831"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#FlexRig"><span class="hs-identifier hs-type">FlexRig</span></a></span></span><span>
+</span><span id="line-181"></span><span id="flexRigOccurrenceIn"><span class="annot"><span class="annottext">flexRigOccurrenceIn :: forall a. Free a =&gt; Int -&gt; a -&gt; Maybe (FlexRig' MetaSet)
+</span><a href="Agda.TypeChecking.Free.html#flexRigOccurrenceIn"><span class="hs-identifier hs-var hs-var">flexRigOccurrenceIn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; Int -&gt; a -&gt; Maybe (FlexRig' MetaSet)
+forall a.
+Free a =&gt;
+IgnoreSorts -&gt; Int -&gt; a -&gt; Maybe (FlexRig' MetaSet)
+</span><a href="Agda.TypeChecking.Free.html#flexRigOccurrenceIn%27"><span class="hs-identifier hs-var">flexRigOccurrenceIn'</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreNot"><span class="hs-identifier hs-var">IgnoreNot</span></a></span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span id="local-6989586621681795833"><span class="annot"><a href="Agda.TypeChecking.Free.html#flexRigOccurrenceIn%27"><span class="hs-identifier hs-type">flexRigOccurrenceIn'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795833"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795833"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#FlexRig"><span class="hs-identifier hs-type">FlexRig</span></a></span></span><span>
+</span><span id="line-184"></span><span id="flexRigOccurrenceIn%27"><span class="annot"><span class="annottext">flexRigOccurrenceIn' :: forall a.
+Free a =&gt;
+IgnoreSorts -&gt; Int -&gt; a -&gt; Maybe (FlexRig' MetaSet)
+</span><a href="Agda.TypeChecking.Free.html#flexRigOccurrenceIn%27"><span class="hs-identifier hs-var hs-var">flexRigOccurrenceIn'</span></a></span></span><span> </span><span id="local-6989586621681796172"><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796172"><span class="hs-identifier hs-var">ig</span></a></span></span><span> </span><span id="local-6989586621681796173"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796173"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681796174"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796174"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFlexRig -&gt; Maybe (FlexRig' MetaSet)
+</span><a href="Agda.TypeChecking.Free.html#theSingleFlexRig"><span class="hs-identifier hs-var">theSingleFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">(SingleFlexRig -&gt; Maybe (FlexRig' MetaSet))
+-&gt; SingleFlexRig -&gt; Maybe (FlexRig' MetaSet)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SingleVar SingleFlexRig -&gt; IgnoreSorts -&gt; a -&gt; SingleFlexRig
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="annot"><span class="annottext">SingleVar SingleFlexRig
+</span><a href="#local-6989586621681796176"><span class="hs-identifier hs-var">sg</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796172"><span class="hs-identifier hs-var">ig</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796174"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-186"></span><span>  </span><span id="local-6989586621681796176"><span class="annot"><span class="annottext">sg :: SingleVar SingleFlexRig
+</span><a href="#local-6989586621681796176"><span class="hs-identifier hs-var hs-var">sg</span></a></span></span><span> </span><span id="local-6989586621681796177"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796177"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796173"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796177"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">SingleFlexRig
+</span><a href="Agda.TypeChecking.Free.html#oneSingleFlexRig"><span class="hs-identifier hs-var">oneSingleFlexRig</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">SingleFlexRig
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-187"></span><span>
+</span><span id="line-188"></span><span class="hs-comment">-- | &quot;Collection&quot; just keeping track of the occurrence of a single variable.</span><span>
+</span><span id="line-189"></span><span class="hs-comment">--   'Nothing' means variable does not occur freely.</span><span>
+</span><span id="line-190"></span><span class="hs-keyword">newtype</span><span> </span><span id="SingleFlexRig"><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-var">SingleFlexRig</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SingleFlexRig"><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-var">SingleFlexRig</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="theSingleFlexRig"><span class="annot"><span class="annottext">SingleFlexRig -&gt; Maybe (FlexRig' MetaSet)
+</span><a href="Agda.TypeChecking.Free.html#theSingleFlexRig"><span class="hs-identifier hs-var hs-var">theSingleFlexRig</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#FlexRig"><span class="hs-identifier hs-type">FlexRig</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#oneSingleFlexRig"><span class="hs-identifier hs-type">oneSingleFlexRig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span><span>
+</span><span id="line-193"></span><span id="oneSingleFlexRig"><span class="annot"><span class="annottext">oneSingleFlexRig :: SingleFlexRig
+</span><a href="Agda.TypeChecking.Free.html#oneSingleFlexRig"><span class="hs-identifier hs-var hs-var">oneSingleFlexRig</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig
+</span><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-var">SingleFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig)
+-&gt; Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet -&gt; Maybe (FlexRig' MetaSet)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(FlexRig' MetaSet -&gt; Maybe (FlexRig' MetaSet))
+-&gt; FlexRig' MetaSet -&gt; Maybe (FlexRig' MetaSet)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+forall a. FlexRig' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#oneFlexRig"><span class="hs-identifier hs-var">oneFlexRig</span></a></span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- | Hereditary Semigroup instance for 'Maybe'.</span><span>
+</span><span id="line-196"></span><span class="hs-comment">--   (The default instance for 'Maybe' may not be the hereditary one.)</span><span>
+</span><span id="line-197"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681796182"><span id="local-6989586621681796186"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-198"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (FlexRig' MetaSet)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span id="local-6989586621681796191"><span class="annot"><span class="annottext">&lt;&gt; :: SingleFlexRig -&gt; SingleFlexRig -&gt; SingleFlexRig
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681796192"><span class="annot"><span class="annottext">SingleFlexRig
+</span><a href="#local-6989586621681796192"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFlexRig
+</span><a href="#local-6989586621681796192"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-199"></span><span>  </span><span id="local-6989586621681796193"><span class="annot"><span class="annottext">SingleFlexRig
+</span><a href="#local-6989586621681796193"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (FlexRig' MetaSet)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFlexRig
+</span><a href="#local-6989586621681796193"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-200"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681796194"><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="#local-6989586621681796194"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681796195"><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="#local-6989586621681796195"><span class="hs-identifier hs-var">o'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig
+</span><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-var">SingleFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig)
+-&gt; Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet -&gt; Maybe (FlexRig' MetaSet)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(FlexRig' MetaSet -&gt; Maybe (FlexRig' MetaSet))
+-&gt; FlexRig' MetaSet -&gt; Maybe (FlexRig' MetaSet)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet -&gt; FlexRig' MetaSet -&gt; FlexRig' MetaSet
+forall a. Semigroup a =&gt; FlexRig' a -&gt; FlexRig' a -&gt; FlexRig' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#addFlexRig"><span class="hs-identifier hs-var">addFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="#local-6989586621681796194"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="#local-6989586621681796195"><span class="hs-identifier hs-var">o'</span></a></span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681796202"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-203"></span><span>  </span><span id="local-6989586621681796204"><span class="annot"><span class="annottext">mempty :: SingleFlexRig
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig
+</span><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-var">SingleFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (FlexRig' MetaSet)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-204"></span><span>  </span><span id="local-6989586621681796206"><span class="annot"><span class="annottext">mappend :: SingleFlexRig -&gt; SingleFlexRig -&gt; SingleFlexRig
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFlexRig -&gt; SingleFlexRig -&gt; SingleFlexRig
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#MetaSet"><span class="hs-identifier hs-type">MetaSet</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-type">SingleFlexRig</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-207"></span><span>  </span><span id="local-6989586621681796220"><span class="annot"><span class="annottext">withVarOcc :: VarOcc -&gt; SingleFlexRig -&gt; SingleFlexRig
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span id="local-6989586621681796221"><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796221"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig
+</span><a href="Agda.TypeChecking.Free.html#SingleFlexRig"><span class="hs-identifier hs-var">SingleFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (FlexRig' MetaSet) -&gt; SingleFlexRig)
+-&gt; (SingleFlexRig -&gt; Maybe (FlexRig' MetaSet))
+-&gt; SingleFlexRig
+-&gt; SingleFlexRig
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(FlexRig' MetaSet -&gt; FlexRig' MetaSet)
+-&gt; Maybe (FlexRig' MetaSet) -&gt; Maybe (FlexRig' MetaSet)
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FlexRig' MetaSet -&gt; FlexRig' MetaSet -&gt; FlexRig' MetaSet
+forall a. Semigroup a =&gt; FlexRig' a -&gt; FlexRig' a -&gt; FlexRig' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#composeFlexRig"><span class="hs-identifier hs-var">composeFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">(FlexRig' MetaSet -&gt; FlexRig' MetaSet -&gt; FlexRig' MetaSet)
+-&gt; FlexRig' MetaSet -&gt; FlexRig' MetaSet -&gt; FlexRig' MetaSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarOcc -&gt; FlexRig' MetaSet
+forall a. VarOcc' a -&gt; FlexRig' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#varFlexRig"><span class="hs-identifier hs-var">varFlexRig</span></a></span><span> </span><span class="annot"><span class="annottext">VarOcc
+</span><a href="#local-6989586621681796221"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (FlexRig' MetaSet) -&gt; Maybe (FlexRig' MetaSet))
+-&gt; (SingleFlexRig -&gt; Maybe (FlexRig' MetaSet))
+-&gt; SingleFlexRig
+-&gt; Maybe (FlexRig' MetaSet)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SingleFlexRig -&gt; Maybe (FlexRig' MetaSet)
+</span><a href="Agda.TypeChecking.Free.html#theSingleFlexRig"><span class="hs-identifier hs-var">theSingleFlexRig</span></a></span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span class="annot"><span class="hs-comment">-- ** Plain free occurrence.</span></span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span class="annot"><span class="hs-comment">-- | Check if a variable is free, possibly ignoring sorts.</span></span><span>
+</span><span id="line-212"></span><span id="local-6989586621681795840"><span class="annot"><a href="Agda.TypeChecking.Free.html#freeIn%27"><span class="hs-identifier hs-type">freeIn'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795840"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795840"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-213"></span><span id="freeIn%27"><span class="annot"><span class="annottext">freeIn' :: forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#freeIn%27"><span class="hs-identifier hs-var hs-var">freeIn'</span></a></span></span><span> </span><span id="local-6989586621681796229"><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796229"><span class="hs-identifier hs-var">ig</span></a></span></span><span> </span><span id="local-6989586621681796230"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796230"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681796231"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796231"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Any -&gt; Bool
+</span><span class="hs-identifier hs-var">getAny</span></span><span> </span><span class="annot"><span class="annottext">(Any -&gt; Bool) -&gt; Any -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SingleVar Any -&gt; IgnoreSorts -&gt; a -&gt; Any
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Any
+</span><span class="hs-identifier hs-var">Any</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Any) -&gt; (Int -&gt; Bool) -&gt; SingleVar Any
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796230"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796229"><span class="hs-identifier hs-var">ig</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796231"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html#freeIn"><span class="hs-pragma hs-type">freeIn</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-pragma hs-type">Nat</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">Bool</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-216"></span><span id="local-6989586621681795842"><span class="annot"><a href="Agda.TypeChecking.Free.html#freeIn"><span class="hs-identifier hs-type">freeIn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795842"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795842"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-217"></span><span id="freeIn"><span class="annot"><span class="annottext">freeIn :: forall a. Free a =&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#freeIn"><span class="hs-identifier hs-var hs-var">freeIn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#freeIn%27"><span class="hs-identifier hs-var">freeIn'</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreNot"><span class="hs-identifier hs-var">IgnoreNot</span></a></span><span>
+</span><span id="line-218"></span><span>
+</span><span id="line-219"></span><span id="local-6989586621681796236"><span class="annot"><a href="Agda.TypeChecking.Free.html#freeInIgnoringSorts"><span class="hs-identifier hs-type">freeInIgnoringSorts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681796236"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681796236"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-220"></span><span id="freeInIgnoringSorts"><span class="annot"><span class="annottext">freeInIgnoringSorts :: forall a. Free a =&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#freeInIgnoringSorts"><span class="hs-identifier hs-var hs-var">freeInIgnoringSorts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#freeIn%27"><span class="hs-identifier hs-var">freeIn'</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreAll"><span class="hs-identifier hs-var">IgnoreAll</span></a></span><span>
+</span><span id="line-221"></span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen 2019-07-16</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--freeInIgnoringSortAnn :: Free a =&gt; Nat -&gt; a -&gt; Bool</span><span>
+</span><span id="line-224"></span><span class="hs-comment">--freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations</span><span>
+</span><span id="line-225"></span><span>
+</span><span id="line-226"></span><span class="annot"><span class="hs-comment">-- | Is the variable bound by the abstraction actually used?</span></span><span>
+</span><span id="line-227"></span><span id="local-6989586621681795845"><span class="annot"><a href="Agda.TypeChecking.Free.html#isBinderUsed"><span class="hs-identifier hs-type">isBinderUsed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795845"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795845"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-228"></span><span id="isBinderUsed"><span class="annot"><span class="annottext">isBinderUsed :: forall a. Free a =&gt; Abs a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#isBinderUsed"><span class="hs-identifier hs-var hs-var">isBinderUsed</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#NoAbs"><span class="hs-identifier hs-type">NoAbs</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-229"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#isBinderUsed"><span class="hs-identifier hs-var">isBinderUsed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681796244"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796244"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; a -&gt; Bool
+forall a. Free a =&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#freeIn"><span class="hs-operator hs-var">`freeIn`</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681796244"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-230"></span><span>
+</span><span id="line-231"></span><span class="annot"><span class="hs-comment">-- ** Relevant free occurrence.</span></span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span class="hs-keyword">newtype</span><span> </span><span id="RelevantIn"><span class="annot"><a href="Agda.TypeChecking.Free.html#RelevantIn"><span class="hs-identifier hs-var">RelevantIn</span></a></span></span><span> </span><span id="local-6989586621681795849"><span class="annot"><a href="#local-6989586621681795849"><span class="hs-identifier hs-type">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RelevantIn"><span class="annot"><a href="Agda.TypeChecking.Free.html#RelevantIn"><span class="hs-identifier hs-var">RelevantIn</span></a></span></span><span> </span><span class="hs-special">{</span><span id="getRelevantIn"><span class="annot"><span class="annottext">forall c. RelevantIn c -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#getRelevantIn"><span class="hs-identifier hs-var hs-var">getRelevantIn</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681795849"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-234"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681796249"><span id="local-6989586621681796253"><span id="local-6989586621681796257"><span class="annot"><span class="annottext">NonEmpty (RelevantIn c) -&gt; RelevantIn c
+RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+(RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c)
+-&gt; (NonEmpty (RelevantIn c) -&gt; RelevantIn c)
+-&gt; (forall b. Integral b =&gt; b -&gt; RelevantIn c -&gt; RelevantIn c)
+-&gt; Semigroup (RelevantIn c)
+forall b. Integral b =&gt; b -&gt; RelevantIn c -&gt; RelevantIn c
+forall c. Semigroup c =&gt; NonEmpty (RelevantIn c) -&gt; RelevantIn c
+forall c.
+Semigroup c =&gt;
+RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+forall c b.
+(Semigroup c, Integral b) =&gt;
+b -&gt; RelevantIn c -&gt; RelevantIn c
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+$c&lt;&gt; :: forall c.
+Semigroup c =&gt;
+RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+&lt;&gt; :: RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+$csconcat :: forall c. Semigroup c =&gt; NonEmpty (RelevantIn c) -&gt; RelevantIn c
+sconcat :: NonEmpty (RelevantIn c) -&gt; RelevantIn c
+$cstimes :: forall c b.
+(Semigroup c, Integral b) =&gt;
+b -&gt; RelevantIn c -&gt; RelevantIn c
+stimes :: forall b. Integral b =&gt; b -&gt; RelevantIn c -&gt; RelevantIn c
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681796270"><span id="local-6989586621681796274"><span id="local-6989586621681796278"><span class="annot"><span class="annottext">Semigroup (RelevantIn c)
+RelevantIn c
+Semigroup (RelevantIn c) =&gt;
+RelevantIn c
+-&gt; (RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c)
+-&gt; ([RelevantIn c] -&gt; RelevantIn c)
+-&gt; Monoid (RelevantIn c)
+[RelevantIn c] -&gt; RelevantIn c
+RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+forall a.
+Semigroup a =&gt;
+a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+forall c. Monoid c =&gt; Semigroup (RelevantIn c)
+forall c. Monoid c =&gt; RelevantIn c
+forall c. Monoid c =&gt; [RelevantIn c] -&gt; RelevantIn c
+forall c. Monoid c =&gt; RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+$cmempty :: forall c. Monoid c =&gt; RelevantIn c
+mempty :: RelevantIn c
+$cmappend :: forall c. Monoid c =&gt; RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+mappend :: RelevantIn c -&gt; RelevantIn c -&gt; RelevantIn c
+$cmconcat :: forall c. Monoid c =&gt; [RelevantIn c] -&gt; RelevantIn c
+mconcat :: [RelevantIn c] -&gt; RelevantIn c
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-235"></span><span>
+</span><span id="line-236"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681795861"><span id="local-6989586621681795862"><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795861"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795862"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IsVarSet"><span class="hs-identifier hs-type">IsVarSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795861"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.html#RelevantIn"><span class="hs-identifier hs-type">RelevantIn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795862"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>  </span><span class="hs-comment">-- UndecidableInstances</span><span>
+</span><span id="line-237"></span><span>  </span><span id="local-6989586621681796310"><span class="annot"><span class="annottext">withVarOcc :: VarOcc' a -&gt; RelevantIn c -&gt; RelevantIn c
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var hs-var hs-var">withVarOcc</span></a></span></span><span> </span><span id="local-6989586621681796311"><span class="annot"><span class="annottext">VarOcc' a
+</span><a href="#local-6989586621681796311"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621681796312"><span class="annot"><span class="annottext">RelevantIn c
+</span><a href="#local-6989586621681796312"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-238"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">VarOcc' a -&gt; Bool
+forall a. LensRelevance a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Common.html#isIrrelevant"><span class="hs-identifier hs-var">isIrrelevant</span></a></span><span> </span><span class="annot"><span class="annottext">VarOcc' a
+</span><a href="#local-6989586621681796311"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RelevantIn c
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-239"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">c -&gt; RelevantIn c
+forall c. c -&gt; RelevantIn c
+</span><a href="Agda.TypeChecking.Free.html#RelevantIn"><span class="hs-identifier hs-var">RelevantIn</span></a></span><span> </span><span class="annot"><span class="annottext">(c -&gt; RelevantIn c) -&gt; c -&gt; RelevantIn c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarOcc' a -&gt; c -&gt; c
+forall a c. IsVarSet a c =&gt; VarOcc' a -&gt; c -&gt; c
+</span><a href="Agda.TypeChecking.Free.Lazy.html#withVarOcc"><span class="hs-identifier hs-var">withVarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">VarOcc' a
+</span><a href="#local-6989586621681796311"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">(c -&gt; c) -&gt; c -&gt; c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">RelevantIn c -&gt; c
+forall c. RelevantIn c -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#getRelevantIn"><span class="hs-identifier hs-var">getRelevantIn</span></a></span><span> </span><span class="annot"><span class="annottext">RelevantIn c
+</span><a href="#local-6989586621681796312"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-240"></span><span>
+</span><span id="line-241"></span><span id="local-6989586621681796314"><span class="annot"><a href="Agda.TypeChecking.Free.html#relevantIn%27"><span class="hs-identifier hs-type">relevantIn'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681796314"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681796314"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-242"></span><span id="relevantIn%27"><span class="annot"><span class="annottext">relevantIn' :: forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#relevantIn%27"><span class="hs-identifier hs-var hs-var">relevantIn'</span></a></span></span><span> </span><span id="local-6989586621681796321"><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796321"><span class="hs-identifier hs-var">ig</span></a></span></span><span> </span><span id="local-6989586621681796322"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796322"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681796323"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621681796323"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Any -&gt; Bool
+</span><span class="hs-identifier hs-var">getAny</span></span><span> </span><span class="annot"><span class="annottext">(Any -&gt; Bool) -&gt; (RelevantIn Any -&gt; Any) -&gt; RelevantIn Any -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RelevantIn Any -&gt; Any
+forall c. RelevantIn c -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#getRelevantIn"><span class="hs-identifier hs-var">getRelevantIn</span></a></span><span> </span><span class="annot"><span class="annottext">(RelevantIn Any -&gt; Bool) -&gt; RelevantIn Any -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SingleVar (RelevantIn Any) -&gt; IgnoreSorts -&gt; t -&gt; RelevantIn Any
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Any -&gt; RelevantIn Any
+forall c. c -&gt; RelevantIn c
+</span><a href="Agda.TypeChecking.Free.html#RelevantIn"><span class="hs-identifier hs-var">RelevantIn</span></a></span><span> </span><span class="annot"><span class="annottext">(Any -&gt; RelevantIn Any)
+-&gt; SingleVar Any -&gt; SingleVar (RelevantIn Any)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Any
+</span><span class="hs-identifier hs-var">Any</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Any) -&gt; (Int -&gt; Bool) -&gt; SingleVar Any
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681796322"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796321"><span class="hs-identifier hs-var">ig</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621681796323"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-243"></span><span>
+</span><span id="line-244"></span><span id="local-6989586621681796324"><span class="annot"><a href="Agda.TypeChecking.Free.html#relevantInIgnoringSortAnn"><span class="hs-identifier hs-type">relevantInIgnoringSortAnn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681796324"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681796324"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-245"></span><span id="relevantInIgnoringSortAnn"><span class="annot"><span class="annottext">relevantInIgnoringSortAnn :: forall a. Free a =&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#relevantInIgnoringSortAnn"><span class="hs-identifier hs-var hs-var">relevantInIgnoringSortAnn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; Int -&gt; t -&gt; Bool
+forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#relevantIn%27"><span class="hs-identifier hs-var">relevantIn'</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreInAnnotations"><span class="hs-identifier hs-var">IgnoreInAnnotations</span></a></span><span>
+</span><span id="line-246"></span><span>
+</span><span id="line-247"></span><span id="local-6989586621681796328"><span class="annot"><a href="Agda.TypeChecking.Free.html#relevantIn"><span class="hs-identifier hs-type">relevantIn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681796328"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681796328"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-248"></span><span id="relevantIn"><span class="annot"><span class="annottext">relevantIn :: forall a. Free a =&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#relevantIn"><span class="hs-identifier hs-var hs-var">relevantIn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; Int -&gt; t -&gt; Bool
+forall a. Free a =&gt; IgnoreSorts -&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#relevantIn%27"><span class="hs-identifier hs-var">relevantIn'</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreAll"><span class="hs-identifier hs-var">IgnoreAll</span></a></span><span>
+</span><span id="line-249"></span><span>
+</span><span id="line-250"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-251"></span><span class="annot"><span class="hs-comment">-- * Occurrences of all free variables.</span></span><span>
+</span><span id="line-252"></span><span>
+</span><span id="line-253"></span><span class="annot"><span class="hs-comment">-- | Is the term entirely closed (no free variables)?</span></span><span>
+</span><span id="line-254"></span><span id="local-6989586621681795869"><span class="annot"><a href="Agda.TypeChecking.Free.html#closed"><span class="hs-identifier hs-type">closed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795869"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795869"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-255"></span><span id="closed"><span class="annot"><span class="annottext">closed :: forall t. Free t =&gt; t -&gt; Bool
+</span><a href="Agda.TypeChecking.Free.html#closed"><span class="hs-identifier hs-var hs-var">closed</span></a></span></span><span> </span><span id="local-6989586621681796334"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621681796334"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">All -&gt; Bool
+</span><span class="hs-identifier hs-var">getAll</span></span><span> </span><span class="annot"><span class="annottext">(All -&gt; Bool) -&gt; All -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SingleVar All -&gt; IgnoreSorts -&gt; t -&gt; All
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">All -&gt; SingleVar All
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">(All -&gt; SingleVar All) -&gt; All -&gt; SingleVar All
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; All
+</span><span class="hs-identifier hs-var">All</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreNot"><span class="hs-identifier hs-var">IgnoreNot</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621681796334"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-256"></span><span>
+</span><span id="line-257"></span><span class="annot"><span class="hs-comment">-- | Collect all free variables.</span></span><span>
+</span><span id="line-258"></span><span id="local-6989586621681795873"><span class="annot"><a href="Agda.TypeChecking.Free.html#allFreeVars"><span class="hs-identifier hs-type">allFreeVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795873"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795873"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span></span><span>
+</span><span id="line-259"></span><span id="allFreeVars"><span class="annot"><span class="annottext">allFreeVars :: forall t. Free t =&gt; t -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#allFreeVars"><span class="hs-identifier hs-var hs-var">allFreeVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleVar VarSet -&gt; IgnoreSorts -&gt; t -&gt; VarSet
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="annot"><span class="annottext">SingleVar VarSet
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreNot"><span class="hs-identifier hs-var">IgnoreNot</span></a></span><span>
+</span><span id="line-260"></span><span>
+</span><span id="line-261"></span><span class="annot"><span class="hs-comment">-- | Collect all relevant free variables, possibly ignoring sorts.</span></span><span>
+</span><span id="line-262"></span><span id="local-6989586621681795875"><span class="annot"><a href="Agda.TypeChecking.Free.html#allRelevantVarsIgnoring"><span class="hs-identifier hs-type">allRelevantVarsIgnoring</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681795875"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreSorts"><span class="hs-identifier hs-type">IgnoreSorts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681795875"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span></span><span>
+</span><span id="line-263"></span><span id="allRelevantVarsIgnoring"><span class="annot"><span class="annottext">allRelevantVarsIgnoring :: forall t. Free t =&gt; IgnoreSorts -&gt; t -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#allRelevantVarsIgnoring"><span class="hs-identifier hs-var hs-var">allRelevantVarsIgnoring</span></a></span></span><span> </span><span id="local-6989586621681796348"><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796348"><span class="hs-identifier hs-var">ig</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RelevantIn VarSet -&gt; VarSet
+forall c. RelevantIn c -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#getRelevantIn"><span class="hs-identifier hs-var">getRelevantIn</span></a></span><span> </span><span class="annot"><span class="annottext">(RelevantIn VarSet -&gt; VarSet)
+-&gt; (t -&gt; RelevantIn VarSet) -&gt; t -&gt; VarSet
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SingleVar (RelevantIn VarSet)
+-&gt; IgnoreSorts -&gt; t -&gt; RelevantIn VarSet
+forall a c t.
+(IsVarSet a c, Free t) =&gt;
+SingleVar c -&gt; IgnoreSorts -&gt; t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#runFree"><span class="hs-identifier hs-var">runFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VarSet -&gt; RelevantIn VarSet
+forall c. c -&gt; RelevantIn c
+</span><a href="Agda.TypeChecking.Free.html#RelevantIn"><span class="hs-identifier hs-var">RelevantIn</span></a></span><span> </span><span class="annot"><span class="annottext">(VarSet -&gt; RelevantIn VarSet)
+-&gt; SingleVar VarSet -&gt; SingleVar (RelevantIn VarSet)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SingleVar VarSet
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="#local-6989586621681796348"><span class="hs-identifier hs-var">ig</span></a></span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span class="annot"><span class="hs-comment">-- | Collect all relevant free variables, excluding the &quot;unused&quot; ones.</span></span><span>
+</span><span id="line-266"></span><span id="local-6989586621681796349"><span class="annot"><a href="Agda.TypeChecking.Free.html#allRelevantVars"><span class="hs-identifier hs-type">allRelevantVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Free"><span class="hs-identifier hs-type">Free</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681796349"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681796349"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span></span><span>
+</span><span id="line-267"></span><span id="allRelevantVars"><span class="annot"><span class="annottext">allRelevantVars :: forall t. Free t =&gt; t -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#allRelevantVars"><span class="hs-identifier hs-var hs-var">allRelevantVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IgnoreSorts -&gt; t -&gt; VarSet
+forall t. Free t =&gt; IgnoreSorts -&gt; t -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#allRelevantVarsIgnoring"><span class="hs-identifier hs-var">allRelevantVarsIgnoring</span></a></span><span> </span><span class="annot"><span class="annottext">IgnoreSorts
+</span><a href="Agda.TypeChecking.Free.Lazy.html#IgnoreNot"><span class="hs-identifier hs-var">IgnoreNot</span></a></span><span>
+</span><span id="line-268"></span><span>
+</span><span id="line-269"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-270"></span><span class="annot"><span class="hs-comment">-- * Backwards-compatible interface to 'freeVars'.</span></span><span>
+</span><span id="line-271"></span><span>
+</span><span id="line-272"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#filterVarMap"><span class="hs-identifier hs-type">filterVarMap</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span>
+</span><span id="line-273"></span><span id="filterVarMap"><span class="annot"><span class="annottext">filterVarMap :: (VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#filterVarMap"><span class="hs-identifier hs-var hs-var">filterVarMap</span></a></span></span><span> </span><span id="local-6989586621681796352"><span class="annot"><span class="annottext">VarOcc -&gt; Bool
+</span><a href="#local-6989586621681796352"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#fromList"><span class="hs-identifier hs-var">VarSet.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">([Int] -&gt; VarSet) -&gt; (VarMap -&gt; [Int]) -&gt; VarMap -&gt; VarSet
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IntMap VarOcc -&gt; [Int]
+forall a. IntMap a -&gt; [Int]
+</span><span class="hs-identifier hs-var">IntMap.keys</span></span><span> </span><span class="annot"><span class="annottext">(IntMap VarOcc -&gt; [Int])
+-&gt; (VarMap -&gt; IntMap VarOcc) -&gt; VarMap -&gt; [Int]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; Bool) -&gt; IntMap VarOcc -&gt; IntMap VarOcc
+forall a. (a -&gt; Bool) -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.filter</span></span><span> </span><span class="annot"><span class="annottext">VarOcc -&gt; Bool
+</span><a href="#local-6989586621681796352"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(IntMap VarOcc -&gt; IntMap VarOcc)
+-&gt; (VarMap -&gt; IntMap VarOcc) -&gt; VarMap -&gt; IntMap VarOcc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">VarMap -&gt; IntMap VarOcc
+forall a. VarMap' a -&gt; TheVarMap' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#theVarMap"><span class="hs-identifier hs-var">theVarMap</span></a></span><span>
+</span><span id="line-274"></span><span>
+</span><span id="line-275"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#filterVarMapToList"><span class="hs-identifier hs-type">filterVarMapToList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Variable"><span class="hs-identifier hs-type">Variable</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-276"></span><span id="filterVarMapToList"><span class="annot"><span class="annottext">filterVarMapToList :: (VarOcc -&gt; Bool) -&gt; VarMap -&gt; [Int]
+</span><a href="Agda.TypeChecking.Free.html#filterVarMapToList"><span class="hs-identifier hs-var hs-var">filterVarMapToList</span></a></span></span><span> </span><span id="local-6989586621681796357"><span class="annot"><span class="annottext">VarOcc -&gt; Bool
+</span><a href="#local-6989586621681796357"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Int, VarOcc) -&gt; Int) -&gt; [(Int, VarOcc)] -&gt; [Int]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Int, VarOcc) -&gt; Int
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">([(Int, VarOcc)] -&gt; [Int])
+-&gt; (VarMap -&gt; [(Int, VarOcc)]) -&gt; VarMap -&gt; [Int]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((Int, VarOcc) -&gt; Bool) -&gt; [(Int, VarOcc)] -&gt; [(Int, VarOcc)]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VarOcc -&gt; Bool
+</span><a href="#local-6989586621681796357"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; Bool)
+-&gt; ((Int, VarOcc) -&gt; VarOcc) -&gt; (Int, VarOcc) -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Int, VarOcc) -&gt; VarOcc
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(Int, VarOcc)] -&gt; [(Int, VarOcc)])
+-&gt; (VarMap -&gt; [(Int, VarOcc)]) -&gt; VarMap -&gt; [(Int, VarOcc)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IntMap VarOcc -&gt; [(Int, VarOcc)]
+forall a. IntMap a -&gt; [(Int, a)]
+</span><span class="hs-identifier hs-var">IntMap.toList</span></span><span> </span><span class="annot"><span class="annottext">(IntMap VarOcc -&gt; [(Int, VarOcc)])
+-&gt; (VarMap -&gt; IntMap VarOcc) -&gt; VarMap -&gt; [(Int, VarOcc)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">VarMap -&gt; IntMap VarOcc
+forall a. VarMap' a -&gt; TheVarMap' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#theVarMap"><span class="hs-identifier hs-var">theVarMap</span></a></span><span>
+</span><span id="line-277"></span><span>
+</span><span id="line-278"></span><span class="annot"><span class="hs-comment">-- | Variables under only and at least one inductive constructor(s).</span></span><span>
+</span><span id="line-279"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#stronglyRigidVars"><span class="hs-identifier hs-type">stronglyRigidVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span>
+</span><span id="line-280"></span><span id="stronglyRigidVars"><span class="annot"><span class="annottext">stronglyRigidVars :: VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#stronglyRigidVars"><span class="hs-identifier hs-var hs-var">stronglyRigidVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#filterVarMap"><span class="hs-identifier hs-var">filterVarMap</span></a></span><span> </span><span class="annot"><span class="annottext">((VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet)
+-&gt; (VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-281"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="Agda.TypeChecking.Free.Lazy.html#StronglyRigid"><span class="hs-identifier hs-var">StronglyRigid</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-282"></span><span>  </span><span class="annot"><span class="annottext">VarOcc
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-283"></span><span>
+</span><span id="line-284"></span><span class="hs-comment">-- | Variables at top or only under inductive record constructors</span><span>
+</span><span id="line-285"></span><span class="hs-comment">--   &#955;s and &#928;s.</span><span>
+</span><span id="line-286"></span><span class="hs-comment">--   The purpose of recording these separately is that they</span><span>
+</span><span id="line-287"></span><span class="hs-comment">--   can still become strongly rigid if put under a constructor</span><span>
+</span><span id="line-288"></span><span class="hs-comment">--   whereas weakly rigid ones stay weakly rigid.</span><span>
+</span><span id="line-289"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#unguardedVars"><span class="hs-identifier hs-type">unguardedVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span>
+</span><span id="line-290"></span><span id="unguardedVars"><span class="annot"><span class="annottext">unguardedVars :: VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#unguardedVars"><span class="hs-identifier hs-var hs-var">unguardedVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#filterVarMap"><span class="hs-identifier hs-var">filterVarMap</span></a></span><span> </span><span class="annot"><span class="annottext">((VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet)
+-&gt; (VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-291"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="Agda.TypeChecking.Free.Lazy.html#Unguarded"><span class="hs-identifier hs-var">Unguarded</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-292"></span><span>  </span><span class="annot"><span class="annottext">VarOcc
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-293"></span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen 2019-07-16</span><span>
+</span><span id="line-295"></span><span class="hs-comment">---- | Ordinary rigid variables, e.g., in arguments of variables or functions.</span><span>
+</span><span id="line-296"></span><span class="hs-comment">--weaklyRigidVars :: VarMap -&gt; VarSet</span><span>
+</span><span id="line-297"></span><span class="hs-comment">--weaklyRigidVars = filterVarMap $ \case</span><span>
+</span><span id="line-298"></span><span class="hs-comment">--  VarOcc WeaklyRigid _ -&gt; True</span><span>
+</span><span id="line-299"></span><span class="hs-comment">--  _ -&gt; False</span><span>
+</span><span id="line-300"></span><span>
+</span><span id="line-301"></span><span class="annot"><span class="hs-comment">-- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.</span></span><span>
+</span><span id="line-302"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#rigidVars"><span class="hs-identifier hs-type">rigidVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span>
+</span><span id="line-303"></span><span id="rigidVars"><span class="annot"><span class="annottext">rigidVars :: VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#rigidVars"><span class="hs-identifier hs-var hs-var">rigidVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#filterVarMap"><span class="hs-identifier hs-var">filterVarMap</span></a></span><span> </span><span class="annot"><span class="annottext">((VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet)
+-&gt; (VarOcc -&gt; Bool) -&gt; VarMap -&gt; VarSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-304"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span><span> </span><span id="local-6989586621681796363"><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="#local-6989586621681796363"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+</span><a href="#local-6989586621681796363"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet -&gt; [FlexRig' MetaSet] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+forall a. FlexRig' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#WeaklyRigid"><span class="hs-identifier hs-var">WeaklyRigid</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+forall a. FlexRig' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#Unguarded"><span class="hs-identifier hs-var">Unguarded</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FlexRig' MetaSet
+forall a. FlexRig' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#StronglyRigid"><span class="hs-identifier hs-var">StronglyRigid</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-305"></span><span>
+</span><span id="line-306"></span><span class="hs-comment">-- | Variables occuring in arguments of metas.</span><span>
+</span><span id="line-307"></span><span class="hs-comment">--  These are only potentially free, depending how the meta variable is instantiated.</span><span>
+</span><span id="line-308"></span><span class="hs-comment">--  The set contains the id's of the meta variables that this variable is an argument to.</span><span>
+</span><span id="line-309"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#flexibleVars"><span class="hs-identifier hs-type">flexibleVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#MetaSet"><span class="hs-identifier hs-type">MetaSet</span></a></span><span>
+</span><span id="line-310"></span><span id="flexibleVars"><span class="annot"><span class="annottext">flexibleVars :: VarMap -&gt; IntMap MetaSet
+</span><a href="Agda.TypeChecking.Free.html#flexibleVars"><span class="hs-identifier hs-var hs-var">flexibleVars</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span id="local-6989586621681796367"><span class="annot"><span class="annottext">IntMap VarOcc
+</span><a href="#local-6989586621681796367"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(VarOcc -&gt; Maybe MetaSet) -&gt; IntMap VarOcc -&gt; IntMap MetaSet
+forall a b. (a -&gt; Maybe b) -&gt; IntMap a -&gt; IntMap b
+</span><span class="hs-operator hs-var">`IntMap.mapMaybe`</span></span><span> </span><span class="annot"><span class="annottext">IntMap VarOcc
+</span><a href="#local-6989586621681796367"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((VarOcc -&gt; Maybe MetaSet) -&gt; IntMap MetaSet)
+-&gt; (VarOcc -&gt; Maybe MetaSet) -&gt; IntMap MetaSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-311"></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarOcc"><span class="hs-identifier hs-type">VarOcc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#Flexible"><span class="hs-identifier hs-type">Flexible</span></a></span><span> </span><span id="local-6989586621681796370"><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621681796370"><span class="hs-identifier hs-var">ms</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Modality
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MetaSet -&gt; Maybe MetaSet
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621681796370"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-312"></span><span> </span><span class="annot"><span class="annottext">VarOcc
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe MetaSet
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-313"></span><span>
+</span><span id="line-314"></span><span class="hs-comment">---- | Variables in irrelevant arguments and under a @DontCare@, i.e.,</span><span>
+</span><span id="line-315"></span><span class="hs-comment">----   in irrelevant positions.</span><span>
+</span><span id="line-316"></span><span class="hs-comment">--irrelevantVars :: VarMap -&gt; VarSet</span><span>
+</span><span id="line-317"></span><span class="hs-comment">--irrelevantVars = filterVarMap isIrrelevant</span><span>
+</span><span id="line-318"></span><span>
+</span><span id="line-319"></span><span class="annot"><a href="Agda.TypeChecking.Free.html#allVars"><span class="hs-identifier hs-type">allVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#VarMap"><span class="hs-identifier hs-type">VarMap</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span>
+</span><span id="line-320"></span><span id="allVars"><span class="annot"><span class="annottext">allVars :: VarMap -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.html#allVars"><span class="hs-identifier hs-var hs-var">allVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#fromList"><span class="hs-identifier hs-var">VarSet.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">([Int] -&gt; VarSet) -&gt; (VarMap -&gt; [Int]) -&gt; VarMap -&gt; VarSet
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IntMap VarOcc -&gt; [Int]
+forall a. IntMap a -&gt; [Int]
+</span><span class="hs-identifier hs-var">IntMap.keys</span></span><span> </span><span class="annot"><span class="annottext">(IntMap VarOcc -&gt; [Int])
+-&gt; (VarMap -&gt; IntMap VarOcc) -&gt; VarMap -&gt; [Int]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">VarMap -&gt; IntMap VarOcc
+forall a. VarMap' a -&gt; TheVarMap' a
+</span><a href="Agda.TypeChecking.Free.Lazy.html#theVarMap"><span class="hs-identifier hs-var">theVarMap</span></a></span><span>
+</span><span id="line-321"></span></pre></body></html>

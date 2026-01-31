@@ -1,0 +1,96 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | A pure MonadFail.</span></span><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Fail.html"><span class="hs-identifier">Agda.Utils.Fail</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">newtype</span><span> </span><span id="Fail"><span class="annot"><a href="Agda.Utils.Fail.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span></span><span> </span><span id="local-6989586621681693879"><span class="annot"><a href="#local-6989586621681693879"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Fail"><span class="annot"><a href="Agda.Utils.Fail.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="runFail"><span class="annot"><span class="annottext">forall a. Fail a -&gt; Either String a
+</span><a href="Agda.Utils.Fail.html#runFail"><span class="hs-identifier hs-var hs-var">runFail</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="#local-6989586621681693879"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681693949"><span id="local-6989586621681693954"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Fail a -&gt; Fail b)
+-&gt; (forall a b. a -&gt; Fail b -&gt; Fail a) -&gt; Functor Fail
+forall a b. a -&gt; Fail b -&gt; Fail a
+forall a b. (a -&gt; b) -&gt; Fail a -&gt; Fail b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Fail a -&gt; Fail b
+fmap :: forall a b. (a -&gt; b) -&gt; Fail a -&gt; Fail b
+$c&lt;$ :: forall a b. a -&gt; Fail b -&gt; Fail a
+&lt;$ :: forall a b. a -&gt; Fail b -&gt; Fail a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693963"><span id="local-6989586621681693968"><span id="local-6989586621681693972"><span id="local-6989586621681693976"><span id="local-6989586621681693980"><span class="annot"><span class="annottext">Functor Fail
+Functor Fail =&gt;
+(forall a. a -&gt; Fail a)
+-&gt; (forall a b. Fail (a -&gt; b) -&gt; Fail a -&gt; Fail b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; Fail a -&gt; Fail b -&gt; Fail c)
+-&gt; (forall a b. Fail a -&gt; Fail b -&gt; Fail b)
+-&gt; (forall a b. Fail a -&gt; Fail b -&gt; Fail a)
+-&gt; Applicative Fail
+forall a. a -&gt; Fail a
+forall a b. Fail a -&gt; Fail b -&gt; Fail a
+forall a b. Fail a -&gt; Fail b -&gt; Fail b
+forall a b. Fail (a -&gt; b) -&gt; Fail a -&gt; Fail b
+forall a b c. (a -&gt; b -&gt; c) -&gt; Fail a -&gt; Fail b -&gt; Fail c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall a. a -&gt; Fail a
+pure :: forall a. a -&gt; Fail a
+$c&lt;*&gt; :: forall a b. Fail (a -&gt; b) -&gt; Fail a -&gt; Fail b
+&lt;*&gt; :: forall a b. Fail (a -&gt; b) -&gt; Fail a -&gt; Fail b
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; Fail a -&gt; Fail b -&gt; Fail c
+liftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; Fail a -&gt; Fail b -&gt; Fail c
+$c*&gt; :: forall a b. Fail a -&gt; Fail b -&gt; Fail b
+*&gt; :: forall a b. Fail a -&gt; Fail b -&gt; Fail b
+$c&lt;* :: forall a b. Fail a -&gt; Fail b -&gt; Fail a
+&lt;* :: forall a b. Fail a -&gt; Fail b -&gt; Fail a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681693990"><span id="local-6989586621681693995"><span id="local-6989586621681693999"><span class="annot"><span class="annottext">Applicative Fail
+Applicative Fail =&gt;
+(forall a b. Fail a -&gt; (a -&gt; Fail b) -&gt; Fail b)
+-&gt; (forall a b. Fail a -&gt; Fail b -&gt; Fail b)
+-&gt; (forall a. a -&gt; Fail a)
+-&gt; Monad Fail
+forall a. a -&gt; Fail a
+forall a b. Fail a -&gt; Fail b -&gt; Fail b
+forall a b. Fail a -&gt; (a -&gt; Fail b) -&gt; Fail b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall a b. Fail a -&gt; (a -&gt; Fail b) -&gt; Fail b
+&gt;&gt;= :: forall a b. Fail a -&gt; (a -&gt; Fail b) -&gt; Fail b
+$c&gt;&gt; :: forall a b. Fail a -&gt; Fail b -&gt; Fail b
+&gt;&gt; :: forall a b. Fail a -&gt; Fail b -&gt; Fail b
+$creturn :: forall a. a -&gt; Fail a
+return :: forall a. a -&gt; Fail a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="Agda.Utils.Fail.html#Fail"><span class="hs-identifier hs-type">Fail</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>  </span><span id="local-6989586621681694009"><span class="annot"><span class="annottext">fail :: forall a. String -&gt; Fail a
+</span><span class="hs-identifier hs-var hs-var hs-var">fail</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Either String a -&gt; Fail a
+forall a. Either String a -&gt; Fail a
+</span><a href="Agda.Utils.Fail.html#Fail"><span class="hs-identifier hs-var">Fail</span></a></span><span> </span><span class="annot"><span class="annottext">(Either String a -&gt; Fail a)
+-&gt; (String -&gt; Either String a) -&gt; String -&gt; Fail a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String a
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span id="local-6989586621681693937"><span class="annot"><a href="Agda.Utils.Fail.html#runFail_"><span class="hs-identifier hs-type">runFail_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Fail.html#Fail"><span class="hs-identifier hs-type">Fail</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681693937"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681693937"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-11"></span><span id="runFail_"><span class="annot"><span class="annottext">runFail_ :: forall a. Fail a -&gt; a
+</span><a href="Agda.Utils.Fail.html#runFail_"><span class="hs-identifier hs-var hs-var">runFail_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; a) -&gt; (a -&gt; a) -&gt; Either String a -&gt; a
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; a
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">(Either String a -&gt; a)
+-&gt; (Fail a -&gt; Either String a) -&gt; Fail a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Fail a -&gt; Either String a
+forall a. Fail a -&gt; Either String a
+</span><a href="Agda.Utils.Fail.html#runFail"><span class="hs-identifier hs-var">runFail</span></a></span><span>
+</span><span id="line-12"></span></pre></body></html>

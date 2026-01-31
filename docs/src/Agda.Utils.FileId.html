@@ -1,0 +1,494 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Translating between file paths and ids.</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- This module allows you to build a dictionary from file paths to some unique identifier</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- and to look up both file paths and identifiers in that dictionary.</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html"><span class="hs-identifier">Agda.Utils.FileId</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>           </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ExceptT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Identity</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IdentityT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ReaderT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">StateT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadTrans</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">lift</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MaybeT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">WriterT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">second</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.EnumMap</span></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">EnumMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.EnumMap</span></span><span> </span><span class="hs-keyword">qualified</span><span>    </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">EnumMap</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span>        </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>                </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>                 </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word32</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.html"><span class="hs-identifier">Agda.Utils.CallStack</span></a></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">HasCallStack</span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>       </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier">AbsolutePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html"><span class="hs-identifier">Agda.Utils.ListT</span></a></span><span>          </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier">ListT</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>           </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier">Null</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Update.html"><span class="hs-identifier">Agda.Utils.Update</span></a></span><span>         </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier">ChangeT</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">type</span><span> </span><span id="File"><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-var">File</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><span class="hs-comment">-- | Unique identifier of a file.</span></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">newtype</span><span> </span><span id="FileId"><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-var">FileId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FileId"><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-var">FileId</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="theFileId"><span class="annot"><span class="annottext">FileId -&gt; Word32
+</span><a href="Agda.Utils.FileId.html#theFileId"><span class="hs-identifier hs-var hs-var">theFileId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681730037"><span id="local-6989586621681730042"><span class="annot"><span class="annottext">FileId -&gt; FileId -&gt; Bool
+(FileId -&gt; FileId -&gt; Bool)
+-&gt; (FileId -&gt; FileId -&gt; Bool) -&gt; Eq FileId
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: FileId -&gt; FileId -&gt; Bool
+== :: FileId -&gt; FileId -&gt; Bool
+$c/= :: FileId -&gt; FileId -&gt; Bool
+/= :: FileId -&gt; FileId -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681730051"><span id="local-6989586621681730056"><span id="local-6989586621681730060"><span id="local-6989586621681730064"><span id="local-6989586621681730068"><span id="local-6989586621681730072"><span id="local-6989586621681730076"><span class="annot"><span class="annottext">Eq FileId
+Eq FileId =&gt;
+(FileId -&gt; FileId -&gt; Ordering)
+-&gt; (FileId -&gt; FileId -&gt; Bool)
+-&gt; (FileId -&gt; FileId -&gt; Bool)
+-&gt; (FileId -&gt; FileId -&gt; Bool)
+-&gt; (FileId -&gt; FileId -&gt; Bool)
+-&gt; (FileId -&gt; FileId -&gt; FileId)
+-&gt; (FileId -&gt; FileId -&gt; FileId)
+-&gt; Ord FileId
+FileId -&gt; FileId -&gt; Bool
+FileId -&gt; FileId -&gt; Ordering
+FileId -&gt; FileId -&gt; FileId
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: FileId -&gt; FileId -&gt; Ordering
+compare :: FileId -&gt; FileId -&gt; Ordering
+$c&lt; :: FileId -&gt; FileId -&gt; Bool
+&lt; :: FileId -&gt; FileId -&gt; Bool
+$c&lt;= :: FileId -&gt; FileId -&gt; Bool
+&lt;= :: FileId -&gt; FileId -&gt; Bool
+$c&gt; :: FileId -&gt; FileId -&gt; Bool
+&gt; :: FileId -&gt; FileId -&gt; Bool
+$c&gt;= :: FileId -&gt; FileId -&gt; Bool
+&gt;= :: FileId -&gt; FileId -&gt; Bool
+$cmax :: FileId -&gt; FileId -&gt; FileId
+max :: FileId -&gt; FileId -&gt; FileId
+$cmin :: FileId -&gt; FileId -&gt; FileId
+min :: FileId -&gt; FileId -&gt; FileId
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681730088"><span id="local-6989586621681730094"><span id="local-6989586621681730098"><span class="annot"><span class="annottext">Int -&gt; FileId -&gt; ShowS
+[FileId] -&gt; ShowS
+FileId -&gt; String
+(Int -&gt; FileId -&gt; ShowS)
+-&gt; (FileId -&gt; String) -&gt; ([FileId] -&gt; ShowS) -&gt; Show FileId
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; FileId -&gt; ShowS
+showsPrec :: Int -&gt; FileId -&gt; ShowS
+$cshow :: FileId -&gt; String
+show :: FileId -&gt; String
+$cshowList :: [FileId] -&gt; ShowS
+showList :: [FileId] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681730103"><span id="local-6989586621681730105"><span class="annot"><span class="annottext">(forall x. FileId -&gt; Rep FileId x)
+-&gt; (forall x. Rep FileId x -&gt; FileId) -&gt; Generic FileId
+forall x. Rep FileId x -&gt; FileId
+forall x. FileId -&gt; Rep FileId x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. FileId -&gt; Rep FileId x
+from :: forall x. FileId -&gt; Rep FileId x
+$cto :: forall x. Rep FileId x -&gt; FileId
+to :: forall x. Rep FileId x -&gt; FileId
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681730111"><span id="local-6989586621681730116"><span id="local-6989586621681730120"><span id="local-6989586621681730124"><span id="local-6989586621681730128"><span id="local-6989586621681730132"><span id="local-6989586621681730136"><span id="local-6989586621681730140"><span class="annot"><span class="annottext">Int -&gt; FileId
+FileId -&gt; Int
+FileId -&gt; [FileId]
+FileId -&gt; FileId
+FileId -&gt; FileId -&gt; [FileId]
+FileId -&gt; FileId -&gt; FileId -&gt; [FileId]
+(FileId -&gt; FileId)
+-&gt; (FileId -&gt; FileId)
+-&gt; (Int -&gt; FileId)
+-&gt; (FileId -&gt; Int)
+-&gt; (FileId -&gt; [FileId])
+-&gt; (FileId -&gt; FileId -&gt; [FileId])
+-&gt; (FileId -&gt; FileId -&gt; [FileId])
+-&gt; (FileId -&gt; FileId -&gt; FileId -&gt; [FileId])
+-&gt; Enum FileId
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: FileId -&gt; FileId
+succ :: FileId -&gt; FileId
+$cpred :: FileId -&gt; FileId
+pred :: FileId -&gt; FileId
+$ctoEnum :: Int -&gt; FileId
+toEnum :: Int -&gt; FileId
+$cfromEnum :: FileId -&gt; Int
+fromEnum :: FileId -&gt; Int
+$cenumFrom :: FileId -&gt; [FileId]
+enumFrom :: FileId -&gt; [FileId]
+$cenumFromThen :: FileId -&gt; FileId -&gt; [FileId]
+enumFromThen :: FileId -&gt; FileId -&gt; [FileId]
+$cenumFromTo :: FileId -&gt; FileId -&gt; [FileId]
+enumFromTo :: FileId -&gt; FileId -&gt; [FileId]
+$cenumFromThenTo :: FileId -&gt; FileId -&gt; FileId -&gt; [FileId]
+enumFromThenTo :: FileId -&gt; FileId -&gt; FileId -&gt; [FileId]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681730149"><span id="local-6989586621681730154"><span id="local-6989586621681730158"><span id="local-6989586621681730162"><span id="local-6989586621681730166"><span id="local-6989586621681730170"><span id="local-6989586621681730174"><span class="annot"><span class="annottext">Integer -&gt; FileId
+FileId -&gt; FileId
+FileId -&gt; FileId -&gt; FileId
+(FileId -&gt; FileId -&gt; FileId)
+-&gt; (FileId -&gt; FileId -&gt; FileId)
+-&gt; (FileId -&gt; FileId -&gt; FileId)
+-&gt; (FileId -&gt; FileId)
+-&gt; (FileId -&gt; FileId)
+-&gt; (FileId -&gt; FileId)
+-&gt; (Integer -&gt; FileId)
+-&gt; Num FileId
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Integer -&gt; a)
+-&gt; Num a
+$c+ :: FileId -&gt; FileId -&gt; FileId
++ :: FileId -&gt; FileId -&gt; FileId
+$c- :: FileId -&gt; FileId -&gt; FileId
+- :: FileId -&gt; FileId -&gt; FileId
+$c* :: FileId -&gt; FileId -&gt; FileId
+* :: FileId -&gt; FileId -&gt; FileId
+$cnegate :: FileId -&gt; FileId
+negate :: FileId -&gt; FileId
+$cabs :: FileId -&gt; FileId
+abs :: FileId -&gt; FileId
+$csignum :: FileId -&gt; FileId
+signum :: FileId -&gt; FileId
+$cfromInteger :: Integer -&gt; FileId
+fromInteger :: Integer -&gt; FileId
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Num</span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- * Mapping between files and their unique identifiers.</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">type</span><span> </span><span id="FileToId"><span class="annot"><a href="Agda.Utils.FileId.html#FileToId"><span class="hs-identifier hs-var">FileToId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">type</span><span> </span><span id="IdToFile"><span class="annot"><a href="Agda.Utils.FileId.html#IdToFile"><span class="hs-identifier hs-var">IdToFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">EnumMap</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">data</span><span> </span><span id="FileDict"><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-var">FileDict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FileDict"><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-var">FileDict</span></a></span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="fileToId"><span class="annot"><span class="annottext">FileDict -&gt; FileToId
+</span><a href="Agda.Utils.FileId.html#fileToId"><span class="hs-identifier hs-var hs-var">fileToId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileToId"><span class="hs-identifier hs-type">FileToId</span></a></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="idToFile"><span class="annot"><span class="annottext">FileDict -&gt; IdToFile
+</span><a href="Agda.Utils.FileId.html#idToFile"><span class="hs-identifier hs-var hs-var">idToFile</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#IdToFile"><span class="hs-identifier hs-type">IdToFile</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681730186"><span id="local-6989586621681730188"><span class="annot"><span class="annottext">(forall x. FileDict -&gt; Rep FileDict x)
+-&gt; (forall x. Rep FileDict x -&gt; FileDict) -&gt; Generic FileDict
+forall x. Rep FileDict x -&gt; FileDict
+forall x. FileDict -&gt; Rep FileDict x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. FileDict -&gt; Rep FileDict x
+from :: forall x. FileDict -&gt; Rep FileDict x
+$cto :: forall x. Rep FileDict x -&gt; FileDict
+to :: forall x. Rep FileDict x -&gt; FileDict
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><span class="hs-comment">-- | Translate a file to an ID; mapping must exist.</span></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">class</span><span> </span><span id="GetFileId"><span class="annot"><a href="Agda.Utils.FileId.html#GetFileId"><span class="hs-identifier hs-var">GetFileId</span></a></span></span><span> </span><span id="local-6989586621681729986"><span class="annot"><a href="#local-6989586621681729986"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>  </span><span id="getFileId"><span class="annot"><a href="Agda.Utils.FileId.html#getFileId"><span class="hs-identifier hs-type">getFileId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681729986"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="annot"><span class="hs-comment">-- | Translate a ID to a file; mapping must exist.</span></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">class</span><span> </span><span id="GetIdFile"><span class="annot"><a href="Agda.Utils.FileId.html#GetIdFile"><span class="hs-identifier hs-var">GetIdFile</span></a></span></span><span> </span><span id="local-6989586621681729991"><span class="annot"><a href="#local-6989586621681729991"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-59"></span><span>  </span><span id="getIdFile"><span class="annot"><a href="Agda.Utils.FileId.html#getIdFile"><span class="hs-identifier hs-type">getIdFile</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681729991"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="annot"><span class="hs-comment">-- * Constructing a mapping between files and their unique identifiers.</span></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">data</span><span> </span><span id="FileDictBuilder"><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-var">FileDictBuilder</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FileDictBuilder"><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-var">FileDictBuilder</span></a></span></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="nextFileId"><span class="annot"><span class="annottext">FileDictBuilder -&gt; FileId
+</span><a href="Agda.Utils.FileId.html#nextFileId"><span class="hs-identifier hs-var hs-var">nextFileId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="fileDict"><span class="annot"><span class="annottext">FileDictBuilder -&gt; FileDict
+</span><a href="Agda.Utils.FileId.html#fileDict"><span class="hs-identifier hs-var hs-var">fileDict</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-type">FileDict</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681730196"><span id="local-6989586621681730198"><span class="annot"><span class="annottext">(forall x. FileDictBuilder -&gt; Rep FileDictBuilder x)
+-&gt; (forall x. Rep FileDictBuilder x -&gt; FileDictBuilder)
+-&gt; Generic FileDictBuilder
+forall x. Rep FileDictBuilder x -&gt; FileDictBuilder
+forall x. FileDictBuilder -&gt; Rep FileDictBuilder x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. FileDictBuilder -&gt; Rep FileDictBuilder x
+from :: forall x. FileDictBuilder -&gt; Rep FileDictBuilder x
+$cto :: forall x. Rep FileDictBuilder x -&gt; FileDictBuilder
+to :: forall x. Rep FileDictBuilder x -&gt; FileDictBuilder
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><span class="hs-comment">-- | Register a new file identifier or retrieve an existing one.</span></span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Agda.Utils.FileId.html#registerFileId"><span class="hs-identifier hs-type">registerFileId</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span id="registerFileId"><span class="annot"><span class="annottext">registerFileId :: File -&gt; FileDictBuilder -&gt; (FileId, FileDictBuilder)
+</span><a href="Agda.Utils.FileId.html#registerFileId"><span class="hs-identifier hs-var hs-var">registerFileId</span></a></span></span><span> </span><span id="local-6989586621681730201"><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730201"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681730202"><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730202"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe FileDictBuilder -&gt; FileDictBuilder)
+-&gt; (FileId, Maybe FileDictBuilder) -&gt; (FileId, FileDictBuilder)
+forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+forall (p :: * -&gt; * -&gt; *) b c a.
+Bifunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileDictBuilder -&gt; Maybe FileDictBuilder -&gt; FileDictBuilder
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730202"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((FileId, Maybe FileDictBuilder) -&gt; (FileId, FileDictBuilder))
+-&gt; (FileId, Maybe FileDictBuilder) -&gt; (FileId, FileDictBuilder)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">File -&gt; FileDictBuilder -&gt; (FileId, Maybe FileDictBuilder)
+</span><a href="Agda.Utils.FileId.html#registerFileId%27%27"><span class="hs-identifier hs-var">registerFileId''</span></a></span><span> </span><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730201"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730202"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><span class="hs-comment">-- | Register a new file identifier ('True') or retrieve an existing one ('False').</span></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Agda.Utils.FileId.html#registerFileId%27"><span class="hs-identifier hs-type">registerFileId'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span id="registerFileId%27"><span class="annot"><span class="annottext">registerFileId' :: File -&gt; FileDictBuilder -&gt; ((FileId, Bool), FileDictBuilder)
+</span><a href="Agda.Utils.FileId.html#registerFileId%27"><span class="hs-identifier hs-var hs-var">registerFileId'</span></a></span></span><span> </span><span id="local-6989586621681730205"><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730205"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681730206"><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730206"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">File -&gt; FileDictBuilder -&gt; (FileId, Maybe FileDictBuilder)
+</span><a href="Agda.Utils.FileId.html#registerFileId%27%27"><span class="hs-identifier hs-var">registerFileId''</span></a></span><span> </span><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730205"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730206"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681730207"><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730207"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe FileDictBuilder
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730207"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730206"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681730208"><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730208"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681730209"><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730209"><span class="hs-identifier hs-var">d'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730208"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileDictBuilder
+</span><a href="#local-6989586621681730209"><span class="hs-identifier hs-var">d'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- | Register a new file identifier or retrieve an existing one.</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   If 'Nothing' is returned, the file was already registered.</span><span>
+</span><span id="line-82"></span><span class="annot"><a href="Agda.Utils.FileId.html#registerFileId%27%27"><span class="hs-identifier hs-type">registerFileId''</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span id="registerFileId%27%27"><span class="annot"><span class="annottext">registerFileId'' :: File -&gt; FileDictBuilder -&gt; (FileId, Maybe FileDictBuilder)
+</span><a href="Agda.Utils.FileId.html#registerFileId%27%27"><span class="hs-identifier hs-var hs-var">registerFileId''</span></a></span></span><span>  </span><span id="local-6989586621681730210"><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730210"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681730211"><span class="annot"><span class="annottext">d :: FileDictBuilder
+</span><a href="#local-6989586621681730211"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span id="local-6989586621681730212"><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730212"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-type">FileDict</span></a></span><span> </span><span id="local-6989586621681730213"><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730213"><span class="hs-identifier hs-var">fileToId</span></a></span></span><span> </span><span id="local-6989586621681730214"><span class="annot"><span class="annottext">IdToFile
+</span><a href="#local-6989586621681730214"><span class="hs-identifier hs-var">idToFile</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">File -&gt; FileToId -&gt; Maybe FileId
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730210"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730213"><span class="hs-identifier hs-var">fileToId</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-85"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681730216"><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730216"><span class="hs-identifier hs-var">i</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730216"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe FileDictBuilder
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>    </span><span class="annot"><span class="annottext">Maybe FileId
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730212"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileDictBuilder -&gt; Maybe FileDictBuilder
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(FileDictBuilder -&gt; Maybe FileDictBuilder)
+-&gt; FileDictBuilder -&gt; Maybe FileDictBuilder
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FileId -&gt; FileDict -&gt; FileDictBuilder
+</span><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-var">FileDictBuilder</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730212"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">FileId -&gt; FileId -&gt; FileId
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileToId -&gt; IdToFile -&gt; FileDict
+</span><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-var">FileDict</span></a></span><span> </span><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730217"><span class="hs-identifier hs-var">fileToId'</span></a></span><span> </span><span class="annot"><span class="annottext">IdToFile
+</span><a href="#local-6989586621681730218"><span class="hs-identifier hs-var">idToFile'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-88"></span><span>    </span><span id="local-6989586621681730217"><span class="annot"><span class="annottext">fileToId' :: FileToId
+</span><a href="#local-6989586621681730217"><span class="hs-identifier hs-var hs-var">fileToId'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">File -&gt; FileId -&gt; FileToId -&gt; FileToId
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730210"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730212"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730213"><span class="hs-identifier hs-var">fileToId</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span id="local-6989586621681730218"><span class="annot"><span class="annottext">idToFile' :: IdToFile
+</span><a href="#local-6989586621681730218"><span class="hs-identifier hs-var hs-var">idToFile'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileId -&gt; File -&gt; IdToFile -&gt; IdToFile
+forall k a. Enum k =&gt; k -&gt; a -&gt; EnumMap k a -&gt; EnumMap k a
+</span><span class="hs-identifier hs-var">EnumMap.insert</span></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730212"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730210"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">IdToFile
+</span><a href="#local-6989586621681730214"><span class="hs-identifier hs-var">idToFile</span></a></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="annot"><span class="hs-comment">-- * Monadic interface</span></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadFileId"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-var">MonadFileId</span></a></span></span><span> </span><span id="local-6989586621681729917"><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-94"></span><span>  </span><span id="fileFromId"><span class="annot"><a href="Agda.Utils.FileId.html#fileFromId"><span class="hs-identifier hs-type">fileFromId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span>
+</span><span id="line-95"></span><span>  </span><span id="idFromFile"><span class="annot"><a href="Agda.Utils.FileId.html#idFromFile"><span class="hs-identifier hs-type">idFromFile</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="fileFromId"><span class="annot"><a href="Agda.Utils.FileId.html#fileFromId"><span class="hs-identifier hs-type">fileFromId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681729919"><span id="local-6989586621681729921"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadTrans</span></span><span> </span><span class="annot"><a href="#local-6989586621681729919"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729921"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681729919"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729921"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span></span></span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621681730225"><span class="annot"><a href="Agda.Utils.FileId.html#fileFromId"><span class="hs-identifier hs-var hs-var">fileFromId</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n File -&gt; m File
+n File -&gt; t n File
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; t m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(n File -&gt; m File) -&gt; (FileId -&gt; n File) -&gt; FileId -&gt; m File
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FileId -&gt; n File
+forall (m :: * -&gt; *). MonadFileId m =&gt; FileId -&gt; m File
+</span><a href="Agda.Utils.FileId.html#fileFromId"><span class="hs-identifier hs-var">fileFromId</span></a></span></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="idFromFile"><span class="annot"><a href="Agda.Utils.FileId.html#idFromFile"><span class="hs-identifier hs-type">idFromFile</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681729930"><span id="local-6989586621681729931"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadTrans</span></span><span> </span><span class="annot"><a href="#local-6989586621681729930"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729931"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681729930"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729931"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681729917"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span></span></span><span>
+</span><span id="line-101"></span><span>  </span><span id="local-6989586621681730235"><span class="annot"><a href="Agda.Utils.FileId.html#idFromFile"><span class="hs-identifier hs-var hs-var">idFromFile</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n FileId -&gt; m FileId
+n FileId -&gt; t n FileId
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; t m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(n FileId -&gt; m FileId) -&gt; (File -&gt; n FileId) -&gt; File -&gt; m FileId
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">File -&gt; n FileId
+forall (m :: * -&gt; *). MonadFileId m =&gt; File -&gt; m FileId
+</span><a href="Agda.Utils.FileId.html#idFromFile"><span class="hs-identifier hs-var">idFromFile</span></a></span></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729940"><span id="local-6989586621681729941"><span id="local-6989586621681730250"><span id="local-6989586621681730258"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729940"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="#local-6989586621681729941"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729940"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-104"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729945"><span id="local-6989586621681730270"><span id="local-6989586621681730278"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729945"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IdentityT</span></span><span> </span><span class="annot"><a href="#local-6989586621681729945"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729951"><span id="local-6989586621681730291"><span id="local-6989586621681730299"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729951"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729951"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-106"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729955"><span id="local-6989586621681730312"><span id="local-6989586621681730320"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729955"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><a href="#local-6989586621681729955"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729962"><span id="local-6989586621681729963"><span id="local-6989586621681730331"><span id="local-6989586621681730339"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729962"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621681729963"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729962"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-108"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729970"><span id="local-6989586621681729971"><span id="local-6989586621681730350"><span id="local-6989586621681730358"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729970"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="#local-6989586621681729971"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729970"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-109"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729978"><span id="local-6989586621681729979"><span id="local-6989586621681730370"><span id="local-6989586621681730378"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729978"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681729979"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="annot"><a href="#local-6989586621681729979"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729978"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-110"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681729983"><span id="local-6989586621681730389"><span id="local-6989586621681730397"><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729983"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Update.html#ChangeT"><span class="hs-identifier hs-type">ChangeT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681729983"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- Instances for GetFileId</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#GetFileId"><span class="hs-identifier hs-type">GetFileId</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileToId"><span class="hs-identifier hs-type">FileToId</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-115"></span><span>  </span><span class="annot"><a href="Agda.Utils.FileId.html#getFileId"><span class="hs-identifier hs-type">getFileId</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileToId"><span class="hs-identifier hs-type">FileToId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span>
+</span><span id="line-116"></span><span>  </span><span id="local-6989586621681730409"><span class="annot"><span class="annottext">getFileId :: FileToId -&gt; File -&gt; FileId
+</span><a href="Agda.Utils.FileId.html#getFileId"><span class="hs-identifier hs-var hs-var hs-var">getFileId</span></a></span></span><span> </span><span id="local-6989586621681730410"><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730410"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681730411"><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730411"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileId -&gt; File -&gt; FileToId -&gt; FileId
+forall k a. Ord k =&gt; a -&gt; k -&gt; Map k a -&gt; a
+</span><span class="hs-identifier hs-var">Map.findWithDefault</span></span><span> </span><span class="annot"><span class="annottext">FileId
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">File
+</span><a href="#local-6989586621681730411"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730410"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#GetFileId"><span class="hs-identifier hs-type">GetFileId</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-type">FileDict</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621681730420"><span class="annot"><span class="annottext">getFileId :: HasCallStack =&gt; FileDict -&gt; File -&gt; FileId
+</span><a href="Agda.Utils.FileId.html#getFileId"><span class="hs-identifier hs-var hs-var hs-var">getFileId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileToId -&gt; File -&gt; FileId
+forall a. (GetFileId a, HasCallStack) =&gt; a -&gt; File -&gt; FileId
+</span><a href="Agda.Utils.FileId.html#getFileId"><span class="hs-identifier hs-var">getFileId</span></a></span><span> </span><span class="annot"><span class="annottext">(FileToId -&gt; File -&gt; FileId)
+-&gt; (FileDict -&gt; FileToId) -&gt; FileDict -&gt; File -&gt; FileId
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FileDict -&gt; FileToId
+</span><a href="Agda.Utils.FileId.html#fileToId"><span class="hs-identifier hs-var">fileToId</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#GetFileId"><span class="hs-identifier hs-type">GetFileId</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621681730427"><span class="annot"><span class="annottext">getFileId :: HasCallStack =&gt; FileDictBuilder -&gt; File -&gt; FileId
+</span><a href="Agda.Utils.FileId.html#getFileId"><span class="hs-identifier hs-var hs-var hs-var">getFileId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileDict -&gt; File -&gt; FileId
+forall a. (GetFileId a, HasCallStack) =&gt; a -&gt; File -&gt; FileId
+</span><a href="Agda.Utils.FileId.html#getFileId"><span class="hs-identifier hs-var">getFileId</span></a></span><span> </span><span class="annot"><span class="annottext">(FileDict -&gt; File -&gt; FileId)
+-&gt; (FileDictBuilder -&gt; FileDict)
+-&gt; FileDictBuilder
+-&gt; File
+-&gt; FileId
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FileDictBuilder -&gt; FileDict
+</span><a href="Agda.Utils.FileId.html#fileDict"><span class="hs-identifier hs-var">fileDict</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- Instances for GetIdFile</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#GetIdFile"><span class="hs-identifier hs-type">GetIdFile</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#IdToFile"><span class="hs-identifier hs-type">IdToFile</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-127"></span><span>  </span><span class="annot"><a href="Agda.Utils.FileId.html#getIdFile"><span class="hs-identifier hs-type">getIdFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#IdToFile"><span class="hs-identifier hs-type">IdToFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#File"><span class="hs-identifier hs-type">File</span></a></span><span>
+</span><span id="line-128"></span><span>  </span><span id="local-6989586621681730434"><span class="annot"><span class="annottext">getIdFile :: IdToFile -&gt; FileId -&gt; File
+</span><a href="Agda.Utils.FileId.html#getIdFile"><span class="hs-identifier hs-var hs-var hs-var">getIdFile</span></a></span></span><span> </span><span id="local-6989586621681730435"><span class="annot"><span class="annottext">IdToFile
+</span><a href="#local-6989586621681730435"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681730436"><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730436"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">File -&gt; FileId -&gt; IdToFile -&gt; File
+forall k a. Enum k =&gt; a -&gt; k -&gt; EnumMap k a -&gt; a
+</span><span class="hs-identifier hs-var">EnumMap.findWithDefault</span></span><span> </span><span class="annot"><span class="annottext">File
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><a href="#local-6989586621681730436"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">IdToFile
+</span><a href="#local-6989586621681730435"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#GetIdFile"><span class="hs-identifier hs-type">GetIdFile</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-type">FileDict</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621681730441"><span class="annot"><span class="annottext">getIdFile :: FileDict -&gt; FileId -&gt; File
+</span><a href="Agda.Utils.FileId.html#getIdFile"><span class="hs-identifier hs-var hs-var hs-var">getIdFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IdToFile -&gt; FileId -&gt; File
+forall a. GetIdFile a =&gt; a -&gt; FileId -&gt; File
+</span><a href="Agda.Utils.FileId.html#getIdFile"><span class="hs-identifier hs-var">getIdFile</span></a></span><span> </span><span class="annot"><span class="annottext">(IdToFile -&gt; FileId -&gt; File)
+-&gt; (FileDict -&gt; IdToFile) -&gt; FileDict -&gt; FileId -&gt; File
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FileDict -&gt; IdToFile
+</span><a href="Agda.Utils.FileId.html#idToFile"><span class="hs-identifier hs-var">idToFile</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#GetIdFile"><span class="hs-identifier hs-type">GetIdFile</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>  </span><span id="local-6989586621681730445"><span class="annot"><span class="annottext">getIdFile :: FileDictBuilder -&gt; FileId -&gt; File
+</span><a href="Agda.Utils.FileId.html#getIdFile"><span class="hs-identifier hs-var hs-var hs-var">getIdFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileDict -&gt; FileId -&gt; File
+forall a. GetIdFile a =&gt; a -&gt; FileId -&gt; File
+</span><a href="Agda.Utils.FileId.html#getIdFile"><span class="hs-identifier hs-var">getIdFile</span></a></span><span> </span><span class="annot"><span class="annottext">(FileDict -&gt; FileId -&gt; File)
+-&gt; (FileDictBuilder -&gt; FileDict)
+-&gt; FileDictBuilder
+-&gt; FileId
+-&gt; File
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FileDictBuilder -&gt; FileDict
+</span><a href="Agda.Utils.FileId.html#fileDict"><span class="hs-identifier hs-var">fileDict</span></a></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- Instances for Null</span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-type">FileDict</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-139"></span><span>  </span><span id="local-6989586621681730454"><span class="annot"><span class="annottext">empty :: FileDict
+</span><a href="#local-6989586621681730454"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileToId -&gt; IdToFile -&gt; FileDict
+</span><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-var">FileDict</span></a></span><span> </span><span class="annot"><span class="annottext">FileToId
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span> </span><span class="annot"><span class="annottext">IdToFile
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span id="local-6989586621681730458"><span class="annot"><span class="annottext">null :: FileDict -&gt; Bool
+</span><a href="#local-6989586621681730458"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-type">FileDict</span></a></span><span> </span><span id="local-6989586621681730460"><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730460"><span class="hs-identifier hs-var">to</span></a></span></span><span> </span><span id="local-6989586621681730461"><span class="annot"><span class="annottext">IdToFile
+</span><a href="#local-6989586621681730461"><span class="hs-identifier hs-var">fro</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileToId -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">FileToId
+</span><a href="#local-6989586621681730460"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">IdToFile -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">IdToFile
+</span><a href="#local-6989586621681730461"><span class="hs-identifier hs-var">fro</span></a></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-143"></span><span>  </span><span id="local-6989586621681730468"><span class="annot"><span class="annottext">empty :: FileDictBuilder
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileId -&gt; FileDict -&gt; FileDictBuilder
+</span><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-var">FileDictBuilder</span></a></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">FileDict
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span id="local-6989586621681730470"><span class="annot"><span class="annottext">null :: FileDictBuilder -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span><span> </span><span class="annot"><span class="annottext">FileId
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681730471"><span class="annot"><span class="annottext">FileDict
+</span><a href="#local-6989586621681730471"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FileDict -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">FileDict
+</span><a href="#local-6989586621681730471"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- Instances for NFData</span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730473"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileId"><span class="hs-identifier hs-type">FileId</span></a></span></span><span>
+</span><span id="line-149"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730488"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDict"><span class="hs-identifier hs-type">FileDict</span></a></span></span><span>
+</span><span id="line-150"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681730509"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#FileDictBuilder"><span class="hs-identifier hs-type">FileDictBuilder</span></a></span></span><span>
+</span><span id="line-151"></span></pre></body></html>

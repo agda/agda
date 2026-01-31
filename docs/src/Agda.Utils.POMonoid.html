@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Partially ordered monoids.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.POMonoid.html"><span class="hs-identifier">Agda.Utils.POMonoid</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html"><span class="hs-identifier">Agda.Utils.PartialOrd</span></a></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- | Partially ordered semigroup.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Law: composition must be monotone.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--   related x POLE x' &amp;&amp; related y POLE y' ==&gt;</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--   related (x &lt;&gt; y) POLE (x' &lt;&gt; y')</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681702077"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="#local-6989586621681702077"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="POSemigroup"><span class="annot"><a href="Agda.Utils.POMonoid.html#POSemigroup"><span class="hs-identifier hs-var">POSemigroup</span></a></span></span><span> </span><span id="local-6989586621681702077"><span class="annot"><a href="#local-6989586621681702077"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- | Partially ordered monoid.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Law: composition must be monotone.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   related x POLE x' &amp;&amp; related y POLE y' ==&gt;</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--   related (x &lt;&gt; y) POLE (x' &lt;&gt; y')</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681702080"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="#local-6989586621681702080"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681702080"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="POMonoid"><span class="annot"><a href="Agda.Utils.POMonoid.html#POMonoid"><span class="hs-identifier hs-var">POMonoid</span></a></span></span><span> </span><span id="local-6989586621681702080"><span class="annot"><a href="#local-6989586621681702080"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- | Completing POMonoids with inverses to form a Galois connection.</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- Law: composition and inverse composition form a Galois connection.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--   related (inverseCompose p x) POLE y &lt;==&gt; related x POLE (p &lt;&gt; y)</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><a href="Agda.Utils.POMonoid.html#POMonoid"><span class="hs-identifier hs-type">POMonoid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681702082"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="LeftClosedPOMonoid"><span class="annot"><a href="Agda.Utils.POMonoid.html#LeftClosedPOMonoid"><span class="hs-identifier hs-var">LeftClosedPOMonoid</span></a></span></span><span> </span><span id="local-6989586621681702082"><span class="annot"><a href="#local-6989586621681702082"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-40"></span><span>  </span><span id="inverseCompose"><span class="annot"><a href="Agda.Utils.POMonoid.html#inverseCompose"><span class="hs-identifier hs-type">inverseCompose</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681702082"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681702082"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681702082"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | @hasLeftAdjoint x@ checks whether</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   @x^-1 := x `inverseCompose` mempty@ is such that</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   @x `inverseCompose` y == x^-1 &lt;&gt; y@ for any @y@.</span><span>
+</span><span id="line-46"></span><span id="local-6989586621681702084"><span class="annot"><a href="Agda.Utils.POMonoid.html#hasLeftAdjoint"><span class="hs-identifier hs-type">hasLeftAdjoint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.POMonoid.html#LeftClosedPOMonoid"><span class="hs-identifier hs-type">LeftClosedPOMonoid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681702084"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681702084"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-47"></span><span id="hasLeftAdjoint"><span class="annot"><span class="annottext">hasLeftAdjoint :: forall a. LeftClosedPOMonoid a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.POMonoid.html#hasLeftAdjoint"><span class="hs-identifier hs-var hs-var">hasLeftAdjoint</span></a></span></span><span> </span><span id="local-6989586621681702108"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681702108"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; PartialOrdering -&gt; a -&gt; Bool
+forall a. PartialOrd a =&gt; a -&gt; PartialOrdering -&gt; a -&gt; Bool
+</span><a href="Agda.Utils.PartialOrd.html#related"><span class="hs-identifier hs-var">related</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. LeftClosedPOMonoid a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.POMonoid.html#inverseCompose"><span class="hs-identifier hs-var">inverseCompose</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681702108"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681702108"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">a
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-comment">-- It is enough to check the above, because of the following proof:</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-comment">-- I will write _\_ for `inverseCompose`, id for mempty, and _._ for (&lt;&gt;).</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-comment">-- Assume (*) x^-1 . x &lt;= id, as checked.</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-comment">-- Show x^-1 . y &lt;=&gt; x \ y</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-comment">-- 1. (&gt;=)</span><span>
+</span><span id="line-54"></span><span>     </span><span class="hs-comment">-- id     &lt;= x . (x \ id)      (galois)</span><span>
+</span><span id="line-55"></span><span>     </span><span class="hs-comment">-- id . y &lt;= x . (x \ id) . y</span><span>
+</span><span id="line-56"></span><span>     </span><span class="hs-comment">-- y      &lt;= x . (x \ id) . y</span><span>
+</span><span id="line-57"></span><span>     </span><span class="hs-comment">-- x \ y  &lt;= (x \ id) . y      (galois)</span><span>
+</span><span id="line-58"></span><span>     </span><span class="hs-comment">-- x^-1 . y &gt;= x \ y           qed</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-comment">-- 2. (&lt;=)</span><span>
+</span><span id="line-61"></span><span>     </span><span class="hs-comment">--        y &lt;=        x . (x \ y)   (galois)</span><span>
+</span><span id="line-62"></span><span>     </span><span class="hs-comment">-- x^-1 . y &lt;= x^-1 . x . (x \ y)</span><span>
+</span><span id="line-63"></span><span>     </span><span class="hs-comment">--          &lt;= id       . (x \ y)   (*)</span><span>
+</span><span id="line-64"></span><span>     </span><span class="hs-comment">--          &lt;= x \ y</span><span>
+</span><span id="line-65"></span><span>     </span><span class="hs-comment">-- x^-1 . y &lt;= x \ y                qed</span><span>
+</span><span id="line-66"></span></pre></body></html>

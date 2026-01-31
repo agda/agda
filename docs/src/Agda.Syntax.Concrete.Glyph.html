@@ -1,0 +1,388 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621681734942"><span id="local-6989586621681734943"></span></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-binds   #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="annot"><span class="hs-comment">{-| Choice of Unicode or ASCII glyphs.
+-}</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html"><span class="hs-identifier">Agda.Syntax.Concrete.Glyph</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier">UnicodeOrAscii</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#unsafeSetUnicodeOrAscii"><span class="hs-identifier">unsafeSetUnicodeOrAscii</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersForGlyphs"><span class="hs-identifier">specialCharactersForGlyphs</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#braces%27"><span class="hs-identifier">braces'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#dbraces"><span class="hs-identifier">dbraces</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#forallQ"><span class="hs-identifier">forallQ</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#leftIdiomBrkt"><span class="hs-identifier">leftIdiomBrkt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#rightIdiomBrkt"><span class="hs-identifier">rightIdiomBrkt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#emptyIdiomBrkt"><span class="hs-identifier">emptyIdiomBrkt</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#arrow"><span class="hs-identifier">arrow</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#lambda"><span class="hs-identifier">lambda</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#fromArrow"><span class="hs-identifier">fromArrow</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier">SpecialCharacters</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">System.IO.Unsafe</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">UNSAFE</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">unsafePerformIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Boolean.html"><span class="hs-identifier">Agda.Utils.Boolean</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html"><span class="hs-identifier">Agda.Utils.IORef.Strict</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Strict</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="annot"><span class="hs-comment">-- | We want to know whether we are allowed to insert unicode characters or not.</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="UnicodeOrAscii"><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-var">UnicodeOrAscii</span></a></span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="UnicodeOk"><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOk"><span class="hs-identifier hs-var">UnicodeOk</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ 'true': Unicode characters are allowed.</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="AsciiOnly"><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#AsciiOnly"><span class="hs-identifier hs-var">AsciiOnly</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ 'false: Stick to ASCII.</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681734987"><span id="local-6989586621681734989"><span id="local-6989586621681734993"><span class="annot"><span class="annottext">Int -&gt; UnicodeOrAscii -&gt; ShowS
+[UnicodeOrAscii] -&gt; ShowS
+UnicodeOrAscii -&gt; String
+(Int -&gt; UnicodeOrAscii -&gt; ShowS)
+-&gt; (UnicodeOrAscii -&gt; String)
+-&gt; ([UnicodeOrAscii] -&gt; ShowS)
+-&gt; Show UnicodeOrAscii
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; UnicodeOrAscii -&gt; ShowS
+showsPrec :: Int -&gt; UnicodeOrAscii -&gt; ShowS
+$cshow :: UnicodeOrAscii -&gt; String
+show :: UnicodeOrAscii -&gt; String
+$cshowList :: [UnicodeOrAscii] -&gt; ShowS
+showList :: [UnicodeOrAscii] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681734998"><span id="local-6989586621681735003"><span class="annot"><span class="annottext">UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bool
+(UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bool)
+-&gt; (UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bool) -&gt; Eq UnicodeOrAscii
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bool
+== :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bool
+$c/= :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bool
+/= :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681735008"><span id="local-6989586621681735015"><span id="local-6989586621681735020"><span id="local-6989586621681735026"><span id="local-6989586621681735029"><span id="local-6989586621681735034"><span id="local-6989586621681735041"><span id="local-6989586621681735045"><span class="annot"><span class="annottext">Int -&gt; UnicodeOrAscii
+UnicodeOrAscii -&gt; Int
+UnicodeOrAscii -&gt; [UnicodeOrAscii]
+UnicodeOrAscii -&gt; UnicodeOrAscii
+UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+UnicodeOrAscii
+-&gt; UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+(UnicodeOrAscii -&gt; UnicodeOrAscii)
+-&gt; (UnicodeOrAscii -&gt; UnicodeOrAscii)
+-&gt; (Int -&gt; UnicodeOrAscii)
+-&gt; (UnicodeOrAscii -&gt; Int)
+-&gt; (UnicodeOrAscii -&gt; [UnicodeOrAscii])
+-&gt; (UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii])
+-&gt; (UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii])
+-&gt; (UnicodeOrAscii
+    -&gt; UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii])
+-&gt; Enum UnicodeOrAscii
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: UnicodeOrAscii -&gt; UnicodeOrAscii
+succ :: UnicodeOrAscii -&gt; UnicodeOrAscii
+$cpred :: UnicodeOrAscii -&gt; UnicodeOrAscii
+pred :: UnicodeOrAscii -&gt; UnicodeOrAscii
+$ctoEnum :: Int -&gt; UnicodeOrAscii
+toEnum :: Int -&gt; UnicodeOrAscii
+$cfromEnum :: UnicodeOrAscii -&gt; Int
+fromEnum :: UnicodeOrAscii -&gt; Int
+$cenumFrom :: UnicodeOrAscii -&gt; [UnicodeOrAscii]
+enumFrom :: UnicodeOrAscii -&gt; [UnicodeOrAscii]
+$cenumFromThen :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+enumFromThen :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+$cenumFromTo :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+enumFromTo :: UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+$cenumFromThenTo :: UnicodeOrAscii
+-&gt; UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+enumFromThenTo :: UnicodeOrAscii
+-&gt; UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; [UnicodeOrAscii]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681735053"><span id="local-6989586621681735055"><span class="annot"><span class="annottext">UnicodeOrAscii
+UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; Bounded UnicodeOrAscii
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: UnicodeOrAscii
+minBound :: UnicodeOrAscii
+$cmaxBound :: UnicodeOrAscii
+maxBound :: UnicodeOrAscii
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681735061"><span id="local-6989586621681735063"><span class="annot"><span class="annottext">(forall x. UnicodeOrAscii -&gt; Rep UnicodeOrAscii x)
+-&gt; (forall x. Rep UnicodeOrAscii x -&gt; UnicodeOrAscii)
+-&gt; Generic UnicodeOrAscii
+forall x. Rep UnicodeOrAscii x -&gt; UnicodeOrAscii
+forall x. UnicodeOrAscii -&gt; Rep UnicodeOrAscii x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. UnicodeOrAscii -&gt; Rep UnicodeOrAscii x
+from :: forall x. UnicodeOrAscii -&gt; Rep UnicodeOrAscii x
+$cto :: forall x. Rep UnicodeOrAscii x -&gt; UnicodeOrAscii
+to :: forall x. Rep UnicodeOrAscii x -&gt; UnicodeOrAscii
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681735069"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681735085"><span id="local-6989586621681735089"><span id="local-6989586621681735092"><span id="local-6989586621681735097"><span id="local-6989586621681735101"><span id="local-6989586621681735105"><span id="local-6989586621681735108"><span class="annot"><a href="Agda.Utils.Boolean.html#Boolean"><span class="hs-identifier hs-type">Boolean</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681735111"><span class="annot"><span class="annottext">fromBool :: Bool -&gt; UnicodeOrAscii
+</span><a href="#local-6989586621681735111"><span class="hs-identifier hs-var hs-var hs-var">fromBool</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOk"><span class="hs-identifier hs-var">UnicodeOk</span></a></span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#AsciiOnly"><span class="hs-identifier hs-var">AsciiOnly</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681735119"><span id="local-6989586621681735122"><span id="local-6989586621681735125"><span class="annot"><a href="Agda.Utils.Boolean.html#IsBool"><span class="hs-identifier hs-type">IsBool</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>  </span><span id="local-6989586621681735128"><span class="annot"><span class="annottext">toBool :: UnicodeOrAscii -&gt; Bool
+</span><a href="#local-6989586621681735128"><span class="hs-identifier hs-var hs-var hs-var">toBool</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOk"><span class="hs-identifier hs-var">UnicodeOk</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#AsciiOnly"><span class="hs-identifier hs-var">AsciiOnly</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAsciiIORef"><span class="hs-pragma hs-type">unsafeUnicodeOrAsciiIORef</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAsciiIORef"><span class="hs-identifier hs-type">unsafeUnicodeOrAsciiIORef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier hs-type">Strict.IORef</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span><span>
+</span><span id="line-50"></span><span id="unsafeUnicodeOrAsciiIORef"><span class="annot"><span class="annottext">unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAsciiIORef"><span class="hs-identifier hs-var hs-var">unsafeUnicodeOrAsciiIORef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (IORef UnicodeOrAscii) -&gt; IORef UnicodeOrAscii
+forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">UNSAFE.unsafePerformIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (IORef UnicodeOrAscii) -&gt; IORef UnicodeOrAscii)
+-&gt; IO (IORef UnicodeOrAscii) -&gt; IORef UnicodeOrAscii
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii -&gt; IO (IORef UnicodeOrAscii)
+forall a. a -&gt; IO (IORef a)
+</span><a href="Agda.Utils.IORef.Strict.html#newIORef"><span class="hs-identifier hs-var">Strict.newIORef</span></a></span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOk"><span class="hs-identifier hs-var">UnicodeOk</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#unsafeSetUnicodeOrAscii"><span class="hs-pragma hs-type">unsafeSetUnicodeOrAscii</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#unsafeSetUnicodeOrAscii"><span class="hs-identifier hs-type">unsafeSetUnicodeOrAscii</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span id="unsafeSetUnicodeOrAscii"><span class="annot"><span class="annottext">unsafeSetUnicodeOrAscii :: UnicodeOrAscii -&gt; IO ()
+</span><a href="Agda.Syntax.Concrete.Glyph.html#unsafeSetUnicodeOrAscii"><span class="hs-identifier hs-var hs-var">unsafeSetUnicodeOrAscii</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IORef UnicodeOrAscii -&gt; UnicodeOrAscii -&gt; IO ()
+forall a. IORef a -&gt; a -&gt; IO ()
+</span><a href="Agda.Utils.IORef.Strict.html#writeIORef"><span class="hs-identifier hs-var">Strict.writeIORef</span></a></span><span> </span><span class="annot"><span class="annottext">IORef UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAsciiIORef"><span class="hs-identifier hs-var">unsafeUnicodeOrAsciiIORef</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="annot"><span class="hs-comment">-- | Are we allowed to use unicode supscript characters?</span></span><span>
+</span><span id="line-57"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAscii"><span class="hs-identifier hs-type">unsafeUnicodeOrAscii</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span><span>
+</span><span id="line-58"></span><span id="unsafeUnicodeOrAscii"><span class="annot"><span class="annottext">unsafeUnicodeOrAscii :: UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAscii"><span class="hs-identifier hs-var hs-var">unsafeUnicodeOrAscii</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO UnicodeOrAscii -&gt; UnicodeOrAscii
+forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">UNSAFE.unsafePerformIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IORef UnicodeOrAscii -&gt; IO UnicodeOrAscii
+forall a. IORef a -&gt; IO a
+</span><a href="Agda.Utils.IORef.Strict.html#readIORef"><span class="hs-identifier hs-var">Strict.readIORef</span></a></span><span> </span><span class="annot"><span class="annottext">IORef UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAsciiIORef"><span class="hs-identifier hs-var">unsafeUnicodeOrAsciiIORef</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Picking the appropriate set of special characters depending on</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- whether we are allowed to use unicode or have to limit ourselves</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- to ascii.</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">data</span><span> </span><span id="SpecialCharacters"><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-var">SpecialCharacters</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SpecialCharacters"><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-var">SpecialCharacters</span></a></span></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="_dbraces"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_dbraces"><span class="hs-identifier hs-var hs-var">_dbraces</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_lambda"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_lambda"><span class="hs-identifier hs-var hs-var">_lambda</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_arrow"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_arrow"><span class="hs-identifier hs-var hs-var">_arrow</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_forallQ"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_forallQ"><span class="hs-identifier hs-var hs-var">_forallQ</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_leftIdiomBrkt"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_leftIdiomBrkt"><span class="hs-identifier hs-var hs-var">_leftIdiomBrkt</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_rightIdiomBrkt"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_rightIdiomBrkt"><span class="hs-identifier hs-var hs-var">_rightIdiomBrkt</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_emptyIdiomBrkt"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_emptyIdiomBrkt"><span class="hs-identifier hs-var hs-var">_emptyIdiomBrkt</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_fromArrow"><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_fromArrow"><span class="hs-identifier hs-var hs-var">_fromArrow</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersUnicode"><span class="hs-identifier hs-type">specialCharactersUnicode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-type">SpecialCharacters</span></a></span><span>
+</span><span id="line-76"></span><span id="specialCharactersUnicode"><span class="annot"><span class="annottext">specialCharactersUnicode :: SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersUnicode"><span class="hs-identifier hs-var hs-var">specialCharactersUnicode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-type">SpecialCharacters</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_dbraces :: Doc -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_dbraces"><span class="hs-identifier hs-var">_dbraces</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\x2983 &quot;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; (Doc -&gt; Doc) -&gt; Doc -&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot; \x2984&quot;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_lambda :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_lambda"><span class="hs-identifier hs-var">_lambda</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\x03bb&quot;</span></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_arrow :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_arrow"><span class="hs-identifier hs-var">_arrow</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\x2192&quot;</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_forallQ :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_forallQ"><span class="hs-identifier hs-var">_forallQ</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\x2200&quot;</span></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_leftIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_leftIdiomBrkt"><span class="hs-identifier hs-var">_leftIdiomBrkt</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\x2987&quot;</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_rightIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_rightIdiomBrkt"><span class="hs-identifier hs-var">_rightIdiomBrkt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\x2988&quot;</span></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_emptyIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_emptyIdiomBrkt"><span class="hs-identifier hs-var">_emptyIdiomBrkt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\x2987\x2988&quot;</span></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_fromArrow :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_fromArrow"><span class="hs-identifier hs-var">_fromArrow</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;&#8592;&quot;</span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersAscii"><span class="hs-identifier hs-type">specialCharactersAscii</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-type">SpecialCharacters</span></a></span><span>
+</span><span id="line-88"></span><span id="specialCharactersAscii"><span class="annot"><span class="annottext">specialCharactersAscii :: SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersAscii"><span class="hs-identifier hs-var hs-var">specialCharactersAscii</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-type">SpecialCharacters</span></a></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_dbraces :: Doc -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_dbraces"><span class="hs-identifier hs-var">_dbraces</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#braces"><span class="hs-identifier hs-var">braces</span></a></span><span> </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; (Doc -&gt; Doc) -&gt; Doc -&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#braces%27"><span class="hs-identifier hs-var">braces'</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_lambda :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_lambda"><span class="hs-identifier hs-var">_lambda</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;\\&quot;</span></span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_arrow :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_arrow"><span class="hs-identifier hs-var">_arrow</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;-&gt;&quot;</span></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_forallQ :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_forallQ"><span class="hs-identifier hs-var">_forallQ</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;forall&quot;</span></span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_leftIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_leftIdiomBrkt"><span class="hs-identifier hs-var">_leftIdiomBrkt</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;(|&quot;</span></span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_rightIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_rightIdiomBrkt"><span class="hs-identifier hs-var">_rightIdiomBrkt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;|)&quot;</span></span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_emptyIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_emptyIdiomBrkt"><span class="hs-identifier hs-var">_emptyIdiomBrkt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;(|)&quot;</span></span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_fromArrow :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_fromArrow"><span class="hs-identifier hs-var">_fromArrow</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;&lt;-&quot;</span></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="annot"><span class="hs-comment">-- | Return the glyph set based on a given (unicode or ascii) glyph mode</span></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersForGlyphs"><span class="hs-identifier hs-type">specialCharactersForGlyphs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOrAscii"><span class="hs-identifier hs-type">UnicodeOrAscii</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-type">SpecialCharacters</span></a></span><span>
+</span><span id="line-101"></span><span id="specialCharactersForGlyphs"><span class="annot"><span class="annottext">specialCharactersForGlyphs :: UnicodeOrAscii -&gt; SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersForGlyphs"><span class="hs-identifier hs-var hs-var">specialCharactersForGlyphs</span></a></span></span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#UnicodeOk"><span class="hs-identifier hs-var">UnicodeOk</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersUnicode"><span class="hs-identifier hs-var">specialCharactersUnicode</span></a></span><span>
+</span><span id="line-102"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersForGlyphs"><span class="hs-identifier hs-var">specialCharactersForGlyphs</span></a></span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#AsciiOnly"><span class="hs-identifier hs-var">AsciiOnly</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersAscii"><span class="hs-identifier hs-var">specialCharactersAscii</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="annot"><span class="hs-comment">-- | Choose the glyph set based on the unsafe IORef.</span></span><span>
+</span><span id="line-105"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-pragma hs-type">specialCharacters</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-type">specialCharacters</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#SpecialCharacters"><span class="hs-identifier hs-type">SpecialCharacters</span></a></span><span>
+</span><span id="line-107"></span><span id="specialCharacters"><span class="annot"><span class="annottext">specialCharacters :: SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var hs-var">specialCharacters</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii -&gt; SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharactersForGlyphs"><span class="hs-identifier hs-var">specialCharactersForGlyphs</span></a></span><span> </span><span class="annot"><span class="annottext">UnicodeOrAscii
+</span><a href="Agda.Syntax.Concrete.Glyph.html#unsafeUnicodeOrAscii"><span class="hs-identifier hs-var">unsafeUnicodeOrAscii</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#braces%27"><span class="hs-identifier hs-type">braces'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-110"></span><span id="braces%27"><span class="annot"><span class="annottext">braces' :: Doc -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#braces%27"><span class="hs-identifier hs-var hs-var">braces'</span></a></span></span><span> </span><span id="local-6989586621681735150"><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681735150"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc -&gt; (Char -&gt; String -&gt; Doc) -&gt; Doc
+forall a b. [a] -&gt; b -&gt; (a -&gt; [a] -&gt; b) -&gt; b
+</span><a href="Agda.Utils.List.html#caseList"><span class="hs-identifier hs-var">caseList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Doc -&gt; String
+forall a. Doc a -&gt; String
+</span><span class="hs-identifier hs-var">render</span></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681735150"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#braces"><span class="hs-identifier hs-var">braces</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681735150"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">{-else-}</span><span> </span><span class="annot"><span class="annottext">((Char -&gt; String -&gt; Doc) -&gt; Doc) -&gt; (Char -&gt; String -&gt; Doc) -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681735153"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681735153"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681735154"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681735154"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-111"></span><span>  </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#braces"><span class="hs-identifier hs-var">braces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Doc
+forall {a}. (IsString a, Null a) =&gt; Char -&gt; a
+</span><a href="#local-6989586621681735155"><span class="hs-identifier hs-var">spaceIfDash</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681735153"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681735150"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Doc
+forall {a}. (IsString a, Null a) =&gt; Char -&gt; a
+</span><a href="#local-6989586621681735155"><span class="hs-identifier hs-var">spaceIfDash</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; String -&gt; Char
+forall a. a -&gt; [a] -&gt; a
+</span><a href="Agda.Utils.List.html#last1"><span class="hs-identifier hs-var">last1</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681735153"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681735154"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-comment">-- Add space to avoid starting a comment (Ulf, 2010-09-13, #269)</span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-comment">-- Andreas, 2018-07-21, #3161: Also avoid ending a comment</span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-115"></span><span>  </span><span id="local-6989586621681735155"><span class="annot"><span class="annottext">spaceIfDash :: Char -&gt; a
+</span><a href="#local-6989586621681735155"><span class="hs-identifier hs-var hs-var">spaceIfDash</span></a></span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-string">&quot; &quot;</span></span><span>
+</span><span id="line-116"></span><span>  </span><span class="annot"><a href="#local-6989586621681735155"><span class="hs-identifier hs-var">spaceIfDash</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- double braces...</span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#dbraces"><span class="hs-identifier hs-type">dbraces</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-120"></span><span id="dbraces"><span class="annot"><span class="annottext">dbraces :: Doc -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#dbraces"><span class="hs-identifier hs-var hs-var">dbraces</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_dbraces"><span class="hs-identifier hs-var">_dbraces</span></a></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- forall quantifier</span><span>
+</span><span id="line-123"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#forallQ"><span class="hs-identifier hs-type">forallQ</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-124"></span><span id="forallQ"><span class="annot"><span class="annottext">forallQ :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#forallQ"><span class="hs-identifier hs-var hs-var">forallQ</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#hlSymbol"><span class="hs-identifier hs-var">hlSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; Doc -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_forallQ"><span class="hs-identifier hs-var">_forallQ</span></a></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- left, right, and empty idiom bracket</span><span>
+</span><span id="line-127"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#leftIdiomBrkt"><span class="hs-identifier hs-type">leftIdiomBrkt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#rightIdiomBrkt"><span class="hs-identifier hs-type">rightIdiomBrkt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#emptyIdiomBrkt"><span class="hs-identifier hs-type">emptyIdiomBrkt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-128"></span><span id="leftIdiomBrkt"><span class="annot"><span class="annottext">leftIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#leftIdiomBrkt"><span class="hs-identifier hs-var hs-var">leftIdiomBrkt</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_leftIdiomBrkt"><span class="hs-identifier hs-var">_leftIdiomBrkt</span></a></span><span>  </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-129"></span><span id="rightIdiomBrkt"><span class="annot"><span class="annottext">rightIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#rightIdiomBrkt"><span class="hs-identifier hs-var hs-var">rightIdiomBrkt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_rightIdiomBrkt"><span class="hs-identifier hs-var">_rightIdiomBrkt</span></a></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-130"></span><span id="emptyIdiomBrkt"><span class="annot"><span class="annottext">emptyIdiomBrkt :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#emptyIdiomBrkt"><span class="hs-identifier hs-var hs-var">emptyIdiomBrkt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_emptyIdiomBrkt"><span class="hs-identifier hs-var">_emptyIdiomBrkt</span></a></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#arrow"><span class="hs-identifier hs-type">arrow</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#lambda"><span class="hs-identifier hs-type">lambda</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Glyph.html#fromArrow"><span class="hs-identifier hs-type">fromArrow</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-133"></span><span id="arrow"><span class="annot"><span class="annottext">arrow :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#arrow"><span class="hs-identifier hs-var hs-var">arrow</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_arrow"><span class="hs-identifier hs-var">_arrow</span></a></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-134"></span><span id="lambda"><span class="annot"><span class="annottext">lambda :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#lambda"><span class="hs-identifier hs-var hs-var">lambda</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_lambda"><span class="hs-identifier hs-var">_lambda</span></a></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-135"></span><span id="fromArrow"><span class="annot"><span class="annottext">fromArrow :: Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#fromArrow"><span class="hs-identifier hs-var hs-var">fromArrow</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SpecialCharacters -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Glyph.html#_fromArrow"><span class="hs-identifier hs-var">_fromArrow</span></a></span><span> </span><span class="annot"><span class="annottext">SpecialCharacters
+</span><a href="Agda.Syntax.Concrete.Glyph.html#specialCharacters"><span class="hs-identifier hs-var">specialCharacters</span></a></span><span>
+</span><span id="line-136"></span></pre></body></html>

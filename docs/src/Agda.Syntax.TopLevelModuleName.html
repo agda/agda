@@ -1,0 +1,579 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Top-level module names</span><span>
+</span><span id="line-6"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName.Boot</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName.Boot</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#isNoName"><span class="hs-identifier">isNoName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html"><span class="hs-identifier">Agda.Utils.Function</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Function.html#iterate%27"><span class="hs-identifier">iterate'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html"><span class="hs-identifier">Agda.Utils.Hash</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Size.html"><span class="hs-identifier">Agda.Utils.Size</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- Raw top-level module names</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- | Raw top-level module names (with linear-time comparisons).</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">data</span><span> </span><span id="RawTopLevelModuleName"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-var">RawTopLevelModuleName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RawTopLevelModuleName"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-var">RawTopLevelModuleName</span></a></span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="rawModuleNameRange"><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Range
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameRange"><span class="hs-identifier hs-var hs-var">rawModuleNameRange</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="rawModuleNameParts"><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var hs-var">rawModuleNameParts</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleNameParts"><span class="hs-identifier hs-type">TopLevelModuleNameParts</span></a></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="rawModuleNameInferred"><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameInferred"><span class="hs-identifier hs-var hs-var">rawModuleNameInferred</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-49"></span><span>      </span><span class="hs-comment">-- ^ Was this module name constructed from a file name</span><span>
+</span><span id="line-50"></span><span>      </span><span class="hs-comment">--   rather than declared in the file?</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681791299"><span id="local-6989586621681791311"><span id="local-6989586621681791315"><span class="annot"><span class="annottext">Int -&gt; RawTopLevelModuleName -&gt; ShowS
+[RawTopLevelModuleName] -&gt; ShowS
+RawTopLevelModuleName -&gt; [Char]
+(Int -&gt; RawTopLevelModuleName -&gt; ShowS)
+-&gt; (RawTopLevelModuleName -&gt; [Char])
+-&gt; ([RawTopLevelModuleName] -&gt; ShowS)
+-&gt; Show RawTopLevelModuleName
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; [Char]) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; RawTopLevelModuleName -&gt; ShowS
+showsPrec :: Int -&gt; RawTopLevelModuleName -&gt; ShowS
+$cshow :: RawTopLevelModuleName -&gt; [Char]
+show :: RawTopLevelModuleName -&gt; [Char]
+$cshowList :: [RawTopLevelModuleName] -&gt; ShowS
+showList :: [RawTopLevelModuleName] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681791324"><span id="local-6989586621681791326"><span class="annot"><span class="annottext">(forall x. RawTopLevelModuleName -&gt; Rep RawTopLevelModuleName x)
+-&gt; (forall x. Rep RawTopLevelModuleName x -&gt; RawTopLevelModuleName)
+-&gt; Generic RawTopLevelModuleName
+forall x. Rep RawTopLevelModuleName x -&gt; RawTopLevelModuleName
+forall x. RawTopLevelModuleName -&gt; Rep RawTopLevelModuleName x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. RawTopLevelModuleName -&gt; Rep RawTopLevelModuleName x
+from :: forall x. RawTopLevelModuleName -&gt; Rep RawTopLevelModuleName x
+$cto :: forall x. Rep RawTopLevelModuleName x -&gt; RawTopLevelModuleName
+to :: forall x. Rep RawTopLevelModuleName x -&gt; RawTopLevelModuleName
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681791333"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621681791341"><span class="annot"><span class="annottext">== :: RawTopLevelModuleName -&gt; RawTopLevelModuleName -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var">(==)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; TopLevelModuleNameParts -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">(==)</span></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleNameParts -&gt; TopLevelModuleNameParts -&gt; Bool)
+-&gt; (RawTopLevelModuleName -&gt; TopLevelModuleNameParts)
+-&gt; RawTopLevelModuleName
+-&gt; RawTopLevelModuleName
+-&gt; Bool
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681791346"><span id="local-6989586621681791350"><span id="local-6989586621681791353"><span id="local-6989586621681791356"><span id="local-6989586621681791359"><span id="local-6989586621681791362"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>  </span><span id="local-6989586621681791369"><span class="annot"><span class="annottext">compare :: RawTopLevelModuleName -&gt; RawTopLevelModuleName -&gt; Ordering
+</span><a href="#local-6989586621681791369"><span class="hs-identifier hs-var hs-var hs-var">compare</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; TopLevelModuleNameParts -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleNameParts -&gt; TopLevelModuleNameParts -&gt; Ordering)
+-&gt; (RawTopLevelModuleName -&gt; TopLevelModuleNameParts)
+-&gt; RawTopLevelModuleName
+-&gt; RawTopLevelModuleName
+-&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Size.html#Sized"><span class="hs-identifier hs-type">Sized</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-61"></span><span>  </span><span id="local-6989586621681791377"><span class="annot"><span class="annottext">size :: RawTopLevelModuleName -&gt; Int
+</span><a href="#local-6989586621681791377"><span class="hs-identifier hs-var hs-var hs-var">size</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; Int
+forall a. Sized a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.Size.html#size"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleNameParts -&gt; Int)
+-&gt; (RawTopLevelModuleName -&gt; TopLevelModuleNameParts)
+-&gt; RawTopLevelModuleName
+-&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span id="local-6989586621681791381"><span class="annot"><span class="annottext">natSize :: RawTopLevelModuleName -&gt; Peano
+</span><a href="#local-6989586621681791381"><span class="hs-identifier hs-var hs-var hs-var">natSize</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; Peano
+forall a. Sized a =&gt; a -&gt; Peano
+</span><a href="Agda.Utils.Size.html#natSize"><span class="hs-identifier hs-var">natSize</span></a></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleNameParts -&gt; Peano)
+-&gt; (RawTopLevelModuleName -&gt; TopLevelModuleNameParts)
+-&gt; RawTopLevelModuleName
+-&gt; Peano
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681791385"><span id="local-6989586621681791389"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>  </span><span id="local-6989586621681791392"><span class="annot"><span class="annottext">pretty :: RawTopLevelModuleName -&gt; Doc
+</span><a href="#local-6989586621681791392"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Doc
+forall a. [Char] -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Doc)
+-&gt; (RawTopLevelModuleName -&gt; [Char])
+-&gt; RawTopLevelModuleName
+-&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; [Char]
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameToString"><span class="hs-identifier hs-var">rawTopLevelModuleNameToString</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier hs-type">HasRange</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681791399"><span class="annot"><span class="annottext">getRange :: RawTopLevelModuleName -&gt; Range
+</span><a href="#local-6989586621681791399"><span class="hs-identifier hs-var hs-var hs-var">getRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Range
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameRange"><span class="hs-identifier hs-var">rawModuleNameRange</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#SetRange"><span class="hs-identifier hs-type">SetRange</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>  </span><span id="local-6989586621681791406"><span class="annot"><span class="annottext">setRange :: Range -&gt; RawTopLevelModuleName -&gt; RawTopLevelModuleName
+</span><a href="#local-6989586621681791406"><span class="hs-identifier hs-var hs-var hs-var">setRange</span></a></span></span><span> </span><span id="local-6989586621681791408"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681791408"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681791409"><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791409"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681791410"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681791410"><span class="hs-identifier hs-var">z</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; TopLevelModuleNameParts -&gt; Bool -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-var">RawTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681791408"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791409"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681791410"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621681791414"><span class="annot"><span class="annottext">killRange :: RawTopLevelModuleName -&gt; RawTopLevelModuleName
+</span><a href="#local-6989586621681791414"><span class="hs-identifier hs-var hs-var hs-var">killRange</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681791416"><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791416"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681791417"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681791417"><span class="hs-identifier hs-var">z</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><span class="annottext">Range -&gt; TopLevelModuleNameParts -&gt; Bool -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-var">RawTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+forall a. Range' a
+</span><a href="Agda.Syntax.Position.html#noRange"><span class="hs-identifier hs-var">noRange</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791416"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681791417"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#IsNoName"><span class="hs-identifier hs-type">C.IsNoName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621681791428"><span class="annot"><span class="annottext">isNoName :: RawTopLevelModuleName -&gt; Bool
+</span><a href="Agda.Syntax.Concrete.Name.html#isNoName"><span class="hs-identifier hs-var hs-var hs-var">isNoName</span></a></span></span><span> </span><span id="local-6989586621681791429"><span class="annot"><span class="annottext">RawTopLevelModuleName
+</span><a href="#local-6989586621681791429"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+</span><a href="#local-6989586621681791429"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; TopLevelModuleNameParts -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; TopLevelModuleNameParts
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;_&quot;</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><span class="hs-comment">-- | The 'Range' is not forced.</span></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-83"></span><span>  </span><span id="local-6989586621681791439"><span class="annot"><span class="annottext">rnf :: RawTopLevelModuleName -&gt; ()
+</span><a href="#local-6989586621681791439"><span class="hs-identifier hs-var hs-var hs-var">rnf</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681791441"><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791441"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791441"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><span class="hs-comment">-- | Turns a raw top-level module name into a string.</span></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameToString"><span class="hs-identifier hs-type">rawTopLevelModuleNameToString</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-88"></span><span id="rawTopLevelModuleNameToString"><span class="annot"><span class="annottext">rawTopLevelModuleNameToString :: RawTopLevelModuleName -&gt; [Char]
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameToString"><span class="hs-identifier hs-var hs-var">rawTopLevelModuleNameToString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-89"></span><span>  </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [Char]
+forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.intercalate</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;.&quot;</span></span><span> </span><span class="annot"><span class="annottext">([[Char]] -&gt; [Char])
+-&gt; (RawTopLevelModuleName -&gt; [[Char]])
+-&gt; RawTopLevelModuleName
+-&gt; [Char]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="annot"><span class="annottext">(Text -&gt; [Char]) -&gt; [Text] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Char]
+</span><span class="hs-identifier hs-var">T.unpack</span></span><span> </span><span class="annot"><span class="annottext">([Text] -&gt; [[Char]])
+-&gt; (RawTopLevelModuleName -&gt; [Text])
+-&gt; RawTopLevelModuleName
+-&gt; [[Char]]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; [Item TopLevelModuleNameParts]
+TopLevelModuleNameParts -&gt; [Text]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleNameParts -&gt; [Text])
+-&gt; (RawTopLevelModuleName -&gt; TopLevelModuleNameParts)
+-&gt; RawTopLevelModuleName
+-&gt; [Text]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><span class="hs-comment">-- | Hashes a raw top-level module name.</span></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#hashRawTopLevelModuleName"><span class="hs-identifier hs-type">hashRawTopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span>
+</span><span id="line-95"></span><span id="hashRawTopLevelModuleName"><span class="annot"><span class="annottext">hashRawTopLevelModuleName :: RawTopLevelModuleName -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.html#hashRawTopLevelModuleName"><span class="hs-identifier hs-var hs-var">hashRawTopLevelModuleName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-96"></span><span>  </span><span class="annot"><span class="annottext">Word64 -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-var">ModuleNameHash</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; ModuleNameHash)
+-&gt; (RawTopLevelModuleName -&gt; Word64)
+-&gt; RawTopLevelModuleName
+-&gt; ModuleNameHash
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Word64
+</span><a href="Agda.Utils.Hash.html#hashString"><span class="hs-identifier hs-var">hashString</span></a></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Word64)
+-&gt; (RawTopLevelModuleName -&gt; [Char])
+-&gt; RawTopLevelModuleName
+-&gt; Word64
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; [Char]
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameToString"><span class="hs-identifier hs-var">rawTopLevelModuleNameToString</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- | Turns a qualified name into a 'RawTopLevelModuleName'. The</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- qualified name is assumed to represent a top-level module name.</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForQName"><span class="hs-identifier hs-type">rawTopLevelModuleNameForQName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">C.QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-102"></span><span id="rawTopLevelModuleNameForQName"><span class="annot"><span class="annottext">rawTopLevelModuleNameForQName :: QName -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForQName"><span class="hs-identifier hs-var hs-var">rawTopLevelModuleNameForQName</span></a></span></span><span> </span><span id="local-6989586621681791448"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681791448"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">rawModuleNameRange :: Range
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameRange"><span class="hs-identifier hs-var">rawModuleNameRange</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681791448"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameParts :: TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-105"></span><span>      </span><span class="annot"><span class="annottext">(Name -&gt; Text) -&gt; NonEmpty Name -&gt; TopLevelModuleNameParts
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Text) -&gt; (Name -&gt; [Char]) -&gt; Name -&gt; Text
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; [Char]
+</span><a href="Agda.Syntax.Concrete.Name.html#nameToRawName"><span class="hs-identifier hs-var">C.nameToRawName</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(NonEmpty Name -&gt; TopLevelModuleNameParts)
+-&gt; NonEmpty Name -&gt; TopLevelModuleNameParts
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; NonEmpty Name
+</span><a href="Agda.Syntax.Concrete.Name.html#qnameParts"><span class="hs-identifier hs-var">C.qnameParts</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681791448"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameInferred :: Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameInferred"><span class="hs-identifier hs-var">rawModuleNameInferred</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Bool
+forall a. IsNoName a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Concrete.Name.html#isNoName"><span class="hs-identifier hs-var">C.isNoName</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681791448"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- | Computes the 'RawTopLevelModuleName' corresponding to the given</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- module name, which is assumed to represent a top-level module name.</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- Precondition: The module name must be well-formed.</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForModuleName"><span class="hs-identifier hs-type">rawTopLevelModuleNameForModuleName</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-115"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">A.ModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-116"></span><span id="rawTopLevelModuleNameForModuleName"><span class="annot"><span class="annottext">rawTopLevelModuleNameForModuleName :: ModuleName -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForModuleName"><span class="hs-identifier hs-var hs-var">rawTopLevelModuleNameForModuleName</span></a></span></span><span> </span><span id="local-6989586621681791453"><span class="annot"><span class="annottext">x :: ModuleName
+</span><a href="#local-6989586621681791453"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#MName"><span class="hs-identifier hs-type">A.MName</span></a></span><span> </span><span id="local-6989586621681791455"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681791455"><span class="hs-identifier hs-var">ms</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-117"></span><span>  </span><span class="annot"><span class="annottext">[Name]
+-&gt; RawTopLevelModuleName
+-&gt; (List1 Name -&gt; RawTopLevelModuleName)
+-&gt; RawTopLevelModuleName
+forall a b. [a] -&gt; b -&gt; (List1 a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.List1.html#ifNull"><span class="hs-identifier hs-var">List1.ifNull</span></a></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681791455"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">((List1 Name -&gt; RawTopLevelModuleName) -&gt; RawTopLevelModuleName)
+-&gt; (List1 Name -&gt; RawTopLevelModuleName) -&gt; RawTopLevelModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681791458"><span class="annot"><span class="annottext">List1 Name
+</span><a href="#local-6989586621681791458"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">rawModuleNameRange :: Range
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameRange"><span class="hs-identifier hs-var">rawModuleNameRange</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 Name -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">List1 Name
+</span><a href="#local-6989586621681791458"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-120"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameParts :: TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-121"></span><span>        </span><span class="annot"><span class="annottext">(Name -&gt; Text) -&gt; List1 Name -&gt; TopLevelModuleNameParts
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Text) -&gt; (Name -&gt; [Char]) -&gt; Name -&gt; Text
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; [Char]
+</span><a href="Agda.Syntax.Concrete.Name.html#nameToRawName"><span class="hs-identifier hs-var">C.nameToRawName</span></a></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; [Char]) -&gt; (Name -&gt; Name) -&gt; Name -&gt; [Char]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Name
+</span><a href="Agda.Syntax.Abstract.Name.html#nameConcrete"><span class="hs-identifier hs-var">A.nameConcrete</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">List1 Name
+</span><a href="#local-6989586621681791458"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-122"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameInferred :: Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameInferred"><span class="hs-identifier hs-var">rawModuleNameInferred</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; Bool
+forall a. IsNoName a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Concrete.Name.html#isNoName"><span class="hs-identifier hs-var">isNoName</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681791453"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-123"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- | Computes the top-level module name.</span><span>
+</span><span id="line-126"></span><span class="hs-comment">--</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- Precondition: The 'C.Module' has to be well-formed.</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- This means that there are only allowed declarations before the</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- first module declaration, typically import declarations.</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- See 'spanAllowedBeforeModule'.</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForModule"><span class="hs-identifier hs-type">rawTopLevelModuleNameForModule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Module"><span class="hs-identifier hs-type">C.Module</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-133"></span><span id="rawTopLevelModuleNameForModule"><span class="annot"><span class="annottext">rawTopLevelModuleNameForModule :: Module -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForModule"><span class="hs-identifier hs-var hs-var">rawTopLevelModuleNameForModule</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#Mod"><span class="hs-identifier hs-type">C.Mod</span></a></span><span> </span><span class="annot"><span class="annottext">[Pragma]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-134"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForModule"><span class="hs-identifier hs-var">rawTopLevelModuleNameForModule</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#Mod"><span class="hs-identifier hs-type">C.Mod</span></a></span><span> </span><span class="annot"><span class="annottext">[Pragma]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681791463"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681791463"><span class="hs-identifier hs-var">ds</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; ([Declaration], [Declaration])
+</span><a href="Agda.Syntax.Concrete.html#spanAllowedBeforeModule"><span class="hs-identifier hs-var">C.spanAllowedBeforeModule</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681791463"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-136"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Declaration]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Module"><span class="hs-identifier hs-type">C.Module</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Erased
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681791465"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681791465"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleNameForQName"><span class="hs-identifier hs-var">rawTopLevelModuleNameForQName</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681791465"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-137"></span><span>    </span><span class="annot"><span class="annottext">([Declaration], [Declaration])
+</span><span class="hs-identifier">_</span></span><span>                           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- Top-level module names</span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="annot"><span class="hs-comment">-- | Top-level module names (with constant-time comparisons).</span></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span class="hs-keyword">type</span><span> </span><span id="TopLevelModuleName"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-var">TopLevelModuleName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Size.html#Sized"><span class="hs-identifier hs-type">Sized</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-147"></span><span>  </span><span id="local-6989586621681791470"><span class="annot"><span class="annottext">size :: TopLevelModuleName -&gt; Int
+</span><a href="Agda.Utils.Size.html#size"><span class="hs-identifier hs-var hs-var hs-var">size</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Int
+forall a. Sized a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.Size.html#size"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">(RawTopLevelModuleName -&gt; Int)
+-&gt; (TopLevelModuleName -&gt; RawTopLevelModuleName)
+-&gt; TopLevelModuleName
+-&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleName"><span class="hs-identifier hs-var">rawTopLevelModuleName</span></a></span><span>
+</span><span id="line-148"></span><span>  </span><span id="local-6989586621681791473"><span class="annot"><span class="annottext">natSize :: TopLevelModuleName -&gt; Peano
+</span><a href="Agda.Utils.Size.html#natSize"><span class="hs-identifier hs-var hs-var hs-var">natSize</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Peano
+forall a. Sized a =&gt; a -&gt; Peano
+</span><a href="Agda.Utils.Size.html#natSize"><span class="hs-identifier hs-var">natSize</span></a></span><span> </span><span class="annot"><span class="annottext">(RawTopLevelModuleName -&gt; Peano)
+-&gt; (TopLevelModuleName -&gt; RawTopLevelModuleName)
+-&gt; TopLevelModuleName
+-&gt; Peano
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleName"><span class="hs-identifier hs-var">rawTopLevelModuleName</span></a></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681791476"><span id="local-6989586621681791480"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-151"></span><span>  </span><span id="local-6989586621681791483"><span class="annot"><span class="annottext">pretty :: TopLevelModuleName -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">(RawTopLevelModuleName -&gt; Doc)
+-&gt; (TopLevelModuleName -&gt; RawTopLevelModuleName)
+-&gt; TopLevelModuleName
+-&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleName"><span class="hs-identifier hs-var">rawTopLevelModuleName</span></a></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="annot"><span class="hs-comment">-- | A lens focusing on the 'moduleNameParts'.</span></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#lensTopLevelModuleNameParts"><span class="hs-identifier hs-type">lensTopLevelModuleNameParts</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-156"></span><span>  </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleNameParts"><span class="hs-identifier hs-type">TopLevelModuleNameParts</span></a></span><span>
+</span><span id="line-157"></span><span id="lensTopLevelModuleNameParts"><span class="annot"><span class="annottext">lensTopLevelModuleNameParts :: Lens' TopLevelModuleName TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#lensTopLevelModuleNameParts"><span class="hs-identifier hs-var hs-var">lensTopLevelModuleNameParts</span></a></span></span><span> </span><span id="local-6989586621681791488"><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; f TopLevelModuleNameParts
+</span><a href="#local-6989586621681791488"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681791489"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791489"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-158"></span><span>  </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; f TopLevelModuleNameParts
+</span><a href="#local-6989586621681791488"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TopLevelModuleNameParts
+forall range. TopLevelModuleName' range -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var">moduleNameParts</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791489"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f TopLevelModuleNameParts
+-&gt; (TopLevelModuleNameParts -&gt; TopLevelModuleName)
+-&gt; f TopLevelModuleName
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681791491"><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791491"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791489"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var">moduleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681791491"><span class="hs-identifier hs-type">xs</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="annot"><span class="hs-comment">-- | Converts a top-level module name to a raw top-level module name.</span></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleName"><span class="hs-identifier hs-type">rawTopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-163"></span><span id="rawTopLevelModuleName"><span class="annot"><span class="annottext">rawTopLevelModuleName :: TopLevelModuleName -&gt; RawTopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawTopLevelModuleName"><span class="hs-identifier hs-var hs-var">rawTopLevelModuleName</span></a></span></span><span> </span><span id="local-6989586621681791492"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791492"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span>
+</span><span id="line-164"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">rawModuleNameRange :: Range
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameRange"><span class="hs-identifier hs-var">rawModuleNameRange</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; Range
+forall range. TopLevelModuleName' range -&gt; range
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameRange"><span class="hs-identifier hs-var">moduleNameRange</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791492"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-165"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameParts :: TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TopLevelModuleNameParts
+forall range. TopLevelModuleName' range -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var">moduleNameParts</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791492"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-166"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rawModuleNameInferred :: Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameInferred"><span class="hs-identifier hs-var">rawModuleNameInferred</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; Bool
+forall range. TopLevelModuleName' range -&gt; Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameInferred"><span class="hs-identifier hs-var">moduleNameInferred</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791492"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- | Converts a raw top-level module name and a hash to a top-level</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- module name.</span><span>
+</span><span id="line-171"></span><span class="hs-comment">--</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- This function does not ensure that there are no hash collisions,</span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- that is taken care of by</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- 'Agda.TypeChecking.Monad.State.topLevelModuleName'.</span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#unsafeTopLevelModuleName"><span class="hs-identifier hs-type">unsafeTopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-177"></span><span>  </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#RawTopLevelModuleName"><span class="hs-identifier hs-type">RawTopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-178"></span><span id="unsafeTopLevelModuleName"><span class="annot"><span class="annottext">unsafeTopLevelModuleName :: RawTopLevelModuleName -&gt; ModuleNameHash -&gt; TopLevelModuleName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#unsafeTopLevelModuleName"><span class="hs-identifier hs-var hs-var">unsafeTopLevelModuleName</span></a></span></span><span> </span><span id="local-6989586621681791496"><span class="annot"><span class="annottext">RawTopLevelModuleName
+</span><a href="#local-6989586621681791496"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681791497"><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681791497"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-179"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">moduleNameRange :: Range
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameRange"><span class="hs-identifier hs-var">moduleNameRange</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Range
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameRange"><span class="hs-identifier hs-var">rawModuleNameRange</span></a></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+</span><a href="#local-6989586621681791496"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-180"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">moduleNameParts :: TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var">moduleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameParts"><span class="hs-identifier hs-var">rawModuleNameParts</span></a></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+</span><a href="#local-6989586621681791496"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-181"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">moduleNameId :: ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameId"><span class="hs-identifier hs-var">moduleNameId</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681791497"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-182"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">moduleNameInferred :: Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameInferred"><span class="hs-identifier hs-var">moduleNameInferred</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName -&gt; Bool
+</span><a href="Agda.Syntax.TopLevelModuleName.html#rawModuleNameInferred"><span class="hs-identifier hs-var">rawModuleNameInferred</span></a></span><span> </span><span class="annot"><span class="annottext">RawTopLevelModuleName
+</span><a href="#local-6989586621681791496"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-183"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- | A corresponding 'C.QName'. The range of each 'Name' part is the</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- whole range of the 'TopLevelModuleName'.</span><span>
+</span><span id="line-187"></span><span>
+</span><span id="line-188"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#topLevelModuleNameToQName"><span class="hs-identifier hs-type">topLevelModuleNameToQName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">C.QName</span></a></span><span>
+</span><span id="line-189"></span><span id="topLevelModuleNameToQName"><span class="annot"><span class="annottext">topLevelModuleNameToQName :: TopLevelModuleName -&gt; QName
+</span><a href="Agda.Syntax.TopLevelModuleName.html#topLevelModuleNameToQName"><span class="hs-identifier hs-var hs-var">topLevelModuleNameToQName</span></a></span></span><span> </span><span id="local-6989586621681791502"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791502"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-190"></span><span>  </span><span class="annot"><span class="annottext">(Name -&gt; QName -&gt; QName)
+-&gt; (Name -&gt; QName) -&gt; NonEmpty Name -&gt; QName
+forall a b. (a -&gt; b -&gt; b) -&gt; (a -&gt; b) -&gt; List1 a -&gt; b
+</span><a href="Agda.Utils.List1.html#foldr"><span class="hs-identifier hs-var">List1.foldr</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; QName -&gt; QName
+</span><a href="Agda.Syntax.Concrete.Name.html#Qual"><span class="hs-identifier hs-var">C.Qual</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; QName
+</span><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-var">C.QName</span></a></span><span> </span><span class="annot"><span class="annottext">(NonEmpty Name -&gt; QName) -&gt; NonEmpty Name -&gt; QName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-191"></span><span>  </span><span class="annot"><span class="annottext">(Text -&gt; Name) -&gt; TopLevelModuleNameParts -&gt; NonEmpty Name
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; NameInScope -&gt; NameParts -&gt; Name
+</span><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-var">C.Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791502"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NameInScope
+</span><a href="Agda.Syntax.Concrete.Name.html#NotInScope"><span class="hs-identifier hs-var">C.NotInScope</span></a></span><span> </span><span class="annot"><span class="annottext">(NameParts -&gt; Name) -&gt; (Text -&gt; NameParts) -&gt; Text -&gt; Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-192"></span><span>        </span><span class="annot"><span class="annottext">[Char] -&gt; NameParts
+</span><a href="Agda.Syntax.Concrete.Name.html#stringNameParts"><span class="hs-identifier hs-var">C.stringNameParts</span></a></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; NameParts) -&gt; (Text -&gt; [Char]) -&gt; Text -&gt; NameParts
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Char]
+</span><span class="hs-identifier hs-var">T.unpack</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleNameParts -&gt; NonEmpty Name)
+-&gt; TopLevelModuleNameParts -&gt; NonEmpty Name
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-193"></span><span>  </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TopLevelModuleNameParts
+forall range. TopLevelModuleName' range -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var">moduleNameParts</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681791502"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- | Turns a top-level module name into a file name with the given</span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- suffix.</span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#moduleNameToFileName"><span class="hs-identifier hs-type">moduleNameToFileName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-199"></span><span id="moduleNameToFileName"><span class="annot"><span class="annottext">moduleNameToFileName :: TopLevelModuleName -&gt; ShowS
+</span><a href="Agda.Syntax.TopLevelModuleName.html#moduleNameToFileName"><span class="hs-identifier hs-var hs-var">moduleNameToFileName</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">moduleNameParts :: forall range. TopLevelModuleName' range -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var">moduleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681791510"><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791510"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span id="local-6989586621681791511"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681791511"><span class="hs-identifier hs-var">ext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-200"></span><span>  </span><span class="annot"><span class="annottext">[[Char]] -&gt; [Char]
+</span><span class="hs-identifier hs-var">joinPath</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Text -&gt; [Char]) -&gt; [Text] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Char]
+</span><span class="hs-identifier hs-var">T.unpack</span></span><span> </span><span class="annot"><span class="annottext">([Text] -&gt; [[Char]]) -&gt; [Text] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; [Text]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.init</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791510"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span>
+</span><span id="line-201"></span><span>  </span><span class="annot"><span class="annottext">Text -&gt; [Char]
+</span><span class="hs-identifier hs-var">T.unpack</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; Text
+forall a. NonEmpty a -&gt; a
+</span><span class="hs-identifier hs-var">List1.last</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791510"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+</span><span class="hs-operator hs-var">&lt;.&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681791511"><span class="hs-identifier hs-var">ext</span></a></span><span>
+</span><span id="line-202"></span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- | Finds the current project's \&quot;root\&quot; directory, given a project</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- file and the corresponding top-level module name.</span><span>
+</span><span id="line-205"></span><span class="hs-comment">--</span><span>
+</span><span id="line-206"></span><span class="hs-comment">-- Example: If the module \&quot;A.B.C\&quot; is located in the file</span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- \&quot;/foo/A/B/C.agda\&quot;, then the root is \&quot;/foo/\&quot;.</span><span>
+</span><span id="line-208"></span><span class="hs-comment">--</span><span>
+</span><span id="line-209"></span><span class="hs-comment">-- Precondition: The module name must be well-formed.</span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#projectRoot"><span class="hs-identifier hs-type">projectRoot</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-212"></span><span id="projectRoot"><span class="annot"><span class="annottext">projectRoot :: AbsolutePath -&gt; TopLevelModuleName -&gt; AbsolutePath
+</span><a href="Agda.Syntax.TopLevelModuleName.html#projectRoot"><span class="hs-identifier hs-var hs-var">projectRoot</span></a></span></span><span> </span><span id="local-6989586621681791518"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681791518"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">moduleNameParts :: forall range. TopLevelModuleName' range -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var">moduleNameParts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681791519"><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791519"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-213"></span><span>  </span><span class="annot"><span class="annottext">[Char] -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier hs-var">mkAbsolute</span></a></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; AbsolutePath) -&gt; [Char] -&gt; AbsolutePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; ShowS -&gt; ShowS
+forall i a. Integral i =&gt; i -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Agda.Utils.Function.html#iterate%27"><span class="hs-identifier hs-var">iterate'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleNameParts -&gt; Int
+forall a. NonEmpty a -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681791519"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><span class="hs-identifier hs-var">takeDirectory</span></span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; ShowS
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; [Char]
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681791518"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-214"></span></pre></body></html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | More monoids.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html"><span class="hs-identifier">Agda.Utils.Monoid</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier">MaxNat</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#Fwd"><span class="hs-identifier">Fwd</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#Fwd"><span class="hs-identifier">Fwd</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#appFwd"><span class="hs-identifier">appFwd</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Endo</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Dual</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="annot"><span class="hs-comment">-- | Maximum of on-negative (small) natural numbers.</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">newtype</span><span> </span><span id="MaxNat"><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-var">MaxNat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MaxNat"><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-var">MaxNat</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="getMaxNat"><span class="annot"><span class="annottext">MaxNat -&gt; Int
+</span><a href="Agda.Utils.Monoid.html#getMaxNat"><span class="hs-identifier hs-var hs-var">getMaxNat</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701314"><span id="local-6989586621681701319"><span id="local-6989586621681701323"><span id="local-6989586621681701327"><span id="local-6989586621681701331"><span id="local-6989586621681701335"><span id="local-6989586621681701339"><span class="annot"><span class="annottext">Integer -&gt; MaxNat
+MaxNat -&gt; MaxNat
+MaxNat -&gt; MaxNat -&gt; MaxNat
+(MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (Integer -&gt; MaxNat)
+-&gt; Num MaxNat
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Integer -&gt; a)
+-&gt; Num a
+$c+ :: MaxNat -&gt; MaxNat -&gt; MaxNat
++ :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$c- :: MaxNat -&gt; MaxNat -&gt; MaxNat
+- :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$c* :: MaxNat -&gt; MaxNat -&gt; MaxNat
+* :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$cnegate :: MaxNat -&gt; MaxNat
+negate :: MaxNat -&gt; MaxNat
+$cabs :: MaxNat -&gt; MaxNat
+abs :: MaxNat -&gt; MaxNat
+$csignum :: MaxNat -&gt; MaxNat
+signum :: MaxNat -&gt; MaxNat
+$cfromInteger :: Integer -&gt; MaxNat
+fromInteger :: Integer -&gt; MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Num</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701349"><span id="local-6989586621681701354"><span class="annot"><span class="annottext">MaxNat -&gt; MaxNat -&gt; Bool
+(MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool) -&gt; Eq MaxNat
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: MaxNat -&gt; MaxNat -&gt; Bool
+== :: MaxNat -&gt; MaxNat -&gt; Bool
+$c/= :: MaxNat -&gt; MaxNat -&gt; Bool
+/= :: MaxNat -&gt; MaxNat -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701363"><span id="local-6989586621681701368"><span id="local-6989586621681701372"><span id="local-6989586621681701376"><span id="local-6989586621681701380"><span id="local-6989586621681701384"><span id="local-6989586621681701388"><span class="annot"><span class="annottext">Eq MaxNat
+Eq MaxNat =&gt;
+(MaxNat -&gt; MaxNat -&gt; Ordering)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; Ord MaxNat
+MaxNat -&gt; MaxNat -&gt; Bool
+MaxNat -&gt; MaxNat -&gt; Ordering
+MaxNat -&gt; MaxNat -&gt; MaxNat
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: MaxNat -&gt; MaxNat -&gt; Ordering
+compare :: MaxNat -&gt; MaxNat -&gt; Ordering
+$c&lt; :: MaxNat -&gt; MaxNat -&gt; Bool
+&lt; :: MaxNat -&gt; MaxNat -&gt; Bool
+$c&lt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+&lt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+$c&gt; :: MaxNat -&gt; MaxNat -&gt; Bool
+&gt; :: MaxNat -&gt; MaxNat -&gt; Bool
+$c&gt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+&gt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+$cmax :: MaxNat -&gt; MaxNat -&gt; MaxNat
+max :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$cmin :: MaxNat -&gt; MaxNat -&gt; MaxNat
+min :: MaxNat -&gt; MaxNat -&gt; MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701400"><span id="local-6989586621681701405"><span id="local-6989586621681701409"><span class="annot"><span class="annottext">Int -&gt; MaxNat -&gt; ShowS
+[MaxNat] -&gt; ShowS
+MaxNat -&gt; String
+(Int -&gt; MaxNat -&gt; ShowS)
+-&gt; (MaxNat -&gt; String) -&gt; ([MaxNat] -&gt; ShowS) -&gt; Show MaxNat
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; MaxNat -&gt; ShowS
+showsPrec :: Int -&gt; MaxNat -&gt; ShowS
+$cshow :: MaxNat -&gt; String
+show :: MaxNat -&gt; String
+$cshowList :: [MaxNat] -&gt; ShowS
+showList :: [MaxNat] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701414"><span id="local-6989586621681701419"><span id="local-6989586621681701423"><span id="local-6989586621681701427"><span id="local-6989586621681701431"><span id="local-6989586621681701435"><span id="local-6989586621681701439"><span id="local-6989586621681701443"><span class="annot"><span class="annottext">Int -&gt; MaxNat
+MaxNat -&gt; Int
+MaxNat -&gt; [MaxNat]
+MaxNat -&gt; MaxNat
+MaxNat -&gt; MaxNat -&gt; [MaxNat]
+MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat]
+(MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (Int -&gt; MaxNat)
+-&gt; (MaxNat -&gt; Int)
+-&gt; (MaxNat -&gt; [MaxNat])
+-&gt; (MaxNat -&gt; MaxNat -&gt; [MaxNat])
+-&gt; (MaxNat -&gt; MaxNat -&gt; [MaxNat])
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat])
+-&gt; Enum MaxNat
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: MaxNat -&gt; MaxNat
+succ :: MaxNat -&gt; MaxNat
+$cpred :: MaxNat -&gt; MaxNat
+pred :: MaxNat -&gt; MaxNat
+$ctoEnum :: Int -&gt; MaxNat
+toEnum :: Int -&gt; MaxNat
+$cfromEnum :: MaxNat -&gt; Int
+fromEnum :: MaxNat -&gt; Int
+$cenumFrom :: MaxNat -&gt; [MaxNat]
+enumFrom :: MaxNat -&gt; [MaxNat]
+$cenumFromThen :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+enumFromThen :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+$cenumFromTo :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+enumFromTo :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+$cenumFromThenTo :: MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat]
+enumFromThenTo :: MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701454"><span id="local-6989586621681701458"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-type">MaxNat</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>  </span><span id="local-6989586621681701464"><span class="annot"><span class="annottext">&lt;&gt; :: MaxNat -&gt; MaxNat -&gt; MaxNat
+</span><span class="hs-operator hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaxNat -&gt; MaxNat -&gt; MaxNat
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701469"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-type">MaxNat</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>  </span><span id="local-6989586621681701475"><span class="annot"><span class="annottext">mempty :: MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaxNat
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-23"></span><span>  </span><span id="local-6989586621681701480"><span class="annot"><span class="annottext">mconcat :: [MaxNat] -&gt; MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var">mconcat</span></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaxNat
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">mconcat</span></span><span> </span><span id="local-6989586621681701481"><span class="annot"><span class="annottext">[MaxNat]
+</span><a href="#local-6989586621681701481"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[MaxNat] -&gt; MaxNat
+forall a. Ord a =&gt; [a] -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="annot"><span class="annottext">[MaxNat]
+</span><a href="#local-6989586621681701481"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- | Function composition in the diagrammatic order.</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">newtype</span><span> </span><span id="Fwd"><span class="annot"><a href="Agda.Utils.Monoid.html#Fwd"><span class="hs-identifier hs-var">Fwd</span></a></span></span><span> </span><span id="local-6989586621681701304"><span class="annot"><a href="#local-6989586621681701304"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkFwd"><span class="annot"><a href="Agda.Utils.Monoid.html#MkFwd"><span class="hs-identifier hs-var">MkFwd</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Dual</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Endo</span></span><span> </span><span class="annot"><a href="#local-6989586621681701304"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701485"><span id="local-6989586621681701491"><span id="local-6989586621681701496"><span class="annot"><span class="annottext">NonEmpty (Fwd a) -&gt; Fwd a
+Fwd a -&gt; Fwd a -&gt; Fwd a
+(Fwd a -&gt; Fwd a -&gt; Fwd a)
+-&gt; (NonEmpty (Fwd a) -&gt; Fwd a)
+-&gt; (forall b. Integral b =&gt; b -&gt; Fwd a -&gt; Fwd a)
+-&gt; Semigroup (Fwd a)
+forall b. Integral b =&gt; b -&gt; Fwd a -&gt; Fwd a
+forall a. NonEmpty (Fwd a) -&gt; Fwd a
+forall a. Fwd a -&gt; Fwd a -&gt; Fwd a
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+forall a b. Integral b =&gt; b -&gt; Fwd a -&gt; Fwd a
+$c&lt;&gt; :: forall a. Fwd a -&gt; Fwd a -&gt; Fwd a
+&lt;&gt; :: Fwd a -&gt; Fwd a -&gt; Fwd a
+$csconcat :: forall a. NonEmpty (Fwd a) -&gt; Fwd a
+sconcat :: NonEmpty (Fwd a) -&gt; Fwd a
+$cstimes :: forall a b. Integral b =&gt; b -&gt; Fwd a -&gt; Fwd a
+stimes :: forall b. Integral b =&gt; b -&gt; Fwd a -&gt; Fwd a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701509"><span id="local-6989586621681701515"><span id="local-6989586621681701520"><span class="annot"><span class="annottext">Semigroup (Fwd a)
+Fwd a
+Semigroup (Fwd a) =&gt;
+Fwd a
+-&gt; (Fwd a -&gt; Fwd a -&gt; Fwd a)
+-&gt; ([Fwd a] -&gt; Fwd a)
+-&gt; Monoid (Fwd a)
+[Fwd a] -&gt; Fwd a
+Fwd a -&gt; Fwd a -&gt; Fwd a
+forall a. Semigroup (Fwd a)
+forall a. Fwd a
+forall a.
+Semigroup a =&gt;
+a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+forall a. [Fwd a] -&gt; Fwd a
+forall a. Fwd a -&gt; Fwd a -&gt; Fwd a
+$cmempty :: forall a. Fwd a
+mempty :: Fwd a
+$cmappend :: forall a. Fwd a -&gt; Fwd a -&gt; Fwd a
+mappend :: Fwd a -&gt; Fwd a -&gt; Fwd a
+$cmconcat :: forall a. [Fwd a] -&gt; Fwd a
+mconcat :: [Fwd a] -&gt; Fwd a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#Fwd"><span class="hs-identifier hs-type">Fwd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681701301"><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681701301"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681701301"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#Fwd"><span class="hs-identifier hs-type">Fwd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701301"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">pattern</span><span> </span><span id="Fwd"><span id="%24mFwd"><span id="%24bFwd"><span class="annot"><span class="annottext">$mFwd :: forall {r} {a}. Fwd a -&gt; ((a -&gt; a) -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+$bFwd :: forall a. (a -&gt; a) -&gt; Fwd a
+</span><a href="Agda.Utils.Monoid.html#Fwd"><span class="hs-identifier hs-var hs-var hs-var">Fwd</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681701528"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#MkFwd"><span class="hs-identifier hs-type">MkFwd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Dual</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Endo</span></span><span> </span><span id="local-6989586621681701528"><span class="annot"><a href="#local-6989586621681701528"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span id="local-6989586621681701307"><span class="annot"><a href="Agda.Utils.Monoid.html#appFwd"><span class="hs-identifier hs-type">appFwd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#Fwd"><span class="hs-identifier hs-type">Fwd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701307"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681701307"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681701307"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-35"></span><span id="appFwd"><span class="annot"><span class="annottext">appFwd :: forall a. Fwd a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Monoid.html#appFwd"><span class="hs-identifier hs-var hs-var">appFwd</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Monoid.html#MkFwd"><span class="hs-identifier hs-type">MkFwd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Dual</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Endo</span></span><span> </span><span id="local-6989586621681701531"><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621681701531"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621681701531"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-36"></span></pre></body></html>

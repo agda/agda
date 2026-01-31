@@ -1,0 +1,810 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |  Possibly infinite sets of integers (but with finitely many consecutive</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--    segments). Used for checking guard coverage in int/nat cases in the</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--    treeless compiler.</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html"><span class="hs-identifier">Agda.Utils.IntSet.Infinite</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier">IntSet</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#empty"><span class="hs-identifier">empty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#full"><span class="hs-identifier">full</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#below"><span class="hs-identifier">below</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#above"><span class="hs-identifier">above</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#singleton"><span class="hs-identifier">singleton</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier">difference</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier">member</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#toFiniteList"><span class="hs-identifier">toFiniteList</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#invariant"><span class="hs-identifier">invariant</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | Represents a set of integers.</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--   Invariants:</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--     - All cannot be the argument to `Below` or `Above`</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--     - at most one 'IntsBelow'</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--     - at most one 'IntsAbove'</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--     - if `Below lo` and `Below hi`, then `lo &lt; hi`</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--     - if `Below lo .. (Some xs)` then `all (&gt; lo) xs`</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--     - if `Above hi .. (Some xs)` then `all (&lt; hi - 1) xs`</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">data</span><span> </span><span id="IntSet"><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-var">IntSet</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="All"><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span></span><span>
+</span><span id="line-27"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="Some"><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="Below"><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-var">Below</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>  </span><span class="hs-comment">-- exclusive</span><span>
+</span><span id="line-29"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="Above"><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-var">Above</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>  </span><span class="hs-comment">-- inclusive</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681697658"><span id="local-6989586621681697672"><span id="local-6989586621681697675"><span class="annot"><span class="annottext">Int -&gt; IntSet -&gt; ShowS
+[IntSet] -&gt; ShowS
+IntSet -&gt; String
+(Int -&gt; IntSet -&gt; ShowS)
+-&gt; (IntSet -&gt; String) -&gt; ([IntSet] -&gt; ShowS) -&gt; Show IntSet
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; IntSet -&gt; ShowS
+showsPrec :: Int -&gt; IntSet -&gt; ShowS
+$cshow :: IntSet -&gt; String
+show :: IntSet -&gt; String
+$cshowList :: [IntSet] -&gt; ShowS
+showList :: [IntSet] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681697682"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>  </span><span id="local-6989586621681697696"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697696"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681697697"><span class="annot"><span class="annottext">== :: IntSet -&gt; IntSet -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var">==</span></span></span><span> </span><span id="local-6989586621681697698"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697698"><span class="hs-identifier hs-var">r'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Maybe (Maybe Integer, Maybe Integer, Set Integer)
+</span><a href="#local-6989586621681697699"><span class="hs-identifier hs-var">norm</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697696"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (Maybe Integer, Maybe Integer, Set Integer)
+-&gt; Maybe (Maybe Integer, Maybe Integer, Set Integer) -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Maybe (Maybe Integer, Maybe Integer, Set Integer)
+</span><a href="#local-6989586621681697699"><span class="hs-identifier hs-var">norm</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697698"><span class="hs-identifier hs-var">r'</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-35"></span><span>      </span><span id="local-6989586621681697699"><span class="annot"><span class="annottext">norm :: IntSet -&gt; Maybe (Maybe Integer, Maybe Integer, Set Integer)
+</span><a href="#local-6989586621681697699"><span class="hs-identifier hs-var hs-var">norm</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (Maybe Integer, Maybe Integer, Set Integer)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-36"></span><span>      </span><span class="annot"><a href="#local-6989586621681697699"><span class="hs-identifier hs-var">norm</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697705"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697705"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe Integer, Maybe Integer, Set Integer)
+-&gt; Maybe (Maybe Integer, Maybe Integer, Set Integer)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Integer
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe Integer
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697705"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>      </span><span class="annot"><a href="#local-6989586621681697699"><span class="hs-identifier hs-var">norm</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697706"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697706"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697707"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697707"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681697708"><span class="annot"><a href="#local-6989586621681697708"><span class="hs-identifier hs-var">hi</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681697709"><span class="annot"><a href="#local-6989586621681697709"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Maybe (Maybe Integer, Maybe Integer, Set Integer)
+</span><a href="#local-6989586621681697699"><span class="hs-identifier hs-var">norm</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697707"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="#local-6989586621681697706"><span class="hs-identifier hs-type">lo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681697708"><span class="hs-identifier hs-type">hi</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681697709"><span class="hs-identifier hs-type">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>      </span><span class="annot"><a href="#local-6989586621681697699"><span class="hs-identifier hs-var">norm</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697710"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697710"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697711"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697711"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681697712"><span class="annot"><a href="#local-6989586621681697712"><span class="hs-identifier hs-var">lo</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681697713"><span class="annot"><a href="#local-6989586621681697713"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Maybe (Maybe Integer, Maybe Integer, Set Integer)
+</span><a href="#local-6989586621681697699"><span class="hs-identifier hs-var">norm</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697711"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681697712"><span class="hs-identifier hs-type">lo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="#local-6989586621681697710"><span class="hs-identifier hs-type">hi</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681697713"><span class="hs-identifier hs-type">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-type">below'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-41"></span><span id="below%27"><span class="annot"><span class="annottext">below' :: Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var hs-var">below'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
+</span><span id="line-42"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span id="local-6989586621681697715"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697715"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697716"><span class="annot"><span class="annottext">r :: IntSet
+</span><a href="#local-6989586621681697716"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697717"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697717"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697715"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Set Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697717"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697715"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697716"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-var">Below</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697715"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="annot"><span class="annottext">(Set Integer -&gt; IntSet) -&gt; Set Integer -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Set Integer
+forall a. (a -&gt; Bool) -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697715"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697717"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span id="local-6989586621681697721"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697721"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697722"><span class="annot"><span class="annottext">r0 :: IntSet
+</span><a href="#local-6989586621681697722"><span class="hs-identifier hs-var">r0</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697723"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697723"><span class="hs-identifier hs-var">lo'</span></a></span></span><span> </span><span id="local-6989586621681697724"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697724"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697723"><span class="hs-identifier hs-var">lo'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697721"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697722"><span class="hs-identifier hs-var">r0</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697721"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697724"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span id="local-6989586621681697725"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697725"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697726"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697726"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697727"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697727"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697726"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697725"><span class="hs-identifier hs-var">lo</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-var">Above</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697726"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697725"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697727"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-type">above'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-53"></span><span id="above%27"><span class="annot"><span class="annottext">above' :: Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var hs-var">above'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span id="local-6989586621681697730"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697730"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697731"><span class="annot"><span class="annottext">r :: IntSet
+</span><a href="#local-6989586621681697731"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697732"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697732"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697730"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Set Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697732"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697730"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697731"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-var">Above</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697730"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="annot"><span class="annottext">(Set Integer -&gt; IntSet) -&gt; Set Integer -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Set Integer
+forall a. (a -&gt; Bool) -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697730"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697732"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-57"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span id="local-6989586621681697734"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697734"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697735"><span class="annot"><span class="annottext">r0 :: IntSet
+</span><a href="#local-6989586621681697735"><span class="hs-identifier hs-var">r0</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697736"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697736"><span class="hs-identifier hs-var">hi'</span></a></span></span><span> </span><span id="local-6989586621681697737"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697737"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697736"><span class="hs-identifier hs-var">hi'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697734"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697735"><span class="hs-identifier hs-var">r0</span></a></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697734"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697737"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-60"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span id="local-6989586621681697738"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697738"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697739"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697739"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697740"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697740"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697738"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697739"><span class="hs-identifier hs-var">lo</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-var">Below</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697739"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697738"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697740"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-type">some'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-65"></span><span id="some%27"><span class="annot"><span class="annottext">some' :: Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var hs-var">some'</span></a></span></span><span> </span><span id="local-6989586621681697742"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697742"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681697743"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697743"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; Bool
+forall a. Set a -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697742"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697743"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-66"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span id="local-6989586621681697745"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697745"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697746"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697746"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Integer -&gt; Set Integer -&gt; Set Integer
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.union</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697745"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697746"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span id="local-6989586621681697748"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697748"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697749"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697749"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697750"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697750"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697749"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Set Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697748"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697748"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-var">Below</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697749"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697750"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697749"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Set Integer
+forall a. (a -&gt; Bool) -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697749"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697748"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697750"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span id="local-6989586621681697751"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697751"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697752"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697752"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697753"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697753"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697752"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Set Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697751"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697751"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-var">Above</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697752"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697753"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697752"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Set Integer
+forall a. (a -&gt; Bool) -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697752"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697751"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697753"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier hs-type">difference</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-76"></span><span id="difference"><span class="annot"><span class="annottext">difference :: IntSet -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier hs-var hs-var">difference</span></a></span></span><span> </span><span id="local-6989586621681697754"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697754"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier hs-var">difference</span></a></span><span> </span><span id="local-6989586621681697755"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697755"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697756"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697756"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var">subtractSome</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697755"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697756"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier hs-var">difference</span></a></span><span> </span><span id="local-6989586621681697758"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697758"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697759"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697759"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697760"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697760"><span class="hs-identifier hs-var">r'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier hs-var">difference</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-var">subtractBelow</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697758"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697759"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697760"><span class="hs-identifier hs-var">r'</span></a></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier hs-var">difference</span></a></span><span> </span><span id="local-6989586621681697762"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697762"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697763"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697763"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697764"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697764"><span class="hs-identifier hs-var">r'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#difference"><span class="hs-identifier hs-var">difference</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-var">subtractAbove</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697762"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697763"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697764"><span class="hs-identifier hs-var">r'</span></a></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-type">subtractSome</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-82"></span><span id="subtractSome"><span class="annot"><span class="annottext">subtractSome :: IntSet -&gt; Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var hs-var">subtractSome</span></a></span></span><span> </span><span id="local-6989586621681697766"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697766"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681697767"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697767"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; Bool
+forall a. Set a -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697767"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697766"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var">subtractSome</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span> </span><span id="local-6989586621681697768"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697768"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below"><span class="hs-identifier hs-var">below</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697769"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above"><span class="hs-identifier hs-var">above</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697770"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; Set Integer
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697769"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697770"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; Set Integer -&gt; Set Integer
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.difference`</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697768"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681697769"><span class="annot"><span class="annottext">lo :: Integer
+</span><a href="#local-6989586621681697769"><span class="hs-identifier hs-var hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; Integer
+forall a. Ord a =&gt; Set a -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">minimum</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697768"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-85"></span><span>        </span><span id="local-6989586621681697770"><span class="annot"><span class="annottext">hi :: Integer
+</span><a href="#local-6989586621681697770"><span class="hs-identifier hs-var hs-var">hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; Integer
+forall a. Ord a =&gt; Set a -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697768"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var">subtractSome</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697775"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697775"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681697776"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697776"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Integer -&gt; Set Integer -&gt; Set Integer
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.difference</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697775"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697776"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var">subtractSome</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697777"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697777"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697778"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697778"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681697779"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697779"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-var">Below</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">min</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697777"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697781"><span class="hs-identifier hs-var">lo'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var">subtractSome</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; Set Integer
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697781"><span class="hs-identifier hs-var">lo'</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697777"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697778"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697779"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681697781"><span class="annot"><span class="annottext">lo' :: Integer
+</span><a href="#local-6989586621681697781"><span class="hs-identifier hs-var hs-var">lo'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; Integer
+forall a. Ord a =&gt; Set a -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">minimum</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697779"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-89"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var">subtractSome</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697782"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697782"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697783"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697783"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681697784"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697784"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-var">Above</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697782"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697786"><span class="hs-identifier hs-var">hi'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet) -&gt; IntSet -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractSome"><span class="hs-identifier hs-var">subtractSome</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; Set Integer
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697782"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697786"><span class="hs-identifier hs-var">hi'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697783"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697784"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681697786"><span class="annot"><span class="annottext">hi' :: Integer
+</span><a href="#local-6989586621681697786"><span class="hs-identifier hs-var hs-var">hi'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; Integer
+forall a. Ord a =&gt; Set a -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697784"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-type">subtractBelow</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-93"></span><span id="subtractBelow"><span class="annot"><span class="annottext">subtractBelow :: IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-var hs-var">subtractBelow</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>           </span><span id="local-6989586621681697787"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697787"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above"><span class="hs-identifier hs-var">above</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697787"><span class="hs-identifier hs-var">lo</span></a></span><span>
+</span><span id="line-94"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-var">subtractBelow</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697788"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697788"><span class="hs-identifier hs-var">lo'</span></a></span></span><span> </span><span id="local-6989586621681697789"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697789"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681697790"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697790"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; Set Integer
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697790"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697788"><span class="hs-identifier hs-var">lo'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-var">subtractBelow</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697789"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697790"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-var">subtractBelow</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697791"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697791"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697792"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697792"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>  </span><span id="local-6989586621681697793"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697793"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-var">Above</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697791"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697793"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-var">subtractBelow</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697792"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697793"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractBelow"><span class="hs-identifier hs-var">subtractBelow</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697794"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697794"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>     </span><span id="local-6989586621681697795"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697795"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="annot"><span class="annottext">(Set Integer -&gt; IntSet) -&gt; Set Integer -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Set Integer
+forall a. (a -&gt; Bool) -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697795"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697794"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-type">subtractAbove</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-99"></span><span id="subtractAbove"><span class="annot"><span class="annottext">subtractAbove :: IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-var hs-var">subtractAbove</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>           </span><span id="local-6989586621681697796"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697796"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below"><span class="hs-identifier hs-var">below</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697796"><span class="hs-identifier hs-var">hi</span></a></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-var">subtractAbove</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697797"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697797"><span class="hs-identifier hs-var">hi'</span></a></span></span><span> </span><span id="local-6989586621681697798"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697798"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681697799"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697799"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; Set Integer
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697797"><span class="hs-identifier hs-var">hi'</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697799"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-var">subtractAbove</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697798"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697799"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-var">subtractAbove</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697800"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697800"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697801"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697801"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>  </span><span id="local-6989586621681697802"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697802"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-var">Below</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">min</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697800"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697802"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet -&gt; Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-var">subtractAbove</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697801"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697802"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#subtractAbove"><span class="hs-identifier hs-var">subtractAbove</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697803"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697803"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>     </span><span id="local-6989586621681697804"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697804"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="annot"><span class="annottext">(Set Integer -&gt; IntSet) -&gt; Set Integer -&gt; IntSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Set Integer
+forall a. (a -&gt; Bool) -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697804"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697803"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681697807"><span id="local-6989586621681697810"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697817"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697817"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697818"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697818"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681697819"><span class="annot"><span class="annottext">&lt;&gt; :: IntSet -&gt; IntSet -&gt; IntSet
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681697820"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697820"><span class="hs-identifier hs-var">r'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below%27"><span class="hs-identifier hs-var">below'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697817"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697818"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697820"><span class="hs-identifier hs-var">r'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>  </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697821"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697821"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697822"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697822"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span id="local-6989586621681697823"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697823"><span class="hs-identifier hs-var">r'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above%27"><span class="hs-identifier hs-var">above'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697821"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697822"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697823"><span class="hs-identifier hs-var">r'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span><span>  </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697824"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697824"><span class="hs-identifier hs-var">xs</span></a></span></span><span>    </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span id="local-6989586621681697825"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697825"><span class="hs-identifier hs-var">r'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#some%27"><span class="hs-identifier hs-var">some'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697824"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697825"><span class="hs-identifier hs-var">r'</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>        </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681697831"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621681697835"><span class="annot"><span class="annottext">mempty :: IntSet
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span id="local-6989586621681697837"><span class="annot"><span class="annottext">mappend :: IntSet -&gt; IntSet -&gt; IntSet
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; IntSet -&gt; IntSet
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="annot"><span class="hs-comment">-- | Membership</span></span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier hs-type">member</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-116"></span><span id="member"><span class="annot"><span class="annottext">member :: Integer -&gt; IntSet -&gt; Bool
+</span><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier hs-var hs-var">member</span></a></span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-117"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier hs-var">member</span></a></span><span> </span><span id="local-6989586621681697838"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697838"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697839"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697839"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Set Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697838"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697839"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier hs-var">member</span></a></span><span> </span><span id="local-6989586621681697840"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697840"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697841"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697841"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697842"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697842"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697840"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697841"><span class="hs-identifier hs-var">lo</span></a></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; Bool
+</span><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier hs-var">member</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697840"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697842"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier hs-var">member</span></a></span><span> </span><span id="local-6989586621681697844"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697844"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697845"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697845"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697846"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697846"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697844"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697845"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; Bool
+</span><a href="Agda.Utils.IntSet.Infinite.html#member"><span class="hs-identifier hs-var">member</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697844"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697846"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="annot"><span class="hs-comment">-- | All integers `&lt; n`</span></span><span>
+</span><span id="line-122"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#below"><span class="hs-identifier hs-type">below</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-123"></span><span id="below"><span class="annot"><span class="annottext">below :: Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#below"><span class="hs-identifier hs-var hs-var">below</span></a></span></span><span> </span><span id="local-6989586621681697847"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697847"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-var">Below</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697847"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="annot"><span class="hs-comment">-- | All integers `&gt;= n`</span></span><span>
+</span><span id="line-126"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#above"><span class="hs-identifier hs-type">above</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-127"></span><span id="above"><span class="annot"><span class="annottext">above :: Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#above"><span class="hs-identifier hs-var hs-var">above</span></a></span></span><span> </span><span id="local-6989586621681697848"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697848"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-var">Above</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697848"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="annot"><span class="hs-comment">-- | A single integer.</span></span><span>
+</span><span id="line-130"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#singleton"><span class="hs-identifier hs-type">singleton</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-131"></span><span id="singleton"><span class="annot"><span class="annottext">singleton :: Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#singleton"><span class="hs-identifier hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681697849"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697849"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Integer] -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#fromList"><span class="hs-identifier hs-var">fromList</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697849"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><span class="hs-comment">-- | From a list of integers.</span></span><span>
+</span><span id="line-134"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-135"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: [Integer] -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#fromList"><span class="hs-identifier hs-var hs-var">fromList</span></a></span></span><span> </span><span id="local-6989586621681697851"><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681697851"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; Set Integer
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681697851"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">-- | No integers.</span></span><span>
+</span><span id="line-138"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#empty"><span class="hs-identifier hs-type">empty</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-139"></span><span id="empty"><span class="annot"><span class="annottext">empty :: IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#empty"><span class="hs-identifier hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="annot"><span class="annottext">Set Integer
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><span class="hs-comment">-- | All integers.</span></span><span>
+</span><span id="line-142"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#full"><span class="hs-identifier hs-type">full</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span>
+</span><span id="line-143"></span><span id="full"><span class="annot"><span class="annottext">full :: IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#full"><span class="hs-identifier hs-var hs-var">full</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="annot"><span class="hs-comment">-- | If finite, return the list of elements.</span></span><span>
+</span><span id="line-146"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#toFiniteList"><span class="hs-identifier hs-type">toFiniteList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span>
+</span><span id="line-147"></span><span id="toFiniteList"><span class="annot"><span class="annottext">toFiniteList :: IntSet -&gt; Maybe [Integer]
+</span><a href="Agda.Utils.IntSet.Infinite.html#toFiniteList"><span class="hs-identifier hs-var hs-var">toFiniteList</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697853"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697853"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Integer] -&gt; Maybe [Integer]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">([Integer] -&gt; Maybe [Integer]) -&gt; [Integer] -&gt; Maybe [Integer]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Integer -&gt; [Integer]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697853"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-148"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#toFiniteList"><span class="hs-identifier hs-var">toFiniteList</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [Integer]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-149"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#toFiniteList"><span class="hs-identifier hs-var">toFiniteList</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [Integer]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-150"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#toFiniteList"><span class="hs-identifier hs-var">toFiniteList</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [Integer]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="annot"><span class="hs-comment">-- | Invariant.</span></span><span>
+</span><span id="line-153"></span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#invariant"><span class="hs-identifier hs-type">invariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#IntSet"><span class="hs-identifier hs-type">IntSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-154"></span><span id="invariant"><span class="annot"><span class="annottext">invariant :: IntSet -&gt; Bool
+</span><a href="Agda.Utils.IntSet.Infinite.html#invariant"><span class="hs-identifier hs-var hs-var">invariant</span></a></span></span><span> </span><span id="local-6989586621681697855"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697855"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697855"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-156"></span><span>    </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-157"></span><span>    </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-158"></span><span>    </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697856"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697856"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697857"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697857"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Bool
+</span><a href="Agda.Utils.IntSet.Infinite.html#invariant"><span class="hs-identifier hs-var">invariant</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697857"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; Bool
+</span><a href="#local-6989586621681697859"><span class="hs-identifier hs-var">invBelow</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697856"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697857"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-159"></span><span>    </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697860"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697860"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697861"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697861"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IntSet -&gt; Bool
+</span><a href="Agda.Utils.IntSet.Infinite.html#invariant"><span class="hs-identifier hs-var">invariant</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697861"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; Bool
+</span><a href="#local-6989586621681697862"><span class="hs-identifier hs-var">invAbove</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697860"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697861"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-160"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-161"></span><span>    </span><span id="local-6989586621681697859"><span class="annot"><span class="annottext">invBelow :: Integer -&gt; IntSet -&gt; Bool
+</span><a href="#local-6989586621681697859"><span class="hs-identifier hs-var hs-var">invBelow</span></a></span></span><span> </span><span id="local-6989586621681697866"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697866"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-162"></span><span>    </span><span class="annot"><a href="#local-6989586621681697859"><span class="hs-identifier hs-var">invBelow</span></a></span><span> </span><span id="local-6989586621681697867"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697867"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697868"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697868"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697867"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697868"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-163"></span><span>    </span><span class="annot"><a href="#local-6989586621681697859"><span class="hs-identifier hs-var">invBelow</span></a></span><span> </span><span id="local-6989586621681697871"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697871"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-164"></span><span>    </span><span class="annot"><a href="#local-6989586621681697859"><span class="hs-identifier hs-var">invBelow</span></a></span><span> </span><span id="local-6989586621681697872"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697872"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span> </span><span id="local-6989586621681697873"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697873"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span id="local-6989586621681697874"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697874"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697872"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697873"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; Bool
+</span><a href="#local-6989586621681697859"><span class="hs-identifier hs-var">invBelow</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697872"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697874"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span>    </span><span id="local-6989586621681697862"><span class="annot"><span class="annottext">invAbove :: Integer -&gt; IntSet -&gt; Bool
+</span><a href="#local-6989586621681697862"><span class="hs-identifier hs-var hs-var">invAbove</span></a></span></span><span> </span><span id="local-6989586621681697880"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697880"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="Agda.Utils.IntSet.Infinite.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-167"></span><span>    </span><span class="annot"><a href="#local-6989586621681697862"><span class="hs-identifier hs-var">invAbove</span></a></span><span> </span><span id="local-6989586621681697881"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697881"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Some"><span class="hs-identifier hs-type">Some</span></a></span><span> </span><span id="local-6989586621681697882"><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697882"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; Set Integer -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697881"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Integer
+</span><a href="#local-6989586621681697882"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-168"></span><span>    </span><span class="annot"><a href="#local-6989586621681697862"><span class="hs-identifier hs-var">invAbove</span></a></span><span> </span><span id="local-6989586621681697883"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697883"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Above"><span class="hs-identifier hs-type">Above</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-169"></span><span>    </span><span class="annot"><a href="#local-6989586621681697862"><span class="hs-identifier hs-var">invAbove</span></a></span><span> </span><span id="local-6989586621681697884"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697884"><span class="hs-identifier hs-var">hi</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IntSet.Infinite.html#Below"><span class="hs-identifier hs-type">Below</span></a></span><span> </span><span id="local-6989586621681697885"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697885"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621681697886"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697886"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697885"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697884"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IntSet -&gt; Bool
+</span><a href="#local-6989586621681697862"><span class="hs-identifier hs-var">invAbove</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681697884"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621681697886"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-170"></span></pre></body></html>

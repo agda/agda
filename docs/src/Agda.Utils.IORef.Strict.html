@@ -1,0 +1,278 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | A variant of 'IORef' that ensures the value stored</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- inside the reference is always in WHNF.</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- This module should be imported qualified, ala</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- import qualified Agda.Utils.IORef.Strict as Strict</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html"><span class="hs-identifier">Agda.Utils.IORef.Strict</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-11"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Strict IO references #strict-ioref#</span></span><span>
+</span><span id="line-12"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span>    </span><span class="annot"><span class="hs-comment">-- $strictIORef</span></span><span>
+</span><span id="line-14"></span><span>    </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier">IORef</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#newIORef"><span class="hs-identifier">newIORef</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#readIORef"><span class="hs-identifier">readIORef</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#writeIORef"><span class="hs-identifier">writeIORef</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#modifyIORef"><span class="hs-identifier">modifyIORef</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#atomicModifyIORef"><span class="hs-identifier">atomicModifyIORef</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">evaluate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Coerce</span></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IORef</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Lazy</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- $strictIORef</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- A classic laziness footgun is that 'IORef' does not force</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- values written to it to weak-head normal form. This is a</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- common source of space leaks, as illustrated by the following</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- (somewhat contrived) example:</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- gotcha :: IO ()</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- gotcha = do</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--   ref &lt;- newIORef 1</span><span>
+</span><span id="line-38"></span><span class="hs-comment">--   loop ref (10 ^ 9)</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--   n &lt;- readIORef ref</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--   print n</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   where</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--     loop :: IORef Int -&gt; Int -&gt; IO ()</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--     loop ref i =</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--       if i == 0 then</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--         pure ()</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--       else do</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--         n &lt;- readIORef ref</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--         writeIORef ref (n + 1)</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--         loop ref (i - 1)</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- As the name suggests, this is a classic example of a space leak.</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- When we start the loop, @ref@ contains 1. At each iteration, we</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- read the contents of @ref@ into @n@, and write a *thunk* to @ref@</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- that will compute @n + 1@ when forced. This results in a chain of</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- 1 billion thunks being allocated and kept live until we 'print'</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- the value stored in @ref@, which causes us to force the thunk chain.</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- The solution is to replace @writeIORef ref (n + 1)@ with @writeIORef ref $! (n + 1)@,</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- which forces the thunk @n + 1@ to weak-heak normal form, which prevents</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- the thunk chain from building up inside of the 'IORef'.</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- Lazy IO references can also cause programs to keep data live</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- for much longer than required, leading to memory leaks. The</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- basic anatomy of this class of leaks is something like the following:</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- import Control.Concurrent</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- import Data.IORef</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- import GHC.Profiling</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- import System.Mem</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- import System.IO</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- memoryLeak :: IO ()</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- memoryLeak = do</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--   let bigList = [1..10 ^ 6]</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   -- Force the spine of the list to make GHC allocate the whole thing.</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--   print (length bigList)</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--   hFlush stdout</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--   -- Make an 'IORef' that uses 'bigList', and then do some unrelated slow computation.</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--   ref &lt;- newIORef (sum bigList)</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   loop 10</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--   -- Finally print the value in the reference.</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--   n &lt;- readIORef ref</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--   putStrLn $! show n</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--   where</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--     loop :: Int -&gt; IO ()</span><span>
+</span><span id="line-87"></span><span class="hs-comment">--     loop 0 = pure ()</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--     loop i = do</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--       threadDelay (10 ^ 6)</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--       performBlockingMajorGC</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--       requestHeapCensus</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--       putStrLn &quot;Working...&quot;</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--       hFlush stdout</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--       loop (i - 1)</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- If we run this program with @+RTS -l -hT -RTS@ and view the resulting @.eventlog@ file</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- with [eventlog2html](https://mpickering.github.io/eventlog2html/), we will see that</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- @bigList@ is kept live for the duration of @loop@, despite the repeated calls to</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- @performBlockingMajorGC@. This is because @newIORef (sum bigList)@ allocates a thunk</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- for @sum bigList@, which @newIORef@ does not force. This thunk references @bigList@,</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- so the garbage collector is forced to keep @bigList@ live until we actually force the</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- value stored inside @ref@ by printing it. We can avoid this by replacing the @newIORef@</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- call with @newIORef $! (sum bigList)@, which forces the @sum bigList@ thunk to weak-head</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- normal form, which removes the final reference to @bigList@. The GC will then free it on the</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- first @performBlockingMajorGC@ call.</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- These sorts of mistakes are very easy to make, and very hard to diagnose. This</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- module attempts to (partially) solve the problem by providing an opaque wrapper around 'Data.IORef.IORef',</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- along with a corresponding API that ensures that the value stored in the reference</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- is always in weak-head normal form.</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- == When should I use strict references?</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- The short answer is: &quot;If you are unsure, you should probably use strict references&quot;.</span><span>
+</span><span id="line-116"></span><span class="hs-comment">--</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- The less short answer depends on your usage patterns:</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- * Do you repeatedly read and then write to the reference? If so, you probably</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--   want to use strict references to avoid space leaks like the first example.</span><span>
+</span><span id="line-121"></span><span class="hs-comment">--</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- * Do you use the reference to store things that are computed from things that</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--   shouldn't be kept live? If so, you probably want to use strict references to avoid</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--   memory leaks like the second example.</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- * Do you use the reference to store something that is expensive to compute</span><span>
+</span><span id="line-127"></span><span class="hs-comment">--   that you rarely use? If so, you might want to use 'IORef' to</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--   avoid doing redundant work, though warnings about repeated read/writes and memory</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--   leaks still apply.</span><span>
+</span><span id="line-130"></span><span class="hs-comment">--</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- == Caveats</span><span>
+</span><span id="line-132"></span><span class="hs-comment">--</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- The API for strict 'IORef' only ensures that the value in the reference is in</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- weak-head normal form, *not* normal form. This is done for the sake of efficiency:</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- using 'Control.DeepSeq.NFData' to place the value into normal form requires us to</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- fully traverse the value being stored inside of the reference, which can be quite</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- expensive for recursive structures.</span><span>
+</span><span id="line-138"></span><span class="hs-comment">--</span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- This design decision does lead to some unfortunate gotchas. Namely, if you store</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- a type inside of a strict 'IORef' that has non-strict fields, it is still possible</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- to have space/memory leaks. This is best explained by an example:</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- gotcha :: IO ()</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- gotcha = do</span><span>
+</span><span id="line-146"></span><span class="hs-comment">--   ref &lt;- Strict.newIORef (Just 1)</span><span>
+</span><span id="line-147"></span><span class="hs-comment">--   loop ref (10 ^ 9)</span><span>
+</span><span id="line-148"></span><span class="hs-comment">--   n &lt;- Strict.readIORef ref</span><span>
+</span><span id="line-149"></span><span class="hs-comment">--   print n</span><span>
+</span><span id="line-150"></span><span class="hs-comment">--   where</span><span>
+</span><span id="line-151"></span><span class="hs-comment">--     loop :: Strict.IORef (Maybe Int) -&gt; Int -&gt; IO ()</span><span>
+</span><span id="line-152"></span><span class="hs-comment">--     loop ref i =</span><span>
+</span><span id="line-153"></span><span class="hs-comment">--       if i == 0 then</span><span>
+</span><span id="line-154"></span><span class="hs-comment">--         pure ()</span><span>
+</span><span id="line-155"></span><span class="hs-comment">--       else do</span><span>
+</span><span id="line-156"></span><span class="hs-comment">--         n &lt;- Strict.readIORef ref</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--         Strict.writeIORef ref (fmap (+ 1) n)</span><span>
+</span><span id="line-158"></span><span class="hs-comment">--         loop ref (i - 1)</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-160"></span><span class="hs-comment">--</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- This leaks even though we are using a strict 'IORef', as 'Agda.Utils.IORef.Strict.writeIORef' only forces the</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- thunk containing the 'Just', and *not* the thunk stored within the 'Just'. Similar problems</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- exist with @Strict.IORef (a, b)@, as pairs in Haskell are lazy.</span><span>
+</span><span id="line-164"></span><span class="hs-comment">--</span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- In light of this, users are encouraged to use strict 'IORef' in concert with types that have strict</span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- fields. This ensures that forcing the outer constructor of the type also forces the fields, avoiding any potential</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- leaks. If this is not possible, users are encouraged to use strict let bindings, 'seq', and</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- extreme care.</span><span>
+</span><span id="line-169"></span><span class="hs-comment">--</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- == Implementation notes</span><span>
+</span><span id="line-171"></span><span class="hs-comment">--</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- When forcing values to WHNF before writing to the reference, we have two options</span><span>
+</span><span id="line-173"></span><span class="hs-comment">--</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- * Use @Lazy.writeIORef ref $! a@</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- * Use @Lazy.writeIORef ref =&lt;&lt; evaluate a@</span><span>
+</span><span id="line-176"></span><span class="hs-comment">--</span><span>
+</span><span id="line-177"></span><span class="hs-comment">-- These are subtly different in the presence of exceptions. The former</span><span>
+</span><span id="line-178"></span><span class="hs-comment">-- unfolds to:</span><span>
+</span><span id="line-179"></span><span class="hs-comment">--</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-181"></span><span class="hs-comment">-- let !a' = a</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- in writeIORef ref a'</span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-184"></span><span class="hs-comment">--</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- If forcing @a@ to WHNF causes an exception to get thrown, then we don't produce any IO action at</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- all. Conversely, @writeIORef ref =&lt;&lt; evaluate a@ will always produce an IO action that itself will</span><span>
+</span><span id="line-187"></span><span class="hs-comment">-- throw when evaluated.</span><span>
+</span><span id="line-188"></span><span class="hs-comment">--</span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- In practice, this means that</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--</span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- (writeIORef ref $! (error &quot;a&quot;)) &gt;&gt; error &quot;b&quot;</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-194"></span><span class="hs-comment">--</span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- can throw either @&quot;a&quot;@ or @&quot;b&quot;@ depending on what the optimizer decides to do, whereas</span><span>
+</span><span id="line-196"></span><span class="hs-comment">--</span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- evaluate (error &quot;a&quot;) &gt;&gt;= writeIORef ref &gt;&gt; error &quot;b&quot;</span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--</span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- must always throw @&quot;a&quot;@.</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- We opt to use @writeIORef ref $! a@ in this module, as it gives the optimizer more leeway</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- when doing code transformations that might move where a value gets forced (EG: worker-wrapper).</span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- This is a safe choice, as Agda does not rely on precise exception semantics for correctness.</span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span class="annot"><span class="hs-comment">-- | Strict IO references.</span></span><span>
+</span><span id="line-208"></span><span class="hs-keyword">newtype</span><span> </span><span id="IORef"><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier hs-var">IORef</span></a></span></span><span> </span><span id="local-6989586621681696545"><span class="annot"><a href="#local-6989586621681696545"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="StrictIORef"><span class="annot"><a href="Agda.Utils.IORef.Strict.html#StrictIORef"><span class="hs-identifier hs-var">StrictIORef</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Lazy.IORef</span></span><span> </span><span class="annot"><a href="#local-6989586621681696545"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-209"></span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- | Create a new strict 'IORef'.</span><span>
+</span><span id="line-211"></span><span class="hs-comment">--</span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- This will force the value to WHNF before creating the reference.</span><span>
+</span><span id="line-213"></span><span id="local-6989586621681696541"><span class="annot"><a href="Agda.Utils.IORef.Strict.html#newIORef"><span class="hs-identifier hs-type">newIORef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681696541"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier hs-type">IORef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696541"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-214"></span><span id="newIORef"><span class="annot"><span class="annottext">newIORef :: forall a. a -&gt; IO (IORef a)
+</span><a href="Agda.Utils.IORef.Strict.html#newIORef"><span class="hs-identifier hs-var hs-var">newIORef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681696576"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681696576"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IORef a -&gt; IORef a
+forall a. IORef a -&gt; IORef a
+</span><a href="Agda.Utils.IORef.Strict.html#StrictIORef"><span class="hs-identifier hs-var">StrictIORef</span></a></span><span> </span><span class="annot"><span class="annottext">(IORef a -&gt; IORef a) -&gt; IO (IORef a) -&gt; IO (IORef a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; IO (IORef a)
+forall a. a -&gt; IO (IORef a)
+</span><span class="hs-identifier hs-var">Lazy.newIORef</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; IO (IORef a)) -&gt; a -&gt; IO (IORef a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$!</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681696576"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-215"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#newIORef"><span class="hs-pragma hs-type">newIORef</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-216"></span><span>
+</span><span id="line-217"></span><span class="annot"><span class="hs-comment">-- | Read the contents of a strict 'IORef'.</span></span><span>
+</span><span id="line-218"></span><span id="local-6989586621681696553"><span class="annot"><a href="Agda.Utils.IORef.Strict.html#readIORef"><span class="hs-identifier hs-type">readIORef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier hs-type">IORef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696553"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681696553"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-219"></span><span id="readIORef"><span class="annot"><span class="annottext">readIORef :: forall a. IORef a -&gt; IO a
+</span><a href="Agda.Utils.IORef.Strict.html#readIORef"><span class="hs-identifier hs-var hs-var">readIORef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#StrictIORef"><span class="hs-identifier hs-type">StrictIORef</span></a></span><span> </span><span id="local-6989586621681696580"><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696580"><span class="hs-identifier hs-var">ref</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IORef a -&gt; IO a
+forall a. IORef a -&gt; IO a
+</span><span class="hs-identifier hs-var">Lazy.readIORef</span></span><span> </span><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696580"><span class="hs-identifier hs-var">ref</span></a></span><span>
+</span><span id="line-220"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#readIORef"><span class="hs-pragma hs-type">readIORef</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-221"></span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- | Write to a strict 'IORef'.</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- This will force the value to WHNF before writing.</span><span>
+</span><span id="line-225"></span><span id="local-6989586621681696556"><span class="annot"><a href="Agda.Utils.IORef.Strict.html#writeIORef"><span class="hs-identifier hs-type">writeIORef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier hs-type">IORef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696556"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681696556"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-226"></span><span id="writeIORef"><span class="annot"><span class="annottext">writeIORef :: forall a. IORef a -&gt; a -&gt; IO ()
+</span><a href="Agda.Utils.IORef.Strict.html#writeIORef"><span class="hs-identifier hs-var hs-var">writeIORef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#StrictIORef"><span class="hs-identifier hs-type">StrictIORef</span></a></span><span> </span><span id="local-6989586621681696582"><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696582"><span class="hs-identifier hs-var">ref</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681696583"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681696583"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IORef a -&gt; a -&gt; IO ()
+forall a. IORef a -&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">Lazy.writeIORef</span></span><span> </span><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696582"><span class="hs-identifier hs-var">ref</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; IO ()) -&gt; a -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$!</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681696583"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-227"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#writeIORef"><span class="hs-pragma hs-type">writeIORef</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-228"></span><span>
+</span><span id="line-229"></span><span class="hs-comment">-- | Modify a strict 'IORef' by a applying a function to the value stored in the reference.</span><span>
+</span><span id="line-230"></span><span class="hs-comment">--</span><span>
+</span><span id="line-231"></span><span class="hs-comment">-- This will force the value to WHNF before writing.</span><span>
+</span><span id="line-232"></span><span id="local-6989586621681696559"><span class="annot"><a href="Agda.Utils.IORef.Strict.html#modifyIORef"><span class="hs-identifier hs-type">modifyIORef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier hs-type">IORef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696559"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681696559"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681696559"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-233"></span><span id="modifyIORef"><span class="annot"><span class="annottext">modifyIORef :: forall a. IORef a -&gt; (a -&gt; a) -&gt; IO ()
+</span><a href="Agda.Utils.IORef.Strict.html#modifyIORef"><span class="hs-identifier hs-var hs-var">modifyIORef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681696587"><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696587"><span class="hs-identifier hs-var">ref</span></a></span></span><span> </span><span id="local-6989586621681696588"><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621681696588"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-234"></span><span>  </span><span id="local-6989586621681696589"><span class="annot"><a href="#local-6989586621681696589"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IORef a -&gt; IO a
+forall a. IORef a -&gt; IO a
+</span><a href="Agda.Utils.IORef.Strict.html#readIORef"><span class="hs-identifier hs-var">readIORef</span></a></span><span> </span><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696587"><span class="hs-identifier hs-var">ref</span></a></span><span>
+</span><span id="line-235"></span><span>  </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#writeIORef"><span class="hs-identifier hs-type">writeIORef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696587"><span class="hs-identifier hs-type">ref</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681696588"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696589"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-236"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#modifyIORef"><span class="hs-pragma hs-type">modifyIORef</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-237"></span><span>
+</span><span id="line-238"></span><span class="hs-comment">-- | Atomically modify the contents of a strict 'IORef'.</span><span>
+</span><span id="line-239"></span><span class="hs-comment">-- Both the stored value and the result are forced.</span><span>
+</span><span id="line-240"></span><span id="local-6989586621681696561"><span id="local-6989586621681696562"><span class="annot"><a href="Agda.Utils.IORef.Strict.html#atomicModifyIORef"><span class="hs-identifier hs-type">atomicModifyIORef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#IORef"><span class="hs-identifier hs-type">IORef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681696561"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681696561"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681696561"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681696562"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681696562"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-241"></span><span id="atomicModifyIORef"><span class="annot"><span class="annottext">atomicModifyIORef :: forall a b. IORef a -&gt; (a -&gt; (a, b)) -&gt; IO b
+</span><a href="Agda.Utils.IORef.Strict.html#atomicModifyIORef"><span class="hs-identifier hs-var hs-var">atomicModifyIORef</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IORef.Strict.html#StrictIORef"><span class="hs-identifier hs-type">StrictIORef</span></a></span><span> </span><span id="local-6989586621681696590"><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696590"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IORef a -&gt; (a -&gt; (a, b)) -&gt; IO b
+forall a b. IORef a -&gt; (a -&gt; (a, b)) -&gt; IO b
+</span><span class="hs-identifier hs-var">Lazy.atomicModifyIORef'</span></span><span> </span><span class="annot"><span class="annottext">IORef a
+</span><a href="#local-6989586621681696590"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-242"></span></pre></body></html>

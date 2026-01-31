@@ -1,0 +1,985 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Parser for @.agda-lib@ files.</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--   Example file:</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--     name: Main</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--     depend:</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--       standard-library</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--     include: .</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--       src more-src</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--   Should parse as:</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--     AgdaLib</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--       { libName     = &quot;Main&quot;</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--       , libFile     = path_to_this_file</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--       , libIncludes = [ &quot;.&quot; , &quot;src&quot; , &quot;more-src&quot; ]</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--       , libDepends  = [ &quot;standard-library&quot; ]</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--       }</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html"><span class="hs-identifier">Agda.Interaction.Library.Parse</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#parseLibFile"><span class="hs-identifier">parseLibFile</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#splitCommas"><span class="hs-identifier">splitCommas</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#trimLineComment"><span class="hs-identifier">trimLineComment</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#runP"><span class="hs-identifier">runP</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html"><span class="hs-identifier">Agda.Interaction.Library.Base</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Applicative.html"><span class="hs-identifier">Agda.Utils.Applicative</span></a></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html"><span class="hs-identifier">Agda.Utils.IO</span></a></span><span>                </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html#catchIO"><span class="hs-identifier">catchIO</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.IO.UTF8.html"><span class="hs-identifier">Agda.Utils.IO.UTF8</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">UTF8</span></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>              </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#duplicates"><span class="hs-identifier">duplicates</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>             </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">toList</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>   </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html"><span class="hs-identifier">Agda.Utils.Maybe.Strict</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Strict</span></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.String.html"><span class="hs-identifier">Agda.Utils.String</span></a></span><span>            </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.String.html#ltrim"><span class="hs-identifier">ltrim</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Parser monad: Can throw @LibParseError@s, and collects</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- @LibWarning'@s library warnings.</span><span>
+</span><span id="line-59"></span><span class="hs-keyword">type</span><span> </span><span id="P"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-var">P</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibParseError"><span class="hs-identifier hs-type">LibParseError</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Writer</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-type">LibWarning'</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span id="local-6989586621681812190"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#runP"><span class="hs-identifier hs-type">runP</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812190"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibParseError"><span class="hs-identifier hs-type">LibParseError</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812190"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-type">LibWarning'</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>
+</span><span id="line-62"></span><span id="runP"><span class="annot"><span class="annottext">runP :: forall a. P a -&gt; (Either LibParseError a, [LibWarning'])
+</span><a href="Agda.Interaction.Library.Parse.html#runP"><span class="hs-identifier hs-var hs-var">runP</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Writer [LibWarning'] (Either LibParseError a)
+-&gt; (Either LibParseError a, [LibWarning'])
+forall w a. Writer w a -&gt; (a, w)
+</span><span class="hs-identifier hs-var">runWriter</span></span><span> </span><span class="annot"><span class="annottext">(Writer [LibWarning'] (Either LibParseError a)
+ -&gt; (Either LibParseError a, [LibWarning']))
+-&gt; (P a -&gt; Writer [LibWarning'] (Either LibParseError a))
+-&gt; P a
+-&gt; (Either LibParseError a, [LibWarning'])
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">P a -&gt; Writer [LibWarning'] (Either LibParseError a)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#warningP"><span class="hs-identifier hs-type">warningP</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-type">LibWarning'</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span id="warningP"><span class="annot"><span class="annottext">warningP :: LibWarning' -&gt; P ()
+</span><a href="Agda.Interaction.Library.Parse.html#warningP"><span class="hs-identifier hs-var hs-var">warningP</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[LibWarning'] -&gt; P ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">([LibWarning'] -&gt; P ())
+-&gt; (LibWarning' -&gt; [LibWarning']) -&gt; LibWarning' -&gt; P ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">LibWarning' -&gt; [LibWarning']
+forall a. a -&gt; [a]
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- | The config files we parse have the generic structure of a sequence</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--   of @field : content@ entries.</span><span>
+</span><span id="line-69"></span><span class="hs-keyword">type</span><span> </span><span id="GenericFile"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericFile"><span class="hs-identifier hs-var">GenericFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericEntry"><span class="hs-identifier hs-type">GenericEntry</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">data</span><span> </span><span id="GenericEntry"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericEntry"><span class="hs-identifier hs-var">GenericEntry</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="GenericEntry"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericEntry"><span class="hs-identifier hs-var">GenericEntry</span></a></span></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="geHeader"><span class="annot"><span class="annottext">GenericEntry -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#geHeader"><span class="hs-identifier hs-var hs-var">geHeader</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ E.g. field name.    @trim@med.</span></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_geContent"><span class="annot"><span class="annottext">GenericEntry -&gt; [String]
+</span><a href="Agda.Interaction.Library.Parse.html#_geContent"><span class="hs-identifier hs-var hs-var">_geContent</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="hs-comment">-- ^ E.g. field content. @trim@med.</span></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><span class="hs-comment">-- | Library file field format format [sic!].</span></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">data</span><span> </span><span id="Field"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-var">Field</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681812421"><span class="annot"><a href="#local-6989586621681812421"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span id="Field"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-var">Field</span></a></span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="fName"><span class="annot"><span class="annottext">Field -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#fName"><span class="hs-identifier hs-var hs-var">fName</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-79"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Name of the field.</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="fOptional"><span class="annot"><span class="annottext">Field -&gt; Bool
+</span><a href="Agda.Interaction.Library.Parse.html#fOptional"><span class="hs-identifier hs-var hs-var">fOptional</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-81"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Is it optional?</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="fParse"><span class="annot"><span class="annottext">()
+</span><a href="Agda.Interaction.Library.Parse.html#fParse"><span class="hs-identifier hs-var hs-var">fParse</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812421"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-83"></span><span>      </span><span class="hs-comment">-- ^ Content parser for this field.</span><span>
+</span><span id="line-84"></span><span>      </span><span class="hs-comment">--</span><span>
+</span><span id="line-85"></span><span>      </span><span class="hs-comment">-- The range points to the start of the file.</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="fSet"><span class="annot"><span class="annottext">()
+</span><a href="Agda.Interaction.Library.Parse.html#fSet"><span class="hs-identifier hs-var hs-var">fSet</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#LensSet"><span class="hs-identifier hs-type">LensSet</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812421"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-87"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Sets parsed content in 'AgdaLibFile' structure.</span></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span id="local-6989586621681812208"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#optionalField"><span class="hs-identifier hs-type">optionalField</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-91"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812208"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812208"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-type">Field</span></a></span></span><span>
+</span><span id="line-92"></span><span id="optionalField"><span class="annot"><span class="annottext">optionalField :: forall a.
+String
+-&gt; (Range -&gt; [String] -&gt; P a) -&gt; Lens' AgdaLibFile a -&gt; Field
+</span><a href="Agda.Interaction.Library.Parse.html#optionalField"><span class="hs-identifier hs-var hs-var">optionalField</span></a></span></span><span> </span><span id="local-6989586621681812429"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812429"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span id="local-6989586621681812430"><span class="annot"><span class="annottext">Range -&gt; [String] -&gt; P a
+</span><a href="#local-6989586621681812430"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681812431"><span class="annot"><span class="annottext">Lens' AgdaLibFile a
+</span><a href="#local-6989586621681812431"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; Bool
+-&gt; (Range -&gt; [String] -&gt; P a)
+-&gt; LensSet AgdaLibFile a
+-&gt; Field
+forall a.
+String
+-&gt; Bool
+-&gt; (Range -&gt; [String] -&gt; P a)
+-&gt; LensSet AgdaLibFile a
+-&gt; Field
+</span><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-var">Field</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812429"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; [String] -&gt; P a
+</span><a href="#local-6989586621681812430"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Lens' AgdaLibFile a -&gt; LensSet AgdaLibFile a
+forall o i. Lens' o i -&gt; LensSet o i
+</span><a href="Agda.Utils.Lens.html#set"><span class="hs-identifier hs-var">set</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f a) -&gt; AgdaLibFile -&gt; f AgdaLibFile
+Lens' AgdaLibFile a
+</span><a href="#local-6989586621681812431"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="annot"><span class="hs-comment">-- | @.agda-lib@ file format with parsers and setters.</span></span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#agdaLibFields"><span class="hs-identifier hs-type">agdaLibFields</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-96"></span><span id="agdaLibFields"><span class="annot"><span class="annottext">agdaLibFields :: [Field]
+</span><a href="Agda.Interaction.Library.Parse.html#agdaLibFields"><span class="hs-identifier hs-var hs-var">agdaLibFields</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-comment">-- Andreas, 2017-08-23, issue #2708, field &quot;name&quot; is optional.</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; (Range -&gt; [String] -&gt; P LibName)
+-&gt; Lens' AgdaLibFile LibName
+-&gt; Field
+forall a.
+String
+-&gt; (Range -&gt; [String] -&gt; P a) -&gt; Lens' AgdaLibFile a -&gt; Field
+</span><a href="Agda.Interaction.Library.Parse.html#optionalField"><span class="hs-identifier hs-var">optionalField</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;name&quot;</span></span><span>    </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; P LibName
+</span><a href="#local-6989586621681812436"><span class="hs-identifier hs-var">parseName</span></a></span><span class="hs-special">)</span><span>                     </span><span class="annot"><span class="annottext">(LibName -&gt; f LibName) -&gt; AgdaLibFile -&gt; f AgdaLibFile
+Lens' AgdaLibFile LibName
+</span><a href="Agda.Interaction.Library.Base.html#libName"><span class="hs-identifier hs-var">libName</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; (Range -&gt; [String] -&gt; P [String])
+-&gt; Lens' AgdaLibFile [String]
+-&gt; Field
+forall a.
+String
+-&gt; (Range -&gt; [String] -&gt; P a) -&gt; Lens' AgdaLibFile a -&gt; Field
+</span><a href="Agda.Interaction.Library.Parse.html#optionalField"><span class="hs-identifier hs-var">optionalField</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;include&quot;</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; P [String]
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; P [String])
+-&gt; ([String] -&gt; [String]) -&gt; [String] -&gt; P [String]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; [String]) -&gt; [String] -&gt; [String]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><a href="#local-6989586621681812441"><span class="hs-identifier hs-var">parsePaths</span></a></span><span class="hs-special">)</span><span>   </span><span class="annot"><span class="annottext">([String] -&gt; f [String]) -&gt; AgdaLibFile -&gt; f AgdaLibFile
+Lens' AgdaLibFile [String]
+</span><a href="Agda.Interaction.Library.Base.html#libIncludes"><span class="hs-identifier hs-var">libIncludes</span></a></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; (Range -&gt; [String] -&gt; P [LibName])
+-&gt; Lens' AgdaLibFile [LibName]
+-&gt; Field
+forall a.
+String
+-&gt; (Range -&gt; [String] -&gt; P a) -&gt; Lens' AgdaLibFile a -&gt; Field
+</span><a href="Agda.Interaction.Library.Parse.html#optionalField"><span class="hs-identifier hs-var">optionalField</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;depend&quot;</span></span><span>  </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[LibName] -&gt; P [LibName]
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">([LibName] -&gt; P [LibName])
+-&gt; ([String] -&gt; [LibName]) -&gt; [String] -&gt; P [LibName]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; LibName) -&gt; [String] -&gt; [LibName]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; LibName
+</span><a href="Agda.Interaction.Library.Base.html#parseLibName"><span class="hs-identifier hs-var">parseLibName</span></a></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; [LibName])
+-&gt; ([String] -&gt; [String]) -&gt; [String] -&gt; [LibName]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; [String]) -&gt; [String] -&gt; [String]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><a href="Agda.Interaction.Library.Parse.html#splitCommas"><span class="hs-identifier hs-var">splitCommas</span></a></span><span class="hs-special">)</span><span>  </span><span class="annot"><span class="annottext">([LibName] -&gt; f [LibName]) -&gt; AgdaLibFile -&gt; f AgdaLibFile
+Lens' AgdaLibFile [LibName]
+</span><a href="Agda.Interaction.Library.Base.html#libDepends"><span class="hs-identifier hs-var">libDepends</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; (Range -&gt; [String] -&gt; P OptionsPragma)
+-&gt; Lens' AgdaLibFile OptionsPragma
+-&gt; Field
+forall a.
+String
+-&gt; (Range -&gt; [String] -&gt; P a) -&gt; Lens' AgdaLibFile a -&gt; Field
+</span><a href="Agda.Interaction.Library.Parse.html#optionalField"><span class="hs-identifier hs-var">optionalField</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;flags&quot;</span></span><span>   </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681812449"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812449"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">OptionsPragma -&gt; P OptionsPragma
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(OptionsPragma -&gt; P OptionsPragma)
+-&gt; ([String] -&gt; OptionsPragma) -&gt; [String] -&gt; P OptionsPragma
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; OptionsPragma) -&gt; [String] -&gt; OptionsPragma
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; String -&gt; OptionsPragma
+</span><a href="#local-6989586621681812451"><span class="hs-identifier hs-var">parseFlags</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812449"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(OptionsPragma -&gt; f OptionsPragma) -&gt; AgdaLibFile -&gt; f AgdaLibFile
+Lens' AgdaLibFile OptionsPragma
+</span><a href="Agda.Interaction.Library.Base.html#libPragmas"><span class="hs-identifier hs-var">libPragmas</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-104"></span><span>    </span><span class="annot"><a href="#local-6989586621681812436"><span class="hs-identifier hs-type">parseName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span id="local-6989586621681812436"><span class="annot"><span class="annottext">parseName :: [String] -&gt; P LibName
+</span><a href="#local-6989586621681812436"><span class="hs-identifier hs-var hs-var">parseName</span></a></span></span><span> </span><span class="hs-special">[</span><span id="local-6989586621681812455"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812455"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">[</span><span id="local-6989586621681812456"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812456"><span class="hs-identifier hs-var">name</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><span class="hs-identifier hs-var">words</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812455"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LibName -&gt; P LibName
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(LibName -&gt; P LibName) -&gt; LibName -&gt; P LibName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; LibName
+</span><a href="Agda.Interaction.Library.Base.html#parseLibName"><span class="hs-identifier hs-var">parseLibName</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812456"><span class="hs-identifier hs-var">name</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><a href="#local-6989586621681812436"><span class="hs-identifier hs-var">parseName</span></a></span><span> </span><span id="local-6989586621681812458"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812458"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LibParseError -&gt; P LibName
+forall a.
+LibParseError -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(LibParseError -&gt; P LibName) -&gt; LibParseError -&gt; P LibName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; LibParseError
+</span><a href="Agda.Interaction.Library.Base.html#BadLibraryName"><span class="hs-identifier hs-var">BadLibraryName</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; LibParseError) -&gt; String -&gt; LibParseError
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unwords</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812458"><span class="hs-identifier hs-var">ls</span></a></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span>    </span><span class="annot"><a href="#local-6989586621681812441"><span class="hs-identifier hs-type">parsePaths</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span class="hs-special">]</span><span>
+</span><span id="line-109"></span><span>    </span><span id="local-6989586621681812441"><span class="annot"><span class="annottext">parsePaths :: String -&gt; [String]
+</span><a href="#local-6989586621681812441"><span class="hs-identifier hs-var hs-var">parsePaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; String -&gt; [String]
+</span><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>      </span><span id="local-6989586621681812475"><span class="annot"><span class="annottext">fixup :: ([a] -&gt; t a) -&gt; f (t a)
+</span><a href="#local-6989586621681812475"><span class="hs-identifier hs-var hs-var">fixup</span></a></span></span><span> </span><span id="local-6989586621681812476"><span class="annot"><span class="annottext">[a] -&gt; t a
+</span><a href="#local-6989586621681812476"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681812477"><span class="annot"><span class="annottext">fp :: t a
+</span><a href="#local-6989586621681812477"><span class="hs-identifier hs-var hs-var">fp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; t a
+</span><a href="#local-6989586621681812476"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t a -&gt; Bool
+forall a. t a -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">t a
+</span><a href="#local-6989586621681812477"><span class="hs-identifier hs-var">fp</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; t a -&gt; f (t a)
+forall (f :: * -&gt; *) a. Alternative f =&gt; Bool -&gt; a -&gt; f a
+</span><a href="Agda.Utils.Applicative.html#%3F%24%3E"><span class="hs-operator hs-var">?$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">t a
+</span><a href="#local-6989586621681812477"><span class="hs-identifier hs-var">fp</span></a></span><span>
+</span><span id="line-111"></span><span>      </span><span id="local-6989586621681812463"><span class="annot"><span class="annottext">go :: (String -&gt; String) -&gt; String -&gt; [String]
+</span><a href="#local-6989586621681812463"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681812486"><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812486"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; [String]
+forall {f :: * -&gt; *} {t :: * -&gt; *} {a} {a}.
+(Alternative f, Foldable t) =&gt;
+([a] -&gt; t a) -&gt; f (t a)
+</span><a href="#local-6989586621681812475"><span class="hs-identifier hs-var">fixup</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812486"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-112"></span><span>      </span><span class="annot"><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681812487"><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812487"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\\'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span>  </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681812488"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812488"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; String -&gt; [String]
+</span><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812487"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; (String -&gt; String) -&gt; String -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span class="annot"><span class="annottext">Char -&gt; String -&gt; String
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812488"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-113"></span><span>      </span><span class="annot"><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681812489"><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812489"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\\'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\\'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681812490"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812490"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; String -&gt; [String]
+</span><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812489"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; (String -&gt; String) -&gt; String -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\\'</span></span><span class="annot"><span class="annottext">Char -&gt; String -&gt; String
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812490"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-114"></span><span>      </span><span class="annot"><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681812491"><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812491"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span>       </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span>  </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681812492"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812492"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; [String]
+forall {f :: * -&gt; *} {t :: * -&gt; *} {a} {a}.
+(Alternative f, Foldable t) =&gt;
+([a] -&gt; t a) -&gt; f (t a)
+</span><a href="#local-6989586621681812475"><span class="hs-identifier hs-var">fixup</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812491"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; [String] -&gt; [String]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; String -&gt; [String]
+</span><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812492"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-115"></span><span>      </span><span class="annot"><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681812493"><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812493"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812494"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812494"><span class="hs-identifier hs-var">c</span></a></span></span><span>           </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681812495"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812495"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; String -&gt; [String]
+</span><a href="#local-6989586621681812463"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="#local-6989586621681812493"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; (String -&gt; String) -&gt; String -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812494"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">Char -&gt; String -&gt; String
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812495"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span>    </span><span class="annot"><a href="#local-6989586621681812451"><span class="hs-identifier hs-type">parseFlags</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#OptionsPragma"><span class="hs-identifier hs-type">OptionsPragma</span></a></span><span>
+</span><span id="line-118"></span><span>    </span><span id="local-6989586621681812451"><span class="annot"><span class="annottext">parseFlags :: Range -&gt; String -&gt; OptionsPragma
+</span><a href="#local-6989586621681812451"><span class="hs-identifier hs-var hs-var">parseFlags</span></a></span></span><span> </span><span id="local-6989586621681812496"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812496"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681812497"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812497"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#OptionsPragma"><span class="hs-identifier hs-type">OptionsPragma</span></a></span><span>
+</span><span id="line-119"></span><span>      </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">pragmaStrings :: [String]
+</span><a href="Agda.Interaction.Library.Base.html#pragmaStrings"><span class="hs-identifier hs-var">pragmaStrings</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><span class="hs-identifier hs-var">words</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812497"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-120"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">pragmaRange :: Range
+</span><a href="Agda.Interaction.Library.Base.html#pragmaRange"><span class="hs-identifier hs-var">pragmaRange</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812496"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-121"></span><span>      </span><span class="hs-special">}</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- | Parse @.agda-lib@ file.</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- Sets 'libFile' name and turn mentioned include directories into absolute</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- pathes (provided the given 'FilePath' is absolute).</span><span>
+</span><span id="line-127"></span><span class="hs-comment">--</span><span>
+</span><span id="line-128"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#parseLibFile"><span class="hs-identifier hs-type">parseLibFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-129"></span><span id="parseLibFile"><span class="annot"><span class="annottext">parseLibFile :: String -&gt; IO (P AgdaLibFile)
+</span><a href="Agda.Interaction.Library.Parse.html#parseLibFile"><span class="hs-identifier hs-var hs-var">parseLibFile</span></a></span></span><span> </span><span id="local-6989586621681812502"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812502"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-130"></span><span>  </span><span id="local-6989586621681812503"><span class="annot"><a href="#local-6989586621681812503"><span class="hs-identifier hs-var">abs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO AbsolutePath
+</span><a href="Agda.Utils.FileName.html#absolute"><span class="hs-identifier hs-var">absolute</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812502"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="annot"><a href="#local-6989586621681812505"><span class="hs-identifier hs-type">setPath</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#parseLib"><span class="hs-identifier hs-type">parseLib</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812503"><span class="hs-identifier hs-type">abs</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#readFile"><span class="hs-identifier hs-type">UTF8.readFile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812502"><span class="hs-identifier hs-type">file</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Utils.IO.html#catchIO"><span class="hs-operator hs-type">`catchIO`</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681812509"><span class="annot"><span class="annottext">IOException
+</span><a href="#local-6989586621681812509"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-132"></span><span>    </span><span class="annot"><span class="annottext">P AgdaLibFile -&gt; IO (P AgdaLibFile)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(P AgdaLibFile -&gt; IO (P AgdaLibFile))
+-&gt; P AgdaLibFile -&gt; IO (P AgdaLibFile)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LibParseError -&gt; P AgdaLibFile
+forall a.
+LibParseError -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(LibParseError -&gt; P AgdaLibFile) -&gt; LibParseError -&gt; P AgdaLibFile
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IOException -&gt; LibParseError
+</span><a href="Agda.Interaction.Library.Base.html#ReadFailure"><span class="hs-identifier hs-var">ReadFailure</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812502"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">IOException
+</span><a href="#local-6989586621681812509"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>    </span><span id="local-6989586621681812505"><span class="annot"><span class="annottext">setPath :: AgdaLibFile -&gt; AgdaLibFile
+</span><a href="#local-6989586621681812505"><span class="hs-identifier hs-var hs-var">setPath</span></a></span></span><span>      </span><span id="local-6989586621681812511"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621681812511"><span class="hs-identifier hs-var">lib</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; AgdaLibFile -&gt; AgdaLibFile
+</span><a href="#local-6989586621681812512"><span class="hs-identifier hs-var">unrelativise</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+</span><span class="hs-identifier hs-var">takeDirectory</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812502"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Lens' AgdaLibFile String -&gt; String -&gt; AgdaLibFile -&gt; AgdaLibFile
+forall o i. Lens' o i -&gt; LensSet o i
+</span><a href="Agda.Utils.Lens.html#set"><span class="hs-identifier hs-var">set</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; f String) -&gt; AgdaLibFile -&gt; f AgdaLibFile
+Lens' AgdaLibFile String
+</span><a href="Agda.Interaction.Library.Base.html#libFile"><span class="hs-identifier hs-var">libFile</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812502"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621681812511"><span class="hs-identifier hs-var">lib</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>    </span><span id="local-6989586621681812512"><span class="annot"><span class="annottext">unrelativise :: String -&gt; AgdaLibFile -&gt; AgdaLibFile
+</span><a href="#local-6989586621681812512"><span class="hs-identifier hs-var hs-var">unrelativise</span></a></span></span><span> </span><span id="local-6989586621681812516"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812516"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' AgdaLibFile [String] -&gt; LensMap AgdaLibFile [String]
+forall o i. Lens' o i -&gt; LensMap o i
+</span><a href="Agda.Utils.Lens.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; f [String]) -&gt; AgdaLibFile -&gt; f AgdaLibFile
+Lens' AgdaLibFile [String]
+</span><a href="Agda.Interaction.Library.Base.html#libIncludes"><span class="hs-identifier hs-var">libIncludes</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; [String] -&gt; [String]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812516"><span class="hs-identifier hs-var">dir</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">-- | Parse file contents.</span></span><span>
+</span><span id="line-138"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#parseLib"><span class="hs-identifier hs-type">parseLib</span></a></span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-140"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ The parsed file.</span></span><span>
+</span><span id="line-141"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-143"></span><span id="parseLib"><span class="annot"><span class="annottext">parseLib :: AbsolutePath -&gt; String -&gt; P AgdaLibFile
+</span><a href="Agda.Interaction.Library.Parse.html#parseLib"><span class="hs-identifier hs-var hs-var">parseLib</span></a></span></span><span> </span><span id="local-6989586621681812521"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681812521"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621681812522"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812522"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; GenericFile -&gt; P AgdaLibFile
+</span><a href="Agda.Interaction.Library.Parse.html#fromGeneric"><span class="hs-identifier hs-var">fromGeneric</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681812521"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">(GenericFile -&gt; P AgdaLibFile)
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+-&gt; P AgdaLibFile
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+</span><a href="Agda.Interaction.Library.Parse.html#parseGeneric"><span class="hs-identifier hs-var">parseGeneric</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812522"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="annot"><span class="hs-comment">-- | Parse 'GenericFile' with 'agdaLibFields' descriptors.</span></span><span>
+</span><span id="line-146"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#fromGeneric"><span class="hs-identifier hs-type">fromGeneric</span></a></span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-148"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ The parsed file.</span></span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericFile"><span class="hs-identifier hs-type">GenericFile</span></a></span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-151"></span><span id="fromGeneric"><span class="annot"><span class="annottext">fromGeneric :: AbsolutePath -&gt; GenericFile -&gt; P AgdaLibFile
+</span><a href="Agda.Interaction.Library.Parse.html#fromGeneric"><span class="hs-identifier hs-var hs-var">fromGeneric</span></a></span></span><span> </span><span id="local-6989586621681812526"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681812526"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; [Field] -&gt; GenericFile -&gt; P AgdaLibFile
+</span><a href="Agda.Interaction.Library.Parse.html#fromGeneric%27"><span class="hs-identifier hs-var">fromGeneric'</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681812526"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">[Field]
+</span><a href="Agda.Interaction.Library.Parse.html#agdaLibFields"><span class="hs-identifier hs-var">agdaLibFields</span></a></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- | Given a list of 'Field' descriptors (with their custom parsers),</span><span>
+</span><span id="line-154"></span><span class="hs-comment">--   parse a 'GenericFile' into the 'AgdaLibFile' structure.</span><span>
+</span><span id="line-155"></span><span class="hs-comment">--</span><span>
+</span><span id="line-156"></span><span class="hs-comment">--   Checks mandatory fields are present;</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--   no duplicate fields, no unknown fields.</span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#fromGeneric%27"><span class="hs-identifier hs-type">fromGeneric'</span></a></span><span>
+</span><span id="line-160"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-161"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ The parsed file.</span></span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-163"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericFile"><span class="hs-identifier hs-type">GenericFile</span></a></span><span>
+</span><span id="line-164"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-165"></span><span id="fromGeneric%27"><span class="annot"><span class="annottext">fromGeneric' :: AbsolutePath -&gt; [Field] -&gt; GenericFile -&gt; P AgdaLibFile
+</span><a href="Agda.Interaction.Library.Parse.html#fromGeneric%27"><span class="hs-identifier hs-var hs-var">fromGeneric'</span></a></span></span><span> </span><span id="local-6989586621681812528"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681812528"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621681812529"><span class="annot"><span class="annottext">[Field]
+</span><a href="#local-6989586621681812529"><span class="hs-identifier hs-var">fields</span></a></span></span><span> </span><span id="local-6989586621681812530"><span class="annot"><span class="annottext">GenericFile
+</span><a href="#local-6989586621681812530"><span class="hs-identifier hs-var">fs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-166"></span><span>  </span><span class="annot"><span class="annottext">[Field] -&gt; [String] -&gt; P ()
+</span><a href="Agda.Interaction.Library.Parse.html#checkFields"><span class="hs-identifier hs-var">checkFields</span></a></span><span> </span><span class="annot"><span class="annottext">[Field]
+</span><a href="#local-6989586621681812529"><span class="hs-identifier hs-var">fields</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(GenericEntry -&gt; String) -&gt; GenericFile -&gt; [String]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">GenericEntry -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#geHeader"><span class="hs-identifier hs-var">geHeader</span></a></span><span> </span><span class="annot"><span class="annottext">GenericFile
+</span><a href="#local-6989586621681812530"><span class="hs-identifier hs-var">fs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-167"></span><span>  </span><span class="annot"><span class="annottext">(AgdaLibFile -&gt; GenericEntry -&gt; P AgdaLibFile)
+-&gt; AgdaLibFile -&gt; GenericFile -&gt; P AgdaLibFile
+forall (t :: * -&gt; *) (m :: * -&gt; *) b a.
+(Foldable t, Monad m) =&gt;
+(b -&gt; a -&gt; m b) -&gt; b -&gt; t a -&gt; m b
+</span><span class="hs-identifier hs-var">foldM</span></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile -&gt; GenericEntry -&gt; P AgdaLibFile
+</span><a href="#local-6989586621681812533"><span class="hs-identifier hs-var">upd</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#emptyLibFile"><span class="hs-identifier hs-var">emptyLibFile</span></a></span><span> </span><span class="annot"><span class="annottext">GenericFile
+</span><a href="#local-6989586621681812530"><span class="hs-identifier hs-var">fs</span></a></span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-169"></span><span>    </span><span class="hs-comment">-- The range points to the start of the file.</span><span>
+</span><span id="line-170"></span><span>    </span><span id="local-6989586621681812535"><span class="annot"><span class="annottext">r :: Range
+</span><a href="#local-6989586621681812535"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe RangeFile -&gt; Seq (Interval' ()) -&gt; Range
+forall a. a -&gt; Seq (Interval' ()) -&gt; Range' a
+</span><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-var">Range</span></a></span><span>
+</span><span id="line-171"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangeFile -&gt; Maybe RangeFile
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Strict.Just</span></span><span> </span><span class="annot"><span class="annottext">(RangeFile -&gt; Maybe RangeFile) -&gt; RangeFile -&gt; Maybe RangeFile
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; Maybe (TopLevelModuleName' Range) -&gt; RangeFile
+</span><a href="Agda.Syntax.Position.html#mkRangeFile"><span class="hs-identifier hs-var">mkRangeFile</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621681812528"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (TopLevelModuleName' Range)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interval' () -&gt; Seq (Interval' ())
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' ()
+forall a.
+a -&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' a
+</span><a href="Agda.Syntax.Position.html#posToInterval"><span class="hs-identifier hs-var">posToInterval</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681812541"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681812541"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-173"></span><span>      </span><span class="hs-keyword">where</span><span>
+</span><span id="line-174"></span><span>      </span><span id="local-6989586621681812541"><span class="annot"><span class="annottext">p :: PositionWithoutFile
+</span><a href="#local-6989586621681812541"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; PositionWithoutFile
+forall a. a -&gt; Word32 -&gt; Word32 -&gt; Word32 -&gt; Position' a
+</span><a href="Agda.Syntax.Position.html#Pn"><span class="hs-identifier hs-var">Pn</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span>    </span><span class="annot"><a href="#local-6989586621681812533"><span class="hs-identifier hs-type">upd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericEntry"><span class="hs-identifier hs-type">GenericEntry</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-177"></span><span>    </span><span id="local-6989586621681812533"><span class="annot"><span class="annottext">upd :: AgdaLibFile -&gt; GenericEntry -&gt; P AgdaLibFile
+</span><a href="#local-6989586621681812533"><span class="hs-identifier hs-var hs-var">upd</span></a></span></span><span> </span><span id="local-6989586621681812547"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621681812547"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericEntry"><span class="hs-identifier hs-type">GenericEntry</span></a></span><span> </span><span id="local-6989586621681812548"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812548"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621681812549"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812549"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-178"></span><span>      </span><span id="local-6989586621681812550"><span class="annot"><a href="#local-6989586621681812550"><span class="hs-identifier hs-var">mf</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; [Field] -&gt; P (Maybe Field)
+</span><a href="Agda.Interaction.Library.Parse.html#findField"><span class="hs-identifier hs-var">findField</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812548"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">[Field]
+</span><a href="#local-6989586621681812529"><span class="hs-identifier hs-var">fields</span></a></span><span>
+</span><span id="line-179"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621681812550"><span class="hs-identifier hs-type">mf</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-180"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span class="hs-special">{</span><span id="local-6989586621681812554"><span id="local-6989586621681812555"><span id="local-6989586621681812556"><span id="local-6989586621681812557"><span class="annot"><span class="annottext">Bool
+String
+LensSet AgdaLibFile a
+Range -&gt; [String] -&gt; P a
+fName :: Field -&gt; String
+fOptional :: Field -&gt; Bool
+fParse :: ()
+fSet :: ()
+fName :: String
+fOptional :: Bool
+fParse :: Range -&gt; [String] -&gt; P a
+fSet :: LensSet AgdaLibFile a
+</span><a href="Agda.Interaction.Library.Parse.html#fName"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-181"></span><span>          </span><span id="local-6989586621681812558"><span class="annot"><a href="#local-6989586621681812558"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Range -&gt; [String] -&gt; P a
+</span><a href="#local-6989586621681812556"><span class="hs-identifier hs-var">fParse</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812535"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812549"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-182"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681812557"><span class="hs-identifier hs-type">fSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812558"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812547"><span class="hs-identifier hs-type">l</span></a></span><span>
+</span><span id="line-183"></span><span>        </span><span class="annot"><span class="annottext">Maybe Field
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AgdaLibFile -&gt; P AgdaLibFile
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621681812547"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="annot"><span class="hs-comment">-- | Ensure that there are no duplicate fields and no mandatory fields are missing.</span></span><span>
+</span><span id="line-186"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#checkFields"><span class="hs-identifier hs-type">checkFields</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-187"></span><span id="checkFields"><span class="annot"><span class="annottext">checkFields :: [Field] -&gt; [String] -&gt; P ()
+</span><a href="Agda.Interaction.Library.Parse.html#checkFields"><span class="hs-identifier hs-var hs-var">checkFields</span></a></span></span><span> </span><span id="local-6989586621681812559"><span class="annot"><span class="annottext">[Field]
+</span><a href="#local-6989586621681812559"><span class="hs-identifier hs-var">fields</span></a></span></span><span> </span><span id="local-6989586621681812560"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812560"><span class="hs-identifier hs-var">fs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-188"></span><span>  </span><span class="hs-comment">-- Report missing mandatory fields.</span><span>
+</span><span id="line-189"></span><span>  </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; (List1 String -&gt; P ()) -&gt; P ()
+forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+[a] -&gt; (List1 a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-var">List1.unlessNull</span></a></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812562"><span class="hs-identifier hs-var">missing</span></a></span><span> </span><span class="annot"><span class="annottext">((List1 String -&gt; P ()) -&gt; P ()) -&gt; (List1 String -&gt; P ()) -&gt; P ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LibParseError -&gt; P ()
+forall a.
+LibParseError -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(LibParseError -&gt; P ())
+-&gt; (List1 String -&gt; LibParseError) -&gt; List1 String -&gt; P ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">List1 String -&gt; LibParseError
+</span><a href="Agda.Interaction.Library.Base.html#MissingFields"><span class="hs-identifier hs-var">MissingFields</span></a></span><span>
+</span><span id="line-190"></span><span>  </span><span class="hs-comment">-- Report duplicate fields.</span><span>
+</span><span id="line-191"></span><span>  </span><span class="annot"><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-type">List1.unlessNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List.html#duplicates"><span class="hs-identifier hs-type">duplicates</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681812560"><span class="hs-identifier hs-type">fs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">throwError</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#DuplicateFields"><span class="hs-identifier hs-type">DuplicateFields</span></a></span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-193"></span><span>  </span><span class="annot"><a href="#local-6989586621681812565"><span class="hs-identifier hs-type">mandatory</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-194"></span><span>  </span><span id="local-6989586621681812565"><span class="annot"><span class="annottext">mandatory :: [String]
+</span><a href="#local-6989586621681812565"><span class="hs-identifier hs-var hs-var">mandatory</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Field -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#fName"><span class="hs-identifier hs-var">fName</span></a></span><span> </span><span class="annot"><span class="annottext">Field
+</span><a href="#local-6989586621681812566"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681812566"><span class="annot"><span class="annottext">Field
+</span><a href="#local-6989586621681812566"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Field]
+</span><a href="#local-6989586621681812559"><span class="hs-identifier hs-var">fields</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; Bool -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Field -&gt; Bool
+</span><a href="Agda.Interaction.Library.Parse.html#fOptional"><span class="hs-identifier hs-var">fOptional</span></a></span><span> </span><span class="annot"><span class="annottext">Field
+</span><a href="#local-6989586621681812566"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-195"></span><span>  </span><span class="annot"><a href="#local-6989586621681812562"><span class="hs-identifier hs-type">missing</span></a></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-196"></span><span>  </span><span id="local-6989586621681812562"><span class="annot"><span class="annottext">missing :: [String]
+</span><a href="#local-6989586621681812562"><span class="hs-identifier hs-var hs-var">missing</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812565"><span class="hs-identifier hs-var">mandatory</span></a></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; [String] -&gt; [String]
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">List.\\</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812560"><span class="hs-identifier hs-var">fs</span></a></span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span class="annot"><span class="hs-comment">-- | Find 'Field' with given 'fName', throw error if unknown.</span></span><span>
+</span><span id="line-199"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#findField"><span class="hs-identifier hs-type">findField</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-200"></span><span id="findField"><span class="annot"><span class="annottext">findField :: String -&gt; [Field] -&gt; P (Maybe Field)
+</span><a href="Agda.Interaction.Library.Parse.html#findField"><span class="hs-identifier hs-var hs-var">findField</span></a></span></span><span> </span><span id="local-6989586621681812568"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812568"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681812569"><span class="annot"><span class="annottext">[Field]
+</span><a href="#local-6989586621681812569"><span class="hs-identifier hs-var">fs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">P (Maybe Field)
+-&gt; (Field -&gt; P (Maybe Field)) -&gt; Maybe Field -&gt; P (Maybe Field)
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">P (Maybe Field)
+</span><a href="#local-6989586621681812571"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Field -&gt; P (Maybe Field)
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Field -&gt; P (Maybe Field))
+-&gt; (Field -&gt; Maybe Field) -&gt; Field -&gt; P (Maybe Field)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Field -&gt; Maybe Field
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe Field -&gt; P (Maybe Field)) -&gt; Maybe Field -&gt; P (Maybe Field)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Field -&gt; Bool) -&gt; [Field] -&gt; Maybe Field
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">List.find</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812568"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(String -&gt; Bool) -&gt; (Field -&gt; String) -&gt; Field -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Field -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#fName"><span class="hs-identifier hs-var">fName</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Field]
+</span><a href="#local-6989586621681812569"><span class="hs-identifier hs-var">fs</span></a></span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681812571"><span class="annot"><span class="annottext">err :: P (Maybe Field)
+</span><a href="#local-6989586621681812571"><span class="hs-identifier hs-var hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LibWarning' -&gt; P ()
+</span><a href="Agda.Interaction.Library.Parse.html#warningP"><span class="hs-identifier hs-var">warningP</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; LibWarning'
+</span><a href="Agda.Interaction.Library.Base.html#UnknownField"><span class="hs-identifier hs-var">UnknownField</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812568"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">P () -&gt; P (Maybe Field) -&gt; P (Maybe Field)
+forall a b.
+ExceptT LibParseError (Writer [LibWarning']) a
+-&gt; ExceptT LibParseError (Writer [LibWarning']) b
+-&gt; ExceptT LibParseError (Writer [LibWarning']) b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Maybe Field -&gt; P (Maybe Field)
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe Field
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-202"></span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- Generic file parser ----------------------------------------------------</span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- | Example:</span><span>
+</span><span id="line-206"></span><span class="hs-comment">--</span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-208"></span><span class="hs-comment">--     parseGeneric &quot;name:Main--BLA\ndepend:--BLA\n  standard-library--BLA\ninclude : . --BLA\n  src more-src   \n&quot;</span><span>
+</span><span id="line-209"></span><span class="hs-comment">--     == Right [(&quot;name&quot;,[&quot;Main&quot;]),(&quot;depend&quot;,[&quot;standard-library&quot;]),(&quot;include&quot;,[&quot;.&quot;,&quot;src more-src&quot;])]</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-211"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#parseGeneric"><span class="hs-identifier hs-type">parseGeneric</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericFile"><span class="hs-identifier hs-type">GenericFile</span></a></span><span>
+</span><span id="line-212"></span><span id="parseGeneric"><span class="annot"><span class="annottext">parseGeneric :: String -&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+</span><a href="Agda.Interaction.Library.Parse.html#parseGeneric"><span class="hs-identifier hs-var hs-var">parseGeneric</span></a></span></span><span> </span><span id="local-6989586621681812574"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812574"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-213"></span><span>  </span><span class="annot"><span class="annottext">[GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+</span><a href="Agda.Interaction.Library.Parse.html#groupLines"><span class="hs-identifier hs-var">groupLines</span></a></span><span> </span><span class="annot"><span class="annottext">([GenericLine]
+ -&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile)
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">[[GenericLine]] -&gt; [GenericLine]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="annot"><span class="annottext">([[GenericLine]] -&gt; [GenericLine])
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [[GenericLine]]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(LineNumber
+ -&gt; String
+ -&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine])
+-&gt; [LineNumber]
+-&gt; [String]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [[GenericLine]]
+forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; m c) -&gt; [a] -&gt; [b] -&gt; m [c]
+</span><span class="hs-identifier hs-var">zipWithM</span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+-&gt; String
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+</span><a href="Agda.Interaction.Library.Parse.html#parseLine"><span class="hs-identifier hs-var">parseLine</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; [String] -&gt; [String]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#stripComments"><span class="hs-identifier hs-var">stripComments</span></a></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; [String]) -&gt; [String] -&gt; [String]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><span class="hs-identifier hs-var">lines</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812574"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="annot"><span class="hs-comment">-- | Lines with line numbers.</span></span><span>
+</span><span id="line-216"></span><span class="hs-keyword">data</span><span> </span><span id="GenericLine"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericLine"><span class="hs-identifier hs-var">GenericLine</span></a></span></span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Header"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Header"><span class="hs-identifier hs-var">Header</span></a></span></span><span>  </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LineNumber"><span class="hs-identifier hs-type">LineNumber</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-218"></span><span>      </span><span class="hs-comment">-- ^ Header line, like a field name, e.g. &quot;include :&quot;.  Cannot be indented.</span><span>
+</span><span id="line-219"></span><span>      </span><span class="hs-comment">--   @String@ is 'trim'med.</span><span>
+</span><span id="line-220"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Content"><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Content"><span class="hs-identifier hs-var">Content</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LineNumber"><span class="hs-identifier hs-type">LineNumber</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-221"></span><span>      </span><span class="hs-comment">-- ^ Other line.  Must be indented.</span><span>
+</span><span id="line-222"></span><span>      </span><span class="hs-comment">--   @String@ is 'trim'med.</span><span>
+</span><span id="line-223"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812584"><span id="local-6989586621681812596"><span id="local-6989586621681812600"><span class="annot"><span class="annottext">LineNumber -&gt; GenericLine -&gt; String -&gt; String
+[GenericLine] -&gt; String -&gt; String
+GenericLine -&gt; String
+(LineNumber -&gt; GenericLine -&gt; String -&gt; String)
+-&gt; (GenericLine -&gt; String)
+-&gt; ([GenericLine] -&gt; String -&gt; String)
+-&gt; Show GenericLine
+forall a.
+(LineNumber -&gt; a -&gt; String -&gt; String)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; String -&gt; String) -&gt; Show a
+$cshowsPrec :: LineNumber -&gt; GenericLine -&gt; String -&gt; String
+showsPrec :: LineNumber -&gt; GenericLine -&gt; String -&gt; String
+$cshow :: GenericLine -&gt; String
+show :: GenericLine -&gt; String
+$cshowList :: [GenericLine] -&gt; String -&gt; String
+showList :: [GenericLine] -&gt; String -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-224"></span><span>
+</span><span id="line-225"></span><span class="hs-comment">-- | Parse line into 'Header' and 'Content' components.</span><span>
+</span><span id="line-226"></span><span class="hs-comment">--</span><span>
+</span><span id="line-227"></span><span class="hs-comment">--   Precondition: line comments and trailing whitespace have been stripped away.</span><span>
+</span><span id="line-228"></span><span class="hs-comment">--</span><span>
+</span><span id="line-229"></span><span class="hs-comment">--   Example file:</span><span>
+</span><span id="line-230"></span><span class="hs-comment">--</span><span>
+</span><span id="line-231"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-232"></span><span class="hs-comment">--     name: Main</span><span>
+</span><span id="line-233"></span><span class="hs-comment">--     depend:</span><span>
+</span><span id="line-234"></span><span class="hs-comment">--       standard-library</span><span>
+</span><span id="line-235"></span><span class="hs-comment">--     include: .</span><span>
+</span><span id="line-236"></span><span class="hs-comment">--       src more-src</span><span>
+</span><span id="line-237"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-238"></span><span class="hs-comment">--</span><span>
+</span><span id="line-239"></span><span class="hs-comment">--   This should give</span><span>
+</span><span id="line-240"></span><span class="hs-comment">--</span><span>
+</span><span id="line-241"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-242"></span><span class="hs-comment">--     [ Header  1 &quot;name&quot;</span><span>
+</span><span id="line-243"></span><span class="hs-comment">--     , Content 1 &quot;Main&quot;</span><span>
+</span><span id="line-244"></span><span class="hs-comment">--     , Header  2 &quot;depend&quot;</span><span>
+</span><span id="line-245"></span><span class="hs-comment">--     , Content 3 &quot;standard-library&quot;</span><span>
+</span><span id="line-246"></span><span class="hs-comment">--     , Header  4 &quot;include&quot;</span><span>
+</span><span id="line-247"></span><span class="hs-comment">--     , Content 4 &quot;.&quot;</span><span>
+</span><span id="line-248"></span><span class="hs-comment">--     , Content 5 &quot;src more-src&quot;</span><span>
+</span><span id="line-249"></span><span class="hs-comment">--     ]</span><span>
+</span><span id="line-250"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-251"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#parseLine"><span class="hs-identifier hs-type">parseLine</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LineNumber"><span class="hs-identifier hs-type">LineNumber</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericLine"><span class="hs-identifier hs-type">GenericLine</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-252"></span><span id="parseLine"><span class="annot"><span class="annottext">parseLine :: LineNumber
+-&gt; String
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+</span><a href="Agda.Interaction.Library.Parse.html#parseLine"><span class="hs-identifier hs-var hs-var">parseLine</span></a></span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-253"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#parseLine"><span class="hs-identifier hs-var">parseLine</span></a></span><span> </span><span id="local-6989586621681812605"><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812605"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681812606"><span class="annot"><span class="annottext">s :: String
+</span><a href="#local-6989586621681812606"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621681812607"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812607"><span class="hs-identifier hs-var">c</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>
+</span><span id="line-254"></span><span>    </span><span class="hs-comment">-- Indented lines are 'Content'.</span><span>
+</span><span id="line-255"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812607"><span class="hs-identifier hs-var">c</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">LineNumber -&gt; String -&gt; GenericLine
+</span><a href="Agda.Interaction.Library.Parse.html#Content"><span class="hs-identifier hs-var">Content</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812605"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; GenericLine) -&gt; String -&gt; GenericLine
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Utils.String.html#ltrim"><span class="hs-identifier hs-var">ltrim</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812606"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-256"></span><span>    </span><span class="hs-comment">-- Non-indented lines are 'Header'.</span><span>
+</span><span id="line-257"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>   </span><span class="hs-glyph">=</span><span>
+</span><span id="line-258"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; String -&gt; (String, String)
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">break</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">':'</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812606"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-259"></span><span>      </span><span class="hs-comment">-- Headers are single words followed by a colon.</span><span>
+</span><span id="line-260"></span><span>      </span><span class="hs-comment">-- Anything after the colon that is not whitespace is 'Content'.</span><span>
+</span><span id="line-261"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681812610"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812610"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">':'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681812611"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812611"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-262"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><span class="hs-identifier hs-var">words</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812610"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-263"></span><span>          </span><span class="hs-special">[</span><span id="local-6989586621681812612"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812612"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">([GenericLine]
+ -&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine])
+-&gt; [GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; String -&gt; GenericLine
+</span><a href="Agda.Interaction.Library.Parse.html#Header"><span class="hs-identifier hs-var">Header</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812605"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812612"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">GenericLine -&gt; [GenericLine] -&gt; [GenericLine]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">LineNumber -&gt; String -&gt; GenericLine
+</span><a href="Agda.Interaction.Library.Parse.html#Content"><span class="hs-identifier hs-var">Content</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812605"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812613"><span class="hs-identifier hs-var">r'</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681812613"><span class="annot"><span class="annottext">r' :: String
+</span><a href="#local-6989586621681812613"><span class="hs-identifier hs-var hs-var">r'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Utils.String.html#ltrim"><span class="hs-identifier hs-var">ltrim</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812611"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812613"><span class="hs-identifier hs-var">r'</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-264"></span><span>          </span><span class="hs-special">[</span><span class="hs-special">]</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a.
+LibParseError -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(LibParseError
+ -&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine])
+-&gt; LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; LibParseError
+</span><a href="Agda.Interaction.Library.Base.html#MissingFieldName"><span class="hs-identifier hs-var">MissingFieldName</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812605"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-265"></span><span>          </span><span id="local-6989586621681812615"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681812615"><span class="hs-identifier hs-var">hs</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a.
+LibParseError -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(LibParseError
+ -&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine])
+-&gt; LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; String -&gt; LibParseError
+</span><a href="Agda.Interaction.Library.Base.html#BadFieldName"><span class="hs-identifier hs-var">BadFieldName</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812605"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812610"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-266"></span><span>      </span><span class="annot"><span class="annottext">(String, String)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a.
+LibParseError -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(LibParseError
+ -&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine])
+-&gt; LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) [GenericLine]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; String -&gt; LibParseError
+</span><a href="Agda.Interaction.Library.Base.html#MissingColonForField"><span class="hs-identifier hs-var">MissingColonForField</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812605"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Utils.String.html#ltrim"><span class="hs-identifier hs-var">ltrim</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812606"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-267"></span><span>
+</span><span id="line-268"></span><span class="hs-comment">-- | Collect 'Header' and subsequent 'Content's into 'GenericEntry'.</span><span>
+</span><span id="line-269"></span><span class="hs-comment">--</span><span>
+</span><span id="line-270"></span><span class="hs-comment">--   Leading 'Content's?  That's an error.</span><span>
+</span><span id="line-271"></span><span class="hs-comment">--</span><span>
+</span><span id="line-272"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#groupLines"><span class="hs-identifier hs-type">groupLines</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericLine"><span class="hs-identifier hs-type">GenericLine</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#P"><span class="hs-identifier hs-type">P</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#GenericFile"><span class="hs-identifier hs-type">GenericFile</span></a></span><span>
+</span><span id="line-273"></span><span id="groupLines"><span class="annot"><span class="annottext">groupLines :: [GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+</span><a href="Agda.Interaction.Library.Parse.html#groupLines"><span class="hs-identifier hs-var hs-var">groupLines</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenericFile
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+forall a. a -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-274"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#groupLines"><span class="hs-identifier hs-var">groupLines</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Content"><span class="hs-identifier hs-type">Content</span></a></span><span> </span><span id="local-6989586621681812618"><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812618"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681812619"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812619"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+forall a.
+LibParseError -&gt; ExceptT LibParseError (Writer [LibWarning']) a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(LibParseError
+ -&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile)
+-&gt; LibParseError
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; LibParseError
+</span><a href="Agda.Interaction.Library.Base.html#ContentWithoutField"><span class="hs-identifier hs-var">ContentWithoutField</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621681812618"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-275"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#groupLines"><span class="hs-identifier hs-var">groupLines</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Header"><span class="hs-identifier hs-type">Header</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681812621"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812621"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681812622"><span class="annot"><span class="annottext">[GenericLine]
+</span><a href="#local-6989586621681812622"><span class="hs-identifier hs-var">ls</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; GenericEntry
+</span><a href="Agda.Interaction.Library.Parse.html#GenericEntry"><span class="hs-identifier hs-var">GenericEntry</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812621"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812623"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Content"><span class="hs-identifier hs-type">Content</span></a></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681812623"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812623"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+</span><a href="#local-6989586621681812624"><span class="hs-identifier hs-var">cs</span></a></span><span> </span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">GenericEntry -&gt; GenericFile -&gt; GenericFile
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(GenericFile -&gt; GenericFile)
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+-&gt; ExceptT LibParseError (Writer [LibWarning']) GenericFile
+</span><a href="Agda.Interaction.Library.Parse.html#groupLines"><span class="hs-identifier hs-var">groupLines</span></a></span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+</span><a href="#local-6989586621681812625"><span class="hs-identifier hs-var">ls1</span></a></span><span>
+</span><span id="line-276"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-277"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681812624"><span class="annot"><span class="annottext">[GenericLine]
+</span><a href="#local-6989586621681812624"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681812625"><span class="annot"><span class="annottext">[GenericLine]
+</span><a href="#local-6989586621681812625"><span class="hs-identifier hs-var">ls1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(GenericLine -&gt; Bool)
+-&gt; [GenericLine] -&gt; ([GenericLine], [GenericLine])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">span</span></span><span> </span><span class="annot"><span class="annottext">GenericLine -&gt; Bool
+</span><a href="#local-6989586621681812627"><span class="hs-identifier hs-var">isContent</span></a></span><span> </span><span class="annot"><span class="annottext">[GenericLine]
+</span><a href="#local-6989586621681812622"><span class="hs-identifier hs-var">ls</span></a></span><span>
+</span><span id="line-278"></span><span>    </span><span id="local-6989586621681812627"><span class="annot"><span class="annottext">isContent :: GenericLine -&gt; Bool
+</span><a href="#local-6989586621681812627"><span class="hs-identifier hs-var hs-var">isContent</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Content"><span class="hs-identifier hs-type">Content</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-279"></span><span>    </span><span class="annot"><a href="#local-6989586621681812627"><span class="hs-identifier hs-var">isContent</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#Header"><span class="hs-identifier hs-type">Header</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-280"></span><span>
+</span><span id="line-281"></span><span class="annot"><span class="hs-comment">-- | Remove leading whitespace and line comment.</span></span><span>
+</span><span id="line-282"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#trimLineComment"><span class="hs-identifier hs-type">trimLineComment</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-283"></span><span id="trimLineComment"><span class="annot"><span class="annottext">trimLineComment :: String -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#trimLineComment"><span class="hs-identifier hs-var hs-var">trimLineComment</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#stripComments"><span class="hs-identifier hs-var">stripComments</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; (String -&gt; String) -&gt; String -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Utils.String.html#ltrim"><span class="hs-identifier hs-var">ltrim</span></a></span><span>
+</span><span id="line-284"></span><span>
+</span><span id="line-285"></span><span class="annot"><span class="hs-comment">-- | Break a comma-separated string.  Result strings are @trim@med.</span></span><span>
+</span><span id="line-286"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#splitCommas"><span class="hs-identifier hs-type">splitCommas</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-287"></span><span id="splitCommas"><span class="annot"><span class="annottext">splitCommas :: String -&gt; [String]
+</span><a href="Agda.Interaction.Library.Parse.html#splitCommas"><span class="hs-identifier hs-var hs-var">splitCommas</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><span class="hs-identifier hs-var">words</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; [String]) -&gt; (String -&gt; String) -&gt; String -&gt; [String]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Char) -&gt; String -&gt; String
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681812628"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812628"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812628"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">','</span></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812628"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-288"></span><span>
+</span><span id="line-289"></span><span class="annot"><span class="hs-comment">-- | ...and trailing, but not leading, whitespace.</span></span><span>
+</span><span id="line-290"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#stripComments"><span class="hs-identifier hs-type">stripComments</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-291"></span><span id="stripComments"><span class="annot"><span class="annottext">stripComments :: String -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#stripComments"><span class="hs-identifier hs-var hs-var">stripComments</span></a></span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-292"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#stripComments"><span class="hs-identifier hs-var">stripComments</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681812629"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812629"><span class="hs-identifier hs-var">c</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812629"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-293"></span><span class="annot"><a href="Agda.Interaction.Library.Parse.html#stripComments"><span class="hs-identifier hs-var">stripComments</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681812630"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812630"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681812631"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812631"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; String -&gt; String
+</span><a href="#local-6989586621681812632"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812630"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+</span><a href="Agda.Interaction.Library.Parse.html#stripComments"><span class="hs-identifier hs-var">stripComments</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812631"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-294"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-295"></span><span>    </span><span id="local-6989586621681812632"><span class="annot"><span class="annottext">cons :: Char -&gt; String -&gt; String
+</span><a href="#local-6989586621681812632"><span class="hs-identifier hs-var hs-var">cons</span></a></span></span><span> </span><span id="local-6989586621681812638"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812638"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isSpace</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812638"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-296"></span><span>    </span><span class="annot"><a href="#local-6989586621681812632"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span id="local-6989586621681812639"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812639"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681812640"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812640"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681812639"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; String -&gt; String
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681812640"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-297"></span></pre></body></html>

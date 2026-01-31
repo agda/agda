@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Utilities for functors.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator">(&lt;.&gt;)</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#for"><span class="hs-identifier">for</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier">Decoration</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier">traverseF</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#distributeF"><span class="hs-identifier">distributeF</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#dmap"><span class="hs-identifier">dmap</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#dget"><span class="hs-identifier">dget</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-comment">-- From Data.Functor:</span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;$&gt;)</span></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">($&gt;)</span></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Const</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Const</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getConst</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">($&gt;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Identity</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Compose</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">infixr</span><span> </span><span class="hs-number">9</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator hs-type">&lt;.&gt;</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="annot"><span class="hs-comment">-- | Composition: pure function after functorial (monadic) function.</span></span><span>
+</span><span id="line-28"></span><span id="local-6989586621681694313"><span id="local-6989586621681694314"><span id="local-6989586621681694315"><span id="local-6989586621681694316"><span class="annot"><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator hs-type">(&lt;.&gt;)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681694313"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694314"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694315"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694316"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694313"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694314"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694316"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694313"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694315"><span class="hs-identifier hs-type">c</span></a></span></span></span></span></span><span>
+</span><span id="line-29"></span><span class="hs-special">(</span><span id="local-6989586621681694409"><span class="annot"><span class="annottext">b -&gt; c
+</span><a href="#local-6989586621681694409"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="%3C.%3E"><span class="annot"><span class="annottext">&lt;.&gt; :: forall (m :: * -&gt; *) b c a.
+Functor m =&gt;
+(b -&gt; c) -&gt; (a -&gt; m b) -&gt; a -&gt; m c
+</span><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator hs-var hs-var">&lt;.&gt;</span></a></span></span><span> </span><span id="local-6989586621681694410"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694410"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681694411"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694411"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; c
+</span><a href="#local-6989586621681694409"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(b -&gt; c) -&gt; m b -&gt; m c
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694410"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694411"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- | The true pure @for@ loop.</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--   'Data.Traversable.for' is a misnomer, it should be @forA@.</span><span>
+</span><span id="line-33"></span><span id="local-6989586621681694324"><span id="local-6989586621681694325"><span id="local-6989586621681694326"><span class="annot"><a href="Agda.Utils.Functor.html#for"><span class="hs-identifier hs-type">for</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681694324"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694324"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694325"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694325"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694326"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694324"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694326"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-34"></span><span id="for"><span class="annot"><span class="annottext">for :: forall (m :: * -&gt; *) a b. Functor m =&gt; m a -&gt; (a -&gt; b) -&gt; m b
+</span><a href="Agda.Utils.Functor.html#for"><span class="hs-identifier hs-var hs-var">for</span></a></span></span><span> </span><span id="local-6989586621681694414"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681694414"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681694415"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681694415"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; m a -&gt; m b
+forall a b. (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681694415"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681694414"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#for"><span class="hs-pragma hs-type">for</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- | A decoration is a functor that is traversable into any functor.</span><span>
+</span><span id="line-38"></span><span class="hs-comment">--</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--   The 'Functor' superclass is given because of the limitations</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--   of the Haskell class system.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   @traverseF@ actually implies functoriality.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--   Minimal complete definition: @traverseF@ or @distributeF@.</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681694333"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="Decoration"><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-var">Decoration</span></a></span></span><span> </span><span id="local-6989586621681694333"><span class="annot"><a href="#local-6989586621681694333"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-comment">-- | @traverseF@ is the defining property.</span><span>
+</span><span id="line-47"></span><span>  </span><span id="traverseF"><span class="annot"><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-type">traverseF</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681694335"><span id="local-6989586621681694336"><span id="local-6989586621681694337"><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681694335"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694336"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694335"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694337"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694333"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694336"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694335"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694333"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694337"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-48"></span><span>  </span><span id="local-6989586621681694418"><span class="annot"><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var hs-var">traverseF</span></a></span><span> </span><span id="local-6989586621681694424"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694424"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t (m b) -&gt; m (t b)
+forall (t :: * -&gt; *) (m :: * -&gt; *) a.
+(Decoration t, Functor m) =&gt;
+t (m a) -&gt; m (t a)
+forall (m :: * -&gt; *) a. Functor m =&gt; t (m a) -&gt; m (t a)
+</span><a href="Agda.Utils.Functor.html#distributeF"><span class="hs-identifier hs-var">distributeF</span></a></span><span> </span><span class="annot"><span class="annottext">(t (m b) -&gt; m (t b)) -&gt; (t a -&gt; t (m b)) -&gt; t a -&gt; m (t b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m b) -&gt; t a -&gt; t (m b)
+forall a b. (a -&gt; b) -&gt; t a -&gt; t b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694424"><span class="hs-identifier hs-var">f</span></a></span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-comment">-- | Decorations commute into any functor.</span><span>
+</span><span id="line-51"></span><span>  </span><span id="distributeF"><span class="annot"><a href="Agda.Utils.Functor.html#distributeF"><span class="hs-identifier hs-type">distributeF</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681694341"><span id="local-6989586621681694342"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681694341"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694333"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694341"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694342"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694341"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694333"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694342"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681694426"><span class="annot"><a href="Agda.Utils.Functor.html#distributeF"><span class="hs-identifier hs-var hs-var">distributeF</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; t (m a) -&gt; m (t a)
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Decoration t, Functor m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Functor m =&gt; (a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var">traverseF</span></a></span><span> </span><span class="annot"><span class="annottext">m a -&gt; m a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-pragma">{-# MINIMAL</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-pragma hs-type">traverseF</span></a></span><span> </span><span class="hs-pragma">|</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#distributeF"><span class="hs-pragma hs-type">distributeF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | Any decoration is traversable with @traverse = traverseF@.</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   Just like any 'Traversable' is a functor, so is</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   any decoration, given by just @traverseF@, a functor.</span><span>
+</span><span id="line-59"></span><span id="local-6989586621681694349"><span id="local-6989586621681694350"><span id="local-6989586621681694351"><span class="annot"><a href="Agda.Utils.Functor.html#dmap"><span class="hs-identifier hs-type">dmap</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-type">Decoration</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694349"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681694350"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694351"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694349"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694350"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694349"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694351"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-60"></span><span id="dmap"><span class="annot"><span class="annottext">dmap :: forall (t :: * -&gt; *) a b. Decoration t =&gt; (a -&gt; b) -&gt; t a -&gt; t b
+</span><a href="Agda.Utils.Functor.html#dmap"><span class="hs-identifier hs-var hs-var">dmap</span></a></span></span><span> </span><span id="local-6989586621681694435"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681694435"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Identity (t b) -&gt; t b
+forall a. Identity a -&gt; a
+</span><span class="hs-identifier hs-var">runIdentity</span></span><span> </span><span class="annot"><span class="annottext">(Identity (t b) -&gt; t b) -&gt; (t a -&gt; Identity (t b)) -&gt; t a -&gt; t b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Identity b) -&gt; t a -&gt; Identity (t b)
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Decoration t, Functor m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Functor m =&gt; (a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var">traverseF</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; Identity b
+forall a. a -&gt; Identity a
+</span><span class="hs-identifier hs-var">Identity</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Identity b) -&gt; (a -&gt; b) -&gt; a -&gt; Identity b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681694435"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><span class="hs-comment">-- | Any decoration is a lens.  @set@ is a special case of @dmap@.</span></span><span>
+</span><span id="line-63"></span><span id="local-6989586621681694358"><span id="local-6989586621681694359"><span class="annot"><a href="Agda.Utils.Functor.html#dget"><span class="hs-identifier hs-type">dget</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-type">Decoration</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694358"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694358"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694359"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681694359"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-64"></span><span id="dget"><span class="annot"><span class="annottext">dget :: forall (t :: * -&gt; *) a. Decoration t =&gt; t a -&gt; a
+</span><a href="Agda.Utils.Functor.html#dget"><span class="hs-identifier hs-var hs-var">dget</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Const a (t (ZonkAny 0)) -&gt; a
+forall {k} a (b :: k). Const a b -&gt; a
+</span><span class="hs-identifier hs-var">getConst</span></span><span> </span><span class="annot"><span class="annottext">(Const a (t (ZonkAny 0)) -&gt; a)
+-&gt; (t a -&gt; Const a (t (ZonkAny 0))) -&gt; t a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Const a (ZonkAny 0)) -&gt; t a -&gt; Const a (t (ZonkAny 0))
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Decoration t, Functor m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Functor m =&gt; (a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var">traverseF</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Const a (ZonkAny 0)
+forall {k} a (b :: k). a -&gt; Const a b
+</span><span class="hs-identifier hs-var">Const</span></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="annot"><span class="hs-comment">-- | The identity functor is a decoration.</span></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681694446"><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-type">Decoration</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681694454"><span class="annot"><span class="annottext">traverseF :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; m b) -&gt; Identity a -&gt; m (Identity b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var hs-var hs-var">traverseF</span></a></span></span><span> </span><span id="local-6989586621681694455"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694455"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span id="local-6989586621681694456"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694456"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Identity b
+forall a. a -&gt; Identity a
+</span><span class="hs-identifier hs-var">Identity</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Identity b) -&gt; m b -&gt; m (Identity b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694455"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694456"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="annot"><span class="hs-comment">-- | Decorations compose.  (Thus, they form a category.)</span></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681694380"><span id="local-6989586621681694381"><span id="local-6989586621681694466"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-type">Decoration</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694380"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-type">Decoration</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694381"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-type">Decoration</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Compose</span></span><span> </span><span class="annot"><a href="#local-6989586621681694380"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681694381"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-comment">-- traverseF . traverseF :: Functor m =&gt; (a -&gt; m b) -&gt; d (t a) -&gt; m (d (t a))</span><span>
+</span><span id="line-73"></span><span>  </span><span id="local-6989586621681694477"><span class="annot"><span class="annottext">traverseF :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; m b) -&gt; Compose d t a -&gt; m (Compose d t b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var hs-var hs-var">traverseF</span></a></span></span><span> </span><span id="local-6989586621681694478"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694478"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Compose</span></span><span> </span><span id="local-6989586621681694480"><span class="annot"><span class="annottext">d (t a)
+</span><a href="#local-6989586621681694480"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">d (t b) -&gt; Compose d t b
+forall {k} {k1} (f :: k -&gt; *) (g :: k1 -&gt; k) (a :: k1).
+f (g a) -&gt; Compose f g a
+</span><span class="hs-identifier hs-var">Compose</span></span><span> </span><span class="annot"><span class="annottext">(d (t b) -&gt; Compose d t b) -&gt; m (d (t b)) -&gt; m (Compose d t b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(t a -&gt; m (t b)) -&gt; d (t a) -&gt; m (d (t b))
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Decoration t, Functor m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Functor m =&gt; (a -&gt; m b) -&gt; d a -&gt; m (d b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var">traverseF</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Decoration t, Functor m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Functor m =&gt; (a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var">traverseF</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694478"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">d (t a)
+</span><a href="#local-6989586621681694480"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Not a decoration are:</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--</span><span>
+</span><span id="line-77"></span><span class="annot"><span class="hs-comment">-- * The constant functor.</span></span><span>
+</span><span id="line-78"></span><span class="annot"><span class="hs-comment">-- * Maybe.  Can only be traversed into pointed functors.</span></span><span>
+</span><span id="line-79"></span><span class="annot"><span class="hs-comment">-- * Other disjoint sum types, like lists etc.</span></span><span>
+</span><span id="line-80"></span><span class="hs-comment">--   (Can only be traversed into Applicative.)</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><span class="hs-comment">-- | A typical decoration is pairing with some stuff.</span></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681694392"><span id="local-6989586621681694486"><span class="annot"><a href="Agda.Utils.Functor.html#Decoration"><span class="hs-identifier hs-type">Decoration</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681694392"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-84"></span><span>  </span><span id="local-6989586621681694493"><span class="annot"><span class="annottext">traverseF :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; m b) -&gt; (a, a) -&gt; m (a, b)
+</span><a href="Agda.Utils.Functor.html#traverseF"><span class="hs-identifier hs-var hs-var hs-var">traverseF</span></a></span></span><span> </span><span id="local-6989586621681694494"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694494"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681694495"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694495"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681694496"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694496"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694495"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(b -&gt; (a, b)) -&gt; m b -&gt; m (a, b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681694494"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681694496"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-85"></span></pre></body></html>

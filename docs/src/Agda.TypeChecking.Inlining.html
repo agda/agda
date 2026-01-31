@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Logic for deciding which functions should be automatically inlined.</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Inlining.html"><span class="hs-identifier">Agda.TypeChecking.Inlining</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Inlining.html#autoInline"><span class="hs-identifier">autoInline</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html"><span class="hs-identifier">Agda.TypeChecking.CompiledClause</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html"><span class="hs-identifier">Agda.TypeChecking.Free</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="annot"><span class="hs-comment">-- | Mark a definition to be inlined if it satisfies the inlining criterion.</span></span><span>
+</span><span id="line-15"></span><span class="annot"><a href="Agda.TypeChecking.Inlining.html#autoInline"><span class="hs-identifier hs-type">autoInline</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Defn"><span class="hs-identifier hs-type">Defn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Defn"><span class="hs-identifier hs-type">Defn</span></a></span><span>
+</span><span id="line-16"></span><span id="autoInline"><span class="annot"><span class="annottext">autoInline :: Defn -&gt; TCM Defn
+</span><a href="Agda.TypeChecking.Inlining.html#autoInline"><span class="hs-identifier hs-var hs-var">autoInline</span></a></span></span><span> </span><span id="local-6989586621681928215"><span class="annot"><span class="annottext">Defn
+</span><a href="#local-6989586621681928215"><span class="hs-identifier hs-var">defn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-17"></span><span>  </span><span id="local-6989586621681928216"><span class="annot"><a href="#local-6989586621681928216"><span class="hs-identifier hs-var">inlining</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optAutoInline"><span class="hs-identifier hs-var">optAutoInline</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool) -&gt; TCMT IO PragmaOptions -&gt; TCMT IO Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="#local-6989586621681928216"><span class="hs-identifier hs-type">inlining</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Inlining.html#shouldInline"><span class="hs-identifier hs-type">shouldInline</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681928215"><span class="hs-identifier hs-type">defn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#set"><span class="hs-identifier hs-type">set</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#funInline"><span class="hs-identifier hs-type">funInline</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="annot"><a href="#local-6989586621681928215"><span class="hs-identifier hs-type">defn</span></a></span><span>
+</span><span id="line-19"></span><span>     </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">otherwise</span></span><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681928215"><span class="hs-identifier hs-type">defn</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="annot"><a href="Agda.TypeChecking.Inlining.html#shouldInline"><span class="hs-identifier hs-type">shouldInline</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Defn"><span class="hs-identifier hs-type">Defn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-22"></span><span id="shouldInline"><span class="annot"><span class="annottext">shouldInline :: Defn -&gt; Bool
+</span><a href="Agda.TypeChecking.Inlining.html#shouldInline"><span class="hs-identifier hs-var hs-var">shouldInline</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Function"><span class="hs-identifier hs-type">Function</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">funCompiled :: Defn -&gt; Maybe CompiledClauses
+</span><a href="Agda.TypeChecking.Monad.Base.html#funCompiled"><span class="hs-identifier hs-var">funCompiled</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681928227"><span class="annot"><span class="annottext">CompiledClauses
+</span><a href="#local-6989586621681928227"><span class="hs-identifier hs-var">cc</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompiledClauses -&gt; Bool
+</span><a href="Agda.TypeChecking.Inlining.html#shouldInline%27"><span class="hs-identifier hs-var">shouldInline'</span></a></span><span> </span><span class="annot"><span class="annottext">CompiledClauses
+</span><a href="#local-6989586621681928227"><span class="hs-identifier hs-var">cc</span></a></span><span>
+</span><span id="line-23"></span><span class="annot"><a href="Agda.TypeChecking.Inlining.html#shouldInline"><span class="hs-identifier hs-var">shouldInline</span></a></span><span> </span><span class="annot"><span class="annottext">Defn
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- Only auto-inline simple definitions (no pattern matching) where no variable</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- is used more than once, and some variables are not used at all.</span><span>
+</span><span id="line-27"></span><span class="annot"><a href="Agda.TypeChecking.Inlining.html#shouldInline%27"><span class="hs-identifier hs-type">shouldInline'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#CompiledClauses"><span class="hs-identifier hs-type">CompiledClauses</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-28"></span><span id="shouldInline%27"><span class="annot"><span class="annottext">shouldInline' :: CompiledClauses -&gt; Bool
+</span><a href="Agda.TypeChecking.Inlining.html#shouldInline%27"><span class="hs-identifier hs-var hs-var">shouldInline'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.CompiledClause.html#Done"><span class="hs-identifier hs-type">Done</span></a></span><span> </span><span class="annot"><span class="annottext">Variable
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ClauseRecursive
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681928230"><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681928230"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681928231"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681928231"><span class="hs-identifier hs-var">body</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Variable -&gt; Bool) -&gt; [Variable] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Variable -&gt; Variable -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Variable
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Variable]
+</span><a href="#local-6989586621681928234"><span class="hs-identifier hs-var">counts</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">[Variable] -&gt; Variable
+forall a. [a] -&gt; Variable
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Variable
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Variable]
+</span><a href="#local-6989586621681928234"><span class="hs-identifier hs-var">counts</span></a></span><span> </span><span class="annot"><span class="annottext">Variable -&gt; Variable -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; Variable
+forall a. [a] -&gt; Variable
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Variable
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681928230"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681928234"><span class="annot"><span class="annottext">counts :: [Variable]
+</span><a href="#local-6989586621681928234"><span class="hs-identifier hs-var hs-var">counts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap Variable -&gt; [Variable]
+forall a. IntMap a -&gt; [a]
+</span><span class="hs-identifier hs-var">IntMap.elems</span></span><span> </span><span class="annot"><span class="annottext">(IntMap Variable -&gt; [Variable]) -&gt; IntMap Variable -&gt; [Variable]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarCounts -&gt; IntMap Variable
+</span><a href="Agda.TypeChecking.Free.html#varCounts"><span class="hs-identifier hs-var">varCounts</span></a></span><span> </span><span class="annot"><span class="annottext">(VarCounts -&gt; IntMap Variable) -&gt; VarCounts -&gt; IntMap Variable
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; VarCounts
+forall a c t.
+(IsVarSet a c, Singleton Variable c, Free t) =&gt;
+t -&gt; c
+</span><a href="Agda.TypeChecking.Free.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681928231"><span class="hs-identifier hs-var">body</span></a></span><span>
+</span><span id="line-30"></span><span class="annot"><a href="Agda.TypeChecking.Inlining.html#shouldInline%27"><span class="hs-identifier hs-var">shouldInline'</span></a></span><span> </span><span class="annot"><span class="annottext">CompiledClauses
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-31"></span></pre></body></html>

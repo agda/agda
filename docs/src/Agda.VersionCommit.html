@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE CPP             #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell #-}</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wno-overlapping-patterns #-}</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.VersionCommit.html"><span class="hs-identifier">Agda.VersionCommit</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Development.GitRev</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Version.html"><span class="hs-identifier">Agda.Version</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="annot"><span class="hs-comment">-- | Agda's version suffixed with the git commit hash.</span></span><span>
+</span><span id="line-15"></span><span class="annot"><a href="Agda.VersionCommit.html#versionWithCommitInfo"><span class="hs-identifier hs-type">versionWithCommitInfo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-16"></span><span id="versionWithCommitInfo"><span class="annot"><span class="annottext">versionWithCommitInfo :: [Char]
+</span><a href="Agda.VersionCommit.html#versionWithCommitInfo"><span class="hs-identifier hs-var hs-var">versionWithCommitInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Version.html#version"><span class="hs-identifier hs-var">version</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ([Char] -&gt; [Char]) -&gt; Maybe [Char] -&gt; [Char]
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;-&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe [Char]
+</span><a href="Agda.VersionCommit.html#commitInfo"><span class="hs-identifier hs-var">commitInfo</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="annot"><span class="hs-comment">-- | Information about current git commit, generated at compile time.</span></span><span>
+</span><span id="line-19"></span><span class="annot"><a href="Agda.VersionCommit.html#commitInfo"><span class="hs-identifier hs-type">commitInfo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-20"></span><span id="commitInfo"><span class="annot"><span class="annottext">commitInfo :: Maybe [Char]
+</span><a href="Agda.VersionCommit.html#commitInfo"><span class="hs-identifier hs-var hs-var">commitInfo</span></a></span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681813611"><span class="hs-identifier hs-var">hash</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;UNKNOWN&quot;</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [Char]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Maybe [Char]) -&gt; [Char] -&gt; Maybe [Char]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+forall {a}. [a] -&gt; [a]
+</span><a href="#local-6989586621681813612"><span class="hs-identifier hs-var">abbrev</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681813611"><span class="hs-identifier hs-var">hash</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681813613"><span class="hs-identifier hs-var">dirty</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-24"></span><span>    </span><span id="local-6989586621681813611"><span class="annot"><span class="annottext">hash :: [Char]
+</span><a href="#local-6989586621681813611"><span class="hs-identifier hs-var hs-var">hash</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">$</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">gitHash</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-comment">-- Check if any tracked files have uncommitted changes</span><span>
+</span><span id="line-27"></span><span>    </span><span id="local-6989586621681813613"><span class="annot"><span class="annottext">dirty :: [Char]
+</span><a href="#local-6989586621681813613"><span class="hs-identifier hs-var hs-var">dirty</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">$</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">gitDirtyTracked</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;-dirty&quot;</span></span><span>
+</span><span id="line-28"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-comment">-- Abbreviate a commit hash while keeping it unambiguous</span><span>
+</span><span id="line-31"></span><span>    </span><span id="local-6989586621681813612"><span class="annot"><span class="annottext">abbrev :: [a] -&gt; [a]
+</span><a href="#local-6989586621681813612"><span class="hs-identifier hs-var hs-var">abbrev</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [a] -&gt; [a]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">7</span></span><span>
+</span><span id="line-32"></span></pre></body></html>

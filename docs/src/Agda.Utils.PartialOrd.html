@@ -1,0 +1,952 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621681701658"><span id="local-6989586621681701659"></span></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html"><span class="hs-identifier">Agda.Utils.PartialOrd</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- import Agda.Utils.List</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="annot"><span class="hs-comment">-- | The result of comparing two things (of the same type).</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">data</span><span> </span><span id="PartialOrdering"><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-var">PartialOrdering</span></a></span></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="POLT"><span class="annot"><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Less than.</span></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="POLE"><span class="annot"><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Less or equal than.</span></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="POEQ"><span class="annot"><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Equal</span></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="POGE"><span class="annot"><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Greater or equal.</span></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="POGT"><span class="annot"><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Greater than.</span></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="POAny"><span class="annot"><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span></span><span> </span><span class="annot"><span class="hs-comment">-- ^ No information (incomparable).</span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701669"><span id="local-6989586621681701674"><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; Bool
+(PartialOrdering -&gt; PartialOrdering -&gt; Bool)
+-&gt; (PartialOrdering -&gt; PartialOrdering -&gt; Bool)
+-&gt; Eq PartialOrdering
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: PartialOrdering -&gt; PartialOrdering -&gt; Bool
+== :: PartialOrdering -&gt; PartialOrdering -&gt; Bool
+$c/= :: PartialOrdering -&gt; PartialOrdering -&gt; Bool
+/= :: PartialOrdering -&gt; PartialOrdering -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701679"><span id="local-6989586621681701681"><span id="local-6989586621681701685"><span class="annot"><span class="annottext">Int -&gt; PartialOrdering -&gt; ShowS
+[PartialOrdering] -&gt; ShowS
+PartialOrdering -&gt; String
+(Int -&gt; PartialOrdering -&gt; ShowS)
+-&gt; (PartialOrdering -&gt; String)
+-&gt; ([PartialOrdering] -&gt; ShowS)
+-&gt; Show PartialOrdering
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; PartialOrdering -&gt; ShowS
+showsPrec :: Int -&gt; PartialOrdering -&gt; ShowS
+$cshow :: PartialOrdering -&gt; String
+show :: PartialOrdering -&gt; String
+$cshowList :: [PartialOrdering] -&gt; ShowS
+showList :: [PartialOrdering] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701690"><span id="local-6989586621681701697"><span id="local-6989586621681701702"><span id="local-6989586621681701708"><span id="local-6989586621681701711"><span id="local-6989586621681701716"><span id="local-6989586621681701723"><span id="local-6989586621681701727"><span class="annot"><span class="annottext">Int -&gt; PartialOrdering
+PartialOrdering -&gt; Int
+PartialOrdering -&gt; [PartialOrdering]
+PartialOrdering -&gt; PartialOrdering
+PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+PartialOrdering
+-&gt; PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+(PartialOrdering -&gt; PartialOrdering)
+-&gt; (PartialOrdering -&gt; PartialOrdering)
+-&gt; (Int -&gt; PartialOrdering)
+-&gt; (PartialOrdering -&gt; Int)
+-&gt; (PartialOrdering -&gt; [PartialOrdering])
+-&gt; (PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering])
+-&gt; (PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering])
+-&gt; (PartialOrdering
+    -&gt; PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering])
+-&gt; Enum PartialOrdering
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: PartialOrdering -&gt; PartialOrdering
+succ :: PartialOrdering -&gt; PartialOrdering
+$cpred :: PartialOrdering -&gt; PartialOrdering
+pred :: PartialOrdering -&gt; PartialOrdering
+$ctoEnum :: Int -&gt; PartialOrdering
+toEnum :: Int -&gt; PartialOrdering
+$cfromEnum :: PartialOrdering -&gt; Int
+fromEnum :: PartialOrdering -&gt; Int
+$cenumFrom :: PartialOrdering -&gt; [PartialOrdering]
+enumFrom :: PartialOrdering -&gt; [PartialOrdering]
+$cenumFromThen :: PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+enumFromThen :: PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+$cenumFromTo :: PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+enumFromTo :: PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+$cenumFromThenTo :: PartialOrdering
+-&gt; PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+enumFromThenTo :: PartialOrdering
+-&gt; PartialOrdering -&gt; PartialOrdering -&gt; [PartialOrdering]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701735"><span id="local-6989586621681701737"><span class="annot"><span class="annottext">PartialOrdering
+PartialOrdering -&gt; PartialOrdering -&gt; Bounded PartialOrdering
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: PartialOrdering
+minBound :: PartialOrdering
+$cmaxBound :: PartialOrdering
+maxBound :: PartialOrdering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- | Comparing the information content of two elements of</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   'PartialOrdering'.  More precise information is smaller.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--   Includes equality: @x `leqPO` x == True@.</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-type">leqPO</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span id="leqPO"><span class="annot"><span class="annottext">leqPO :: PartialOrdering -&gt; PartialOrdering -&gt; Bool
+</span><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var hs-var">leqPO</span></a></span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-37"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-42"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-identifier hs-var">leqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | Opposites.</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--   @related a po b@ iff @related b (oppPO po) a@.</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#oppPO"><span class="hs-identifier hs-type">oppPO</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span>
+</span><span id="line-51"></span><span id="oppPO"><span class="annot"><span class="annottext">oppPO :: PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#oppPO"><span class="hs-identifier hs-var hs-var">oppPO</span></a></span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#oppPO"><span class="hs-identifier hs-var">oppPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#oppPO"><span class="hs-identifier hs-var">oppPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#oppPO"><span class="hs-identifier hs-var">oppPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#oppPO"><span class="hs-identifier hs-var">oppPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-56"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#oppPO"><span class="hs-identifier hs-var">oppPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- | Combining two pieces of information (picking the least information).</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--   Used for the dominance ordering on tuples.</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--   @orPO@ is associative, commutative, and idempotent.</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--   @orPO@ has dominant element @POAny@, but no neutral element.</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-type">orPO</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span id="orPO"><span class="annot"><span class="annottext">orPO :: PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var hs-var">orPO</span></a></span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>   </span><span class="hs-comment">-- Shortcut if no information on first.</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>
+</span><span id="line-70"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-84"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>
+</span><span id="line-87"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>
+</span><span id="line-88"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- | Chains (transitivity) @x R y S z@.</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--   @seqPO@ is associative, commutative, and idempotent.</span><span>
+</span><span id="line-95"></span><span class="hs-comment">--   @seqPO@ has dominant element @POAny@ and neutral element (unit) @POEQ@.</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-type">seqPO</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span id="seqPO"><span class="annot"><span class="annottext">seqPO :: PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var hs-var">seqPO</span></a></span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>  </span><span class="hs-comment">-- Shortcut if no information on first.</span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span id="local-6989586621681701746"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701746"><span class="hs-identifier hs-var">p</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701746"><span class="hs-identifier hs-var">p</span></a></span><span>      </span><span class="hs-comment">-- No need to look at second if first is neutral.</span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-103"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>   </span><span class="hs-comment">-- unit</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-107"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-108"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>   </span><span class="hs-comment">-- unit</span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>   </span><span class="hs-comment">-- unit</span><span>
+</span><span id="line-111"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-112"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>   </span><span class="hs-comment">-- unit</span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-116"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>   </span><span class="hs-comment">-- idempotent</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span class="annot"><span class="hs-comment">-- | Partial ordering forms a monoid under sequencing.</span></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701749"><span id="local-6989586621681701753"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621681701758"><span class="annot"><span class="annottext">&lt;&gt; :: PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><span class="hs-operator hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#seqPO"><span class="hs-identifier hs-var">seqPO</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701764"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621681701768"><span class="annot"><span class="annottext">mempty :: PartialOrdering
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-126"></span><span>  </span><span id="local-6989586621681701770"><span class="annot"><span class="annottext">mappend :: PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="annot"><span class="hs-comment">-- | Embed 'Ordering'.</span></span><span>
+</span><span id="line-129"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#fromOrdering"><span class="hs-identifier hs-type">fromOrdering</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span>
+</span><span id="line-130"></span><span id="fromOrdering"><span class="annot"><span class="annottext">fromOrdering :: Ordering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#fromOrdering"><span class="hs-identifier hs-var hs-var">fromOrdering</span></a></span></span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-131"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#fromOrdering"><span class="hs-identifier hs-var">fromOrdering</span></a></span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-132"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#fromOrdering"><span class="hs-identifier hs-var">fromOrdering</span></a></span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="annot"><span class="hs-comment">-- | Represent a non-empty disjunction of 'Ordering's as 'PartialOrdering'.</span></span><span>
+</span><span id="line-135"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#fromOrderings"><span class="hs-identifier hs-type">fromOrderings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span>
+</span><span id="line-136"></span><span id="fromOrderings"><span class="annot"><span class="annottext">fromOrderings :: [Ordering] -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#fromOrderings"><span class="hs-identifier hs-var hs-var">fromOrderings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering)
+-&gt; [PartialOrdering] -&gt; PartialOrdering
+forall a. (a -&gt; a -&gt; a) -&gt; [a] -&gt; a
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; a -&gt; a) -&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">foldr1</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">([PartialOrdering] -&gt; PartialOrdering)
+-&gt; ([Ordering] -&gt; [PartialOrdering])
+-&gt; [Ordering]
+-&gt; PartialOrdering
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Ordering -&gt; PartialOrdering) -&gt; [Ordering] -&gt; [PartialOrdering]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Ordering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#fromOrdering"><span class="hs-identifier hs-var">fromOrdering</span></a></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span class="annot"><span class="hs-comment">-- | A 'PartialOrdering' information is a disjunction of 'Ordering' informations.</span></span><span>
+</span><span id="line-139"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#toOrderings"><span class="hs-identifier hs-type">toOrderings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span><span class="hs-special">]</span><span>
+</span><span id="line-140"></span><span id="toOrderings"><span class="annot"><span class="annottext">toOrderings :: PartialOrdering -&gt; [Ordering]
+</span><a href="Agda.Utils.PartialOrd.html#toOrderings"><span class="hs-identifier hs-var hs-var">toOrderings</span></a></span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span class="hs-special">]</span><span>
+</span><span id="line-141"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#toOrderings"><span class="hs-identifier hs-var">toOrderings</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span class="hs-special">]</span><span>
+</span><span id="line-142"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#toOrderings"><span class="hs-identifier hs-var">toOrderings</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span class="hs-special">]</span><span>
+</span><span id="line-143"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#toOrderings"><span class="hs-identifier hs-var">toOrderings</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span class="hs-special">]</span><span>
+</span><span id="line-144"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#toOrderings"><span class="hs-identifier hs-var">toOrderings</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span class="hs-special">]</span><span>
+</span><span id="line-145"></span><span class="annot"><a href="Agda.Utils.PartialOrd.html#toOrderings"><span class="hs-identifier hs-var">toOrderings</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span class="hs-special">]</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="annot"><span class="hs-comment">-- * Comparison with partial result</span></span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="hs-keyword">type</span><span> </span><span id="Comparable"><span class="annot"><a href="Agda.Utils.PartialOrd.html#Comparable"><span class="hs-identifier hs-var">Comparable</span></a></span></span><span> </span><span id="local-6989586621681701776"><span class="annot"><a href="#local-6989586621681701776"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681701776"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681701776"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><span class="hs-comment">-- | Decidable partial orderings.</span></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">class</span><span> </span><span id="PartialOrd"><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-var">PartialOrd</span></a></span></span><span> </span><span id="local-6989586621681701607"><span class="annot"><a href="#local-6989586621681701607"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="comparable"><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-type">comparable</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Comparable"><span class="hs-identifier hs-type">Comparable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701607"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="annot"><span class="hs-comment">-- | Any 'Ord' is a 'PartialOrd'.</span></span><span>
+</span><span id="line-156"></span><span id="local-6989586621681701596"><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparableOrd"><span class="hs-identifier hs-type">comparableOrd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681701596"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Comparable"><span class="hs-identifier hs-type">Comparable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701596"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-157"></span><span id="comparableOrd"><span class="annot"><span class="annottext">comparableOrd :: forall a. Ord a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparableOrd"><span class="hs-identifier hs-var hs-var">comparableOrd</span></a></span></span><span> </span><span id="local-6989586621681701781"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701781"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681701782"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701782"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#fromOrdering"><span class="hs-identifier hs-var">fromOrdering</span></a></span><span> </span><span class="annot"><span class="annottext">(Ordering -&gt; PartialOrdering) -&gt; Ordering -&gt; PartialOrdering
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701781"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701782"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- | Are two elements related in a specific way?</span><span>
+</span><span id="line-160"></span><span class="hs-comment">--</span><span>
+</span><span id="line-161"></span><span class="hs-comment">--   @related a o b@ holds iff @comparable a b@ is contained in @o@.</span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span id="local-6989586621681701604"><span class="annot"><a href="Agda.Utils.PartialOrd.html#related"><span class="hs-identifier hs-type">related</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701604"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681701604"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681701604"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-164"></span><span id="related"><span class="annot"><span class="annottext">related :: forall a. PartialOrd a =&gt; a -&gt; PartialOrdering -&gt; a -&gt; Bool
+</span><a href="Agda.Utils.PartialOrd.html#related"><span class="hs-identifier hs-var hs-var">related</span></a></span></span><span> </span><span id="local-6989586621681701787"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701787"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681701788"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701788"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621681701789"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701789"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Comparable a
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701787"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701789"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; Bool
+</span><a href="Agda.Utils.PartialOrd.html#leqPO"><span class="hs-operator hs-var">`leqPO`</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701788"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="annot"><span class="hs-comment">-- * Totally ordered types.</span></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-169"></span><span>  </span><span id="local-6989586621681701794"><span class="annot"><span class="annottext">comparable :: Comparable Int
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Comparable Int
+forall a. Ord a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparableOrd"><span class="hs-identifier hs-var">comparableOrd</span></a></span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-172"></span><span>  </span><span id="local-6989586621681701799"><span class="annot"><span class="annottext">comparable :: Comparable Integer
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Comparable Integer
+forall a. Ord a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparableOrd"><span class="hs-identifier hs-var">comparableOrd</span></a></span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="annot"><span class="hs-comment">-- * Generic partially ordered types.</span></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-177"></span><span>  </span><span id="local-6989586621681701802"><span class="annot"><span class="annottext">comparable :: Comparable ()
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- | 'Nothing' and @'Just' _@ are unrelated.</span><span>
+</span><span id="line-180"></span><span class="hs-comment">--</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--   Partial ordering for @Maybe a@ is the same as for @Either () a@.</span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701609"><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701609"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681701609"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-184"></span><span>  </span><span id="local-6989586621681701807"><span class="annot"><span class="annottext">comparable :: Comparable (Maybe a)
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span id="local-6989586621681701808"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681701808"><span class="hs-identifier hs-var">mx</span></a></span></span><span> </span><span id="local-6989586621681701809"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681701809"><span class="hs-identifier hs-var">my</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681701808"><span class="hs-identifier hs-var">mx</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681701809"><span class="hs-identifier hs-var">my</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-185"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-186"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-187"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-188"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681701810"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701810"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681701811"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701811"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Comparable a
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701810"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701811"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span class="annot"><span class="hs-comment">-- | Partial ordering for disjoint sums: @Left _@ and @Right _@ are unrelated.</span></span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701612"><span id="local-6989586621681701613"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701612"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701613"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621681701612"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701613"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-193"></span><span>  </span><span id="local-6989586621681701818"><span class="annot"><span class="annottext">comparable :: Comparable (Either a b)
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span id="local-6989586621681701819"><span class="annot"><span class="annottext">Either a b
+</span><a href="#local-6989586621681701819"><span class="hs-identifier hs-var">mx</span></a></span></span><span> </span><span id="local-6989586621681701820"><span class="annot"><span class="annottext">Either a b
+</span><a href="#local-6989586621681701820"><span class="hs-identifier hs-var">my</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Either a b
+</span><a href="#local-6989586621681701819"><span class="hs-identifier hs-var">mx</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Either a b
+</span><a href="#local-6989586621681701820"><span class="hs-identifier hs-var">my</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-194"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span id="local-6989586621681701821"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701821"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span id="local-6989586621681701822"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701822"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Comparable a
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701821"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701822"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-195"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-196"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-197"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681701823"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701823"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681701824"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701824"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Comparable b
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701823"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701824"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- | Pointwise partial ordering for tuples.</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--   @related (x1,x2) o (y1,y2)@ iff @related x1 o x2@ and @related y1 o y2@.</span><span>
+</span><span id="line-202"></span><span>
+</span><span id="line-203"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701616"><span id="local-6989586621681701617"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701616"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701617"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681701616"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681701617"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-204"></span><span>  </span><span id="local-6989586621681701831"><span class="annot"><span class="annottext">comparable :: Comparable (a, b)
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701832"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701832"><span class="hs-identifier hs-var">x1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701833"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701833"><span class="hs-identifier hs-var">x2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701834"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701834"><span class="hs-identifier hs-var">y1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701835"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701835"><span class="hs-identifier hs-var">y2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-205"></span><span>    </span><span class="annot"><span class="annottext">Comparable a
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701832"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701834"><span class="hs-identifier hs-var">y1</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-operator hs-var">`orPO`</span></a></span><span>
+</span><span id="line-206"></span><span>    </span><span class="annot"><span class="annottext">Comparable b
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701833"><span class="hs-identifier hs-var">x2</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681701835"><span class="hs-identifier hs-var">y2</span></a></span><span>
+</span><span id="line-207"></span><span>
+</span><span id="line-208"></span><span class="annot"><span class="hs-comment">-- | Pointwise comparison wrapper.</span></span><span>
+</span><span id="line-209"></span><span>
+</span><span id="line-210"></span><span class="hs-keyword">newtype</span><span> </span><span id="Pointwise"><span class="annot"><a href="Agda.Utils.PartialOrd.html#Pointwise"><span class="hs-identifier hs-var">Pointwise</span></a></span></span><span> </span><span id="local-6989586621681701618"><span class="annot"><a href="#local-6989586621681701618"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Pointwise"><span class="annot"><a href="Agda.Utils.PartialOrd.html#Pointwise"><span class="hs-identifier hs-var">Pointwise</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="pointwise"><span class="annot"><span class="annottext">forall a. Pointwise a -&gt; a
+</span><a href="Agda.Utils.PartialOrd.html#pointwise"><span class="hs-identifier hs-var hs-var">pointwise</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681701618"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-211"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701840"><span id="local-6989586621681701844"><span class="annot"><span class="annottext">Pointwise a -&gt; Pointwise a -&gt; Bool
+(Pointwise a -&gt; Pointwise a -&gt; Bool)
+-&gt; (Pointwise a -&gt; Pointwise a -&gt; Bool) -&gt; Eq (Pointwise a)
+forall a. Eq a =&gt; Pointwise a -&gt; Pointwise a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; Pointwise a -&gt; Pointwise a -&gt; Bool
+== :: Pointwise a -&gt; Pointwise a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; Pointwise a -&gt; Pointwise a -&gt; Bool
+/= :: Pointwise a -&gt; Pointwise a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701851"><span id="local-6989586621681701855"><span id="local-6989586621681701859"><span class="annot"><span class="annottext">Int -&gt; Pointwise a -&gt; ShowS
+[Pointwise a] -&gt; ShowS
+Pointwise a -&gt; String
+(Int -&gt; Pointwise a -&gt; ShowS)
+-&gt; (Pointwise a -&gt; String)
+-&gt; ([Pointwise a] -&gt; ShowS)
+-&gt; Show (Pointwise a)
+forall a. Show a =&gt; Int -&gt; Pointwise a -&gt; ShowS
+forall a. Show a =&gt; [Pointwise a] -&gt; ShowS
+forall a. Show a =&gt; Pointwise a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Pointwise a -&gt; ShowS
+showsPrec :: Int -&gt; Pointwise a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Pointwise a -&gt; String
+show :: Pointwise a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Pointwise a] -&gt; ShowS
+showList :: [Pointwise a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701862"><span id="local-6989586621681701864"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Pointwise a -&gt; Pointwise b)
+-&gt; (forall a b. a -&gt; Pointwise b -&gt; Pointwise a)
+-&gt; Functor Pointwise
+forall a b. a -&gt; Pointwise b -&gt; Pointwise a
+forall a b. (a -&gt; b) -&gt; Pointwise a -&gt; Pointwise b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Pointwise a -&gt; Pointwise b
+fmap :: forall a b. (a -&gt; b) -&gt; Pointwise a -&gt; Pointwise b
+$c&lt;$ :: forall a b. a -&gt; Pointwise b -&gt; Pointwise a
+&lt;$ :: forall a b. a -&gt; Pointwise b -&gt; Pointwise a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-212"></span><span>
+</span><span id="line-213"></span><span class="hs-comment">-- | The pointwise ordering for lists of the same length.</span><span>
+</span><span id="line-214"></span><span class="hs-comment">--</span><span>
+</span><span id="line-215"></span><span class="hs-comment">--   There are other partial orderings for lists,</span><span>
+</span><span id="line-216"></span><span class="hs-comment">--   e.g., prefix, sublist, subset, lexicographic, simultaneous order.</span><span>
+</span><span id="line-217"></span><span>
+</span><span id="line-218"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701634"><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681701634"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Pointwise"><span class="hs-identifier hs-type">Pointwise</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681701634"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-219"></span><span>  </span><span id="local-6989586621681701872"><span class="annot"><span class="annottext">comparable :: Comparable (Pointwise [a])
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Pointwise"><span class="hs-identifier hs-type">Pointwise</span></a></span><span> </span><span id="local-6989586621681701873"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701873"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Pointwise"><span class="hs-identifier hs-type">Pointwise</span></a></span><span> </span><span id="local-6989586621681701874"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701874"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+forall {a}.
+PartialOrd a =&gt;
+Maybe PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701875"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe PartialOrdering
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701873"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701874"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-220"></span><span>    </span><span class="hs-comment">-- We need an accumulator since @orPO@ does not have a neutral element.</span><span>
+</span><span id="line-221"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-222"></span><span>      </span><span id="local-6989586621681701875"><span class="annot"><span class="annottext">loop :: Maybe PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701875"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681701878"><span class="annot"><span class="annottext">Maybe PartialOrdering
+</span><a href="#local-6989586621681701878"><span class="hs-identifier hs-var">mo</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; Maybe PartialOrdering -&gt; PartialOrdering
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe PartialOrdering
+</span><a href="#local-6989586621681701878"><span class="hs-identifier hs-var">mo</span></a></span><span>
+</span><span id="line-223"></span><span>      </span><span class="annot"><a href="#local-6989586621681701875"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span id="local-6989586621681701880"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701880"><span class="hs-identifier hs-var">ys</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-224"></span><span>      </span><span class="annot"><a href="#local-6989586621681701875"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>  </span><span id="local-6989586621681701881"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701881"><span class="hs-identifier hs-var">xs</span></a></span></span><span>     </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-225"></span><span>      </span><span class="annot"><a href="#local-6989586621681701875"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span id="local-6989586621681701882"><span class="annot"><span class="annottext">Maybe PartialOrdering
+</span><a href="#local-6989586621681701882"><span class="hs-identifier hs-var">mo</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701883"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701883"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681701884"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701884"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701885"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701885"><span class="hs-identifier hs-var">y</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681701886"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701886"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-226"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681701887"><span class="annot"><span class="annottext">o :: PartialOrdering
+</span><a href="#local-6989586621681701887"><span class="hs-identifier hs-var hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Comparable a
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701883"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701885"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">in</span><span>
+</span><span id="line-227"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+-&gt; (PartialOrdering -&gt; PartialOrdering)
+-&gt; Maybe PartialOrdering
+-&gt; PartialOrdering
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701887"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#orPO"><span class="hs-identifier hs-var">orPO</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701887"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe PartialOrdering
+</span><a href="#local-6989586621681701882"><span class="hs-identifier hs-var">mo</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-228"></span><span>          </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-229"></span><span>          </span><span id="local-6989586621681701889"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701889"><span class="hs-identifier hs-var">o</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701875"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PartialOrdering -&gt; Maybe PartialOrdering
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701889"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701884"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701886"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-230"></span><span>
+</span><span id="line-231"></span><span class="annot"><span class="hs-comment">-- | Inclusion comparison wrapper.</span></span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span class="hs-keyword">newtype</span><span> </span><span id="Inclusion"><span class="annot"><a href="Agda.Utils.PartialOrd.html#Inclusion"><span class="hs-identifier hs-var">Inclusion</span></a></span></span><span> </span><span id="local-6989586621681701639"><span class="annot"><a href="#local-6989586621681701639"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Inclusion"><span class="annot"><a href="Agda.Utils.PartialOrd.html#Inclusion"><span class="hs-identifier hs-var">Inclusion</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="inclusion"><span class="annot"><span class="annottext">forall a. Inclusion a -&gt; a
+</span><a href="Agda.Utils.PartialOrd.html#inclusion"><span class="hs-identifier hs-var hs-var">inclusion</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681701639"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-234"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681701894"><span id="local-6989586621681701898"><span class="annot"><span class="annottext">Inclusion a -&gt; Inclusion a -&gt; Bool
+(Inclusion a -&gt; Inclusion a -&gt; Bool)
+-&gt; (Inclusion a -&gt; Inclusion a -&gt; Bool) -&gt; Eq (Inclusion a)
+forall a. Eq a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+== :: Inclusion a -&gt; Inclusion a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+/= :: Inclusion a -&gt; Inclusion a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701907"><span id="local-6989586621681701911"><span id="local-6989586621681701915"><span id="local-6989586621681701919"><span id="local-6989586621681701923"><span id="local-6989586621681701927"><span id="local-6989586621681701931"><span class="annot"><span class="annottext">Eq (Inclusion a)
+Eq (Inclusion a) =&gt;
+(Inclusion a -&gt; Inclusion a -&gt; Ordering)
+-&gt; (Inclusion a -&gt; Inclusion a -&gt; Bool)
+-&gt; (Inclusion a -&gt; Inclusion a -&gt; Bool)
+-&gt; (Inclusion a -&gt; Inclusion a -&gt; Bool)
+-&gt; (Inclusion a -&gt; Inclusion a -&gt; Bool)
+-&gt; (Inclusion a -&gt; Inclusion a -&gt; Inclusion a)
+-&gt; (Inclusion a -&gt; Inclusion a -&gt; Inclusion a)
+-&gt; Ord (Inclusion a)
+Inclusion a -&gt; Inclusion a -&gt; Bool
+Inclusion a -&gt; Inclusion a -&gt; Ordering
+Inclusion a -&gt; Inclusion a -&gt; Inclusion a
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall a. Ord a =&gt; Eq (Inclusion a)
+forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Ordering
+forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Inclusion a
+$ccompare :: forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Ordering
+compare :: Inclusion a -&gt; Inclusion a -&gt; Ordering
+$c&lt; :: forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+&lt; :: Inclusion a -&gt; Inclusion a -&gt; Bool
+$c&lt;= :: forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+&lt;= :: Inclusion a -&gt; Inclusion a -&gt; Bool
+$c&gt; :: forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+&gt; :: Inclusion a -&gt; Inclusion a -&gt; Bool
+$c&gt;= :: forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Bool
+&gt;= :: Inclusion a -&gt; Inclusion a -&gt; Bool
+$cmax :: forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Inclusion a
+max :: Inclusion a -&gt; Inclusion a -&gt; Inclusion a
+$cmin :: forall a. Ord a =&gt; Inclusion a -&gt; Inclusion a -&gt; Inclusion a
+min :: Inclusion a -&gt; Inclusion a -&gt; Inclusion a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701944"><span id="local-6989586621681701948"><span id="local-6989586621681701952"><span class="annot"><span class="annottext">Int -&gt; Inclusion a -&gt; ShowS
+[Inclusion a] -&gt; ShowS
+Inclusion a -&gt; String
+(Int -&gt; Inclusion a -&gt; ShowS)
+-&gt; (Inclusion a -&gt; String)
+-&gt; ([Inclusion a] -&gt; ShowS)
+-&gt; Show (Inclusion a)
+forall a. Show a =&gt; Int -&gt; Inclusion a -&gt; ShowS
+forall a. Show a =&gt; [Inclusion a] -&gt; ShowS
+forall a. Show a =&gt; Inclusion a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Inclusion a -&gt; ShowS
+showsPrec :: Int -&gt; Inclusion a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Inclusion a -&gt; String
+show :: Inclusion a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Inclusion a] -&gt; ShowS
+showList :: [Inclusion a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681701955"><span id="local-6989586621681701957"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Inclusion a -&gt; Inclusion b)
+-&gt; (forall a b. a -&gt; Inclusion b -&gt; Inclusion a)
+-&gt; Functor Inclusion
+forall a b. a -&gt; Inclusion b -&gt; Inclusion a
+forall a b. (a -&gt; b) -&gt; Inclusion a -&gt; Inclusion b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Inclusion a -&gt; Inclusion b
+fmap :: forall a b. (a -&gt; b) -&gt; Inclusion a -&gt; Inclusion b
+$c&lt;$ :: forall a b. a -&gt; Inclusion b -&gt; Inclusion a
+&lt;$ :: forall a b. a -&gt; Inclusion b -&gt; Inclusion a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-235"></span><span>
+</span><span id="line-236"></span><span class="annot"><span class="hs-comment">-- | Sublist for ordered lists.</span></span><span>
+</span><span id="line-237"></span><span>
+</span><span id="line-238"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701649"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681701649"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Inclusion"><span class="hs-identifier hs-type">Inclusion</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681701649"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-239"></span><span>  </span><span id="local-6989586621681701963"><span class="annot"><span class="annottext">comparable :: Comparable (Inclusion [a])
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Inclusion"><span class="hs-identifier hs-type">Inclusion</span></a></span><span> </span><span id="local-6989586621681701964"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701964"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Inclusion"><span class="hs-identifier hs-type">Inclusion</span></a></span><span> </span><span id="local-6989586621681701965"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701965"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+forall {a}.
+Ord a =&gt;
+PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701966"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701964"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701965"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-240"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-241"></span><span>      </span><span class="hs-comment">-- We use an accumulator in order to short-cut computation</span><span>
+</span><span id="line-242"></span><span>      </span><span class="hs-comment">-- once we know the lists are incomparable.</span><span>
+</span><span id="line-243"></span><span>      </span><span id="local-6989586621681701975"><span class="annot"><span class="annottext">merge' :: PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701975"><span class="hs-identifier hs-var hs-var">merge'</span></a></span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span id="local-6989586621681701976"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701976"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681701977"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701977"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-244"></span><span>      </span><span class="annot"><a href="#local-6989586621681701975"><span class="hs-identifier hs-var">merge'</span></a></span><span> </span><span id="local-6989586621681701978"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701978"><span class="hs-identifier hs-var">o</span></a></span></span><span>     </span><span id="local-6989586621681701979"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701979"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681701980"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701980"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701966"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701978"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701979"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701980"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-245"></span><span>      </span><span id="local-6989586621681701966"><span class="annot"><span class="annottext">merge :: PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701966"><span class="hs-identifier hs-var hs-var">merge</span></a></span></span><span> </span><span id="local-6989586621681701981"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701981"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701981"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-246"></span><span>      </span><span class="annot"><a href="#local-6989586621681701966"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span id="local-6989586621681701982"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701982"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621681701983"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701983"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701982"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-247"></span><span>      </span><span class="annot"><a href="#local-6989586621681701966"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span id="local-6989586621681701984"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701984"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621681701985"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701985"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701984"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-248"></span><span>      </span><span class="annot"><a href="#local-6989586621681701966"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span id="local-6989586621681701986"><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701986"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621681701987"><span class="annot"><span class="annottext">xs :: [a]
+</span><a href="#local-6989586621681701987"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621681701988"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701988"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681701989"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701989"><span class="hs-identifier hs-var">xs'</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681701990"><span class="annot"><span class="annottext">ys :: [a]
+</span><a href="#local-6989586621681701990"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621681701991"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701991"><span class="hs-identifier hs-var">y</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681701992"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701992"><span class="hs-identifier hs-var">ys'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-249"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701988"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681701991"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-250"></span><span>          </span><span class="hs-comment">-- xs has an element that ys does not have =&gt; POGT</span><span>
+</span><span id="line-251"></span><span>          </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701975"><span class="hs-identifier hs-var">merge'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701986"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701989"><span class="hs-identifier hs-var">xs'</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701990"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-252"></span><span>          </span><span class="hs-comment">-- equal elements can be cancelled</span><span>
+</span><span id="line-253"></span><span>          </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701966"><span class="hs-identifier hs-var">merge</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701986"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701989"><span class="hs-identifier hs-var">xs'</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701992"><span class="hs-identifier hs-var">ys'</span></a></span><span>
+</span><span id="line-254"></span><span>          </span><span class="hs-comment">-- ys has an element that xs does not have =&gt; POLT</span><span>
+</span><span id="line-255"></span><span>          </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PartialOrdering -&gt; [a] -&gt; [a] -&gt; PartialOrdering
+</span><a href="#local-6989586621681701975"><span class="hs-identifier hs-var">merge'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="#local-6989586621681701986"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701987"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681701992"><span class="hs-identifier hs-var">ys'</span></a></span><span>
+</span><span id="line-256"></span><span>
+</span><span id="line-257"></span><span class="annot"><span class="hs-comment">-- | Sets are partially ordered by inclusion.</span></span><span>
+</span><span id="line-258"></span><span>
+</span><span id="line-259"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681701653"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681701653"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.PartialOrd.html#Inclusion"><span class="hs-identifier hs-type">Inclusion</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="#local-6989586621681701653"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-260"></span><span>  </span><span id="local-6989586621681701999"><span class="annot"><span class="annottext">comparable :: Comparable (Inclusion (Set a))
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span id="local-6989586621681702000"><span class="annot"><span class="annottext">Inclusion (Set a)
+</span><a href="#local-6989586621681702000"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681702001"><span class="annot"><span class="annottext">Inclusion (Set a)
+</span><a href="#local-6989586621681702001"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Comparable (Inclusion [a])
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set a -&gt; [a]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toAscList</span></span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; [a]) -&gt; Inclusion (Set a) -&gt; Inclusion [a]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Inclusion (Set a)
+</span><a href="#local-6989586621681702000"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set a -&gt; [a]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toAscList</span></span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; [a]) -&gt; Inclusion (Set a) -&gt; Inclusion [a]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Inclusion (Set a)
+</span><a href="#local-6989586621681702001"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span class="annot"><span class="hs-comment">-- * PartialOrdering is itself partially ordered!</span></span><span>
+</span><span id="line-263"></span><span>
+</span><span id="line-264"></span><span class="annot"><span class="hs-comment">-- | Less is ``less general'' (i.e., more precise).</span></span><span>
+</span><span id="line-265"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrdering"><span class="hs-identifier hs-type">PartialOrdering</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-266"></span><span>  </span><span class="hs-comment">-- working our way down: POAny is top</span><span>
+</span><span id="line-267"></span><span>  </span><span id="local-6989586621681702006"><span class="annot"><span class="annottext">comparable :: PartialOrdering -&gt; PartialOrdering -&gt; PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var hs-var hs-var">comparable</span></a></span></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-268"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-269"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-270"></span><span>  </span><span class="hs-comment">-- next are the fuzzy notions POLE and POGE</span><span>
+</span><span id="line-271"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-272"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-273"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-274"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-275"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-276"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>
+</span><span id="line-277"></span><span>  </span><span class="hs-comment">-- lowest are the precise notions POLT POEQ POGT</span><span>
+</span><span id="line-278"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-279"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-280"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-281"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-282"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-283"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span>
+</span><span id="line-284"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span>  </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span>
+</span><span id="line-285"></span><span>  </span><span class="hs-comment">-- anything horizontal is not comparable</span><span>
+</span><span id="line-286"></span><span>  </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="annot"><span class="annottext">PartialOrdering
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span>
+</span><span id="line-287"></span></pre></body></html>

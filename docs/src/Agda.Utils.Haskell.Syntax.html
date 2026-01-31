@@ -1,0 +1,324 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | ASTs for subset of GHC Haskell syntax.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html"><span class="hs-identifier">Agda.Utils.Haskell.Syntax</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="annot"><span class="hs-comment">-- * Modules</span></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">data</span><span> </span><span id="Module"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Module"><span class="hs-identifier hs-var">Module</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Module"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Module"><span class="hs-identifier hs-var">Module</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModulePragma"><span class="hs-identifier hs-type">ModulePragma</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ImportDecl"><span class="hs-identifier hs-type">ImportDecl</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Decl"><span class="hs-identifier hs-type">Decl</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">data</span><span> </span><span id="ModulePragma"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModulePragma"><span class="hs-identifier hs-var">ModulePragma</span></a></span></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="LanguagePragma"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#LanguagePragma"><span class="hs-identifier hs-var">LanguagePragma</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="OtherPragma"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#OtherPragma"><span class="hs-identifier hs-var">OtherPragma</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Unstructured pragma (Andreas, 2017-08-23, issue #2712).</span></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">data</span><span> </span><span id="ImportDecl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ImportDecl"><span class="hs-identifier hs-var">ImportDecl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ImportDecl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ImportDecl"><span class="hs-identifier hs-var">ImportDecl</span></a></span></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="importModule"><span class="annot"><span class="annottext">ImportDecl -&gt; ModuleName
+</span><a href="Agda.Utils.Haskell.Syntax.html#importModule"><span class="hs-identifier hs-var hs-var">importModule</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="importQualified"><span class="annot"><span class="annottext">ImportDecl -&gt; Bool
+</span><a href="Agda.Utils.Haskell.Syntax.html#importQualified"><span class="hs-identifier hs-var hs-var">importQualified</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="importSpecs"><span class="annot"><span class="annottext">ImportDecl -&gt; Maybe (Bool, [ImportSpec])
+</span><a href="Agda.Utils.Haskell.Syntax.html#importSpecs"><span class="hs-identifier hs-var hs-var">importSpecs</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ImportSpec"><span class="hs-identifier hs-type">ImportSpec</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">data</span><span> </span><span id="ImportSpec"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ImportSpec"><span class="hs-identifier hs-var">ImportSpec</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="IVar"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#IVar"><span class="hs-identifier hs-var">IVar</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><span class="hs-comment">-- | Importing a whole module qualified.</span></span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#qualifiedImport"><span class="hs-identifier hs-type">qualifiedImport</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ImportDecl"><span class="hs-identifier hs-type">ImportDecl</span></a></span><span>
+</span><span id="line-27"></span><span id="qualifiedImport"><span class="annot"><span class="annottext">qualifiedImport :: ModuleName -&gt; ImportDecl
+</span><a href="Agda.Utils.Haskell.Syntax.html#qualifiedImport"><span class="hs-identifier hs-var hs-var">qualifiedImport</span></a></span></span><span> </span><span id="local-6989586621681695489"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681695489"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; Bool -&gt; Maybe (Bool, [ImportSpec]) -&gt; ImportDecl
+</span><a href="Agda.Utils.Haskell.Syntax.html#ImportDecl"><span class="hs-identifier hs-var">ImportDecl</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681695489"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">Maybe (Bool, [ImportSpec])
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="annot"><span class="hs-comment">-- * Declarations</span></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="Decl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Decl"><span class="hs-identifier hs-var">Decl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="TypeDecl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TypeDecl"><span class="hs-identifier hs-var">TypeDecl</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyVarBind"><span class="hs-identifier hs-type">TyVarBind</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-32"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="DataDecl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#DataDecl"><span class="hs-identifier hs-var">DataDecl</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#DataOrNew"><span class="hs-identifier hs-type">DataOrNew</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyVarBind"><span class="hs-identifier hs-type">TyVarBind</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ConDecl"><span class="hs-identifier hs-type">ConDecl</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Deriving"><span class="hs-identifier hs-type">Deriving</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-33"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="TypeSig"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TypeSig"><span class="hs-identifier hs-var">TypeSig</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-34"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="FunBind"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#FunBind"><span class="hs-identifier hs-var">FunBind</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Match"><span class="hs-identifier hs-type">Match</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-35"></span><span>            </span><span class="annot"><span class="hs-comment">-- ^ Should not be used when 'LocalBind' could be used.</span></span><span>
+</span><span id="line-36"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="LocalBind"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#LocalBind"><span class="hs-identifier hs-var">LocalBind</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Strictness"><span class="hs-identifier hs-type">Strictness</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Rhs"><span class="hs-identifier hs-type">Rhs</span></a></span><span>
+</span><span id="line-37"></span><span>            </span><span class="annot"><span class="hs-comment">-- ^ Should only be used in @let@ or @where@.</span></span><span>
+</span><span id="line-38"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="PatSyn"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PatSyn"><span class="hs-identifier hs-var">PatSyn</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span>
+</span><span id="line-39"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="FakeDecl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#FakeDecl"><span class="hs-identifier hs-var">FakeDecl</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-40"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Comment"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695499"><span id="local-6989586621681695534"><span class="annot"><span class="annottext">Decl -&gt; Decl -&gt; Bool
+(Decl -&gt; Decl -&gt; Bool) -&gt; (Decl -&gt; Decl -&gt; Bool) -&gt; Eq Decl
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Decl -&gt; Decl -&gt; Bool
+== :: Decl -&gt; Decl -&gt; Bool
+$c/= :: Decl -&gt; Decl -&gt; Bool
+/= :: Decl -&gt; Decl -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">data</span><span> </span><span id="DataOrNew"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#DataOrNew"><span class="hs-identifier hs-var">DataOrNew</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="DataType"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#DataType"><span class="hs-identifier hs-var">DataType</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="NewType"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#NewType"><span class="hs-identifier hs-var">NewType</span></a></span></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695549"><span id="local-6989586621681695553"><span class="annot"><span class="annottext">DataOrNew -&gt; DataOrNew -&gt; Bool
+(DataOrNew -&gt; DataOrNew -&gt; Bool)
+-&gt; (DataOrNew -&gt; DataOrNew -&gt; Bool) -&gt; Eq DataOrNew
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: DataOrNew -&gt; DataOrNew -&gt; Bool
+== :: DataOrNew -&gt; DataOrNew -&gt; Bool
+$c/= :: DataOrNew -&gt; DataOrNew -&gt; Bool
+/= :: DataOrNew -&gt; DataOrNew -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">data</span><span> </span><span id="ConDecl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ConDecl"><span class="hs-identifier hs-var">ConDecl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ConDecl"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ConDecl"><span class="hs-identifier hs-var">ConDecl</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Strictness"><span class="hs-identifier hs-type">Strictness</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695557"><span id="local-6989586621681695562"><span class="annot"><span class="annottext">ConDecl -&gt; ConDecl -&gt; Bool
+(ConDecl -&gt; ConDecl -&gt; Bool)
+-&gt; (ConDecl -&gt; ConDecl -&gt; Bool) -&gt; Eq ConDecl
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ConDecl -&gt; ConDecl -&gt; Bool
+== :: ConDecl -&gt; ConDecl -&gt; Bool
+$c/= :: ConDecl -&gt; ConDecl -&gt; Bool
+/= :: ConDecl -&gt; ConDecl -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">data</span><span> </span><span id="Strictness"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Strictness"><span class="hs-identifier hs-var">Strictness</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Lazy"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Lazy"><span class="hs-identifier hs-var">Lazy</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Strict"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Strict"><span class="hs-identifier hs-var">Strict</span></a></span></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695571"><span id="local-6989586621681695575"><span class="annot"><span class="annottext">Strictness -&gt; Strictness -&gt; Bool
+(Strictness -&gt; Strictness -&gt; Bool)
+-&gt; (Strictness -&gt; Strictness -&gt; Bool) -&gt; Eq Strictness
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Strictness -&gt; Strictness -&gt; Bool
+== :: Strictness -&gt; Strictness -&gt; Bool
+$c/= :: Strictness -&gt; Strictness -&gt; Bool
+/= :: Strictness -&gt; Strictness -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">type</span><span> </span><span id="Deriving"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Deriving"><span class="hs-identifier hs-var">Deriving</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">data</span><span> </span><span id="Binds"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Binds"><span class="hs-identifier hs-var">Binds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="BDecls"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#BDecls"><span class="hs-identifier hs-var">BDecls</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Decl"><span class="hs-identifier hs-type">Decl</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695579"><span id="local-6989586621681695583"><span class="annot"><span class="annottext">Binds -&gt; Binds -&gt; Bool
+(Binds -&gt; Binds -&gt; Bool) -&gt; (Binds -&gt; Binds -&gt; Bool) -&gt; Eq Binds
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Binds -&gt; Binds -&gt; Bool
+== :: Binds -&gt; Binds -&gt; Bool
+$c/= :: Binds -&gt; Binds -&gt; Bool
+/= :: Binds -&gt; Binds -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">data</span><span> </span><span id="Rhs"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Rhs"><span class="hs-identifier hs-var">Rhs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="UnGuardedRhs"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#UnGuardedRhs"><span class="hs-identifier hs-var">UnGuardedRhs</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-58"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="GuardedRhss"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhss"><span class="hs-identifier hs-var">GuardedRhss</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhs"><span class="hs-identifier hs-type">GuardedRhs</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695589"><span id="local-6989586621681695597"><span class="annot"><span class="annottext">Rhs -&gt; Rhs -&gt; Bool
+(Rhs -&gt; Rhs -&gt; Bool) -&gt; (Rhs -&gt; Rhs -&gt; Bool) -&gt; Eq Rhs
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Rhs -&gt; Rhs -&gt; Bool
+== :: Rhs -&gt; Rhs -&gt; Bool
+$c/= :: Rhs -&gt; Rhs -&gt; Bool
+/= :: Rhs -&gt; Rhs -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-keyword">data</span><span> </span><span id="GuardedRhs"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhs"><span class="hs-identifier hs-var">GuardedRhs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="GuardedRhs"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhs"><span class="hs-identifier hs-var">GuardedRhs</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Stmt"><span class="hs-identifier hs-type">Stmt</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695602"><span id="local-6989586621681695607"><span class="annot"><span class="annottext">GuardedRhs -&gt; GuardedRhs -&gt; Bool
+(GuardedRhs -&gt; GuardedRhs -&gt; Bool)
+-&gt; (GuardedRhs -&gt; GuardedRhs -&gt; Bool) -&gt; Eq GuardedRhs
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: GuardedRhs -&gt; GuardedRhs -&gt; Bool
+== :: GuardedRhs -&gt; GuardedRhs -&gt; Bool
+$c/= :: GuardedRhs -&gt; GuardedRhs -&gt; Bool
+/= :: GuardedRhs -&gt; GuardedRhs -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">data</span><span> </span><span id="Match"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Match"><span class="hs-identifier hs-var">Match</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Match"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Match"><span class="hs-identifier hs-var">Match</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Rhs"><span class="hs-identifier hs-type">Rhs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Binds"><span class="hs-identifier hs-type">Binds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695612"><span id="local-6989586621681695620"><span class="annot"><span class="annottext">Match -&gt; Match -&gt; Bool
+(Match -&gt; Match -&gt; Bool) -&gt; (Match -&gt; Match -&gt; Bool) -&gt; Eq Match
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Match -&gt; Match -&gt; Bool
+== :: Match -&gt; Match -&gt; Bool
+$c/= :: Match -&gt; Match -&gt; Bool
+/= :: Match -&gt; Match -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="annot"><span class="hs-comment">-- * Expressions</span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">data</span><span> </span><span id="Type"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-var">Type</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="TyForall"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyForall"><span class="hs-identifier hs-var">TyForall</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyVarBind"><span class="hs-identifier hs-type">TyVarBind</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-70"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="TyFun"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyFun"><span class="hs-identifier hs-var">TyFun</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-71"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="TyCon"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyCon"><span class="hs-identifier hs-var">TyCon</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-72"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="TyVar"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyVar"><span class="hs-identifier hs-var">TyVar</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-73"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="TyApp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyApp"><span class="hs-identifier hs-var">TyApp</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-74"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="FakeType"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#FakeType"><span class="hs-identifier hs-var">FakeType</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695629"><span id="local-6989586621681695644"><span class="annot"><span class="annottext">Type -&gt; Type -&gt; Bool
+(Type -&gt; Type -&gt; Bool) -&gt; (Type -&gt; Type -&gt; Bool) -&gt; Eq Type
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Type -&gt; Type -&gt; Bool
+== :: Type -&gt; Type -&gt; Bool
+$c/= :: Type -&gt; Type -&gt; Bool
+/= :: Type -&gt; Type -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">data</span><span> </span><span id="Pat"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-var">Pat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="PVar"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PVar"><span class="hs-identifier hs-var">PVar</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-78"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="PLit"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PLit"><span class="hs-identifier hs-var">PLit</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Literal"><span class="hs-identifier hs-type">Literal</span></a></span><span>
+</span><span id="line-79"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="PAsPat"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PAsPat"><span class="hs-identifier hs-var">PAsPat</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span>
+</span><span id="line-80"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="PWildCard"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PWildCard"><span class="hs-identifier hs-var">PWildCard</span></a></span></span><span>
+</span><span id="line-81"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="PBangPat"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PBangPat"><span class="hs-identifier hs-var">PBangPat</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span>
+</span><span id="line-82"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="PApp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PApp"><span class="hs-identifier hs-var">PApp</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-83"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="PatTypeSig"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PatTypeSig"><span class="hs-identifier hs-var">PatTypeSig</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-84"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="PIrrPat"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PIrrPat"><span class="hs-identifier hs-var">PIrrPat</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695655"><span id="local-6989586621681695670"><span class="annot"><span class="annottext">Pat -&gt; Pat -&gt; Bool
+(Pat -&gt; Pat -&gt; Bool) -&gt; (Pat -&gt; Pat -&gt; Bool) -&gt; Eq Pat
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Pat -&gt; Pat -&gt; Bool
+== :: Pat -&gt; Pat -&gt; Bool
+$c/= :: Pat -&gt; Pat -&gt; Bool
+/= :: Pat -&gt; Pat -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-keyword">data</span><span> </span><span id="Stmt"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Stmt"><span class="hs-identifier hs-var">Stmt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Qualifier"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Qualifier"><span class="hs-identifier hs-var">Qualifier</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-89"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Generator"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Generator"><span class="hs-identifier hs-var">Generator</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695675"><span id="local-6989586621681695682"><span class="annot"><span class="annottext">Stmt -&gt; Stmt -&gt; Bool
+(Stmt -&gt; Stmt -&gt; Bool) -&gt; (Stmt -&gt; Stmt -&gt; Bool) -&gt; Eq Stmt
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Stmt -&gt; Stmt -&gt; Bool
+== :: Stmt -&gt; Stmt -&gt; Bool
+$c/= :: Stmt -&gt; Stmt -&gt; Bool
+/= :: Stmt -&gt; Stmt -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">data</span><span> </span><span id="Exp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-var">Exp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Var"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-93"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="Con"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Con"><span class="hs-identifier hs-var">Con</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-94"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="Lit"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Literal"><span class="hs-identifier hs-type">Literal</span></a></span><span>
+</span><span id="line-95"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="InfixApp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#InfixApp"><span class="hs-identifier hs-var">InfixApp</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QOp"><span class="hs-identifier hs-type">QOp</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-96"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="Ann"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Ann"><span class="hs-identifier hs-var">Ann</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-97"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="App"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#App"><span class="hs-identifier hs-var">App</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-98"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="Lambda"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Lambda"><span class="hs-identifier hs-var">Lambda</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-99"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="Let"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Let"><span class="hs-identifier hs-var">Let</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Binds"><span class="hs-identifier hs-type">Binds</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-100"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="If"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#If"><span class="hs-identifier hs-var">If</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-101"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="Case"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Case"><span class="hs-identifier hs-var">Case</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Alt"><span class="hs-identifier hs-type">Alt</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-102"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="ExpTypeSig"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ExpTypeSig"><span class="hs-identifier hs-var">ExpTypeSig</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-103"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="NegApp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#NegApp"><span class="hs-identifier hs-var">NegApp</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-104"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span id="FakeExp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#FakeExp"><span class="hs-identifier hs-var">FakeExp</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695698"><span id="local-6989586621681695729"><span class="annot"><span class="annottext">Exp -&gt; Exp -&gt; Bool
+(Exp -&gt; Exp -&gt; Bool) -&gt; (Exp -&gt; Exp -&gt; Bool) -&gt; Eq Exp
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Exp -&gt; Exp -&gt; Bool
+== :: Exp -&gt; Exp -&gt; Bool
+$c/= :: Exp -&gt; Exp -&gt; Bool
+/= :: Exp -&gt; Exp -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">data</span><span> </span><span id="Alt"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Alt"><span class="hs-identifier hs-var">Alt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Alt"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Alt"><span class="hs-identifier hs-var">Alt</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Rhs"><span class="hs-identifier hs-type">Rhs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Binds"><span class="hs-identifier hs-type">Binds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695734"><span id="local-6989586621681695740"><span class="annot"><span class="annottext">Alt -&gt; Alt -&gt; Bool
+(Alt -&gt; Alt -&gt; Bool) -&gt; (Alt -&gt; Alt -&gt; Bool) -&gt; Eq Alt
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Alt -&gt; Alt -&gt; Bool
+== :: Alt -&gt; Alt -&gt; Bool
+$c/= :: Alt -&gt; Alt -&gt; Bool
+/= :: Alt -&gt; Alt -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="hs-keyword">data</span><span> </span><span id="Literal"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Literal"><span class="hs-identifier hs-var">Literal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Int"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Int"><span class="hs-identifier hs-var">Int</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Frac"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Frac"><span class="hs-identifier hs-var">Frac</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Rational</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Char"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Char"><span class="hs-identifier hs-var">Char</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="String"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#String"><span class="hs-identifier hs-var">String</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695747"><span id="local-6989586621681695758"><span class="annot"><span class="annottext">Literal -&gt; Literal -&gt; Bool
+(Literal -&gt; Literal -&gt; Bool)
+-&gt; (Literal -&gt; Literal -&gt; Bool) -&gt; Eq Literal
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Literal -&gt; Literal -&gt; Bool
+== :: Literal -&gt; Literal -&gt; Bool
+$c/= :: Literal -&gt; Literal -&gt; Bool
+/= :: Literal -&gt; Literal -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="annot"><span class="hs-comment">-- * Names</span></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-keyword">data</span><span> </span><span id="ModuleName"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-var">ModuleName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ModuleName"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-var">ModuleName</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695762"><span id="local-6989586621681695766"><span class="annot"><span class="annottext">ModuleName -&gt; ModuleName -&gt; Bool
+(ModuleName -&gt; ModuleName -&gt; Bool)
+-&gt; (ModuleName -&gt; ModuleName -&gt; Bool) -&gt; Eq ModuleName
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ModuleName -&gt; ModuleName -&gt; Bool
+== :: ModuleName -&gt; ModuleName -&gt; Bool
+$c/= :: ModuleName -&gt; ModuleName -&gt; Bool
+/= :: ModuleName -&gt; ModuleName -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695772"><span id="local-6989586621681695777"><span id="local-6989586621681695781"><span id="local-6989586621681695785"><span id="local-6989586621681695788"><span id="local-6989586621681695791"><span id="local-6989586621681695794"><span class="annot"><span class="annottext">Eq ModuleName
+Eq ModuleName =&gt;
+(ModuleName -&gt; ModuleName -&gt; Ordering)
+-&gt; (ModuleName -&gt; ModuleName -&gt; Bool)
+-&gt; (ModuleName -&gt; ModuleName -&gt; Bool)
+-&gt; (ModuleName -&gt; ModuleName -&gt; Bool)
+-&gt; (ModuleName -&gt; ModuleName -&gt; Bool)
+-&gt; (ModuleName -&gt; ModuleName -&gt; ModuleName)
+-&gt; (ModuleName -&gt; ModuleName -&gt; ModuleName)
+-&gt; Ord ModuleName
+ModuleName -&gt; ModuleName -&gt; Bool
+ModuleName -&gt; ModuleName -&gt; Ordering
+ModuleName -&gt; ModuleName -&gt; ModuleName
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: ModuleName -&gt; ModuleName -&gt; Ordering
+compare :: ModuleName -&gt; ModuleName -&gt; Ordering
+$c&lt; :: ModuleName -&gt; ModuleName -&gt; Bool
+&lt; :: ModuleName -&gt; ModuleName -&gt; Bool
+$c&lt;= :: ModuleName -&gt; ModuleName -&gt; Bool
+&lt;= :: ModuleName -&gt; ModuleName -&gt; Bool
+$c&gt; :: ModuleName -&gt; ModuleName -&gt; Bool
+&gt; :: ModuleName -&gt; ModuleName -&gt; Bool
+$c&gt;= :: ModuleName -&gt; ModuleName -&gt; Bool
+&gt;= :: ModuleName -&gt; ModuleName -&gt; Bool
+$cmax :: ModuleName -&gt; ModuleName -&gt; ModuleName
+max :: ModuleName -&gt; ModuleName -&gt; ModuleName
+$cmin :: ModuleName -&gt; ModuleName -&gt; ModuleName
+min :: ModuleName -&gt; ModuleName -&gt; ModuleName
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-keyword">data</span><span> </span><span id="QName"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QName"><span class="hs-identifier hs-var">QName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Qual"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Qual"><span class="hs-identifier hs-var">Qual</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="UnQual"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#UnQual"><span class="hs-identifier hs-var">UnQual</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695805"><span id="local-6989586621681695812"><span class="annot"><span class="annottext">QName -&gt; QName -&gt; Bool
+(QName -&gt; QName -&gt; Bool) -&gt; (QName -&gt; QName -&gt; Bool) -&gt; Eq QName
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: QName -&gt; QName -&gt; Bool
+== :: QName -&gt; QName -&gt; Bool
+$c/= :: QName -&gt; QName -&gt; Bool
+/= :: QName -&gt; QName -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">data</span><span> </span><span id="Name"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-var">Name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Ident"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Ident"><span class="hs-identifier hs-var">Ident</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Symbol"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Symbol"><span class="hs-identifier hs-var">Symbol</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-122"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695817"><span id="local-6989586621681695824"><span class="annot"><span class="annottext">Name -&gt; Name -&gt; Bool
+(Name -&gt; Name -&gt; Bool) -&gt; (Name -&gt; Name -&gt; Bool) -&gt; Eq Name
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Name -&gt; Name -&gt; Bool
+== :: Name -&gt; Name -&gt; Bool
+$c/= :: Name -&gt; Name -&gt; Bool
+/= :: Name -&gt; Name -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-keyword">data</span><span> </span><span id="QOp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QOp"><span class="hs-identifier hs-var">QOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="QVarOp"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QVarOp"><span class="hs-identifier hs-var">QVarOp</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695828"><span id="local-6989586621681695831"><span class="annot"><span class="annottext">QOp -&gt; QOp -&gt; Bool
+(QOp -&gt; QOp -&gt; Bool) -&gt; (QOp -&gt; QOp -&gt; Bool) -&gt; Eq QOp
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: QOp -&gt; QOp -&gt; Bool
+== :: QOp -&gt; QOp -&gt; Bool
+$c/= :: QOp -&gt; QOp -&gt; Bool
+/= :: QOp -&gt; QOp -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-keyword">data</span><span> </span><span id="TyVarBind"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TyVarBind"><span class="hs-identifier hs-var">TyVarBind</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="UnkindedVar"><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#UnkindedVar"><span class="hs-identifier hs-var">UnkindedVar</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695835"><span id="local-6989586621681695838"><span class="annot"><span class="annottext">TyVarBind -&gt; TyVarBind -&gt; Bool
+(TyVarBind -&gt; TyVarBind -&gt; Bool)
+-&gt; (TyVarBind -&gt; TyVarBind -&gt; Bool) -&gt; Eq TyVarBind
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: TyVarBind -&gt; TyVarBind -&gt; Bool
+== :: TyVarBind -&gt; TyVarBind -&gt; Bool
+$c/= :: TyVarBind -&gt; TyVarBind -&gt; Bool
+/= :: TyVarBind -&gt; TyVarBind -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#unit_con"><span class="hs-identifier hs-type">unit_con</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-131"></span><span id="unit_con"><span class="annot"><span class="annottext">unit_con :: Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#unit_con"><span class="hs-identifier hs-var hs-var">unit_con</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#Con"><span class="hs-identifier hs-var">Con</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; QName
+</span><a href="Agda.Utils.Haskell.Syntax.html#UnQual"><span class="hs-identifier hs-var">UnQual</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Name
+</span><a href="Agda.Utils.Haskell.Syntax.html#Ident"><span class="hs-identifier hs-var">Ident</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;()&quot;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span></pre></body></html>

@@ -1,0 +1,692 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-binds #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- | Strict compressed tries</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--   (based on &quot;Data.Map.Strict&quot; and &quot;Agda.Utils.Maybe.Strict&quot;).</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- In contrast to &quot;Agda.Utils.Trie&quot;, branches from a node</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- can be labeled with non-empty lists of keys that do not</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- overlap, meaning they start with different first elements.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- This way, non-branching unlabelled pathes can be stored</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- more efficiently.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- As a side effect, the notion of height changes</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- which we utilize in the 'truncate' function.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- An 'Agda.Utils.CompressedTrie.Trie' is usually constructed</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- from an 'Agda.Utils.Trie.Trie' via the 'compress' function.</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html"><span class="hs-identifier">Agda.Utils.CompressedTrie</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">truncate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span>         </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span>         </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span>             </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier">getSum</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>        </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>        </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Map.html"><span class="hs-identifier">Agda.Utils.Map</span></a></span><span>          </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Map.html#isSingleMap"><span class="hs-identifier">isSingleMap</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html"><span class="hs-identifier">Agda.Utils.Maybe.Strict</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Strict</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html"><span class="hs-identifier">Agda.Utils.Trie</span></a></span><span>         </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Uncompressed</span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier">__IMPOSSIBLE__</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | Finite map from @[k]@ to @v@.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--   With the strict 'Maybe' type, 'Trie' is also strict in 'v'.</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   Invariant: only the root of the tree</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   may be of the form @Trie Nothing (Map.singleton ks t)@.</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   A node inside of the trie of that form must be fused</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--   into its branch.</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">data</span><span> </span><span id="Trie"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span></span><span> </span><span id="local-6989586621681719085"><span class="annot"><a href="#local-6989586621681719085"><span class="hs-identifier hs-type">k</span></a></span></span><span> </span><span id="local-6989586621681719086"><span class="annot"><a href="#local-6989586621681719086"><span class="hs-identifier hs-type">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Trie"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="trieValue"><span class="annot"><span class="annottext">forall k v. Trie k v -&gt; Maybe v
+</span><a href="Agda.Utils.CompressedTrie.html#trieValue"><span class="hs-identifier hs-var hs-var">trieValue</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Strict.Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681719086"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="trieBranches"><span class="annot"><span class="annottext">forall k v. Trie k v -&gt; Map (List1 k) (Trie k v)
+</span><a href="Agda.Utils.CompressedTrie.html#trieBranches"><span class="hs-identifier hs-var hs-var">trieBranches</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719085"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719085"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719086"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>      </span><span class="hs-comment">-- Invariant: The keys are prefix-free, meaning their first letters differ.</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-keyword">deriving</span><span>
+</span><span id="line-54"></span><span>    </span><span class="hs-special">(</span><span> </span><span id="local-6989586621681719310"><span id="local-6989586621681719320"><span id="local-6989586621681719324"><span class="annot"><span class="annottext">Int -&gt; Trie k v -&gt; ShowS
+[Trie k v] -&gt; ShowS
+Trie k v -&gt; String
+(Int -&gt; Trie k v -&gt; ShowS)
+-&gt; (Trie k v -&gt; String) -&gt; ([Trie k v] -&gt; ShowS) -&gt; Show (Trie k v)
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+forall k v. (Show v, Show k) =&gt; Int -&gt; Trie k v -&gt; ShowS
+forall k v. (Show v, Show k) =&gt; [Trie k v] -&gt; ShowS
+forall k v. (Show v, Show k) =&gt; Trie k v -&gt; String
+$cshowsPrec :: forall k v. (Show v, Show k) =&gt; Int -&gt; Trie k v -&gt; ShowS
+showsPrec :: Int -&gt; Trie k v -&gt; ShowS
+$cshow :: forall k v. (Show v, Show k) =&gt; Trie k v -&gt; String
+show :: Trie k v -&gt; String
+$cshowList :: forall k v. (Show v, Show k) =&gt; [Trie k v] -&gt; ShowS
+showList :: [Trie k v] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719332"><span id="local-6989586621681719340"><span class="annot"><span class="annottext">Trie k v -&gt; Trie k v -&gt; Bool
+(Trie k v -&gt; Trie k v -&gt; Bool)
+-&gt; (Trie k v -&gt; Trie k v -&gt; Bool) -&gt; Eq (Trie k v)
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+forall k v. (Eq v, Eq k) =&gt; Trie k v -&gt; Trie k v -&gt; Bool
+$c== :: forall k v. (Eq v, Eq k) =&gt; Trie k v -&gt; Trie k v -&gt; Bool
+== :: Trie k v -&gt; Trie k v -&gt; Bool
+$c/= :: forall k v. (Eq v, Eq k) =&gt; Trie k v -&gt; Trie k v -&gt; Bool
+/= :: Trie k v -&gt; Trie k v -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span>
+</span><span id="line-56"></span><span>        </span><span class="hs-comment">-- Andreas, 2024-11-16: The derived Eq isn't extensional.</span><span>
+</span><span id="line-57"></span><span>        </span><span class="hs-comment">-- It disguishes different representation of the empty Trie.</span><span>
+</span><span id="line-58"></span><span>        </span><span class="hs-comment">-- (E.g. the empty map and the map that only contains Nothing values.)</span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719346"><span id="local-6989586621681719354"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Trie k a -&gt; Trie k b)
+-&gt; (forall a b. a -&gt; Trie k b -&gt; Trie k a) -&gt; Functor (Trie k)
+forall a b. a -&gt; Trie k b -&gt; Trie k a
+forall a b. (a -&gt; b) -&gt; Trie k a -&gt; Trie k b
+forall k a b. a -&gt; Trie k b -&gt; Trie k a
+forall k a b. (a -&gt; b) -&gt; Trie k a -&gt; Trie k b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall k a b. (a -&gt; b) -&gt; Trie k a -&gt; Trie k b
+fmap :: forall a b. (a -&gt; b) -&gt; Trie k a -&gt; Trie k b
+$c&lt;$ :: forall k a b. a -&gt; Trie k b -&gt; Trie k a
+&lt;$ :: forall a b. a -&gt; Trie k b -&gt; Trie k a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719361"><span id="local-6989586621681719367"><span id="local-6989586621681719379"><span id="local-6989586621681719384"><span id="local-6989586621681719389"><span id="local-6989586621681719392"><span id="local-6989586621681719395"><span id="local-6989586621681719398"><span id="local-6989586621681719401"><span id="local-6989586621681719404"><span id="local-6989586621681719407"><span id="local-6989586621681719412"><span id="local-6989586621681719415"><span id="local-6989586621681719420"><span id="local-6989586621681719425"><span id="local-6989586621681719430"><span id="local-6989586621681719435"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; Trie k m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a)
+-&gt; (forall a. Trie k a -&gt; [a])
+-&gt; (forall a. Trie k a -&gt; Bool)
+-&gt; (forall a. Trie k a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; Trie k a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; Trie k a -&gt; a)
+-&gt; (forall a. Ord a =&gt; Trie k a -&gt; a)
+-&gt; (forall a. Num a =&gt; Trie k a -&gt; a)
+-&gt; (forall a. Num a =&gt; Trie k a -&gt; a)
+-&gt; Foldable (Trie k)
+forall a. Eq a =&gt; a -&gt; Trie k a -&gt; Bool
+forall a. Num a =&gt; Trie k a -&gt; a
+forall a. Ord a =&gt; Trie k a -&gt; a
+forall m. Monoid m =&gt; Trie k m -&gt; m
+forall a. Trie k a -&gt; Bool
+forall a. Trie k a -&gt; Int
+forall a. Trie k a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a
+forall k a. Eq a =&gt; a -&gt; Trie k a -&gt; Bool
+forall k a. Num a =&gt; Trie k a -&gt; a
+forall k a. Ord a =&gt; Trie k a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m
+forall k m. Monoid m =&gt; Trie k m -&gt; m
+forall k a. Trie k a -&gt; Bool
+forall k a. Trie k a -&gt; Int
+forall k a. Trie k a -&gt; [a]
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+forall k a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a
+forall k m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m
+forall k b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+forall k a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall k m. Monoid m =&gt; Trie k m -&gt; m
+fold :: forall m. Monoid m =&gt; Trie k m -&gt; m
+$cfoldMap :: forall k m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m
+$cfoldMap' :: forall k m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie k a -&gt; m
+$cfoldr :: forall k a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+$cfoldr' :: forall k a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+$cfoldl :: forall k b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+$cfoldl' :: forall k b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Trie k a -&gt; b
+$cfoldr1 :: forall k a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a
+$cfoldl1 :: forall k a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Trie k a -&gt; a
+$ctoList :: forall k a. Trie k a -&gt; [a]
+toList :: forall a. Trie k a -&gt; [a]
+$cnull :: forall k a. Trie k a -&gt; Bool
+null :: forall a. Trie k a -&gt; Bool
+$clength :: forall k a. Trie k a -&gt; Int
+length :: forall a. Trie k a -&gt; Int
+$celem :: forall k a. Eq a =&gt; a -&gt; Trie k a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; Trie k a -&gt; Bool
+$cmaximum :: forall k a. Ord a =&gt; Trie k a -&gt; a
+maximum :: forall a. Ord a =&gt; Trie k a -&gt; a
+$cminimum :: forall k a. Ord a =&gt; Trie k a -&gt; a
+minimum :: forall a. Ord a =&gt; Trie k a -&gt; a
+$csum :: forall k a. Num a =&gt; Trie k a -&gt; a
+sum :: forall a. Num a =&gt; Trie k a -&gt; a
+$cproduct :: forall k a. Num a =&gt; Trie k a -&gt; a
+product :: forall a. Num a =&gt; Trie k a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681719152"><span id="local-6989586621681719153"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681719152"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681719153"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719152"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719153"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681719454"><span class="annot"><span class="annottext">rnf :: Trie k v -&gt; ()
+</span><a href="#local-6989586621681719454"><span class="hs-identifier hs-var hs-var hs-var">rnf</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719456"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719456"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681719457"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719457"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719456"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719457"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-67"></span><span class="annot"><span class="hs-comment">-- * Construction</span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="annot"><span class="hs-comment">-- | Empty trie.</span></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681719165"><span id="local-6989586621681719166"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719165"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719166"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>  </span><span id="local-6989586621681719462"><span class="annot"><span class="annottext">empty :: Trie k v
+</span><a href="#local-6989586621681719462"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall k v. Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Strict.Nothing</span></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621681719470"><span class="annot"><span class="annottext">null :: Trie k v -&gt; Bool
+</span><a href="#local-6989586621681719470"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719472"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719472"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681719473"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719473"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719472"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">(Trie k v -&gt; Bool) -&gt; Map (List1 k) (Trie k v) -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719473"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-comment">-- Andreas, 2024-11-16: since we allow non-canoncial tries,</span><span>
+</span><span id="line-74"></span><span>    </span><span class="hs-comment">-- we have to check that every subtrie is empty,</span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-comment">-- not just that there are no subtries.</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="annot"><span class="hs-comment">-- | Singleton tree with value at the root.</span></span><span>
+</span><span id="line-78"></span><span id="local-6989586621681719173"><span id="local-6989586621681719174"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#root"><span class="hs-identifier hs-type">root</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681719173"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719174"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719173"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-79"></span><span id="root"><span class="annot"><span class="annottext">root :: forall v k. v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#root"><span class="hs-identifier hs-var hs-var">root</span></a></span></span><span> </span><span id="local-6989586621681719477"><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621681719477"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall k v. Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">v -&gt; Maybe v
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Strict.Just</span></span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621681719477"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681719182"><span id="local-6989586621681719183"><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681719182"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681719183"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719182"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719183"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-82"></span><span>  </span><span id="local-6989586621681719482"><span class="annot"><span class="annottext">singleton :: ([k], v) -&gt; Trie k v
+</span><a href="#local-6989586621681719482"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([k] -&gt; v -&gt; Trie k v) -&gt; ([k], v) -&gt; Trie k v
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">[k] -&gt; v -&gt; Trie k v
+forall k v. [k] -&gt; v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#singleton"><span class="hs-identifier hs-var">Agda.Utils.CompressedTrie.singleton</span></a></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="annot"><span class="hs-comment">-- | Singleton trie.</span></span><span>
+</span><span id="line-85"></span><span id="local-6989586621681719187"><span id="local-6989586621681719188"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#singleton"><span class="hs-identifier hs-type">singleton</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681719187"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681719188"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719187"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719188"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-86"></span><span id="singleton"><span class="annot"><span class="annottext">singleton :: forall k v. [k] -&gt; v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#singleton"><span class="hs-identifier hs-var hs-var">singleton</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">v -&gt; Trie k v
+forall v k. v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#root"><span class="hs-identifier hs-var">root</span></a></span><span>
+</span><span id="line-87"></span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681719486"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681719486"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681719487"><span class="annot"><span class="annottext">[k]
+</span><a href="#local-6989586621681719487"><span class="hs-identifier hs-var">ks</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 k -&gt; v -&gt; Trie k v
+forall k v. List1 k -&gt; v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#singleton1"><span class="hs-identifier hs-var">singleton1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681719486"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">k -&gt; [k] -&gt; List1 k
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[k]
+</span><a href="#local-6989586621681719487"><span class="hs-identifier hs-var">ks</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><span class="hs-comment">-- | Singleton tree with empty root.</span></span><span>
+</span><span id="line-90"></span><span id="local-6989586621681719191"><span id="local-6989586621681719192"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#singleton1"><span class="hs-identifier hs-type">singleton1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719191"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681719192"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719191"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719192"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-91"></span><span id="singleton1"><span class="annot"><span class="annottext">singleton1 :: forall k v. List1 k -&gt; v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#singleton1"><span class="hs-identifier hs-var hs-var">singleton1</span></a></span></span><span> </span><span id="local-6989586621681719489"><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719489"><span class="hs-identifier hs-var">ks</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall k v. Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Strict.Nothing</span></span><span> </span><span class="annot"><span class="annottext">(Map (List1 k) (Trie k v) -&gt; Trie k v)
+-&gt; (v -&gt; Map (List1 k) (Trie k v)) -&gt; v -&gt; Trie k v
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">List1 k -&gt; Trie k v -&gt; Map (List1 k) (Trie k v)
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span> </span><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719489"><span class="hs-identifier hs-var">ks</span></a></span><span> </span><span class="annot"><span class="annottext">(Trie k v -&gt; Map (List1 k) (Trie k v))
+-&gt; (v -&gt; Trie k v) -&gt; v -&gt; Map (List1 k) (Trie k v)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">v -&gt; Trie k v
+forall v k. v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#root"><span class="hs-identifier hs-var">root</span></a></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | A single branch with the given subtree.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--   Precondition: the given subtree has a value at the root.</span><span>
+</span><span id="line-95"></span><span id="local-6989586621681719201"><span id="local-6989586621681719202"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#singleBranch"><span class="hs-identifier hs-type">singleBranch</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719201"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719201"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719202"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719201"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719201"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719202"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-96"></span><span id="singleBranch"><span class="annot"><span class="annottext">singleBranch :: forall k v. List1 k -&gt; Trie k v -&gt; (List1 k, Trie k v)
+</span><a href="Agda.Utils.CompressedTrie.html#singleBranch"><span class="hs-identifier hs-var hs-var">singleBranch</span></a></span></span><span> </span><span id="local-6989586621681719495"><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719495"><span class="hs-identifier hs-var">ks</span></a></span></span><span> </span><span id="local-6989586621681719496"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719496"><span class="hs-identifier hs-var">t</span></a></span></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681719497"><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719497"><span class="hs-identifier hs-var">ks'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719498"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719498"><span class="hs-identifier hs-var">t'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; Maybe (List1 k, Trie k v)
+forall k v. Trie k v -&gt; Maybe (List1 k, Trie k v)
+</span><a href="Agda.Utils.CompressedTrie.html#isSingleBranch"><span class="hs-identifier hs-var">isSingleBranch</span></a></span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719496"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719495"><span class="hs-identifier hs-var">ks</span></a></span><span> </span><span class="annot"><span class="annottext">List1 k -&gt; List1 k -&gt; List1 k
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719497"><span class="hs-identifier hs-var">ks'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719498"><span class="hs-identifier hs-var">t'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719495"><span class="hs-identifier hs-var">ks</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719496"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><span class="hs-comment">-- | Is the trie starting with a single branch?</span></span><span>
+</span><span id="line-101"></span><span id="local-6989586621681719206"><span id="local-6989586621681719207"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#isSingleBranch"><span class="hs-identifier hs-type">isSingleBranch</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719206"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719207"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719206"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719206"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719207"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-102"></span><span id="isSingleBranch"><span class="annot"><span class="annottext">isSingleBranch :: forall k v. Trie k v -&gt; Maybe (List1 k, Trie k v)
+</span><a href="Agda.Utils.CompressedTrie.html#isSingleBranch"><span class="hs-identifier hs-var hs-var">isSingleBranch</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><span class="hs-identifier hs-var">Strict.Nothing</span></span><span> </span><span id="local-6989586621681719500"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719500"><span class="hs-identifier hs-var">ts</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681719501"><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719501"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719502"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719502"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v) -&gt; Maybe (List1 k, Trie k v)
+forall k v. Map k v -&gt; Maybe (k, v)
+</span><a href="Agda.Utils.Map.html#isSingleMap"><span class="hs-identifier hs-var">isSingleMap</span></a></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719500"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-104"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(List1 k, Trie k v) -&gt; Maybe (List1 k, Trie k v)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719501"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719502"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><span class="annottext">Trie k v
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (List1 k, Trie k v)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="annot"><span class="hs-comment">-- | Turn a trie into a compressed trie.</span></span><span>
+</span><span id="line-108"></span><span id="local-6989586621681719213"><span id="local-6989586621681719214"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#compress"><span class="hs-identifier hs-type">compress</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681719213"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Uncompressed.Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719213"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719214"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719213"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719214"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-109"></span><span id="compress"><span class="annot"><span class="annottext">compress :: forall k v. Ord k =&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#compress"><span class="hs-identifier hs-var hs-var">compress</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Uncompressed.Trie</span></a></span><span> </span><span id="local-6989586621681719508"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719508"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span id="local-6989586621681719509"><span class="annot"><span class="annottext">Map k (Trie k v)
+</span><a href="#local-6989586621681719509"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-110"></span><span>    </span><span class="annot"><span class="annottext">Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall k v. Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719508"><span class="hs-identifier hs-var">mv</span></a></span><span> </span><span class="annot"><span class="annottext">(Map (List1 k) (Trie k v) -&gt; Trie k v)
+-&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(List1 k, Trie k v)] -&gt; Map (List1 k) (Trie k v)
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span> </span><span class="annot"><span class="annottext">([(List1 k, Trie k v)] -&gt; Map (List1 k) (Trie k v))
+-&gt; [(List1 k, Trie k v)] -&gt; Map (List1 k) (Trie k v)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((k, Trie k v) -&gt; (List1 k, Trie k v))
+-&gt; [(k, Trie k v)] -&gt; [(List1 k, Trie k v)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(k, Trie k v) -&gt; (List1 k, Trie k v)
+forall {k} {v}. Ord k =&gt; (k, Trie k v) -&gt; (List1 k, Trie k v)
+</span><a href="#local-6989586621681719511"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">([(k, Trie k v)] -&gt; [(List1 k, Trie k v)])
+-&gt; [(k, Trie k v)] -&gt; [(List1 k, Trie k v)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Map k (Trie k v) -&gt; [(k, Trie k v)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">Map k (Trie k v)
+</span><a href="#local-6989586621681719509"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-112"></span><span>    </span><span id="local-6989586621681719511"><span class="annot"><span class="annottext">go :: (k, Trie k v) -&gt; (List1 k, Trie k v)
+</span><a href="#local-6989586621681719511"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681719518"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681719518"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719519"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719519"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 k -&gt; Trie k v -&gt; (List1 k, Trie k v)
+forall k v. List1 k -&gt; Trie k v -&gt; (List1 k, Trie k v)
+</span><a href="Agda.Utils.CompressedTrie.html#singleBranch"><span class="hs-identifier hs-var">singleBranch</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; List1 k
+forall a. a -&gt; NonEmpty a
+</span><span class="hs-identifier hs-var">List1.singleton</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681719518"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Trie k v -&gt; Trie k v
+forall k v. Ord k =&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#compress"><span class="hs-identifier hs-var">compress</span></a></span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719519"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-115"></span><span class="annot"><span class="hs-comment">-- * Deconstruction</span></span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="annot"><span class="hs-comment">-- | Turn a compressed trie into an uncompressed trie.</span></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#uncompress"><span class="hs-identifier hs-type">uncompress</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681719233"><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span></span><span> </span><span id="local-6989586621681719234"><span class="annot"><a href="#local-6989586621681719234"><span class="hs-identifier hs-type">v</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719234"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Uncompressed.Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719234"><span class="hs-identifier hs-type">v</span></a></span><span>
+</span><span id="line-119"></span><span id="uncompress"><span class="annot"><span class="annottext">uncompress :: forall k v. Ord k =&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#uncompress"><span class="hs-identifier hs-var hs-var">uncompress</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719525"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719525"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span id="local-6989586621681719526"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719526"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-120"></span><span>    </span><span class="annot"><span class="annottext">Maybe v -&gt; Map k (Trie k v) -&gt; Trie k v
+forall k v. Maybe v -&gt; Map k (Trie k v) -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-var">Uncompressed.Trie</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719525"><span class="hs-identifier hs-var">mv</span></a></span><span> </span><span class="annot"><span class="annottext">(Map k (Trie k v) -&gt; Trie k v) -&gt; Map k (Trie k v) -&gt; Trie k v
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(k, Trie k v)] -&gt; Map k (Trie k v)
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span> </span><span class="annot"><span class="annottext">([(k, Trie k v)] -&gt; Map k (Trie k v))
+-&gt; [(k, Trie k v)] -&gt; Map k (Trie k v)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((List1 k, Trie k v) -&gt; (k, Trie k v))
+-&gt; [(List1 k, Trie k v)] -&gt; [(k, Trie k v)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(List1 k, Trie k v) -&gt; (k, Trie k v)
+</span><a href="#local-6989586621681719527"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">([(List1 k, Trie k v)] -&gt; [(k, Trie k v)])
+-&gt; [(List1 k, Trie k v)] -&gt; [(k, Trie k v)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v) -&gt; [(List1 k, Trie k v)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719526"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>    </span><span class="annot"><a href="#local-6989586621681719527"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719234"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Uncompressed.Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719233"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719234"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-123"></span><span>    </span><span id="local-6989586621681719527"><span class="annot"><span class="annottext">go :: (List1 k, Trie k v) -&gt; (k, Trie k v)
+</span><a href="#local-6989586621681719527"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681719528"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681719528"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681719529"><span class="annot"><span class="annottext">[k]
+</span><a href="#local-6989586621681719529"><span class="hs-identifier hs-var">ks</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719530"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719530"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681719528"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[k] -&gt; Trie k v -&gt; Trie k v
+forall k v. [k] -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#prefixBy"><span class="hs-identifier hs-var">Uncompressed.prefixBy</span></a></span><span> </span><span class="annot"><span class="annottext">[k]
+</span><a href="#local-6989586621681719529"><span class="hs-identifier hs-var">ks</span></a></span><span> </span><span class="annot"><span class="annottext">(Trie k v -&gt; Trie k v) -&gt; Trie k v -&gt; Trie k v
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; Trie k v
+forall k v. Ord k =&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#uncompress"><span class="hs-identifier hs-var">uncompress</span></a></span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719530"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="annot"><span class="hs-comment">-- | Convert to ascending list.</span></span><span>
+</span><span id="line-126"></span><span id="local-6989586621681719241"><span id="local-6989586621681719242"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#toList"><span class="hs-identifier hs-type">toList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681719241"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719241"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719242"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681719241"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681719242"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-127"></span><span id="toList"><span class="annot"><span class="annottext">toList :: forall k v. Ord k =&gt; Trie k v -&gt; [([k], v)]
+</span><a href="Agda.Utils.CompressedTrie.html#toList"><span class="hs-identifier hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; [([k], v)]
+forall k v. Ord k =&gt; Trie k v -&gt; [([k], v)]
+</span><a href="Agda.Utils.CompressedTrie.html#toAscList"><span class="hs-identifier hs-var">toAscList</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="annot"><span class="hs-comment">-- | Convert to ascending list.</span></span><span>
+</span><span id="line-130"></span><span id="local-6989586621681719536"><span id="local-6989586621681719537"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#toAscList"><span class="hs-identifier hs-type">toAscList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681719536"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719536"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719537"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681719536"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681719537"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-131"></span><span id="toAscList"><span class="annot"><span class="annottext">toAscList :: forall k v. Ord k =&gt; Trie k v -&gt; [([k], v)]
+</span><a href="Agda.Utils.CompressedTrie.html#toAscList"><span class="hs-identifier hs-var hs-var">toAscList</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719543"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719543"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span id="local-6989586621681719544"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719544"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe ([k], v) -&gt; [([k], v)]
+forall a. Maybe a -&gt; [a]
+</span><span class="hs-identifier hs-var">Strict.maybeToList</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(v -&gt; ([k], v)) -&gt; Maybe v -&gt; Maybe ([k], v)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719543"><span class="hs-identifier hs-var">mv</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[([k], v)] -&gt; [([k], v)] -&gt; [([k], v)]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 k -&gt; [Item (List1 k)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719547"><span class="hs-identifier hs-var">ks1</span></a></span><span> </span><span class="annot"><span class="annottext">[k] -&gt; [k] -&gt; [k]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[k]
+</span><a href="#local-6989586621681719548"><span class="hs-identifier hs-var">ks</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621681719549"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681719547"><span class="annot"><span class="annottext">List1 k
+</span><a href="#local-6989586621681719547"><span class="hs-identifier hs-var">ks1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719550"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719550"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v) -&gt; [(List1 k, Trie k v)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toAscList</span></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719544"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681719548"><span class="annot"><span class="annottext">[k]
+</span><a href="#local-6989586621681719548"><span class="hs-identifier hs-var">ks</span></a></span></span><span class="hs-special">,</span><span>  </span><span id="local-6989586621681719549"><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621681719549"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; [([k], v)]
+forall k v. Ord k =&gt; Trie k v -&gt; [([k], v)]
+</span><a href="Agda.Utils.CompressedTrie.html#toAscList"><span class="hs-identifier hs-var">toAscList</span></a></span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719550"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">-- | The number of labeled nodes.</span></span><span>
+</span><span id="line-138"></span><span id="local-6989586621681719552"><span id="local-6989586621681719553"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#size"><span class="hs-identifier hs-type">size</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719552"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719553"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span></span><span>
+</span><span id="line-139"></span><span id="size"><span class="annot"><span class="annottext">size :: forall k a. Trie k a -&gt; Int
+</span><a href="Agda.Utils.CompressedTrie.html#size"><span class="hs-identifier hs-var hs-var">size</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719562"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719562"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span id="local-6989586621681719563"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719563"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; (v -&gt; Int) -&gt; Maybe v -&gt; Int
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">Strict.maybe</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; v -&gt; Int
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719562"><span class="hs-identifier hs-var">mv</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Sum Int -&gt; Int
+forall a. Sum a -&gt; a
+</span><span class="hs-identifier hs-var">getSum</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Trie k v -&gt; Sum Int) -&gt; Map (List1 k) (Trie k v) -&gt; Sum Int
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Map (List1 k) a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Sum Int
+forall a. a -&gt; Sum a
+</span><span class="hs-identifier hs-var">Sum</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Sum Int) -&gt; (Trie k v -&gt; Int) -&gt; Trie k v -&gt; Sum Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; Int
+forall k a. Trie k a -&gt; Int
+</span><a href="Agda.Utils.CompressedTrie.html#size"><span class="hs-identifier hs-var">size</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719563"><span class="hs-identifier hs-var">ts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><span class="hs-comment">-- | The number of nodes that are labeled or leaves..</span></span><span>
+</span><span id="line-142"></span><span id="local-6989586621681719567"><span id="local-6989586621681719568"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#sizeWithLeaves"><span class="hs-identifier hs-type">sizeWithLeaves</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719567"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719568"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span></span><span>
+</span><span id="line-143"></span><span id="sizeWithLeaves"><span class="annot"><span class="annottext">sizeWithLeaves :: forall k a. Trie k a -&gt; Int
+</span><a href="Agda.Utils.CompressedTrie.html#sizeWithLeaves"><span class="hs-identifier hs-var hs-var">sizeWithLeaves</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719577"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719577"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span id="local-6989586621681719578"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719578"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v) -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719578"><span class="hs-identifier hs-var">ts</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; (v -&gt; Int) -&gt; Maybe v -&gt; Int
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">Strict.maybe</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; v -&gt; Int
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719577"><span class="hs-identifier hs-var">mv</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Sum Int -&gt; Int
+forall a. Sum a -&gt; a
+</span><span class="hs-identifier hs-var">getSum</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Trie k v -&gt; Sum Int) -&gt; Map (List1 k) (Trie k v) -&gt; Sum Int
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Map (List1 k) a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Sum Int
+forall a. a -&gt; Sum a
+</span><span class="hs-identifier hs-var">Sum</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Sum Int) -&gt; (Trie k v -&gt; Int) -&gt; Trie k v -&gt; Sum Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; Int
+forall k a. Trie k a -&gt; Int
+</span><a href="Agda.Utils.CompressedTrie.html#sizeWithLeaves"><span class="hs-identifier hs-var">sizeWithLeaves</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719578"><span class="hs-identifier hs-var">ts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-148"></span><span class="annot"><span class="hs-comment">-- * Modification</span></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="annot"><span class="hs-comment">-- | Modify the leaves (input and output may be non-canonical).</span></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span id="local-6989586621681719270"><span id="local-6989586621681719271"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#substLeaves"><span class="hs-identifier hs-type">substLeaves</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681719270"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719271"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719270"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719271"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719270"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719271"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719270"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-153"></span><span id="substLeaves"><span class="annot"><span class="annottext">substLeaves :: forall v k. (Maybe v -&gt; Trie k v) -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#substLeaves"><span class="hs-identifier hs-var hs-var">substLeaves</span></a></span></span><span> </span><span id="local-6989586621681719584"><span class="annot"><span class="annottext">Maybe v -&gt; Trie k v
+</span><a href="#local-6989586621681719584"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719585"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719585"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span id="local-6989586621681719586"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719586"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v) -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719586"><span class="hs-identifier hs-var">ts</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Trie k v
+</span><a href="#local-6989586621681719584"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe v -&gt; Trie k v) -&gt; Maybe v -&gt; Trie k v
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Maybe v
+forall lazy strict. Strict lazy strict =&gt; strict -&gt; lazy
+</span><span class="hs-identifier hs-var">Strict.toLazy</span></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719585"><span class="hs-identifier hs-var">mv</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall k v. Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719585"><span class="hs-identifier hs-var">mv</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Trie k v -&gt; Trie k v)
+-&gt; Map (List1 k) (Trie k v) -&gt; Map (List1 k) (Trie k v)
+forall a b. (a -&gt; b) -&gt; Map (List1 k) a -&gt; Map (List1 k) b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Maybe v -&gt; Trie k v) -&gt; Trie k v -&gt; Trie k v
+forall v k. (Maybe v -&gt; Trie k v) -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#substLeaves"><span class="hs-identifier hs-var">substLeaves</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Trie k v
+</span><a href="#local-6989586621681719584"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719586"><span class="hs-identifier hs-var">ts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- | Truncate tree at given depth.</span><span>
+</span><span id="line-158"></span><span class="hs-comment">--   @truncate 0 t@ returns the root.</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span id="local-6989586621681719278"><span id="local-6989586621681719279"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#truncate"><span class="hs-identifier hs-type">truncate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719278"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719279"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719278"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719279"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-161"></span><span id="truncate"><span class="annot"><span class="annottext">truncate :: forall k v. Int -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#truncate"><span class="hs-identifier hs-var hs-var">truncate</span></a></span></span><span> </span><span id="local-6989586621681719595"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719595"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681719596"><span class="annot"><span class="annottext">t :: Trie k v
+</span><a href="#local-6989586621681719596"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span id="local-6989586621681719597"><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719597"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span id="local-6989586621681719598"><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719598"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719595"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v) -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719598"><span class="hs-identifier hs-var">ts</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719596"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Trie k v
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-163"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall k v. Maybe v -&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-var">Trie</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe v
+</span><a href="#local-6989586621681719597"><span class="hs-identifier hs-var">mv</span></a></span><span> </span><span class="annot"><span class="annottext">(Map (List1 k) (Trie k v) -&gt; Trie k v)
+-&gt; Map (List1 k) (Trie k v) -&gt; Trie k v
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Trie k v -&gt; Trie k v)
+-&gt; Map (List1 k) (Trie k v) -&gt; Map (List1 k) (Trie k v)
+forall a b. (a -&gt; b) -&gt; Map (List1 k) a -&gt; Map (List1 k) b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Trie k v -&gt; Trie k v
+forall k v. Int -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#truncate"><span class="hs-identifier hs-var">truncate</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719595"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map (List1 k) (Trie k v)
+</span><a href="#local-6989586621681719598"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- | Truncate the tree so that it has at most the given size</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--   according to the given sizing function.</span><span>
+</span><span id="line-167"></span><span class="hs-comment">--   @truncateSize sizing 0 t@ returns the trie @truncate 0 t@.</span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#truncateSize"><span class="hs-identifier hs-type">truncateSize</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681719282"><span class="annot"><a href="#local-6989586621681719282"><span class="hs-identifier hs-type">k</span></a></span></span><span> </span><span id="local-6989586621681719283"><span class="annot"><a href="#local-6989586621681719283"><span class="hs-identifier hs-type">v</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719282"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719283"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719282"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719283"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719282"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719283"><span class="hs-identifier hs-type">v</span></a></span><span>
+</span><span id="line-170"></span><span id="truncateSize"><span class="annot"><span class="annottext">truncateSize :: forall k v. (Trie k v -&gt; Int) -&gt; Int -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#truncateSize"><span class="hs-identifier hs-var hs-var">truncateSize</span></a></span></span><span> </span><span id="local-6989586621681719608"><span class="annot"><span class="annottext">Trie k v -&gt; Int
+</span><a href="#local-6989586621681719608"><span class="hs-identifier hs-var">size</span></a></span></span><span> </span><span id="local-6989586621681719609"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719609"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681719610"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719610"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-comment">-- Drop while still increasing but staying below n.</span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-keyword">case</span><span>
+</span><span id="line-173"></span><span>    </span><span class="annot"><span class="annottext">(((Int, Trie k v), (Int, Trie k v)) -&gt; Bool)
+-&gt; [((Int, Trie k v), (Int, Trie k v))]
+-&gt; [((Int, Trie k v), (Int, Trie k v))]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">dropWhile</span></span><span>
+</span><span id="line-174"></span><span>      </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681719612"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719612"><span class="hs-identifier hs-var">n1</span></a></span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Trie k v
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-special">(</span><span id="local-6989586621681719613"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719613"><span class="hs-identifier hs-var">n2</span></a></span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Trie k v
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719612"><span class="hs-identifier hs-var">n1</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719613"><span class="hs-identifier hs-var">n2</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719613"><span class="hs-identifier hs-var">n2</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719609"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-175"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(Int, Trie k v)]
+-&gt; [(Int, Trie k v)] -&gt; [((Int, Trie k v), (Int, Trie k v))]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="annot"><span class="annottext">[(Int, Trie k v)]
+</span><a href="#local-6989586621681719615"><span class="hs-identifier hs-var">ts</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; [(Int, Trie k v)] -&gt; [(Int, Trie k v)]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">[(Int, Trie k v)]
+</span><a href="#local-6989586621681719615"><span class="hs-identifier hs-var">ts</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-176"></span><span>  </span><span class="hs-keyword">of</span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-comment">-- Return the last trie that was still increasing and stayed below n.</span><span>
+</span><span id="line-178"></span><span>    </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681719617"><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719617"><span class="hs-identifier hs-var">t1</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(Int, Trie k v)
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[((Int, Trie k v), (Int, Trie k v))]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719617"><span class="hs-identifier hs-var">t1</span></a></span><span>
+</span><span id="line-179"></span><span>    </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Trie k v
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-180"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-181"></span><span>    </span><span class="annot"><a href="#local-6989586621681719615"><span class="hs-identifier hs-type">ts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719282"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719283"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-182"></span><span>    </span><span id="local-6989586621681719615"><span class="annot"><span class="annottext">ts :: [(Int, Trie k v)]
+</span><a href="#local-6989586621681719615"><span class="hs-identifier hs-var hs-var">ts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Trie k v -&gt; Int
+</span><a href="#local-6989586621681719608"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719618"><span class="hs-identifier hs-var">t'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719618"><span class="hs-identifier hs-var">t'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681719619"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719619"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681719618"><span class="annot"><span class="annottext">t' :: Trie k v
+</span><a href="#local-6989586621681719618"><span class="hs-identifier hs-var hs-var">t'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Trie k v -&gt; Trie k v
+forall k v. Int -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#truncate"><span class="hs-identifier hs-var">truncate</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681719619"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">Trie k v
+</span><a href="#local-6989586621681719610"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span class="annot"><span class="hs-comment">-- | @truncateSize sizeWithLeaves@</span></span><span>
+</span><span id="line-185"></span><span id="local-6989586621681719620"><span id="local-6989586621681719621"><span class="annot"><a href="Agda.Utils.CompressedTrie.html#truncateSizeWithLeaves"><span class="hs-identifier hs-type">truncateSizeWithLeaves</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719620"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719621"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719620"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681719621"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-186"></span><span id="truncateSizeWithLeaves"><span class="annot"><span class="annottext">truncateSizeWithLeaves :: forall k v. Int -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#truncateSizeWithLeaves"><span class="hs-identifier hs-var hs-var">truncateSizeWithLeaves</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Trie k v -&gt; Int) -&gt; Int -&gt; Trie k v -&gt; Trie k v
+forall k v. (Trie k v -&gt; Int) -&gt; Int -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#truncateSize"><span class="hs-identifier hs-var">truncateSize</span></a></span><span> </span><span class="annot"><span class="annottext">Trie k v -&gt; Int
+forall k a. Trie k a -&gt; Int
+</span><a href="Agda.Utils.CompressedTrie.html#sizeWithLeaves"><span class="hs-identifier hs-var">sizeWithLeaves</span></a></span><span>
+</span><span id="line-187"></span></pre></body></html>

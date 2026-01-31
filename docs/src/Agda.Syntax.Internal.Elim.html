@@ -1,0 +1,409 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html"><span class="hs-identifier">Agda.Syntax.Internal.Elim</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html"><span class="hs-identifier">Agda.Utils.Empty</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- | Eliminations, subsuming applications and projections.</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">data</span><span> </span><span id="Elim%27"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-var">Elim'</span></a></span></span><span> </span><span id="local-6989586621681769372"><span class="annot"><a href="#local-6989586621681769372"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Apply"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-var">Apply</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769372"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>         </span><span class="annot"><span class="hs-comment">-- ^ Application.</span></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Proj"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-var">Proj</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProjOrigin"><span class="hs-identifier hs-type">ProjOrigin</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><span class="hs-comment">-- ^ Projection.  'QName' is name of a record projection.</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="IApply"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-var">IApply</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681769372"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769372"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769372"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-comment">-- ^ IApply x y r, x and y are the endpoints</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681769440"><span id="local-6989586621681769455"><span id="local-6989586621681769459"><span class="annot"><span class="annottext">Int -&gt; Elim' a -&gt; ShowS
+[Elim' a] -&gt; ShowS
+Elim' a -&gt; String
+(Int -&gt; Elim' a -&gt; ShowS)
+-&gt; (Elim' a -&gt; String) -&gt; ([Elim' a] -&gt; ShowS) -&gt; Show (Elim' a)
+forall a. Show a =&gt; Int -&gt; Elim' a -&gt; ShowS
+forall a. Show a =&gt; [Elim' a] -&gt; ShowS
+forall a. Show a =&gt; Elim' a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Elim' a -&gt; ShowS
+showsPrec :: Int -&gt; Elim' a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Elim' a -&gt; String
+show :: Elim' a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Elim' a] -&gt; ShowS
+showList :: [Elim' a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681769464"><span id="local-6989586621681769468"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Elim' a -&gt; Elim' b)
+-&gt; (forall a b. a -&gt; Elim' b -&gt; Elim' a) -&gt; Functor Elim'
+forall a b. a -&gt; Elim' b -&gt; Elim' a
+forall a b. (a -&gt; b) -&gt; Elim' a -&gt; Elim' b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Elim' a -&gt; Elim' b
+fmap :: forall a b. (a -&gt; b) -&gt; Elim' a -&gt; Elim' b
+$c&lt;$ :: forall a b. a -&gt; Elim' b -&gt; Elim' a
+&lt;$ :: forall a b. a -&gt; Elim' b -&gt; Elim' a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681769474"><span id="local-6989586621681769480"><span id="local-6989586621681769489"><span id="local-6989586621681769494"><span id="local-6989586621681769497"><span id="local-6989586621681769500"><span id="local-6989586621681769503"><span id="local-6989586621681769506"><span id="local-6989586621681769509"><span id="local-6989586621681769512"><span id="local-6989586621681769515"><span id="local-6989586621681769518"><span id="local-6989586621681769521"><span id="local-6989586621681769526"><span id="local-6989586621681769531"><span id="local-6989586621681769536"><span id="local-6989586621681769541"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; Elim' m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Elim' a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Elim' a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Elim' a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Elim' a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Elim' a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Elim' a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Elim' a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Elim' a -&gt; a)
+-&gt; (forall a. Elim' a -&gt; [a])
+-&gt; (forall a. Elim' a -&gt; Bool)
+-&gt; (forall a. Elim' a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; Elim' a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; Elim' a -&gt; a)
+-&gt; (forall a. Ord a =&gt; Elim' a -&gt; a)
+-&gt; (forall a. Num a =&gt; Elim' a -&gt; a)
+-&gt; (forall a. Num a =&gt; Elim' a -&gt; a)
+-&gt; Foldable Elim'
+forall a. Eq a =&gt; a -&gt; Elim' a -&gt; Bool
+forall a. Num a =&gt; Elim' a -&gt; a
+forall a. Ord a =&gt; Elim' a -&gt; a
+forall m. Monoid m =&gt; Elim' m -&gt; m
+forall a. Elim' a -&gt; Bool
+forall a. Elim' a -&gt; Int
+forall a. Elim' a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; Elim' a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Elim' a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall m. Monoid m =&gt; Elim' m -&gt; m
+fold :: forall m. Monoid m =&gt; Elim' m -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Elim' a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Elim' a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Elim' a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Elim' a -&gt; m
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Elim' a -&gt; b
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Elim' a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Elim' a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Elim' a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Elim' a -&gt; a
+$ctoList :: forall a. Elim' a -&gt; [a]
+toList :: forall a. Elim' a -&gt; [a]
+$cnull :: forall a. Elim' a -&gt; Bool
+null :: forall a. Elim' a -&gt; Bool
+$clength :: forall a. Elim' a -&gt; Int
+length :: forall a. Elim' a -&gt; Int
+$celem :: forall a. Eq a =&gt; a -&gt; Elim' a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; Elim' a -&gt; Bool
+$cmaximum :: forall a. Ord a =&gt; Elim' a -&gt; a
+maximum :: forall a. Ord a =&gt; Elim' a -&gt; a
+$cminimum :: forall a. Ord a =&gt; Elim' a -&gt; a
+minimum :: forall a. Ord a =&gt; Elim' a -&gt; a
+$csum :: forall a. Num a =&gt; Elim' a -&gt; a
+sum :: forall a. Num a =&gt; Elim' a -&gt; a
+$cproduct :: forall a. Num a =&gt; Elim' a -&gt; a
+product :: forall a. Num a =&gt; Elim' a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681769554"><span id="local-6989586621681769565"><span id="local-6989586621681769571"><span id="local-6989586621681769576"><span class="annot"><span class="annottext">Functor Elim'
+Foldable Elim'
+(Functor Elim', Foldable Elim') =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; Elim' a -&gt; f (Elim' b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    Elim' (f a) -&gt; f (Elim' a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; Elim' a -&gt; m (Elim' b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; Elim' (m a) -&gt; m (Elim' a))
+-&gt; Traversable Elim'
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; Elim' (m a) -&gt; m (Elim' a)
+forall (f :: * -&gt; *) a. Applicative f =&gt; Elim' (f a) -&gt; f (Elim' a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Elim' a -&gt; m (Elim' b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Elim' a -&gt; f (Elim' b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Elim' a -&gt; f (Elim' b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Elim' a -&gt; f (Elim' b)
+$csequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; Elim' (f a) -&gt; f (Elim' a)
+sequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; Elim' (f a) -&gt; f (Elim' a)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Elim' a -&gt; m (Elim' b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Elim' a -&gt; m (Elim' b)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; Elim' (m a) -&gt; m (Elim' a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; Elim' (m a) -&gt; m (Elim' a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- | This instance cheats on 'Proj', use with care.</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   'Proj's are always assumed to be 'UserWritten', since they have no 'ArgInfo'.</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--   Same for IApply</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681769370"><span id="local-6989586621681769588"><span class="annot"><a href="Agda.Syntax.Common.html#LensOrigin"><span class="hs-identifier hs-type">LensOrigin</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769370"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-28"></span><span>  </span><span id="local-6989586621681769595"><span class="annot"><span class="annottext">getOrigin :: Elim' a -&gt; Origin
+</span><a href="#local-6989586621681769595"><span class="hs-identifier hs-var hs-var hs-var">getOrigin</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681769597"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769597"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Origin
+forall a. LensOrigin a =&gt; a -&gt; Origin
+</span><a href="Agda.Syntax.Common.html#getOrigin"><span class="hs-identifier hs-var">getOrigin</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769597"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.html#getOrigin"><span class="hs-identifier hs-var">getOrigin</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Origin
+</span><a href="Agda.Syntax.Common.html#UserWritten"><span class="hs-identifier hs-var">UserWritten</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.html#getOrigin"><span class="hs-identifier hs-var">getOrigin</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Origin
+</span><a href="Agda.Syntax.Common.html#UserWritten"><span class="hs-identifier hs-var">UserWritten</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span id="local-6989586621681769599"><span class="annot"><span class="annottext">mapOrigin :: (Origin -&gt; Origin) -&gt; Elim' a -&gt; Elim' a
+</span><a href="#local-6989586621681769599"><span class="hs-identifier hs-var hs-var hs-var">mapOrigin</span></a></span></span><span> </span><span id="local-6989586621681769601"><span class="annot"><span class="annottext">Origin -&gt; Origin
+</span><a href="#local-6989586621681769601"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681769602"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769602"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Elim' a
+forall a. Arg a -&gt; Elim' a
+</span><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-var">Apply</span></a></span><span> </span><span class="annot"><span class="annottext">(Arg a -&gt; Elim' a) -&gt; Arg a -&gt; Elim' a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Origin -&gt; Origin) -&gt; Arg a -&gt; Arg a
+forall a. LensOrigin a =&gt; (Origin -&gt; Origin) -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#mapOrigin"><span class="hs-identifier hs-var">mapOrigin</span></a></span><span> </span><span class="annot"><span class="annottext">Origin -&gt; Origin
+</span><a href="#local-6989586621681769601"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769602"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.html#mapOrigin"><span class="hs-identifier hs-var">mapOrigin</span></a></span><span> </span><span id="local-6989586621681769603"><span class="annot"><span class="annottext">Origin -&gt; Origin
+</span><a href="#local-6989586621681769603"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681769604"><span class="annot"><span class="annottext">e :: Elim' a
+</span><a href="#local-6989586621681769604"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621681769604"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.html#mapOrigin"><span class="hs-identifier hs-var">mapOrigin</span></a></span><span> </span><span id="local-6989586621681769605"><span class="annot"><span class="annottext">Origin -&gt; Origin
+</span><a href="#local-6989586621681769605"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681769606"><span class="annot"><span class="annottext">e :: Elim' a
+</span><a href="#local-6989586621681769606"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621681769606"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="annot"><span class="hs-comment">-- | Drop 'Apply' constructor. (Safe)</span></span><span>
+</span><span id="line-36"></span><span id="local-6989586621681769377"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isApplyElim"><span class="hs-identifier hs-type">isApplyElim</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769377"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769377"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-37"></span><span id="isApplyElim"><span class="annot"><span class="annottext">isApplyElim :: forall a. Elim' a -&gt; Maybe (Arg a)
+</span><a href="Agda.Syntax.Internal.Elim.html#isApplyElim"><span class="hs-identifier hs-var hs-var">isApplyElim</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681769608"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769608"><span class="hs-identifier hs-var">u</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Maybe (Arg a)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769608"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-38"></span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isApplyElim"><span class="hs-identifier hs-var">isApplyElim</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (Arg a)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-39"></span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isApplyElim"><span class="hs-identifier hs-var">isApplyElim</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681769609"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769609"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Maybe (Arg a)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Arg a
+forall a. a -&gt; Arg a
+</span><a href="Agda.Syntax.Common.html#defaultArg"><span class="hs-identifier hs-var">defaultArg</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769609"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span id="local-6989586621681769382"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isApplyElim%27"><span class="hs-identifier hs-type">isApplyElim'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Empty.html#Empty"><span class="hs-identifier hs-type">Empty</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769382"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769382"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-42"></span><span id="isApplyElim%27"><span class="annot"><span class="annottext">isApplyElim' :: forall a. Empty -&gt; Elim' a -&gt; Arg a
+</span><a href="Agda.Syntax.Internal.Elim.html#isApplyElim%27"><span class="hs-identifier hs-var hs-var">isApplyElim'</span></a></span></span><span> </span><span id="local-6989586621681769612"><span class="annot"><span class="annottext">Empty
+</span><a href="#local-6989586621681769612"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Maybe (Arg a) -&gt; Arg a
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Empty -&gt; Arg a
+forall a. Empty -&gt; a
+</span><a href="Agda.Utils.Empty.html#absurd"><span class="hs-identifier hs-var">absurd</span></a></span><span> </span><span class="annot"><span class="annottext">Empty
+</span><a href="#local-6989586621681769612"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (Arg a) -&gt; Arg a)
+-&gt; (Elim' a -&gt; Maybe (Arg a)) -&gt; Elim' a -&gt; Arg a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Elim' a -&gt; Maybe (Arg a)
+forall a. Elim' a -&gt; Maybe (Arg a)
+</span><a href="Agda.Syntax.Internal.Elim.html#isApplyElim"><span class="hs-identifier hs-var">isApplyElim</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="annot"><span class="hs-comment">-- | Only 'Apply' variant.</span></span><span>
+</span><span id="line-45"></span><span id="local-6989586621681769616"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isProperApplyElim"><span class="hs-identifier hs-type">isProperApplyElim</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769616"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-46"></span><span id="isProperApplyElim"><span class="annot"><span class="annottext">isProperApplyElim :: forall a. Elim' a -&gt; Bool
+</span><a href="Agda.Syntax.Internal.Elim.html#isProperApplyElim"><span class="hs-identifier hs-var hs-var">isProperApplyElim</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="annot"><span class="hs-comment">-- | Drop 'Apply' constructors. (Safe)</span></span><span>
+</span><span id="line-52"></span><span id="local-6989586621681769390"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#allApplyElims"><span class="hs-identifier hs-type">allApplyElims</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769390"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769390"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-53"></span><span id="allApplyElims"><span class="annot"><span class="annottext">allApplyElims :: forall a. [Elim' a] -&gt; Maybe [Arg a]
+</span><a href="Agda.Syntax.Internal.Elim.html#allApplyElims"><span class="hs-identifier hs-var hs-var">allApplyElims</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Elim' a -&gt; Maybe (Arg a)) -&gt; [Elim' a] -&gt; Maybe [Arg a]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">Elim' a -&gt; Maybe (Arg a)
+forall a. Elim' a -&gt; Maybe (Arg a)
+</span><a href="Agda.Syntax.Internal.Elim.html#isApplyElim"><span class="hs-identifier hs-var">isApplyElim</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><span class="hs-comment">-- | Split at first non-'Apply'</span></span><span>
+</span><span id="line-56"></span><span id="local-6989586621681769392"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#splitApplyElims"><span class="hs-identifier hs-type">splitApplyElims</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769392"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769392"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769392"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>
+</span><span id="line-57"></span><span id="splitApplyElims"><span class="annot"><span class="annottext">splitApplyElims :: forall a. [Elim' a] -&gt; ([Arg a], [Elim' a])
+</span><a href="Agda.Syntax.Internal.Elim.html#splitApplyElims"><span class="hs-identifier hs-var hs-var">splitApplyElims</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681769627"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769627"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681769628"><span class="annot"><span class="annottext">[Elim' a]
+</span><a href="#local-6989586621681769628"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Arg a] -&gt; [Arg a])
+-&gt; ([Arg a], [Elim' a]) -&gt; ([Arg a], [Elim' a])
+forall a b c. (a -&gt; b) -&gt; (a, c) -&gt; (b, c)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769627"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; [Arg a] -&gt; [Arg a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(([Arg a], [Elim' a]) -&gt; ([Arg a], [Elim' a]))
+-&gt; ([Arg a], [Elim' a]) -&gt; ([Arg a], [Elim' a])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Elim' a] -&gt; ([Arg a], [Elim' a])
+forall a. [Elim' a] -&gt; ([Arg a], [Elim' a])
+</span><a href="Agda.Syntax.Internal.Elim.html#splitApplyElims"><span class="hs-identifier hs-var">splitApplyElims</span></a></span><span> </span><span class="annot"><span class="annottext">[Elim' a]
+</span><a href="#local-6989586621681769628"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-58"></span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#splitApplyElims"><span class="hs-identifier hs-var">splitApplyElims</span></a></span><span> </span><span id="local-6989586621681769630"><span class="annot"><span class="annottext">[Elim' a]
+</span><a href="#local-6989586621681769630"><span class="hs-identifier hs-var">es</span></a></span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Elim' a]
+</span><a href="#local-6989586621681769630"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">class</span><span> </span><span id="IsProjElim"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IsProjElim"><span class="hs-identifier hs-var">IsProjElim</span></a></span></span><span> </span><span id="local-6989586621681769401"><span class="annot"><a href="#local-6989586621681769401"><span class="hs-identifier hs-type">e</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-61"></span><span>  </span><span id="isProjElim"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isProjElim"><span class="hs-identifier hs-type">isProjElim</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681769401"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#ProjOrigin"><span class="hs-identifier hs-type">ProjOrigin</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681769402"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IsProjElim"><span class="hs-identifier hs-type">IsProjElim</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769402"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681769635"><span class="annot"><span class="annottext">isProjElim :: Elim' a -&gt; Maybe (ProjOrigin, QName)
+</span><a href="Agda.Syntax.Internal.Elim.html#isProjElim"><span class="hs-identifier hs-var hs-var hs-var">isProjElim</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span> </span><span id="local-6989586621681769636"><span class="annot"><span class="annottext">ProjOrigin
+</span><a href="#local-6989586621681769636"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621681769637"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681769637"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ProjOrigin, QName) -&gt; Maybe (ProjOrigin, QName)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProjOrigin
+</span><a href="#local-6989586621681769636"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681769637"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isProjElim"><span class="hs-identifier hs-var">isProjElim</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (ProjOrigin, QName)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#isProjElim"><span class="hs-identifier hs-var">isProjElim</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (ProjOrigin, QName)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><span class="hs-comment">-- | Discards @Proj f@ entries.</span></span><span>
+</span><span id="line-69"></span><span id="local-6989586621681769403"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#argsFromElims"><span class="hs-identifier hs-type">argsFromElims</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769403"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769403"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-70"></span><span id="argsFromElims"><span class="annot"><span class="annottext">argsFromElims :: forall t. [Elim' t] -&gt; [Arg t]
+</span><a href="Agda.Syntax.Internal.Elim.html#argsFromElims"><span class="hs-identifier hs-var hs-var">argsFromElims</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Elim' t -&gt; Maybe (Arg t)) -&gt; [Elim' t] -&gt; [Arg t]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="annot"><span class="annottext">Elim' t -&gt; Maybe (Arg t)
+forall a. Elim' a -&gt; Maybe (Arg a)
+</span><a href="Agda.Syntax.Internal.Elim.html#isApplyElim"><span class="hs-identifier hs-var">isApplyElim</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><span class="hs-comment">-- | Drop 'Proj' constructors. (Safe)</span></span><span>
+</span><span id="line-73"></span><span id="local-6989586621681769407"><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#allProjElims"><span class="hs-identifier hs-type">allProjElims</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769407"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#ProjOrigin"><span class="hs-identifier hs-type">ProjOrigin</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-74"></span><span id="allProjElims"><span class="annot"><span class="annottext">allProjElims :: forall t. [Elim' t] -&gt; Maybe [(ProjOrigin, QName)]
+</span><a href="Agda.Syntax.Internal.Elim.html#allProjElims"><span class="hs-identifier hs-var hs-var">allProjElims</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Elim' t -&gt; Maybe (ProjOrigin, QName))
+-&gt; [Elim' t] -&gt; Maybe [(ProjOrigin, QName)]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">Elim' t -&gt; Maybe (ProjOrigin, QName)
+forall e. IsProjElim e =&gt; e -&gt; Maybe (ProjOrigin, QName)
+</span><a href="Agda.Syntax.Internal.Elim.html#isProjElim"><span class="hs-identifier hs-var">isProjElim</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681769413"><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769413"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#KillRange"><span class="hs-identifier hs-type">KillRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769413"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621681769650"><span class="annot"><span class="annottext">killRange :: KillRangeT (Elim' a)
+</span><a href="#local-6989586621681769650"><span class="hs-identifier hs-var hs-var hs-var">killRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; KillRangeT (Elim' a)
+forall a b. (a -&gt; b) -&gt; Elim' a -&gt; Elim' b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall a. KillRange a =&gt; KillRangeT a
+</span><a href="Agda.Syntax.Position.html#killRange"><span class="hs-identifier hs-var">killRange</span></a></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681769418"><span id="local-6989586621681769654"><span id="local-6989586621681769659"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769418"><span class="hs-identifier hs-type">tm</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769418"><span class="hs-identifier hs-type">tm</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621681769670"><span class="annot"><span class="annottext">prettyPrec :: Int -&gt; Elim' tm -&gt; Doc
+</span><a href="#local-6989586621681769670"><span class="hs-identifier hs-var hs-var hs-var">prettyPrec</span></a></span></span><span> </span><span id="local-6989586621681769672"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681769672"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681769673"><span class="annot"><span class="annottext">Arg tm
+</span><a href="#local-6989586621681769673"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Arg tm -&gt; Doc
+forall a. Pretty a =&gt; Int -&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyPrec"><span class="hs-identifier hs-var">prettyPrec</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681769672"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Arg tm
+</span><a href="#local-6989586621681769673"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyPrec"><span class="hs-identifier hs-var">prettyPrec</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span> </span><span id="local-6989586621681769674"><span class="annot"><span class="annottext">ProjOrigin
+</span><a href="#local-6989586621681769674"><span class="hs-identifier hs-var">_o</span></a></span></span><span> </span><span id="local-6989586621681769675"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681769675"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;.&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681769675"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyPrec"><span class="hs-identifier hs-var">prettyPrec</span></a></span><span> </span><span id="local-6989586621681769678"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681769678"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span> </span><span id="local-6989586621681769679"><span class="annot"><span class="annottext">tm
+</span><a href="#local-6989586621681769679"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681769680"><span class="annot"><span class="annottext">tm
+</span><a href="#local-6989586621681769680"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681769681"><span class="annot"><span class="annottext">tm
+</span><a href="#local-6989586621681769681"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; tm -&gt; Doc
+forall a. Pretty a =&gt; Int -&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyPrec"><span class="hs-identifier hs-var">prettyPrec</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681769678"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">tm
+</span><a href="#local-6989586621681769681"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-83"></span><span class="hs-comment">--  prettyPrec p (IApply x y r) = text &quot;@[&quot; &lt;&gt; prettyPrec 0 x &lt;&gt; text &quot;, &quot; &lt;&gt; prettyPrec 0 y &lt;&gt; text &quot;]&quot; &lt;&gt; prettyPrec p r</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681769431"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681769431"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681769431"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621681769691"><span class="annot"><span class="annottext">rnf :: Elim' a -&gt; ()
+</span><a href="#local-6989586621681769691"><span class="hs-identifier hs-var hs-var hs-var">rnf</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681769693"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769693"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681769693"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span> </span><span id="local-6989586621681769694"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769694"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681769695"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769695"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681769696"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769696"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769694"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769695"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681769696"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-89"></span></pre></body></html>

@@ -1,0 +1,469 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Maintaining a list of favorites of some partially ordered type.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--   Only the best elements are kept.</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--   To avoid name clashes, import this module qualified, as in</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--      import Agda.Utils.Favorites (Favorites)</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--      import qualified Agda.Utils.Favorites as Fav</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html"><span class="hs-identifier">Agda.Utils.Favorites</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">null</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html"><span class="hs-identifier">Agda.Utils.PartialOrd</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="annot"><span class="hs-comment">-- | A list of incomparable favorites.</span></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">newtype</span><span> </span><span id="Favorites"><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-var">Favorites</span></a></span></span><span> </span><span id="local-6989586621681718092"><span class="annot"><a href="#local-6989586621681718092"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Favorites"><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-var">Favorites</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="toList"><span class="annot"><span class="annottext">forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681718092"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681718222"><span id="local-6989586621681718229"><span id="local-6989586621681718235"><span id="local-6989586621681718241"><span id="local-6989586621681718245"><span id="local-6989586621681718249"><span id="local-6989586621681718253"><span id="local-6989586621681718257"><span id="local-6989586621681718261"><span id="local-6989586621681718265"><span id="local-6989586621681718269"><span id="local-6989586621681718273"><span id="local-6989586621681718277"><span id="local-6989586621681718283"><span id="local-6989586621681718289"><span id="local-6989586621681718295"><span id="local-6989586621681718301"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; Favorites m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Favorites a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Favorites a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Favorites a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Favorites a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Favorites a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Favorites a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Favorites a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; Favorites a -&gt; a)
+-&gt; (forall a. Favorites a -&gt; [a])
+-&gt; (forall a. Favorites a -&gt; Bool)
+-&gt; (forall a. Favorites a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; Favorites a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; Favorites a -&gt; a)
+-&gt; (forall a. Ord a =&gt; Favorites a -&gt; a)
+-&gt; (forall a. Num a =&gt; Favorites a -&gt; a)
+-&gt; (forall a. Num a =&gt; Favorites a -&gt; a)
+-&gt; Foldable Favorites
+forall a. Eq a =&gt; a -&gt; Favorites a -&gt; Bool
+forall a. Num a =&gt; Favorites a -&gt; a
+forall a. Ord a =&gt; Favorites a -&gt; a
+forall m. Monoid m =&gt; Favorites m -&gt; m
+forall a. Favorites a -&gt; Bool
+forall a. Favorites a -&gt; Int
+forall a. Favorites a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; Favorites a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Favorites a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall m. Monoid m =&gt; Favorites m -&gt; m
+fold :: forall m. Monoid m =&gt; Favorites m -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Favorites a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Favorites a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Favorites a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Favorites a -&gt; m
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; Favorites a -&gt; b
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Favorites a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; Favorites a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Favorites a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; Favorites a -&gt; a
+$ctoList :: forall a. Favorites a -&gt; [a]
+toList :: forall a. Favorites a -&gt; [a]
+$cnull :: forall a. Favorites a -&gt; Bool
+null :: forall a. Favorites a -&gt; Bool
+$clength :: forall a. Favorites a -&gt; Int
+length :: forall a. Favorites a -&gt; Int
+$celem :: forall a. Eq a =&gt; a -&gt; Favorites a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; Favorites a -&gt; Bool
+$cmaximum :: forall a. Ord a =&gt; Favorites a -&gt; a
+maximum :: forall a. Ord a =&gt; Favorites a -&gt; a
+$cminimum :: forall a. Ord a =&gt; Favorites a -&gt; a
+minimum :: forall a. Ord a =&gt; Favorites a -&gt; a
+$csum :: forall a. Num a =&gt; Favorites a -&gt; a
+sum :: forall a. Num a =&gt; Favorites a -&gt; a
+$cproduct :: forall a. Num a =&gt; Favorites a -&gt; a
+product :: forall a. Num a =&gt; Favorites a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681718326"><span id="local-6989586621681718332"><span id="local-6989586621681718336"><span class="annot"><span class="annottext">Int -&gt; Favorites a -&gt; ShowS
+[Favorites a] -&gt; ShowS
+Favorites a -&gt; String
+(Int -&gt; Favorites a -&gt; ShowS)
+-&gt; (Favorites a -&gt; String)
+-&gt; ([Favorites a] -&gt; ShowS)
+-&gt; Show (Favorites a)
+forall a. Show a =&gt; Int -&gt; Favorites a -&gt; ShowS
+forall a. Show a =&gt; [Favorites a] -&gt; ShowS
+forall a. Show a =&gt; Favorites a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Favorites a -&gt; ShowS
+showsPrec :: Int -&gt; Favorites a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Favorites a -&gt; String
+show :: Favorites a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Favorites a] -&gt; ShowS
+showList :: [Favorites a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681718341"><span id="local-6989586621681718346"><span class="annot"><span class="annottext">Favorites a
+Favorites a -&gt; Bool
+Favorites a -&gt; (Favorites a -&gt; Bool) -&gt; Null (Favorites a)
+forall a. Favorites a
+forall a. a -&gt; (a -&gt; Bool) -&gt; Null a
+forall a. Favorites a -&gt; Bool
+$cempty :: forall a. Favorites a
+empty :: Favorites a
+$cnull :: forall a. Favorites a -&gt; Bool
+null :: Favorites a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Null</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681718354"><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718092"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681718362"><span id="local-6989586621681718367"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Favorites a -&gt; Favorites b)
+-&gt; (forall a b. a -&gt; Favorites b -&gt; Favorites a)
+-&gt; Functor Favorites
+forall a b. a -&gt; Favorites b -&gt; Favorites a
+forall a b. (a -&gt; b) -&gt; Favorites a -&gt; Favorites b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Favorites a -&gt; Favorites b
+fmap :: forall a b. (a -&gt; b) -&gt; Favorites a -&gt; Favorites b
+$c&lt;$ :: forall a b. a -&gt; Favorites b -&gt; Favorites a
+&lt;$ :: forall a b. a -&gt; Favorites b -&gt; Favorites a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- | Equality checking is a bit expensive, since we need to sort!</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--   Maybe use a 'Set' of favorites in the first place?</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681718164"><span id="local-6989586621681718376"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681718164"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718164"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>  </span><span id="local-6989586621681718386"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718386"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621681718387"><span class="annot"><span class="annottext">== :: Favorites a -&gt; Favorites a -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var">==</span></span></span><span> </span><span id="local-6989586621681718388"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718388"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Set a
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Favorites a -&gt; [a]
+forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718386"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set a -&gt; Set a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Set a
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Favorites a -&gt; [a]
+forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718388"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="annot"><span class="hs-comment">-- | Result of comparing a candidate with the current favorites.</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">data</span><span> </span><span id="CompareResult"><span class="annot"><a href="Agda.Utils.Favorites.html#CompareResult"><span class="hs-identifier hs-var">CompareResult</span></a></span></span><span> </span><span id="local-6989586621681718168"><span class="annot"><a href="#local-6989586621681718168"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Dominates"><span class="annot"><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-var">Dominates</span></a></span></span><span>   </span><span class="hs-special">{</span><span> </span><span id="dominated"><span class="annot"><span class="annottext">forall a. CompareResult a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#dominated"><span class="hs-identifier hs-var hs-var">dominated</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681718168"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span id="notDominated"><span class="annot"><span class="annottext">forall a. CompareResult a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#notDominated"><span class="hs-identifier hs-var hs-var">notDominated</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681718168"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-comment">-- ^ Great, you are dominating a possibly (empty list of favorites)</span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-comment">--   but there is also a rest that is not dominated.</span><span>
+</span><span id="line-38"></span><span>    </span><span class="hs-comment">--   If @null dominated@, then @notDominated@ is necessarily the</span><span>
+</span><span id="line-39"></span><span>    </span><span class="hs-comment">--   complete list of favorites.</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="IsDominated"><span class="annot"><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-var">IsDominated</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="dominator"><span class="annot"><span class="annottext">forall a. CompareResult a -&gt; a
+</span><a href="Agda.Utils.Favorites.html#dominator"><span class="hs-identifier hs-var hs-var">dominator</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681718168"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Sorry, but you are dominated by that favorite.</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | Gosh, got some pretty @a@ here, compare with my current favorites!</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   Discard it if there is already one that is better or equal.</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   (Skewed conservatively: faithful to the old favorites.)</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--   If there is no match for it, add it, and</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--   dispose of all that are worse than @a@.</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--</span><span>
+</span><span id="line-50"></span><span class="hs-comment">--   We require a partial ordering.  Less is better! (Maybe paradoxically.)</span><span>
+</span><span id="line-51"></span><span id="local-6989586621681718173"><span class="annot"><a href="Agda.Utils.Favorites.html#compareWithFavorites"><span class="hs-identifier hs-type">compareWithFavorites</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718173"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681718173"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718173"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#CompareResult"><span class="hs-identifier hs-type">CompareResult</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718173"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-52"></span><span id="compareWithFavorites"><span class="annot"><span class="annottext">compareWithFavorites :: forall a. PartialOrd a =&gt; a -&gt; Favorites a -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#compareWithFavorites"><span class="hs-identifier hs-var hs-var">compareWithFavorites</span></a></span></span><span> </span><span id="local-6989586621681718398"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718398"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681718399"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718399"><span class="hs-identifier hs-var">favs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; CompareResult a
+</span><a href="#local-6989586621681718400"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; CompareResult a) -&gt; [a] -&gt; CompareResult a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Favorites a -&gt; [a]
+forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718399"><span class="hs-identifier hs-var">favs</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621681718400"><span class="annot"><span class="annottext">loop :: [a] -&gt; CompareResult a
+</span><a href="#local-6989586621681718400"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; CompareResult a
+forall a. [a] -&gt; [a] -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-var">Dominates</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><a href="#local-6989586621681718400"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span id="local-6989586621681718401"><span class="annot"><span class="annottext">as :: [a]
+</span><a href="#local-6989586621681718401"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621681718402"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681718403"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718403"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Comparable a
+forall a. PartialOrd a =&gt; Comparable a
+</span><a href="Agda.Utils.PartialOrd.html#comparable"><span class="hs-identifier hs-var">comparable</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718398"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLT"><span class="hs-identifier hs-var">POLT</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; CompareResult a -&gt; CompareResult a
+forall {a}. a -&gt; CompareResult a -&gt; CompareResult a
+</span><a href="#local-6989586621681718406"><span class="hs-identifier hs-var">dominates</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">(CompareResult a -&gt; CompareResult a)
+-&gt; CompareResult a -&gt; CompareResult a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; CompareResult a
+</span><a href="#local-6989586621681718400"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718403"><span class="hs-identifier hs-var">bs</span></a></span><span>  </span><span class="hs-comment">-- @a@ is a new favorite, bye-bye, @b@</span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POLE"><span class="hs-identifier hs-var">POLE</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; CompareResult a -&gt; CompareResult a
+forall {a}. a -&gt; CompareResult a -&gt; CompareResult a
+</span><a href="#local-6989586621681718406"><span class="hs-identifier hs-var">dominates</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">(CompareResult a -&gt; CompareResult a)
+-&gt; CompareResult a -&gt; CompareResult a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; CompareResult a
+</span><a href="#local-6989586621681718400"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718403"><span class="hs-identifier hs-var">bs</span></a></span><span>  </span><span class="hs-comment">-- ditto</span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POEQ"><span class="hs-identifier hs-var">POEQ</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; CompareResult a
+forall a. a -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-var">IsDominated</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span><span>          </span><span class="hs-comment">-- @b@ is as least as good as @a@, bye-bye, @a@</span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGE"><span class="hs-identifier hs-var">POGE</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; CompareResult a
+forall a. a -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-var">IsDominated</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span><span>          </span><span class="hs-comment">-- ditto</span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POGT"><span class="hs-identifier hs-var">POGT</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; CompareResult a
+forall a. a -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-var">IsDominated</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span><span>          </span><span class="hs-comment">-- ditto</span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><span class="annottext">PartialOrdering
+</span><a href="Agda.Utils.PartialOrd.html#POAny"><span class="hs-identifier hs-var">POAny</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; CompareResult a -&gt; CompareResult a
+forall {a}. a -&gt; CompareResult a -&gt; CompareResult a
+</span><a href="#local-6989586621681718412"><span class="hs-identifier hs-var">doesnotd</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718402"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">(CompareResult a -&gt; CompareResult a)
+-&gt; CompareResult a -&gt; CompareResult a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; CompareResult a
+</span><a href="#local-6989586621681718400"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718403"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="hs-comment">-- don't know, compare with my other favorites</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-comment">-- add an outperformed favorite</span><span>
+</span><span id="line-62"></span><span>  </span><span id="local-6989586621681718406"><span class="annot"><span class="annottext">dominates :: a -&gt; CompareResult a -&gt; CompareResult a
+</span><a href="#local-6989586621681718406"><span class="hs-identifier hs-var hs-var">dominates</span></a></span></span><span> </span><span id="local-6989586621681718413"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718413"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-type">Dominates</span></a></span><span> </span><span id="local-6989586621681718414"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718414"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621681718415"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718415"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; CompareResult a
+forall a. [a] -&gt; [a] -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-var">Dominates</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718413"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718414"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718415"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="#local-6989586621681718406"><span class="hs-identifier hs-var">dominates</span></a></span><span> </span><span id="local-6989586621681718416"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718416"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681718417"><span class="annot"><span class="annottext">r :: CompareResult a
+</span><a href="#local-6989586621681718417"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-type">IsDominated</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompareResult a
+</span><a href="#local-6989586621681718417"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-comment">-- add an uncomparable favorite</span><span>
+</span><span id="line-65"></span><span>  </span><span id="local-6989586621681718412"><span class="annot"><span class="annottext">doesnotd :: a -&gt; CompareResult a -&gt; CompareResult a
+</span><a href="#local-6989586621681718412"><span class="hs-identifier hs-var hs-var">doesnotd</span></a></span></span><span>  </span><span id="local-6989586621681718418"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718418"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-type">Dominates</span></a></span><span> </span><span id="local-6989586621681718419"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718419"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621681718420"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718420"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; CompareResult a
+forall a. [a] -&gt; [a] -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-var">Dominates</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718419"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718418"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718420"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><a href="#local-6989586621681718412"><span class="hs-identifier hs-var">doesnotd</span></a></span><span>  </span><span id="local-6989586621681718421"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718421"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681718422"><span class="annot"><span class="annottext">r :: CompareResult a
+</span><a href="#local-6989586621681718422"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-type">IsDominated</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompareResult a
+</span><a href="#local-6989586621681718422"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- | Compare a new set of favorites to an old one and discard</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--   the new favorites that are dominated by the old ones</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--   and vice verse.</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--   (Skewed conservatively: faithful to the old favorites.)</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--   @compareFavorites new old = (new', old')@</span><span>
+</span><span id="line-74"></span><span id="local-6989586621681718185"><span class="annot"><a href="Agda.Utils.Favorites.html#compareFavorites"><span class="hs-identifier hs-type">compareFavorites</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718185"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718185"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718185"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-75"></span><span>                    </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718185"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718185"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-76"></span><span id="compareFavorites"><span class="annot"><span class="annottext">compareFavorites :: forall a.
+PartialOrd a =&gt;
+Favorites a -&gt; Favorites a -&gt; (Favorites a, Favorites a)
+</span><a href="Agda.Utils.Favorites.html#compareFavorites"><span class="hs-identifier hs-var hs-var">compareFavorites</span></a></span></span><span> </span><span id="local-6989586621681718428"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718428"><span class="hs-identifier hs-var">new</span></a></span></span><span> </span><span id="local-6989586621681718429"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718429"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([a] -&gt; Favorites a)
+-&gt; ([a], Favorites a) -&gt; (Favorites a, Favorites a)
+forall a b c. (a -&gt; b) -&gt; (a, c) -&gt; (b, c)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Favorites a
+forall a. [a] -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-var">Favorites</span></a></span><span> </span><span class="annot"><span class="annottext">(([a], Favorites a) -&gt; (Favorites a, Favorites a))
+-&gt; ([a], Favorites a) -&gt; (Favorites a, Favorites a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Favorites a -&gt; ([a], Favorites a)
+forall {a}.
+PartialOrd a =&gt;
+[a] -&gt; Favorites a -&gt; ([a], Favorites a)
+</span><a href="#local-6989586621681718431"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Favorites a -&gt; [a]
+forall a. Favorites a -&gt; [a]
+</span><a href="Agda.Utils.Favorites.html#toList"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718428"><span class="hs-identifier hs-var">new</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718429"><span class="hs-identifier hs-var">old</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621681718431"><span class="annot"><span class="annottext">loop :: [a] -&gt; Favorites a -&gt; ([a], Favorites a)
+</span><a href="#local-6989586621681718431"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>        </span><span id="local-6989586621681718435"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718435"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718435"><span class="hs-identifier hs-var">old</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><a href="#local-6989586621681718431"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681718436"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718436"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681718437"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718437"><span class="hs-identifier hs-var">new</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681718438"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718438"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">a -&gt; Favorites a -&gt; CompareResult a
+forall a. PartialOrd a =&gt; a -&gt; Favorites a -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#compareWithFavorites"><span class="hs-identifier hs-var">compareWithFavorites</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718436"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718438"><span class="hs-identifier hs-var">old</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-comment">-- Better: Discard all @old@ ones that @a@ dominates and keep @a@</span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-type">Dominates</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681718439"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718439"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">([a] -&gt; [a]) -&gt; ([a], Favorites a) -&gt; ([a], Favorites a)
+forall a b c. (a -&gt; b) -&gt; (a, c) -&gt; (b, c)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718436"><span class="hs-identifier hs-var">a</span></a></span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(([a], Favorites a) -&gt; ([a], Favorites a))
+-&gt; ([a], Favorites a) -&gt; ([a], Favorites a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Favorites a -&gt; ([a], Favorites a)
+</span><a href="#local-6989586621681718431"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718437"><span class="hs-identifier hs-var">new</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a] -&gt; Favorites a
+forall a. [a] -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-var">Favorites</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718439"><span class="hs-identifier hs-var">old</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>    </span><span class="hs-comment">-- Not better:  Discard @a@</span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-type">IsDominated</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Favorites a -&gt; ([a], Favorites a)
+</span><a href="#local-6989586621681718431"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718437"><span class="hs-identifier hs-var">new</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718438"><span class="hs-identifier hs-var">old</span></a></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span id="local-6989586621681718193"><span class="annot"><a href="Agda.Utils.Favorites.html#unionCompared"><span class="hs-identifier hs-type">unionCompared</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718193"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718193"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718193"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-85"></span><span id="unionCompared"><span class="annot"><span class="annottext">unionCompared :: forall a. (Favorites a, Favorites a) -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#unionCompared"><span class="hs-identifier hs-var hs-var">unionCompared</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span id="local-6989586621681718441"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718441"><span class="hs-identifier hs-var">new</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span id="local-6989586621681718442"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718442"><span class="hs-identifier hs-var">old</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Favorites a
+forall a. [a] -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-var">Favorites</span></a></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; Favorites a) -&gt; [a] -&gt; Favorites a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718441"><span class="hs-identifier hs-var">new</span></a></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; [a]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718442"><span class="hs-identifier hs-var">old</span></a></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="annot"><span class="hs-comment">-- | After comparing, do the actual insertion.</span></span><span>
+</span><span id="line-88"></span><span id="local-6989586621681718196"><span class="annot"><a href="Agda.Utils.Favorites.html#insertCompared"><span class="hs-identifier hs-type">insertCompared</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681718196"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718196"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#CompareResult"><span class="hs-identifier hs-type">CompareResult</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718196"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718196"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-89"></span><span id="insertCompared"><span class="annot"><span class="annottext">insertCompared :: forall a. a -&gt; Favorites a -&gt; CompareResult a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#insertCompared"><span class="hs-identifier hs-var hs-var">insertCompared</span></a></span></span><span> </span><span id="local-6989586621681718444"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718444"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Dominates"><span class="hs-identifier hs-type">Dominates</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681718445"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718445"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Favorites a
+forall a. [a] -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-var">Favorites</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718444"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718445"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span class="annot"><a href="Agda.Utils.Favorites.html#insertCompared"><span class="hs-identifier hs-var">insertCompared</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681718446"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718446"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#IsDominated"><span class="hs-identifier hs-type">IsDominated</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718446"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- | Compare, then insert accordingly.</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--   @insert a l = insertCompared a l (compareWithFavorites a l)@</span><span>
+</span><span id="line-94"></span><span id="local-6989586621681718198"><span class="annot"><a href="Agda.Utils.Favorites.html#insert"><span class="hs-identifier hs-type">insert</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718198"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681718198"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718198"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718198"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-95"></span><span id="insert"><span class="annot"><span class="annottext">insert :: forall a. PartialOrd a =&gt; a -&gt; Favorites a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#insert"><span class="hs-identifier hs-var hs-var">insert</span></a></span></span><span> </span><span id="local-6989586621681718450"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718450"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681718451"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718451"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Favorites a -&gt; CompareResult a -&gt; Favorites a
+forall a. a -&gt; Favorites a -&gt; CompareResult a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#insertCompared"><span class="hs-identifier hs-var">insertCompared</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718450"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718451"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Favorites a -&gt; CompareResult a
+forall a. PartialOrd a =&gt; a -&gt; Favorites a -&gt; CompareResult a
+</span><a href="Agda.Utils.Favorites.html#compareWithFavorites"><span class="hs-identifier hs-var">compareWithFavorites</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681718450"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718451"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="annot"><span class="hs-comment">-- | Insert all the favorites from the first list into the second.</span></span><span>
+</span><span id="line-98"></span><span id="local-6989586621681718200"><span class="annot"><a href="Agda.Utils.Favorites.html#union"><span class="hs-identifier hs-type">union</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718200"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718200"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718200"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718200"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-99"></span><span id="union"><span class="annot"><span class="annottext">union :: forall a. PartialOrd a =&gt; Favorites a -&gt; Favorites a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#union"><span class="hs-identifier hs-var hs-var">union</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span id="local-6989586621681718456"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718456"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681718457"><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718457"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Favorites a -&gt; Favorites a)
+-&gt; Favorites a -&gt; [a] -&gt; Favorites a
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">List.foldr</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Favorites a -&gt; Favorites a
+forall a. PartialOrd a =&gt; a -&gt; Favorites a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#insert"><span class="hs-identifier hs-var">insert</span></a></span><span> </span><span class="annot"><span class="annottext">Favorites a
+</span><a href="#local-6989586621681718457"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681718456"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- | Construct favorites from elements of a partial order.</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--   The result depends on the order of the list if it</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--   contains equal elements, since earlier seen elements</span><span>
+</span><span id="line-104"></span><span class="hs-comment">--   are favored over later seen equals.</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--   The first element of the list is seen first.</span><span>
+</span><span id="line-106"></span><span id="local-6989586621681718202"><span class="annot"><a href="Agda.Utils.Favorites.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718202"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681718202"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718202"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-107"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: forall a. PartialOrd a =&gt; [a] -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#fromList"><span class="hs-identifier hs-var hs-var">fromList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Favorites a -&gt; a -&gt; Favorites a)
+-&gt; Favorites a -&gt; [a] -&gt; Favorites a
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">List.foldl'</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Favorites a -&gt; Favorites a)
+-&gt; Favorites a -&gt; a -&gt; Favorites a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Favorites a -&gt; Favorites a
+forall a. PartialOrd a =&gt; a -&gt; Favorites a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#insert"><span class="hs-identifier hs-var">insert</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Favorites a
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="annot"><span class="hs-comment">-- | 'Favorites' forms a 'Monoid' under 'empty' and 'union.</span></span><span>
+</span><span id="line-110"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681718214"><span id="local-6989586621681718467"><span id="local-6989586621681718471"><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718214"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718214"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621681718477"><span class="annot"><span class="annottext">&lt;&gt; :: Favorites a -&gt; Favorites a -&gt; Favorites a
+</span><span class="hs-operator hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites a -&gt; Favorites a -&gt; Favorites a
+forall a. PartialOrd a =&gt; Favorites a -&gt; Favorites a -&gt; Favorites a
+</span><a href="Agda.Utils.Favorites.html#union"><span class="hs-identifier hs-var">union</span></a></span><span>
+</span><span id="line-112"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681718217"><span id="local-6989586621681718484"><span class="annot"><a href="Agda.Utils.PartialOrd.html#PartialOrd"><span class="hs-identifier hs-type">PartialOrd</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718217"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Favorites.html#Favorites"><span class="hs-identifier hs-type">Favorites</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681718217"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621681718489"><span class="annot"><span class="annottext">mempty :: Favorites a
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites a
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span id="local-6989586621681718491"><span class="annot"><span class="annottext">mappend :: Favorites a -&gt; Favorites a -&gt; Favorites a
+</span><span class="hs-identifier hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Favorites a -&gt; Favorites a -&gt; Favorites a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-115"></span></pre></body></html>

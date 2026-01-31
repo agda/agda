@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Graph.TopSort.html"><span class="hs-identifier">Agda.Utils.Graph.TopSort</span></a></span><span>
+</span><span id="line-4"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Graph.TopSort.html#topSort"><span class="hs-identifier">topSort</span></a></span><span>
+</span><span id="line-5"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Graph.AdjacencyMap.Unidirectional.html"><span class="hs-identifier">Agda.Utils.Graph.AdjacencyMap.Unidirectional</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- | topoligical sort with smallest-numbered available vertex first</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- | input: nodes, edges</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- | output is Nothing if the graph is not a DAG</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--   Note: should be stable to preserve order of generalizable variables. Algorithm due to Richard</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--   Eisenberg, and works by walking over the list left-to-right and moving each node the minimum</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--   distance left to guarantee topological ordering.</span><span>
+</span><span id="line-19"></span><span id="local-6989586621681729547"><span class="annot"><a href="Agda.Utils.Graph.TopSort.html#topSort"><span class="hs-identifier hs-type">topSort</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681729547"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="#local-6989586621681729547"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681729547"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681729547"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681729547"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-20"></span><span id="topSort"><span class="annot"><span class="annottext">topSort :: forall n. Ord n =&gt; Set n -&gt; [(n, n)] -&gt; Maybe [n]
+</span><a href="Agda.Utils.Graph.TopSort.html#topSort"><span class="hs-identifier hs-var hs-var">topSort</span></a></span></span><span> </span><span id="local-6989586621681729614"><span class="annot"><span class="annottext">Set n
+</span><a href="#local-6989586621681729614"><span class="hs-identifier hs-var">nodes</span></a></span></span><span> </span><span id="local-6989586621681729615"><span class="annot"><span class="annottext">[(n, n)]
+</span><a href="#local-6989586621681729615"><span class="hs-identifier hs-var">edges</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))] -&gt; [n] -&gt; Maybe [n]
+</span><a href="#local-6989586621681729616"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set n -&gt; [n]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set n
+</span><a href="#local-6989586621681729614"><span class="hs-identifier hs-var">nodes</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-comment">-- #4253: The input edges do not necessarily include transitive dependencies, so take transitive</span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-comment">--        closure before sorting.</span><span>
+</span><span id="line-24"></span><span>    </span><span id="local-6989586621681729618"><span class="annot"><span class="annottext">w :: Maybe ()
+</span><a href="#local-6989586621681729618"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; Maybe ()
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- () is not a good edge label since it counts as a &quot;zero&quot; edge and will be ignored</span><span>
+</span><span id="line-25"></span><span>    </span><span id="local-6989586621681729619"><span class="annot"><span class="annottext">g :: Graph n (Maybe ())
+</span><a href="#local-6989586621681729619"><span class="hs-identifier hs-var hs-var">g</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Graph n (Maybe ()) -&gt; Graph n (Maybe ())
+forall n e. (Ord n, Eq e, StarSemiRing e) =&gt; Graph n e -&gt; Graph n e
+</span><a href="Agda.Utils.Graph.AdjacencyMap.Unidirectional.html#transitiveClosure"><span class="hs-identifier hs-var">G.transitiveClosure</span></a></span><span> </span><span class="annot"><span class="annottext">(Graph n (Maybe ()) -&gt; Graph n (Maybe ()))
+-&gt; Graph n (Maybe ()) -&gt; Graph n (Maybe ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-26"></span><span>               </span><span class="annot"><span class="annottext">Set n -&gt; Graph n (Maybe ())
+forall n e. Ord n =&gt; Set n -&gt; Graph n e
+</span><a href="Agda.Utils.Graph.AdjacencyMap.Unidirectional.html#fromNodeSet"><span class="hs-identifier hs-var">G.fromNodeSet</span></a></span><span> </span><span class="annot"><span class="annottext">Set n
+</span><a href="#local-6989586621681729614"><span class="hs-identifier hs-var">nodes</span></a></span><span> </span><span class="annot"><span class="annottext">Graph n (Maybe ()) -&gt; Graph n (Maybe ()) -&gt; Graph n (Maybe ())
+forall n e. Ord n =&gt; Graph n e -&gt; Graph n e -&gt; Graph n e
+</span><a href="Agda.Utils.Graph.AdjacencyMap.Unidirectional.html#union"><span class="hs-operator hs-var">`G.union`</span></a></span><span>
+</span><span id="line-27"></span><span>               </span><span class="annot"><span class="annottext">[Edge n (Maybe ())] -&gt; Graph n (Maybe ())
+forall n e. Ord n =&gt; [Edge n e] -&gt; Graph n e
+</span><a href="Agda.Utils.Graph.AdjacencyMap.Unidirectional.html#fromEdges"><span class="hs-identifier hs-var">G.fromEdges</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">n -&gt; n -&gt; Maybe () -&gt; Edge n (Maybe ())
+forall n e. n -&gt; n -&gt; e -&gt; Edge n e
+</span><a href="Agda.Utils.Graph.AdjacencyMap.Unidirectional.html#Edge"><span class="hs-identifier hs-var">G.Edge</span></a></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729625"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729626"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe ()
+</span><a href="#local-6989586621681729618"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681729625"><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729625"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681729626"><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729626"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[(n, n)]
+</span><a href="#local-6989586621681729615"><span class="hs-identifier hs-var">edges</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-comment">-- Only the keys of these maps are used.</span><span>
+</span><span id="line-29"></span><span>    </span><span id="local-6989586621681729627"><span class="annot"><span class="annottext">deps :: n -&gt; Map n (Maybe ())
+</span><a href="#local-6989586621681729627"><span class="hs-identifier hs-var hs-var">deps</span></a></span></span><span> </span><span id="local-6989586621681729628"><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729628"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Graph n (Maybe ()) -&gt; Map n (Map n (Maybe ()))
+forall n e. Graph n e -&gt; Map n (Map n e)
+</span><a href="Agda.Utils.Graph.AdjacencyMap.Unidirectional.html#graph"><span class="hs-identifier hs-var">G.graph</span></a></span><span> </span><span class="annot"><span class="annottext">Graph n (Maybe ())
+</span><a href="#local-6989586621681729619"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">Map n (Map n (Maybe ())) -&gt; n -&gt; Map n (Maybe ())
+forall k a. Ord k =&gt; Map k a -&gt; k -&gt; a
+</span><span class="hs-operator hs-var">Map.!</span></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729628"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-comment">-- acc: Already sorted nodes in reverse order paired with accumulated set of nodes that must</span><span>
+</span><span id="line-32"></span><span>    </span><span class="hs-comment">-- come before it</span><span>
+</span><span id="line-33"></span><span>    </span><span id="local-6989586621681729616"><span class="annot"><span class="annottext">go :: [(n, Map n (Maybe ()))] -&gt; [n] -&gt; Maybe [n]
+</span><a href="#local-6989586621681729616"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681729631"><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729631"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[n] -&gt; Maybe [n]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">([n] -&gt; Maybe [n]) -&gt; [n] -&gt; Maybe [n]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[n] -&gt; [n]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">([n] -&gt; [n]) -&gt; [n] -&gt; [n]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((n, Map n (Maybe ())) -&gt; n) -&gt; [(n, Map n (Maybe ()))] -&gt; [n]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(n, Map n (Maybe ())) -&gt; n
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729631"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><a href="#local-6989586621681729616"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681729634"><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729634"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681729635"><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729635"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681729636"><span class="annot"><span class="annottext">[n]
+</span><a href="#local-6989586621681729636"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))] -&gt; [n] -&gt; Maybe [n]
+</span><a href="#local-6989586621681729616"><span class="hs-operator hs-var">`go`</span></a></span><span> </span><span class="annot"><span class="annottext">[n]
+</span><a href="#local-6989586621681729636"><span class="hs-identifier hs-var">ns</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(n, Map n (Maybe ()))] -&gt; Maybe [n])
+-&gt; Maybe [(n, Map n (Maybe ()))] -&gt; Maybe [n]
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">n -&gt; [(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729638"><span class="hs-identifier hs-var">insert</span></a></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729635"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729634"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>    </span><span id="local-6989586621681729638"><span class="annot"><span class="annottext">insert :: n -&gt; [(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729638"><span class="hs-identifier hs-var hs-var">insert</span></a></span></span><span> </span><span id="local-6989586621681729639"><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729639"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729639"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">n -&gt; Map n (Maybe ())
+</span><a href="#local-6989586621681729627"><span class="hs-identifier hs-var">deps</span></a></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729639"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><a href="#local-6989586621681729638"><span class="hs-identifier hs-var">insert</span></a></span><span> </span><span id="local-6989586621681729640"><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729640"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681729641"><span class="annot"><span class="annottext">bs0 :: [(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729641"><span class="hs-identifier hs-var">bs0</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681729642"><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729642"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681729643"><span class="annot"><span class="annottext">Map n (Maybe ())
+</span><a href="#local-6989586621681729643"><span class="hs-identifier hs-var">before_b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681729644"><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729644"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681729645"><span class="hs-identifier hs-var">before</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681729647"><span class="hs-identifier hs-var">after</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [(n, Map n (Maybe ()))]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-39"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681729645"><span class="hs-identifier hs-var">before</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729642"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ()) -&gt; Map n (Maybe ()) -&gt; Map n (Maybe ())
+forall k a. Ord k =&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.union</span></span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ())
+</span><a href="#local-6989586621681729649"><span class="hs-identifier hs-var">before_a</span></a></span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ())
+</span><a href="#local-6989586621681729643"><span class="hs-identifier hs-var">before_b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(n, Map n (Maybe ()))
+-&gt; [(n, Map n (Maybe ()))] -&gt; [(n, Map n (Maybe ()))]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(n, Map n (Maybe ()))] -&gt; [(n, Map n (Maybe ()))])
+-&gt; Maybe [(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">n -&gt; [(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729638"><span class="hs-identifier hs-var">insert</span></a></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729640"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729644"><span class="hs-identifier hs-var">bs</span></a></span><span>  </span><span class="hs-comment">-- a must come before b</span><span>
+</span><span id="line-40"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">([(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))])
+-&gt; [(n, Map n (Maybe ()))] -&gt; Maybe [(n, Map n (Maybe ()))]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729640"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ()) -&gt; Map n (Maybe ()) -&gt; Map n (Maybe ())
+forall k a. Ord k =&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.union</span></span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ())
+</span><a href="#local-6989586621681729649"><span class="hs-identifier hs-var">before_a</span></a></span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ())
+</span><a href="#local-6989586621681729643"><span class="hs-identifier hs-var">before_b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(n, Map n (Maybe ()))
+-&gt; [(n, Map n (Maybe ()))] -&gt; [(n, Map n (Maybe ()))]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[(n, Map n (Maybe ()))]
+</span><a href="#local-6989586621681729641"><span class="hs-identifier hs-var">bs0</span></a></span><span>
+</span><span id="line-41"></span><span>      </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>        </span><span id="local-6989586621681729649"><span class="annot"><span class="annottext">before_a :: Map n (Maybe ())
+</span><a href="#local-6989586621681729649"><span class="hs-identifier hs-var hs-var">before_a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n -&gt; Map n (Maybe ())
+</span><a href="#local-6989586621681729627"><span class="hs-identifier hs-var">deps</span></a></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729640"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-43"></span><span>        </span><span id="local-6989586621681729645"><span class="annot"><span class="annottext">before :: Bool
+</span><a href="#local-6989586621681729645"><span class="hs-identifier hs-var hs-var">before</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n -&gt; Map n (Maybe ()) -&gt; Bool
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Bool
+</span><span class="hs-identifier hs-var">Map.member</span></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729640"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ())
+</span><a href="#local-6989586621681729643"><span class="hs-identifier hs-var">before_b</span></a></span><span>
+</span><span id="line-44"></span><span>        </span><span id="local-6989586621681729647"><span class="annot"><span class="annottext">after :: Bool
+</span><a href="#local-6989586621681729647"><span class="hs-identifier hs-var hs-var">after</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n -&gt; Map n (Maybe ()) -&gt; Bool
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Bool
+</span><span class="hs-identifier hs-var">Map.member</span></span><span> </span><span class="annot"><span class="annottext">n
+</span><a href="#local-6989586621681729642"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Map n (Maybe ())
+</span><a href="#local-6989586621681729649"><span class="hs-identifier hs-var">before_a</span></a></span><span>
+</span><span id="line-45"></span></pre></body></html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="annot"><span class="hs-comment">{-|
+This is a very strict Writer monad, as a wrapper on &quot;Agda.Utils.StrictState&quot;.
+-}</span></span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html"><span class="hs-identifier">Agda.Utils.StrictWriter</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.StrictState.html"><span class="hs-identifier">Agda.Utils.StrictState</span></a></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">newtype</span><span> </span><span id="Writer"><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-var">Writer</span></a></span></span><span> </span><span id="local-6989586621681704868"><span class="annot"><a href="#local-6989586621681704868"><span class="hs-identifier hs-type">w</span></a></span></span><span> </span><span id="local-6989586621681704869"><span class="annot"><a href="#local-6989586621681704869"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Writer"><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-var">Writer</span></a></span></span><span> </span><span class="hs-special">{</span><span id="unWriter"><span class="annot"><span class="annottext">forall w a. Writer w a -&gt; State w a
+</span><a href="Agda.Utils.StrictWriter.html#unWriter"><span class="hs-identifier hs-var hs-var">unWriter</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.StrictState.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704868"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704869"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681704961"><span id="local-6989586621681704966"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Writer w a -&gt; Writer w b)
+-&gt; (forall a b. a -&gt; Writer w b -&gt; Writer w a)
+-&gt; Functor (Writer w)
+forall a b. a -&gt; Writer w b -&gt; Writer w a
+forall a b. (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+forall w a b. a -&gt; Writer w b -&gt; Writer w a
+forall w a b. (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall w a b. (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+fmap :: forall a b. (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+$c&lt;$ :: forall w a b. a -&gt; Writer w b -&gt; Writer w a
+&lt;$ :: forall a b. a -&gt; Writer w b -&gt; Writer w a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681704975"><span id="local-6989586621681704980"><span id="local-6989586621681704984"><span id="local-6989586621681704988"><span id="local-6989586621681704992"><span class="annot"><span class="annottext">Functor (Writer w)
+Functor (Writer w) =&gt;
+(forall a. a -&gt; Writer w a)
+-&gt; (forall a b. Writer w (a -&gt; b) -&gt; Writer w a -&gt; Writer w b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c) -&gt; Writer w a -&gt; Writer w b -&gt; Writer w c)
+-&gt; (forall a b. Writer w a -&gt; Writer w b -&gt; Writer w b)
+-&gt; (forall a b. Writer w a -&gt; Writer w b -&gt; Writer w a)
+-&gt; Applicative (Writer w)
+forall w. Functor (Writer w)
+forall a. a -&gt; Writer w a
+forall w a. a -&gt; Writer w a
+forall a b. Writer w a -&gt; Writer w b -&gt; Writer w a
+forall a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+forall a b. Writer w (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+forall w a b. Writer w a -&gt; Writer w b -&gt; Writer w a
+forall w a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+forall w a b. Writer w (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+forall a b c.
+(a -&gt; b -&gt; c) -&gt; Writer w a -&gt; Writer w b -&gt; Writer w c
+forall w a b c.
+(a -&gt; b -&gt; c) -&gt; Writer w a -&gt; Writer w b -&gt; Writer w c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall w a. a -&gt; Writer w a
+pure :: forall a. a -&gt; Writer w a
+$c&lt;*&gt; :: forall w a b. Writer w (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+&lt;*&gt; :: forall a b. Writer w (a -&gt; b) -&gt; Writer w a -&gt; Writer w b
+$cliftA2 :: forall w a b c.
+(a -&gt; b -&gt; c) -&gt; Writer w a -&gt; Writer w b -&gt; Writer w c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; Writer w a -&gt; Writer w b -&gt; Writer w c
+$c*&gt; :: forall w a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+*&gt; :: forall a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+$c&lt;* :: forall w a b. Writer w a -&gt; Writer w b -&gt; Writer w a
+&lt;* :: forall a b. Writer w a -&gt; Writer w b -&gt; Writer w a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705002"><span id="local-6989586621681705007"><span id="local-6989586621681705011"><span class="annot"><span class="annottext">Applicative (Writer w)
+Applicative (Writer w) =&gt;
+(forall a b. Writer w a -&gt; (a -&gt; Writer w b) -&gt; Writer w b)
+-&gt; (forall a b. Writer w a -&gt; Writer w b -&gt; Writer w b)
+-&gt; (forall a. a -&gt; Writer w a)
+-&gt; Monad (Writer w)
+forall w. Applicative (Writer w)
+forall a. a -&gt; Writer w a
+forall w a. a -&gt; Writer w a
+forall a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+forall a b. Writer w a -&gt; (a -&gt; Writer w b) -&gt; Writer w b
+forall w a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+forall w a b. Writer w a -&gt; (a -&gt; Writer w b) -&gt; Writer w b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall w a b. Writer w a -&gt; (a -&gt; Writer w b) -&gt; Writer w b
+&gt;&gt;= :: forall a b. Writer w a -&gt; (a -&gt; Writer w b) -&gt; Writer w b
+$c&gt;&gt; :: forall w a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+&gt;&gt; :: forall a b. Writer w a -&gt; Writer w b -&gt; Writer w b
+$creturn :: forall w a. a -&gt; Writer w a
+return :: forall a. a -&gt; Writer w a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#tell"><span class="hs-pragma hs-type">tell</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-14"></span><span id="local-6989586621681704927"><span class="annot"><a href="Agda.Utils.StrictWriter.html#tell"><span class="hs-identifier hs-type">tell</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681704927"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704927"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704927"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-15"></span><span id="tell"><span class="annot"><span class="annottext">tell :: forall w. Monoid w =&gt; w -&gt; Writer w ()
+</span><a href="Agda.Utils.StrictWriter.html#tell"><span class="hs-identifier hs-var hs-var">tell</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681705021"><span class="annot"><span class="annottext">w
+</span><a href="#local-6989586621681705021"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State w () -&gt; Writer w ()
+forall w a. State w a -&gt; Writer w a
+</span><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-var">Writer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(w -&gt; w) -&gt; State w ()
+forall s. (s -&gt; s) -&gt; State s ()
+</span><a href="Agda.Utils.StrictState.html#modify"><span class="hs-identifier hs-var">modify</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">w -&gt; w -&gt; w
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">w
+</span><a href="#local-6989586621681705021"><span class="hs-identifier hs-var">w</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#listen"><span class="hs-pragma hs-type">listen</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-18"></span><span id="local-6989586621681704932"><span id="local-6989586621681704933"><span class="annot"><a href="Agda.Utils.StrictWriter.html#listen"><span class="hs-identifier hs-type">listen</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681704932"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704932"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704933"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704932"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681704933"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681704932"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-19"></span><span id="listen"><span class="annot"><span class="annottext">listen :: forall w a. Monoid w =&gt; Writer w a -&gt; Writer w (a, w)
+</span><a href="Agda.Utils.StrictWriter.html#listen"><span class="hs-identifier hs-var hs-var">listen</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span id="local-6989586621681705034"><span class="annot"><span class="annottext">State w a
+</span><a href="#local-6989586621681705034"><span class="hs-identifier hs-var">act</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State w (a, w) -&gt; Writer w (a, w)
+forall w a. State w a -&gt; Writer w a
+</span><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-var">Writer</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-20"></span><span>  </span><span id="local-6989586621681705035"><span class="annot"><a href="#local-6989586621681705035"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State w w
+forall s. State s s
+</span><a href="Agda.Utils.StrictState.html#get"><span class="hs-identifier hs-var">get</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><a href="Agda.Utils.StrictState.html#put"><span class="hs-identifier hs-type">put</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">mempty</span></span><span>
+</span><span id="line-22"></span><span>  </span><span id="local-6989586621681705038"><span class="annot"><a href="#local-6989586621681705038"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681705034"><span class="hs-identifier hs-type">act</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span id="local-6989586621681705039"><span class="annot"><a href="#local-6989586621681705039"><span class="hs-identifier hs-var">diff</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Utils.StrictState.html#get"><span class="hs-identifier hs-type">get</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><a href="Agda.Utils.StrictState.html#put"><span class="hs-identifier hs-type">put</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705035"><span class="hs-identifier hs-type">old</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="#local-6989586621681705039"><span class="hs-identifier hs-type">diff</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705038"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681705039"><span class="hs-identifier hs-type">diff</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#writer"><span class="hs-pragma hs-type">writer</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-28"></span><span id="local-6989586621681704938"><span id="local-6989586621681704939"><span class="annot"><a href="Agda.Utils.StrictWriter.html#writer"><span class="hs-identifier hs-type">writer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681704938"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681704939"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681704938"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704938"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704939"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-29"></span><span id="writer"><span class="annot"><span class="annottext">writer :: forall w a. Monoid w =&gt; (a, w) -&gt; Writer w a
+</span><a href="Agda.Utils.StrictWriter.html#writer"><span class="hs-identifier hs-var hs-var">writer</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">!</span><span id="local-6989586621681705045"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705045"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681705046"><span class="annot"><span class="annottext">w
+</span><a href="#local-6989586621681705046"><span class="hs-identifier hs-var">w</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="annottext">w -&gt; Writer w ()
+forall w. Monoid w =&gt; w -&gt; Writer w ()
+</span><a href="Agda.Utils.StrictWriter.html#tell"><span class="hs-identifier hs-var">tell</span></a></span><span> </span><span class="annot"><span class="annottext">w
+</span><a href="#local-6989586621681705046"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><span class="annottext">a -&gt; Writer w a
+forall a. a -&gt; Writer w a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681705045"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#censor"><span class="hs-pragma hs-type">censor</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-34"></span><span id="local-6989586621681704942"><span id="local-6989586621681704943"><span class="annot"><a href="Agda.Utils.StrictWriter.html#censor"><span class="hs-identifier hs-type">censor</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681704942"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681704942"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704942"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704942"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704943"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704942"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704943"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-35"></span><span id="censor"><span class="annot"><span class="annottext">censor :: forall w a. Monoid w =&gt; (w -&gt; w) -&gt; Writer w a -&gt; Writer w a
+</span><a href="Agda.Utils.StrictWriter.html#censor"><span class="hs-identifier hs-var hs-var">censor</span></a></span></span><span> </span><span id="local-6989586621681705058"><span class="annot"><span class="annottext">w -&gt; w
+</span><a href="#local-6989586621681705058"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span id="local-6989586621681705059"><span class="annot"><span class="annottext">State w a
+</span><a href="#local-6989586621681705059"><span class="hs-identifier hs-var">act</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State w a -&gt; Writer w a
+forall w a. State w a -&gt; Writer w a
+</span><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-var">Writer</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-36"></span><span>  </span><span id="local-6989586621681705060"><span class="annot"><a href="#local-6989586621681705060"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State w w
+forall s. State s s
+</span><a href="Agda.Utils.StrictState.html#get"><span class="hs-identifier hs-var">get</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="annot"><a href="Agda.Utils.StrictState.html#put"><span class="hs-identifier hs-type">put</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">mempty</span></span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681705061"><span class="annot"><a href="#local-6989586621681705061"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681705059"><span class="hs-identifier hs-type">act</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681705062"><span class="annot"><a href="#local-6989586621681705062"><span class="hs-identifier hs-var">diff</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Utils.StrictState.html#get"><span class="hs-identifier hs-type">get</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681705063"><span class="annot"><a href="#local-6989586621681705063"><span class="hs-identifier hs-var hs-var">diff'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">w -&gt; w
+</span><a href="#local-6989586621681705058"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">w
+</span><a href="#local-6989586621681705062"><span class="hs-identifier hs-var">diff</span></a></span><span>
+</span><span id="line-41"></span><span>  </span><span class="annot"><a href="Agda.Utils.StrictState.html#put"><span class="hs-identifier hs-type">put</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681705060"><span class="hs-identifier hs-type">old</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="#local-6989586621681705063"><span class="hs-identifier hs-type">diff'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><a href="#local-6989586621681705061"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#runWriter"><span class="hs-pragma hs-type">runWriter</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-45"></span><span id="local-6989586621681704946"><span id="local-6989586621681704947"><span class="annot"><a href="Agda.Utils.StrictWriter.html#runWriter"><span class="hs-identifier hs-type">runWriter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681704946"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704946"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704947"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681704947"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681704946"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-46"></span><span id="runWriter"><span class="annot"><span class="annottext">runWriter :: forall w a. Monoid w =&gt; Writer w a -&gt; (a, w)
+</span><a href="Agda.Utils.StrictWriter.html#runWriter"><span class="hs-identifier hs-var hs-var">runWriter</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span id="local-6989586621681705067"><span class="annot"><span class="annottext">State w a
+</span><a href="#local-6989586621681705067"><span class="hs-identifier hs-var">act</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State w a -&gt; w -&gt; (a, w)
+forall s a. State s a -&gt; s -&gt; (a, s)
+</span><a href="Agda.Utils.StrictState.html#runState"><span class="hs-identifier hs-var">runState</span></a></span><span> </span><span class="annot"><span class="annottext">State w a
+</span><a href="#local-6989586621681705067"><span class="hs-identifier hs-var">act</span></a></span><span> </span><span class="annot"><span class="annottext">w
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#execWriter"><span class="hs-pragma hs-type">execWriter</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-49"></span><span id="local-6989586621681704952"><span id="local-6989586621681704953"><span class="annot"><a href="Agda.Utils.StrictWriter.html#execWriter"><span class="hs-identifier hs-type">execWriter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681704952"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704952"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704953"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704952"><span class="hs-identifier hs-type">w</span></a></span></span></span><span>
+</span><span id="line-50"></span><span id="execWriter"><span class="annot"><span class="annottext">execWriter :: forall w a. Monoid w =&gt; Writer w a -&gt; w
+</span><a href="Agda.Utils.StrictWriter.html#execWriter"><span class="hs-identifier hs-var hs-var">execWriter</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span id="local-6989586621681705072"><span class="annot"><span class="annottext">State w a
+</span><a href="#local-6989586621681705072"><span class="hs-identifier hs-var">act</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State w a -&gt; w -&gt; w
+forall s a. State s a -&gt; s -&gt; s
+</span><a href="Agda.Utils.StrictState.html#execState"><span class="hs-identifier hs-var">execState</span></a></span><span> </span><span class="annot"><span class="annottext">State w a
+</span><a href="#local-6989586621681705072"><span class="hs-identifier hs-var">act</span></a></span><span> </span><span class="annot"><span class="annottext">w
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-51"></span></pre></body></html>

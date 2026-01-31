@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-orphans     #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -fwarn-unused-imports #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Compilers.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.Compilers</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Base</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Common.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.Common</span></a></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681978121"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CompilerPragma"><span class="hs-identifier hs-type">CompilerPragma</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>  </span><span id="local-6989586621681978147"><span class="annot"><span class="annottext">icod_ :: CompilerPragma -&gt; S Word32
+</span><a href="#local-6989586621681978147"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CompilerPragma"><span class="hs-identifier hs-type">CompilerPragma</span></a></span><span> </span><span id="local-6989586621681978150"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681978150"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681978151"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681978151"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-14"></span><span>    </span><span class="annot"><span class="annottext">(SerialisedRange -&gt; String -&gt; CompilerPragma)
+-&gt; Arrows
+     (Domains (SerialisedRange -&gt; String -&gt; CompilerPragma)) (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; String -&gt; CompilerPragma
+</span><a href="Agda.TypeChecking.Monad.Base.html#CompilerPragma"><span class="hs-identifier hs-var">CompilerPragma</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; String -&gt; CompilerPragma)
+-&gt; (SerialisedRange -&gt; Range)
+-&gt; SerialisedRange
+-&gt; String
+-&gt; CompilerPragma
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SerialisedRange -&gt; Range
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#underlyingRange"><span class="hs-identifier hs-var">underlyingRange</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; SerialisedRange
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#SerialisedRange"><span class="hs-identifier hs-var">SerialisedRange</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681978150"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681978151"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span>  </span><span id="local-6989586621681978169"><span class="annot"><span class="annottext">value :: Word32 -&gt; R CompilerPragma
+</span><a href="#local-6989586621681978169"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SerialisedRange -&gt; String -&gt; CompilerPragma)
+-&gt; Word32
+-&gt; R (CoDomain (SerialisedRange -&gt; String -&gt; CompilerPragma))
+forall t.
+(VALU t (Arity t), All EmbPrj (CoDomain t : Domains t)) =&gt;
+t -&gt; Word32 -&gt; R (CoDomain t)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valueN"><span class="hs-identifier hs-var">valueN</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; String -&gt; CompilerPragma
+</span><a href="Agda.TypeChecking.Monad.Base.html#CompilerPragma"><span class="hs-identifier hs-var">CompilerPragma</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; String -&gt; CompilerPragma)
+-&gt; (SerialisedRange -&gt; Range)
+-&gt; SerialisedRange
+-&gt; String
+-&gt; CompilerPragma
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SerialisedRange -&gt; Range
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#underlyingRange"><span class="hs-identifier hs-var">underlyingRange</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681978175"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ForeignCode"><span class="hs-identifier hs-type">ForeignCode</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>  </span><span id="local-6989586621681978195"><span class="annot"><span class="annottext">icod_ :: ForeignCode -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ForeignCode"><span class="hs-identifier hs-type">ForeignCode</span></a></span><span> </span><span id="local-6989586621681978197"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681978197"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681978198"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681978198"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-20"></span><span>    </span><span class="annot"><span class="annottext">(SerialisedRange -&gt; String -&gt; ForeignCode)
+-&gt; Arrows
+     (Domains (SerialisedRange -&gt; String -&gt; ForeignCode)) (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; String -&gt; ForeignCode
+</span><a href="Agda.TypeChecking.Monad.Base.html#ForeignCode"><span class="hs-identifier hs-var">ForeignCode</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; String -&gt; ForeignCode)
+-&gt; (SerialisedRange -&gt; Range)
+-&gt; SerialisedRange
+-&gt; String
+-&gt; ForeignCode
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SerialisedRange -&gt; Range
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#underlyingRange"><span class="hs-identifier hs-var">underlyingRange</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; SerialisedRange
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#SerialisedRange"><span class="hs-identifier hs-var">SerialisedRange</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681978197"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681978198"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span>  </span><span id="local-6989586621681978211"><span class="annot"><span class="annottext">value :: Word32 -&gt; R ForeignCode
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SerialisedRange -&gt; String -&gt; ForeignCode)
+-&gt; Word32
+-&gt; R (CoDomain (SerialisedRange -&gt; String -&gt; ForeignCode))
+forall t.
+(VALU t (Arity t), All EmbPrj (CoDomain t : Domains t)) =&gt;
+t -&gt; Word32 -&gt; R (CoDomain t)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valueN"><span class="hs-identifier hs-var">valueN</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; String -&gt; ForeignCode
+</span><a href="Agda.TypeChecking.Monad.Base.html#ForeignCode"><span class="hs-identifier hs-var">ForeignCode</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; String -&gt; ForeignCode)
+-&gt; (SerialisedRange -&gt; Range)
+-&gt; SerialisedRange
+-&gt; String
+-&gt; ForeignCode
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SerialisedRange -&gt; Range
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#underlyingRange"><span class="hs-identifier hs-var">underlyingRange</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681978215"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ForeignCodeStack"><span class="hs-identifier hs-type">ForeignCodeStack</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>  </span><span id="local-6989586621681978223"><span class="annot"><span class="annottext">icod_ :: ForeignCodeStack -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[ForeignCode] -&gt; S Word32
+forall a. EmbPrj a =&gt; a -&gt; S Word32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icod_"><span class="hs-identifier hs-var">icod_</span></a></span><span> </span><span class="annot"><span class="annottext">([ForeignCode] -&gt; S Word32)
+-&gt; (ForeignCodeStack -&gt; [ForeignCode])
+-&gt; ForeignCodeStack
+-&gt; S Word32
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ForeignCodeStack -&gt; [ForeignCode]
+</span><a href="Agda.TypeChecking.Monad.Base.html#getForeignCodeStack"><span class="hs-identifier hs-var">getForeignCodeStack</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span id="local-6989586621681978231"><span class="annot"><span class="annottext">value :: Word32 -&gt; R ForeignCodeStack
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([ForeignCode] -&gt; ForeignCodeStack)
+-&gt; ReaderT Decode IO [ForeignCode] -&gt; R ForeignCodeStack
+forall a b. (a -&gt; b) -&gt; ReaderT Decode IO a -&gt; ReaderT Decode IO b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">[ForeignCode] -&gt; ForeignCodeStack
+</span><a href="Agda.TypeChecking.Monad.Base.html#ForeignCodeStack"><span class="hs-identifier hs-var">ForeignCodeStack</span></a></span><span> </span><span class="annot"><span class="annottext">(ReaderT Decode IO [ForeignCode] -&gt; R ForeignCodeStack)
+-&gt; (Word32 -&gt; ReaderT Decode IO [ForeignCode])
+-&gt; Word32
+-&gt; R ForeignCodeStack
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; ReaderT Decode IO [ForeignCode]
+forall a. EmbPrj a =&gt; Word32 -&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-27"></span></pre></body></html>

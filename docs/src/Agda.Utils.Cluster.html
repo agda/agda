@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Create clusters of non-overlapping things.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Cluster.html"><span class="hs-identifier">Agda.Utils.Cluster</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Cluster.html#cluster"><span class="hs-identifier">cluster</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Cluster.html#cluster%27"><span class="hs-identifier">cluster'</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Cluster.html#cluster1"><span class="hs-identifier">cluster1</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Cluster.html#cluster1%27"><span class="hs-identifier">cluster1'</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- An imperative union-find library:</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Equivalence.Monad</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">runEquivM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">equateAll</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">classDesc</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- NB: We keep this module independent of Agda.Utils.List1</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">nonEmpty</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">toList</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>             </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MapS</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- | Given a function @f :: a -&gt; NonEmpty c@ which returns a non-empty list of</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--   characteristics of @a@, partition a list of @a@s into groups such</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--   that each element in a group shares at least one characteristic</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--   with at least one other element of the group.</span><span>
+</span><span id="line-30"></span><span id="local-6989586621681709650"><span id="local-6989586621681709651"><span class="annot"><a href="Agda.Utils.Cluster.html#cluster"><span class="hs-identifier hs-type">cluster</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681709650"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709651"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709650"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681709651"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709651"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-31"></span><span id="cluster"><span class="annot"><span class="annottext">cluster :: forall c a. Ord c =&gt; (a -&gt; NonEmpty c) -&gt; [a] -&gt; [NonEmpty a]
+</span><a href="Agda.Utils.Cluster.html#cluster"><span class="hs-identifier hs-var hs-var">cluster</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; NonEmpty (NonEmpty a)) -&gt; [a] -&gt; [NonEmpty a]
+forall a b. (NonEmpty a -&gt; NonEmpty b) -&gt; [a] -&gt; [b]
+</span><a href="Agda.Utils.Cluster.html#liftList1"><span class="hs-identifier hs-var">liftList1</span></a></span><span> </span><span class="annot"><span class="annottext">((NonEmpty a -&gt; NonEmpty (NonEmpty a)) -&gt; [a] -&gt; [NonEmpty a])
+-&gt; ((a -&gt; NonEmpty c) -&gt; NonEmpty a -&gt; NonEmpty (NonEmpty a))
+-&gt; (a -&gt; NonEmpty c)
+-&gt; [a]
+-&gt; [NonEmpty a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; NonEmpty c) -&gt; NonEmpty a -&gt; NonEmpty (NonEmpty a)
+forall c a.
+Ord c =&gt;
+(a -&gt; NonEmpty c) -&gt; NonEmpty a -&gt; NonEmpty (NonEmpty a)
+</span><a href="Agda.Utils.Cluster.html#cluster1"><span class="hs-identifier hs-var">cluster1</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Partition a list of @a@s paired with a non-empty list of</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   characteristics into groups such that each element in a group</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--   shares at least one characteristic with at least one other</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--   element of the group.</span><span>
+</span><span id="line-37"></span><span id="local-6989586621681709661"><span id="local-6989586621681709662"><span class="annot"><a href="Agda.Utils.Cluster.html#cluster%27"><span class="hs-identifier hs-type">cluster'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681709661"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709662"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709661"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709662"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-38"></span><span id="cluster%27"><span class="annot"><span class="annottext">cluster' :: forall c a. Ord c =&gt; [(a, NonEmpty c)] -&gt; [NonEmpty a]
+</span><a href="Agda.Utils.Cluster.html#cluster%27"><span class="hs-identifier hs-var hs-var">cluster'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a))
+-&gt; [(a, NonEmpty c)] -&gt; [NonEmpty a]
+forall a b. (NonEmpty a -&gt; NonEmpty b) -&gt; [a] -&gt; [b]
+</span><a href="Agda.Utils.Cluster.html#liftList1"><span class="hs-identifier hs-var">liftList1</span></a></span><span> </span><span class="annot"><span class="annottext">NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a)
+forall c a.
+Ord c =&gt;
+NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a)
+</span><a href="Agda.Utils.Cluster.html#cluster1%27"><span class="hs-identifier hs-var">cluster1'</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | Lift a function on non-empty lists to a function on lists.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- Duplicate of 'Agda.Utils.List1.liftList1'.</span><span>
+</span><span id="line-43"></span><span id="local-6989586621681709654"><span id="local-6989586621681709655"><span class="annot"><a href="Agda.Utils.Cluster.html#liftList1"><span class="hs-identifier hs-type">liftList1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709654"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709655"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681709654"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681709655"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-44"></span><span id="liftList1"><span class="annot"><span class="annottext">liftList1 :: forall a b. (NonEmpty a -&gt; NonEmpty b) -&gt; [a] -&gt; [b]
+</span><a href="Agda.Utils.Cluster.html#liftList1"><span class="hs-identifier hs-var hs-var">liftList1</span></a></span></span><span> </span><span id="local-6989586621681709760"><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty b
+</span><a href="#local-6989586621681709760"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-46"></span><span>  </span><span id="local-6989586621681709761"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709761"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681709762"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681709762"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NonEmpty b -&gt; [b]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty b -&gt; [b]) -&gt; NonEmpty b -&gt; [b]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty b
+</span><a href="#local-6989586621681709760"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; NonEmpty b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709761"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681709762"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Given a function @f :: a -&gt; NonEmpty c@ which returns a non-empty list of</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--   characteristics of @a@, partition a non-empty list of @a@s into groups such</span><span>
+</span><span id="line-50"></span><span class="hs-comment">--   that each element in a group shares at least one characteristic</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--   with at least one other element of the group.</span><span>
+</span><span id="line-52"></span><span id="local-6989586621681709659"><span id="local-6989586621681709660"><span class="annot"><a href="Agda.Utils.Cluster.html#cluster1"><span class="hs-identifier hs-type">cluster1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681709659"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709660"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709659"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709660"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709660"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-53"></span><span id="cluster1"><span class="annot"><span class="annottext">cluster1 :: forall c a.
+Ord c =&gt;
+(a -&gt; NonEmpty c) -&gt; NonEmpty a -&gt; NonEmpty (NonEmpty a)
+</span><a href="Agda.Utils.Cluster.html#cluster1"><span class="hs-identifier hs-var hs-var">cluster1</span></a></span></span><span> </span><span id="local-6989586621681709768"><span class="annot"><span class="annottext">a -&gt; NonEmpty c
+</span><a href="#local-6989586621681709768"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681709769"><span class="annot"><span class="annottext">NonEmpty a
+</span><a href="#local-6989586621681709769"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a)
+forall c a.
+Ord c =&gt;
+NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a)
+</span><a href="Agda.Utils.Cluster.html#cluster1%27"><span class="hs-identifier hs-var">cluster1'</span></a></span><span> </span><span class="annot"><span class="annottext">(NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a))
+-&gt; NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; (a, NonEmpty c)) -&gt; NonEmpty a -&gt; NonEmpty (a, NonEmpty c)
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681709770"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709770"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709770"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a -&gt; NonEmpty c
+</span><a href="#local-6989586621681709768"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709770"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NonEmpty a
+</span><a href="#local-6989586621681709769"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Partition a non-empty list of @a@s paired with a non-empty list of</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   characteristics into groups such that each element in a group</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   shares at least one characteristic with at least one other</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   element of the group.</span><span>
+</span><span id="line-59"></span><span id="local-6989586621681709665"><span id="local-6989586621681709666"><span class="annot"><a href="Agda.Utils.Cluster.html#cluster1%27"><span class="hs-identifier hs-type">cluster1'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681709665"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709666"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709665"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="annot"><a href="#local-6989586621681709666"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-60"></span><span id="cluster1%27"><span class="annot"><span class="annottext">cluster1' :: forall c a.
+Ord c =&gt;
+NonEmpty (a, NonEmpty c) -&gt; NonEmpty (NonEmpty a)
+</span><a href="Agda.Utils.Cluster.html#cluster1%27"><span class="hs-identifier hs-var hs-var">cluster1'</span></a></span></span><span> </span><span id="local-6989586621681709772"><span class="annot"><span class="annottext">NonEmpty (a, NonEmpty c)
+</span><a href="#local-6989586621681709772"><span class="hs-identifier hs-var">acs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(c -&gt; c)
+-&gt; (c -&gt; c -&gt; c)
+-&gt; (forall s. EquivM s c c (NonEmpty (NonEmpty a)))
+-&gt; NonEmpty (NonEmpty a)
+forall v c a.
+(v -&gt; c) -&gt; (c -&gt; c -&gt; c) -&gt; (forall s. EquivM s c v a) -&gt; a
+</span><span class="hs-identifier hs-var">runEquivM</span></span><span> </span><span class="annot"><span class="annottext">c -&gt; c
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">c -&gt; c -&gt; c
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">((forall s. EquivM s c c (NonEmpty (NonEmpty a)))
+ -&gt; NonEmpty (NonEmpty a))
+-&gt; (forall s. EquivM s c c (NonEmpty (NonEmpty a)))
+-&gt; NonEmpty (NonEmpty a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-comment">-- Construct the equivalence classes of characteristics.</span><span>
+</span><span id="line-62"></span><span>  </span><span class="annot"><span class="annottext">NonEmpty (a, NonEmpty c)
+-&gt; ((a, NonEmpty c) -&gt; EquivT s c c Identity ())
+-&gt; EquivT s c c Identity ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+t a -&gt; (a -&gt; m b) -&gt; m ()
+</span><span class="hs-identifier hs-var">forM_</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (a, NonEmpty c)
+</span><a href="#local-6989586621681709772"><span class="hs-identifier hs-var">acs</span></a></span><span> </span><span class="annot"><span class="annottext">(((a, NonEmpty c) -&gt; EquivT s c c Identity ())
+ -&gt; EquivT s c c Identity ())
+-&gt; ((a, NonEmpty c) -&gt; EquivT s c c Identity ())
+-&gt; EquivT s c c Identity ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681709805"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681709805"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681709806"><span class="annot"><span class="annottext">[c]
+</span><a href="#local-6989586621681709806"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[c] -&gt; EquivT s c c Identity ()
+forall c v d (m :: * -&gt; *). MonadEquiv c v d m =&gt; [v] -&gt; m ()
+</span><span class="hs-identifier hs-var">equateAll</span></span><span> </span><span class="annot"><span class="annottext">([c] -&gt; EquivT s c c Identity ())
+-&gt; [c] -&gt; EquivT s c c Identity ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681709805"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; [c]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[c]
+</span><a href="#local-6989586621681709806"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-comment">-- Pair each element with its class.</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681709807"><span class="annot"><a href="#local-6989586621681709807"><span class="hs-identifier hs-var">cas</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">NonEmpty (a, NonEmpty c)
+-&gt; ((a, NonEmpty c) -&gt; EquivT s c c Identity (Map c (NonEmpty a)))
+-&gt; EquivT s c c Identity (NonEmpty (Map c (NonEmpty a)))
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+t a -&gt; (a -&gt; m b) -&gt; m (t b)
+</span><span class="hs-identifier hs-var">forM</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (a, NonEmpty c)
+</span><a href="#local-6989586621681709772"><span class="hs-identifier hs-var">acs</span></a></span><span> </span><span class="annot"><span class="annottext">(((a, NonEmpty c) -&gt; EquivT s c c Identity (Map c (NonEmpty a)))
+ -&gt; EquivT s c c Identity (NonEmpty (Map c (NonEmpty a))))
+-&gt; ((a, NonEmpty c) -&gt; EquivT s c c Identity (Map c (NonEmpty a)))
+-&gt; EquivT s c c Identity (NonEmpty (Map c (NonEmpty a)))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681709809"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709809"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681709810"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681709810"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span class="annot"><span class="annottext">[c]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">c -&gt; EquivT s c c Identity c
+forall c v d (m :: * -&gt; *). MonadEquiv c v d m =&gt; v -&gt; m d
+</span><span class="hs-identifier hs-var">classDesc</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681709810"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">EquivT s c c Identity c
+-&gt; (c -&gt; Map c (NonEmpty a))
+-&gt; EquivT s c c Identity (Map c (NonEmpty a))
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681709812"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681709812"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">c -&gt; NonEmpty a -&gt; Map c (NonEmpty a)
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">MapS.singleton</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681709812"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; NonEmpty a
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709809"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-comment">-- Create a map from class to elements.</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681709815"><span class="annot"><a href="#local-6989586621681709815"><span class="hs-identifier hs-var hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a)
+-&gt; NonEmpty (Map c (NonEmpty a)) -&gt; Map c (NonEmpty a)
+forall (f :: * -&gt; *) k a.
+(Foldable f, Ord k) =&gt;
+(a -&gt; a -&gt; a) -&gt; f (Map k a) -&gt; Map k a
+</span><span class="hs-identifier hs-var">MapS.unionsWith</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; NonEmpty a -&gt; NonEmpty a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Map c (NonEmpty a))
+</span><a href="#local-6989586621681709807"><span class="hs-identifier hs-var">cas</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-comment">-- Return the values of the map</span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">fromMaybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;impossibility at Agda.Utils.Cluster.cluster'&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">nonEmpty</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">MapS.elems</span></span><span> </span><span class="annot"><a href="#local-6989586621681709815"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-70"></span></pre></body></html>

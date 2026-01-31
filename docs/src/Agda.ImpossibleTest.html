@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Facility to test throwing internal errors.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.ImpossibleTest.html"><span class="hs-identifier">Agda.ImpossibleTest</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>   </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier">TCM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier">ReduceM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#runReduceM"><span class="hs-identifier">runReduceM</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier">MonadDebug</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#__IMPOSSIBLE_VERBOSE__"><span class="hs-identifier">__IMPOSSIBLE_VERBOSE__</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Reduce.Monad</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.html"><span class="hs-identifier">Agda.Utils.CallStack</span></a></span><span>           </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">HasCallStack</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier">__IMPOSSIBLE__</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- | If the given list of words is non-empty, print them as debug message</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--   (using '__IMPOSSIBLE_VERBOSE__') before raising the internal error.</span><span>
+</span><span id="line-14"></span><span id="local-6989586621681992336"><span id="local-6989586621681992339"><span class="annot"><a href="Agda.ImpossibleTest.html#impossibleTest"><span class="hs-identifier hs-type">impossibleTest</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992336"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681992336"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992339"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-15"></span><span id="impossibleTest"><span class="annot"><span class="annottext">impossibleTest :: forall (m :: * -&gt; *) a.
+(MonadDebug m, HasCallStack) =&gt;
+[String] -&gt; m a
+</span><a href="Agda.ImpossibleTest.html#impossibleTest"><span class="hs-identifier hs-var hs-var">impossibleTest</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m a
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span id="local-6989586621681992368"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681992368"><span class="hs-identifier hs-var">strs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; m a
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadDebug m) =&gt;
+String -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Debug.html#__IMPOSSIBLE_VERBOSE__"><span class="hs-identifier hs-var">__IMPOSSIBLE_VERBOSE__</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; m a) -&gt; String -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unwords</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681992368"><span class="hs-identifier hs-var">strs</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span id="local-6989586621681992349"><span class="annot"><a href="Agda.ImpossibleTest.html#impossibleTestReduceM"><span class="hs-identifier hs-type">impossibleTestReduceM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681992349"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-20"></span><span id="impossibleTestReduceM"><span class="annot"><span class="annottext">impossibleTestReduceM :: forall a. HasCallStack =&gt; [String] -&gt; TCM a
+</span><a href="Agda.ImpossibleTest.html#impossibleTestReduceM"><span class="hs-identifier hs-var hs-var">impossibleTestReduceM</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReduceM a -&gt; TCM a
+forall a. ReduceM a -&gt; TCM a
+</span><a href="Agda.TypeChecking.Monad.Base.html#runReduceM"><span class="hs-identifier hs-var">runReduceM</span></a></span><span> </span><span class="annot"><span class="annottext">(ReduceM a -&gt; TCM a)
+-&gt; ([String] -&gt; ReduceM a) -&gt; [String] -&gt; TCM a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ReduceM a
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span id="local-6989586621681992379"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681992379"><span class="hs-identifier hs-var">strs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; ReduceM a
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadDebug m) =&gt;
+String -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Debug.html#__IMPOSSIBLE_VERBOSE__"><span class="hs-identifier hs-var">__IMPOSSIBLE_VERBOSE__</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; ReduceM a) -&gt; String -&gt; ReduceM a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unwords</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681992379"><span class="hs-identifier hs-var">strs</span></a></span><span>
+</span><span id="line-23"></span></pre></body></html>

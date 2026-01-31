@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html"><span class="hs-identifier">Agda.Interaction.Options.Help</span></a></span><span>
+</span><span id="line-4"></span><span>       </span><span class="hs-special">(</span><span>
+</span><span id="line-5"></span><span>         </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#Help"><span class="hs-identifier">Help</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>       </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#helpTopicUsage"><span class="hs-identifier">helpTopicUsage</span></a></span><span>
+</span><span id="line-7"></span><span>       </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#string2HelpTopic"><span class="hs-identifier">string2HelpTopic</span></a></span><span>
+</span><span id="line-8"></span><span>       </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#allHelpTopics"><span class="hs-identifier">allHelpTopics</span></a></span><span>
+</span><span id="line-9"></span><span>       </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Errors.html"><span class="hs-identifier">Agda.Interaction.Options.Errors</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html"><span class="hs-identifier">Agda.Interaction.Options.Warnings</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Setup.EmacsMode.html"><span class="hs-identifier">Agda.Setup.EmacsMode</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">EmacsMode</span></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="annot"><span class="hs-comment">-- | Interface to the @help@ function</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">data</span><span> </span><span id="Help"><span class="annot"><a href="Agda.Interaction.Options.Help.html#Help"><span class="hs-identifier hs-var">Help</span></a></span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="GeneralHelp"><span class="annot"><a href="Agda.Interaction.Options.Help.html#GeneralHelp"><span class="hs-identifier hs-var">GeneralHelp</span></a></span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ General usage information</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="HelpFor"><span class="annot"><a href="Agda.Interaction.Options.Help.html#HelpFor"><span class="hs-identifier hs-var">HelpFor</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#HelpTopic"><span class="hs-identifier hs-type">HelpTopic</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Specialised usage information about TOPIC</span></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681814143"><span id="local-6989586621681814150"><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Bool
+(Help -&gt; Help -&gt; Bool) -&gt; (Help -&gt; Help -&gt; Bool) -&gt; Eq Help
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Help -&gt; Help -&gt; Bool
+== :: Help -&gt; Help -&gt; Bool
+$c/= :: Help -&gt; Help -&gt; Bool
+/= :: Help -&gt; Help -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681814155"><span id="local-6989586621681814161"><span id="local-6989586621681814165"><span class="annot"><span class="annottext">Int -&gt; Help -&gt; ShowS
+[Help] -&gt; ShowS
+Help -&gt; String
+(Int -&gt; Help -&gt; ShowS)
+-&gt; (Help -&gt; String) -&gt; ([Help] -&gt; ShowS) -&gt; Show Help
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Help -&gt; ShowS
+showsPrec :: Int -&gt; Help -&gt; ShowS
+$cshow :: Help -&gt; String
+show :: Help -&gt; String
+$cshowList :: [Help] -&gt; ShowS
+showList :: [Help] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681814170"><span id="local-6989586621681814172"><span class="annot"><span class="annottext">(forall x. Help -&gt; Rep Help x)
+-&gt; (forall x. Rep Help x -&gt; Help) -&gt; Generic Help
+forall x. Rep Help x -&gt; Help
+forall x. Help -&gt; Rep Help x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Help -&gt; Rep Help x
+from :: forall x. Help -&gt; Rep Help x
+$cto :: forall x. Rep Help x -&gt; Help
+to :: forall x. Rep Help x -&gt; Help
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681814178"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#Help"><span class="hs-identifier hs-type">Help</span></a></span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- | List of Help Topics</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- NOTA BENE:</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- You need to add each new topic together with its name to @allHelpTopics@</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">data</span><span> </span><span id="HelpTopic"><span class="annot"><a href="Agda.Interaction.Options.Help.html#HelpTopic"><span class="hs-identifier hs-var">HelpTopic</span></a></span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Warning"><span class="annot"><a href="Agda.Interaction.Options.Help.html#Warning"><span class="hs-identifier hs-var">Warning</span></a></span></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Error"><span class="annot"><a href="Agda.Interaction.Options.Help.html#Error"><span class="hs-identifier hs-var">Error</span></a></span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="EmacsMode"><span class="annot"><a href="Agda.Interaction.Options.Help.html#EmacsMode"><span class="hs-identifier hs-var">EmacsMode</span></a></span></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681814201"><span id="local-6989586621681814205"><span class="annot"><span class="annottext">HelpTopic -&gt; HelpTopic -&gt; Bool
+(HelpTopic -&gt; HelpTopic -&gt; Bool)
+-&gt; (HelpTopic -&gt; HelpTopic -&gt; Bool) -&gt; Eq HelpTopic
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: HelpTopic -&gt; HelpTopic -&gt; Bool
+== :: HelpTopic -&gt; HelpTopic -&gt; Bool
+$c/= :: HelpTopic -&gt; HelpTopic -&gt; Bool
+/= :: HelpTopic -&gt; HelpTopic -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681814208"><span id="local-6989586621681814210"><span id="local-6989586621681814213"><span class="annot"><span class="annottext">Int -&gt; HelpTopic -&gt; ShowS
+[HelpTopic] -&gt; ShowS
+HelpTopic -&gt; String
+(Int -&gt; HelpTopic -&gt; ShowS)
+-&gt; (HelpTopic -&gt; String)
+-&gt; ([HelpTopic] -&gt; ShowS)
+-&gt; Show HelpTopic
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; HelpTopic -&gt; ShowS
+showsPrec :: Int -&gt; HelpTopic -&gt; ShowS
+$cshow :: HelpTopic -&gt; String
+show :: HelpTopic -&gt; String
+$cshowList :: [HelpTopic] -&gt; ShowS
+showList :: [HelpTopic] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681814216"><span id="local-6989586621681814218"><span class="annot"><span class="annottext">(forall x. HelpTopic -&gt; Rep HelpTopic x)
+-&gt; (forall x. Rep HelpTopic x -&gt; HelpTopic) -&gt; Generic HelpTopic
+forall x. Rep HelpTopic x -&gt; HelpTopic
+forall x. HelpTopic -&gt; Rep HelpTopic x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. HelpTopic -&gt; Rep HelpTopic x
+from :: forall x. HelpTopic -&gt; Rep HelpTopic x
+$cto :: forall x. Rep HelpTopic x -&gt; HelpTopic
+to :: forall x. Rep HelpTopic x -&gt; HelpTopic
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681814221"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#HelpTopic"><span class="hs-identifier hs-type">HelpTopic</span></a></span></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="annot"><a href="Agda.Interaction.Options.Help.html#allHelpTopics"><span class="hs-identifier hs-type">allHelpTopics</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#HelpTopic"><span class="hs-identifier hs-type">HelpTopic</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-43"></span><span id="allHelpTopics"><span class="annot"><span class="annottext">allHelpTopics :: [(String, HelpTopic)]
+</span><a href="Agda.Interaction.Options.Help.html#allHelpTopics"><span class="hs-identifier hs-var hs-var">allHelpTopics</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;warning&quot;</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">HelpTopic
+</span><a href="Agda.Interaction.Options.Help.html#Warning"><span class="hs-identifier hs-var">Warning</span></a></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;error&quot;</span></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">HelpTopic
+</span><a href="Agda.Interaction.Options.Help.html#Error"><span class="hs-identifier hs-var">Error</span></a></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;emacs-mode&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">HelpTopic
+</span><a href="Agda.Interaction.Options.Help.html#EmacsMode"><span class="hs-identifier hs-var">EmacsMode</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="annot"><span class="hs-comment">-- | Usage information generation</span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Agda.Interaction.Options.Help.html#helpTopicUsage"><span class="hs-identifier hs-type">helpTopicUsage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#HelpTopic"><span class="hs-identifier hs-type">HelpTopic</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-52"></span><span id="helpTopicUsage"><span class="annot"><span class="annottext">helpTopicUsage :: HelpTopic -&gt; String
+</span><a href="Agda.Interaction.Options.Help.html#helpTopicUsage"><span class="hs-identifier hs-var hs-var">helpTopicUsage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><span class="annottext">HelpTopic
+</span><a href="Agda.Interaction.Options.Help.html#Warning"><span class="hs-identifier hs-var">Warning</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Interaction.Options.Warnings.html#usageWarning"><span class="hs-identifier hs-var">usageWarning</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><span class="annottext">HelpTopic
+</span><a href="Agda.Interaction.Options.Help.html#Error"><span class="hs-identifier hs-var">Error</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Interaction.Options.Errors.html#helpErrors"><span class="hs-identifier hs-var">helpErrors</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><span class="annottext">HelpTopic
+</span><a href="Agda.Interaction.Options.Help.html#EmacsMode"><span class="hs-identifier hs-var">EmacsMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Setup.EmacsMode.html#help"><span class="hs-identifier hs-var">EmacsMode.help</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="annot"><span class="hs-comment">-- | Conversion functions to strings</span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Agda.Interaction.Options.Help.html#string2HelpTopic"><span class="hs-identifier hs-type">string2HelpTopic</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Help.html#HelpTopic"><span class="hs-identifier hs-type">HelpTopic</span></a></span><span>
+</span><span id="line-60"></span><span id="string2HelpTopic"><span class="annot"><span class="annottext">string2HelpTopic :: String -&gt; Maybe HelpTopic
+</span><a href="Agda.Interaction.Options.Help.html#string2HelpTopic"><span class="hs-identifier hs-var hs-var">string2HelpTopic</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; [(String, HelpTopic)] -&gt; Maybe HelpTopic)
+-&gt; [(String, HelpTopic)] -&gt; String -&gt; Maybe HelpTopic
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [(String, HelpTopic)] -&gt; Maybe HelpTopic
+forall a b. Eq a =&gt; a -&gt; [(a, b)] -&gt; Maybe b
+</span><span class="hs-identifier hs-var">lookup</span></span><span> </span><span class="annot"><span class="annottext">[(String, HelpTopic)]
+</span><a href="Agda.Interaction.Options.Help.html#allHelpTopics"><span class="hs-identifier hs-var">allHelpTopics</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen 2019-07-15</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--helpTopic2String :: HelpTopic -&gt; String</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--helpTopic2String w = fromMaybe __IMPOSSIBLE__ $ lookup w (map swap allHelpTopics)</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span></pre></body></html>

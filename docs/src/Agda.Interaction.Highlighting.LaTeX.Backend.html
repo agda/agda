@@ -1,0 +1,730 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html"><span class="hs-identifier">Agda.Interaction.Highlighting.LaTeX.Backend</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackend"><span class="hs-identifier">latexBackend</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackendName"><span class="hs-identifier">latexBackendName</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html"><span class="hs-identifier">Agda.Interaction.Highlighting.LaTeX.Base</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#LaTeXOptions"><span class="hs-identifier">LaTeXOptions</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#MonadLogLaTeX"><span class="hs-identifier">MonadLogLaTeX</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#logLaTeX"><span class="hs-identifier">logLaTeX</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#logMsgToText"><span class="hs-identifier">logMsgToText</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#generateLaTeXIO"><span class="hs-identifier">generateLaTeXIO</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#prepareCommonAssets"><span class="hs-identifier">prepareCommonAssets</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Functor</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>     </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span>    </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(&lt;/&gt;)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.html"><span class="hs-identifier">Agda.Compiler.Backend</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend"><span class="hs-identifier">Backend</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend_boot"><span class="hs-identifier">Backend_boot</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend%27"><span class="hs-identifier">Backend'</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27_boot"><span class="hs-identifier">Backend'_boot</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier">Definition</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier">Recompile</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Compiler.Common.html"><span class="hs-identifier">Agda.Compiler.Common</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Common.html#curIF"><span class="hs-identifier">curIF</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier">IsMain</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier">IsMain</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NotMain"><span class="hs-identifier">NotMain</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier">ArgDescr</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier">NoArg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier">ReqArg</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#CommandLineOptions"><span class="hs-identifier">CommandLineOptions</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optGHCiInteraction"><span class="hs-identifier">optGHCiInteraction</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optPragmaOptions"><span class="hs-identifier">optPragmaOptions</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#optCountClusters"><span class="hs-identifier">optCountClusters</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier">Flag</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier">OptDescr</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#BackendName"><span class="hs-identifier">BackendName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#mkRangeFile"><span class="hs-identifier">mkRangeFile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#rangeFilePath"><span class="hs-identifier">rangeFilePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier">TopLevelModuleName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#projectRoot"><span class="hs-identifier">projectRoot</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier">HasOptions</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#commandLineOptions"><span class="hs-identifier">commandLineOptions</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier">MonadDebug</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stModuleToSourceId"><span class="hs-identifier">stModuleToSourceId</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier">useTC</span></a></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier">ReadTCState</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportS"><span class="hs-identifier">reportS</span></a></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier">MonadFileId</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#srcFilePath"><span class="hs-identifier">srcFilePath</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier">filePath</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier">mkAbsolute</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-57"></span><span class="annot"><span class="hs-comment">-- * Main.</span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- Command-line flag options, prior to e.g. path resolution and validation.</span><span>
+</span><span id="line-60"></span><span class="hs-keyword">data</span><span> </span><span id="LaTeXFlags"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-var">LaTeXFlags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LaTeXFlags"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-var">LaTeXFlags</span></a></span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="latexFlagOutDir"><span class="annot"><span class="annottext">LaTeXFlags -&gt; [Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagOutDir"><span class="hs-identifier hs-var hs-var">latexFlagOutDir</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="latexFlagSourceFile"><span class="annot"><span class="annottext">LaTeXFlags -&gt; Maybe [Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagSourceFile"><span class="hs-identifier hs-var hs-var">latexFlagSourceFile</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="latexFlagGenerateLaTeX"><span class="annot"><span class="annottext">LaTeXFlags -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagGenerateLaTeX"><span class="hs-identifier hs-var hs-var">latexFlagGenerateLaTeX</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-64"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Are we going to try to generate LaTeX at all?</span></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621682252165"><span id="local-6989586621682252174"><span class="annot"><span class="annottext">LaTeXFlags -&gt; LaTeXFlags -&gt; Bool
+(LaTeXFlags -&gt; LaTeXFlags -&gt; Bool)
+-&gt; (LaTeXFlags -&gt; LaTeXFlags -&gt; Bool) -&gt; Eq LaTeXFlags
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: LaTeXFlags -&gt; LaTeXFlags -&gt; Bool
+== :: LaTeXFlags -&gt; LaTeXFlags -&gt; Bool
+$c/= :: LaTeXFlags -&gt; LaTeXFlags -&gt; Bool
+/= :: LaTeXFlags -&gt; LaTeXFlags -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682252180"><span id="local-6989586621682252182"><span class="annot"><span class="annottext">(forall x. LaTeXFlags -&gt; Rep LaTeXFlags x)
+-&gt; (forall x. Rep LaTeXFlags x -&gt; LaTeXFlags) -&gt; Generic LaTeXFlags
+forall x. Rep LaTeXFlags x -&gt; LaTeXFlags
+forall x. LaTeXFlags -&gt; Rep LaTeXFlags x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. LaTeXFlags -&gt; Rep LaTeXFlags x
+from :: forall x. LaTeXFlags -&gt; Rep LaTeXFlags x
+$cto :: forall x. Rep LaTeXFlags x -&gt; LaTeXFlags
+to :: forall x. Rep LaTeXFlags x -&gt; LaTeXFlags
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682252188"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="annot"><span class="hs-comment">-- | The default output directory for LaTeX.</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#defaultLaTeXDir"><span class="hs-identifier hs-type">defaultLaTeXDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-72"></span><span id="defaultLaTeXDir"><span class="annot"><span class="annottext">defaultLaTeXDir :: [Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#defaultLaTeXDir"><span class="hs-identifier hs-var hs-var">defaultLaTeXDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;latex&quot;</span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#defaultLaTeXFlags"><span class="hs-identifier hs-type">defaultLaTeXFlags</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span>
+</span><span id="line-75"></span><span id="defaultLaTeXFlags"><span class="annot"><span class="annottext">defaultLaTeXFlags :: LaTeXFlags
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#defaultLaTeXFlags"><span class="hs-identifier hs-var hs-var">defaultLaTeXFlags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">latexFlagOutDir :: [Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagOutDir"><span class="hs-identifier hs-var">latexFlagOutDir</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#defaultLaTeXDir"><span class="hs-identifier hs-var">defaultLaTeXDir</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">latexFlagSourceFile :: Maybe [Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagSourceFile"><span class="hs-identifier hs-var">latexFlagSourceFile</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [Char]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">latexFlagGenerateLaTeX :: Bool
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagGenerateLaTeX"><span class="hs-identifier hs-var">latexFlagGenerateLaTeX</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- | Command-line flag options for LaTeX.</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--   The 'latexPragmaOptions' are not included here since they have a different 'Flag' type.</span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagsDescriptions"><span class="hs-identifier hs-type">latexFlagsDescriptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-84"></span><span id="latexFlagsDescriptions"><span class="annot"><span class="annottext">latexFlagsDescriptions :: [OptDescr (Flag LaTeXFlags)]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagsDescriptions"><span class="hs-identifier hs-var hs-var">latexFlagsDescriptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">[Char]
+-&gt; [[Char]]
+-&gt; ArgDescr (Flag LaTeXFlags)
+-&gt; [Char]
+-&gt; OptDescr (Flag LaTeXFlags)
+forall a. [Char] -&gt; [[Char]] -&gt; ArgDescr a -&gt; [Char] -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;latex&quot;</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flag LaTeXFlags -&gt; ArgDescr (Flag LaTeXFlags)
+forall a. a -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-var">NoArg</span></a></span><span> </span><span class="annot"><span class="annottext">Flag LaTeXFlags
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlag"><span class="hs-identifier hs-var">latexFlag</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>                  </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;generate LaTeX with highlighted source code&quot;</span></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+-&gt; [[Char]]
+-&gt; ArgDescr (Flag LaTeXFlags)
+-&gt; [Char]
+-&gt; OptDescr (Flag LaTeXFlags)
+forall a. [Char] -&gt; [[Char]] -&gt; ArgDescr a -&gt; [Char] -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;latex-dir&quot;</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; Flag LaTeXFlags) -&gt; [Char] -&gt; ArgDescr (Flag LaTeXFlags)
+forall a. ([Char] -&gt; a) -&gt; [Char] -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-var">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Flag LaTeXFlags
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexDirFlag"><span class="hs-identifier hs-var">latexDirFlag</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;DIR&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;directory in which LaTeX files are placed (default: &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-89"></span><span>                    </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#defaultLaTeXDir"><span class="hs-identifier hs-var">defaultLaTeXDir</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;)&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlag"><span class="hs-identifier hs-type">latexFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span>
+</span><span id="line-93"></span><span id="latexFlag"><span class="annot"><span class="annottext">latexFlag :: Flag LaTeXFlags
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlag"><span class="hs-identifier hs-var hs-var">latexFlag</span></a></span></span><span> </span><span id="local-6989586621682252220"><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252220"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag LaTeXFlags
+forall a. a -&gt; OptM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Flag LaTeXFlags -&gt; Flag LaTeXFlags
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252220"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagGenerateLaTeX"><span class="hs-identifier hs-var">latexFlagGenerateLaTeX</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexDirFlag"><span class="hs-identifier hs-type">latexDirFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span>
+</span><span id="line-96"></span><span id="latexDirFlag"><span class="annot"><span class="annottext">latexDirFlag :: [Char] -&gt; Flag LaTeXFlags
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexDirFlag"><span class="hs-identifier hs-var hs-var">latexDirFlag</span></a></span></span><span> </span><span id="local-6989586621682252221"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682252221"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621682252222"><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252222"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag LaTeXFlags
+forall a. a -&gt; OptM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Flag LaTeXFlags -&gt; Flag LaTeXFlags
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252222"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagOutDir"><span class="hs-identifier hs-var">latexFlagOutDir</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682252221"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-keyword">data</span><span> </span><span id="LaTeXCompileEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-var">LaTeXCompileEnv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LaTeXCompileEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-var">LaTeXCompileEnv</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span>
+</span><span id="line-99"></span><span class="hs-keyword">data</span><span> </span><span id="LaTeXModuleEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-var">LaTeXModuleEnv</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="LaTeXModuleEnv"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-var">LaTeXModuleEnv</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#LaTeXOptions"><span class="hs-identifier hs-type">LaTeXOptions</span></a></span><span>
+</span><span id="line-100"></span><span class="hs-keyword">data</span><span> </span><span id="LaTeXModule"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-var">LaTeXModule</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span id="LaTeXModule"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-var">LaTeXModule</span></a></span></span><span>
+</span><span id="line-101"></span><span class="hs-keyword">data</span><span> </span><span id="LaTeXDef"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXDef"><span class="hs-identifier hs-var">LaTeXDef</span></a></span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span id="LaTeXDef"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXDef"><span class="hs-identifier hs-var">LaTeXDef</span></a></span></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackendName"><span class="hs-identifier hs-type">latexBackendName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#BackendName"><span class="hs-identifier hs-type">BackendName</span></a></span><span>
+</span><span id="line-104"></span><span id="latexBackendName"><span class="annot"><span class="annottext">latexBackendName :: BackendName
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackendName"><span class="hs-identifier hs-var hs-var">latexBackendName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BackendName
+</span><span class="hs-string">&quot;LaTeX&quot;</span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackend"><span class="hs-identifier hs-type">latexBackend</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend"><span class="hs-identifier hs-type">Backend</span></a></span><span>
+</span><span id="line-107"></span><span id="latexBackend"><span class="annot"><span class="annottext">latexBackend :: Backend
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackend"><span class="hs-identifier hs-var hs-var">latexBackend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Backend'_boot
+  Definition
+  TCM
+  LaTeXFlags
+  LaTeXCompileEnv
+  LaTeXModuleEnv
+  LaTeXModule
+  LaTeXDef
+-&gt; Backend
+forall opts definition (tcm :: * -&gt; *) env menv mod def.
+NFData opts =&gt;
+Backend'_boot definition tcm opts env menv mod def
+-&gt; Backend_boot definition tcm
+</span><a href="Agda.Compiler.Backend.Base.html#Backend"><span class="hs-identifier hs-var">Backend</span></a></span><span> </span><span class="annot"><span class="annottext">Backend'_boot
+  Definition
+  TCM
+  LaTeXFlags
+  LaTeXCompileEnv
+  LaTeXModuleEnv
+  LaTeXModule
+  LaTeXDef
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackend%27"><span class="hs-identifier hs-var">latexBackend'</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackend%27"><span class="hs-identifier hs-type">latexBackend'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Backend%27"><span class="hs-identifier hs-type">Backend'</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-type">LaTeXCompileEnv</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-type">LaTeXModuleEnv</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-type">LaTeXModule</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXDef"><span class="hs-identifier hs-type">LaTeXDef</span></a></span><span>
+</span><span id="line-110"></span><span id="latexBackend%27"><span class="annot"><span class="annottext">latexBackend' :: Backend'_boot
+  Definition
+  TCM
+  LaTeXFlags
+  LaTeXCompileEnv
+  LaTeXModuleEnv
+  LaTeXModule
+  LaTeXDef
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackend%27"><span class="hs-identifier hs-var hs-var">latexBackend'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27"><span class="hs-identifier hs-type">Backend'</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">backendName :: BackendName
+</span><a href="Agda.Compiler.Backend.Base.html#backendName"><span class="hs-identifier hs-var">backendName</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BackendName
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexBackendName"><span class="hs-identifier hs-var">latexBackendName</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">backendVersion :: Maybe BackendName
+</span><a href="Agda.Compiler.Backend.Base.html#backendVersion"><span class="hs-identifier hs-var">backendVersion</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe BackendName
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">options :: LaTeXFlags
+</span><a href="Agda.Compiler.Backend.Base.html#options"><span class="hs-identifier hs-var">options</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#defaultLaTeXFlags"><span class="hs-identifier hs-var">defaultLaTeXFlags</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">commandLineFlags :: [OptDescr (Flag LaTeXFlags)]
+</span><a href="Agda.Compiler.Backend.Base.html#commandLineFlags"><span class="hs-identifier hs-var">commandLineFlags</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[OptDescr (Flag LaTeXFlags)]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagsDescriptions"><span class="hs-identifier hs-var">latexFlagsDescriptions</span></a></span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">isEnabled :: LaTeXFlags -&gt; Bool
+</span><a href="Agda.Compiler.Backend.Base.html#isEnabled"><span class="hs-identifier hs-var">isEnabled</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXFlags -&gt; Bool
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagGenerateLaTeX"><span class="hs-identifier hs-var">latexFlagGenerateLaTeX</span></a></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">preCompile :: LaTeXFlags -&gt; TCM LaTeXCompileEnv
+</span><a href="Agda.Compiler.Backend.Base.html#preCompile"><span class="hs-identifier hs-var">preCompile</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXFlags -&gt; TCM LaTeXCompileEnv
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+LaTeXFlags -&gt; m LaTeXCompileEnv
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#preCompileLaTeX"><span class="hs-identifier hs-var">preCompileLaTeX</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">preModule :: LaTeXCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe [Char]
+-&gt; TCM (Recompile LaTeXModuleEnv LaTeXModule)
+</span><a href="Agda.Compiler.Backend.Base.html#preModule"><span class="hs-identifier hs-var">preModule</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe [Char]
+-&gt; TCM (Recompile LaTeXModuleEnv LaTeXModule)
+forall (m :: * -&gt; *).
+(HasOptions m, ReadTCState m, MonadFileId m) =&gt;
+LaTeXCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe [Char]
+-&gt; m (Recompile LaTeXModuleEnv LaTeXModule)
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#preModuleLaTeX"><span class="hs-identifier hs-var">preModuleLaTeX</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">compileDef :: LaTeXCompileEnv
+-&gt; LaTeXModuleEnv -&gt; IsMain -&gt; Definition -&gt; TCM LaTeXDef
+</span><a href="Agda.Compiler.Backend.Base.html#compileDef"><span class="hs-identifier hs-var">compileDef</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXCompileEnv
+-&gt; LaTeXModuleEnv -&gt; IsMain -&gt; Definition -&gt; TCM LaTeXDef
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+LaTeXCompileEnv
+-&gt; LaTeXModuleEnv -&gt; IsMain -&gt; Definition -&gt; m LaTeXDef
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#compileDefLaTeX"><span class="hs-identifier hs-var">compileDefLaTeX</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">postModule :: LaTeXCompileEnv
+-&gt; LaTeXModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [LaTeXDef]
+-&gt; TCM LaTeXModule
+</span><a href="Agda.Compiler.Backend.Base.html#postModule"><span class="hs-identifier hs-var">postModule</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXCompileEnv
+-&gt; LaTeXModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [LaTeXDef]
+-&gt; TCM LaTeXModule
+forall (m :: * -&gt; *).
+(MonadDebug m, ReadTCState m, MonadIO m) =&gt;
+LaTeXCompileEnv
+-&gt; LaTeXModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [LaTeXDef]
+-&gt; m LaTeXModule
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#postModuleLaTeX"><span class="hs-identifier hs-var">postModuleLaTeX</span></a></span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">postCompile :: LaTeXCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName LaTeXModule -&gt; TCM ()
+</span><a href="Agda.Compiler.Backend.Base.html#postCompile"><span class="hs-identifier hs-var">postCompile</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName LaTeXModule -&gt; TCM ()
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+LaTeXCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName LaTeXModule -&gt; m ()
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#postCompileLaTeX"><span class="hs-identifier hs-var">postCompileLaTeX</span></a></span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scopeCheckingSuffices :: Bool
+</span><a href="Agda.Compiler.Backend.Base.html#scopeCheckingSuffices"><span class="hs-identifier hs-var">scopeCheckingSuffices</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-122"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">mayEraseType :: QName -&gt; TCM Bool
+</span><a href="Agda.Compiler.Backend.Base.html#mayEraseType"><span class="hs-identifier hs-var">mayEraseType</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCM Bool -&gt; QName -&gt; TCM Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">(TCM Bool -&gt; QName -&gt; TCM Bool) -&gt; TCM Bool -&gt; QName -&gt; TCM Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; TCM Bool
+forall a. a -&gt; TCM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-123"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">backendInteractTop :: Maybe (BackendCommandTop TCM)
+</span><a href="Agda.Compiler.Backend.Base.html#backendInteractTop"><span class="hs-identifier hs-var">backendInteractTop</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (BackendCommandTop TCM)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">backendInteractHole :: Maybe (BackendCommandHole TCM)
+</span><a href="Agda.Compiler.Backend.Base.html#backendInteractHole"><span class="hs-identifier hs-var">backendInteractHole</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (BackendCommandHole TCM)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="annot"><span class="hs-comment">-- | A wrapper to implement 'MonadLogLaTeX'.</span></span><span>
+</span><span id="line-128"></span><span class="hs-keyword">newtype</span><span> </span><span id="LogLaTeXDebugT"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LogLaTeXDebugT"><span class="hs-identifier hs-var">LogLaTeXDebugT</span></a></span></span><span> </span><span id="local-6989586621682251990"><span class="annot"><a href="#local-6989586621682251990"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621682251991"><span class="annot"><a href="#local-6989586621682251991"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LogLaTeXDebugT"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LogLaTeXDebugT"><span class="hs-identifier hs-var">LogLaTeXDebugT</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="runLogLaTeXDebugT"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. LogLaTeXDebugT m a -&gt; m a
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#runLogLaTeXDebugT"><span class="hs-identifier hs-var hs-var">runLogLaTeXDebugT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621682251990"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682251991"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621682252254"><span id="local-6989586621682252258"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b)
+-&gt; (forall a b. a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a)
+-&gt; Functor (LogLaTeXDebugT m)
+forall a b. a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+forall a b. (a -&gt; b) -&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+fmap :: forall a b. (a -&gt; b) -&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+$c&lt;$ :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+&lt;$ :: forall a b. a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682252269"><span id="local-6989586621682252273"><span id="local-6989586621682252277"><span id="local-6989586621682252281"><span id="local-6989586621682252285"><span class="annot"><span class="annottext">Functor (LogLaTeXDebugT m)
+Functor (LogLaTeXDebugT m) =&gt;
+(forall a. a -&gt; LogLaTeXDebugT m a)
+-&gt; (forall a b.
+    LogLaTeXDebugT m (a -&gt; b)
+    -&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c)
+    -&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m c)
+-&gt; (forall a b.
+    LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b)
+-&gt; (forall a b.
+    LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a)
+-&gt; Applicative (LogLaTeXDebugT m)
+forall a. a -&gt; LogLaTeXDebugT m a
+forall a b.
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+forall a b.
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+forall a b.
+LogLaTeXDebugT m (a -&gt; b)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+forall a b c.
+(a -&gt; b -&gt; c)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+forall (m :: * -&gt; *). Applicative m =&gt; Functor (LogLaTeXDebugT m)
+forall (m :: * -&gt; *) a. Applicative m =&gt; a -&gt; LogLaTeXDebugT m a
+forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+LogLaTeXDebugT m (a -&gt; b)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; c)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m c
+$cpure :: forall (m :: * -&gt; *) a. Applicative m =&gt; a -&gt; LogLaTeXDebugT m a
+pure :: forall a. a -&gt; LogLaTeXDebugT m a
+$c&lt;*&gt; :: forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+LogLaTeXDebugT m (a -&gt; b)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+&lt;*&gt; :: forall a b.
+LogLaTeXDebugT m (a -&gt; b)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b
+$cliftA2 :: forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; c)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c)
+-&gt; LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m c
+$c*&gt; :: forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+*&gt; :: forall a b.
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+$c&lt;* :: forall (m :: * -&gt; *) a b.
+Applicative m =&gt;
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+&lt;* :: forall a b.
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682252298"><span id="local-6989586621682252302"><span id="local-6989586621682252306"><span class="annot"><span class="annottext">Applicative (LogLaTeXDebugT m)
+Applicative (LogLaTeXDebugT m) =&gt;
+(forall a b.
+ LogLaTeXDebugT m a
+ -&gt; (a -&gt; LogLaTeXDebugT m b) -&gt; LogLaTeXDebugT m b)
+-&gt; (forall a b.
+    LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b)
+-&gt; (forall a. a -&gt; LogLaTeXDebugT m a)
+-&gt; Monad (LogLaTeXDebugT m)
+forall a. a -&gt; LogLaTeXDebugT m a
+forall a b.
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+forall a b.
+LogLaTeXDebugT m a
+-&gt; (a -&gt; LogLaTeXDebugT m b) -&gt; LogLaTeXDebugT m b
+forall (m :: * -&gt; *). Monad m =&gt; Applicative (LogLaTeXDebugT m)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; LogLaTeXDebugT m a
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+LogLaTeXDebugT m a
+-&gt; (a -&gt; LogLaTeXDebugT m b) -&gt; LogLaTeXDebugT m b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+LogLaTeXDebugT m a
+-&gt; (a -&gt; LogLaTeXDebugT m b) -&gt; LogLaTeXDebugT m b
+&gt;&gt;= :: forall a b.
+LogLaTeXDebugT m a
+-&gt; (a -&gt; LogLaTeXDebugT m b) -&gt; LogLaTeXDebugT m b
+$c&gt;&gt; :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+&gt;&gt; :: forall a b.
+LogLaTeXDebugT m a -&gt; LogLaTeXDebugT m b -&gt; LogLaTeXDebugT m b
+$creturn :: forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; LogLaTeXDebugT m a
+return :: forall a. a -&gt; LogLaTeXDebugT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682252317"><span class="annot"><span class="annottext">Monad (LogLaTeXDebugT m)
+Monad (LogLaTeXDebugT m) =&gt;
+(forall a. IO a -&gt; LogLaTeXDebugT m a)
+-&gt; MonadIO (LogLaTeXDebugT m)
+forall a. IO a -&gt; LogLaTeXDebugT m a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. IO a -&gt; m a) -&gt; MonadIO m
+forall (m :: * -&gt; *). MonadIO m =&gt; Monad (LogLaTeXDebugT m)
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; LogLaTeXDebugT m a
+$cliftIO :: forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; LogLaTeXDebugT m a
+liftIO :: forall a. IO a -&gt; LogLaTeXDebugT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadIO</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682252050"><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252050"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#MonadLogLaTeX"><span class="hs-identifier hs-type">MonadLogLaTeX</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LogLaTeXDebugT"><span class="hs-identifier hs-type">LogLaTeXDebugT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252050"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621682252335"><span class="annot"><span class="annottext">logLaTeX :: LogMessage -&gt; LogLaTeXDebugT m ()
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#logLaTeX"><span class="hs-identifier hs-var hs-var hs-var">logLaTeX</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; LogLaTeXDebugT m ()
+forall (m :: * -&gt; *) a. m a -&gt; LogLaTeXDebugT m a
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LogLaTeXDebugT"><span class="hs-identifier hs-var">LogLaTeXDebugT</span></a></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; LogLaTeXDebugT m ())
+-&gt; (LogMessage -&gt; m ()) -&gt; LogMessage -&gt; LogLaTeXDebugT m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+forall a (m :: * -&gt; *).
+(ReportS a, MonadDebug m) =&gt;
+[Char] -&gt; VerboseLevel -&gt; a -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportS"><span class="hs-identifier hs-var">reportS</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;compile.latex&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; m ()) -&gt; (LogMessage -&gt; [Char]) -&gt; LogMessage -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">BackendName -&gt; [Char]
+</span><span class="hs-identifier hs-var">T.unpack</span></span><span> </span><span class="annot"><span class="annottext">(BackendName -&gt; [Char])
+-&gt; (LogMessage -&gt; BackendName) -&gt; LogMessage -&gt; [Char]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">LogMessage -&gt; BackendName
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#logMsgToText"><span class="hs-identifier hs-var">logMsgToText</span></a></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- Resolve the raw flags into usable LaTeX options.</span><span>
+</span><span id="line-135"></span><span id="local-6989586621682252058"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#resolveLaTeXOptions"><span class="hs-identifier hs-type">resolveLaTeXOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252058"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252058"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252058"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-138"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682252058"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#LaTeXOptions"><span class="hs-identifier hs-type">LaTeXOptions</span></a></span></span><span>
+</span><span id="line-139"></span><span id="resolveLaTeXOptions"><span class="annot"><span class="annottext">resolveLaTeXOptions :: forall (m :: * -&gt; *).
+(HasOptions m, ReadTCState m, MonadFileId m) =&gt;
+LaTeXFlags -&gt; TopLevelModuleName -&gt; m LaTeXOptions
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#resolveLaTeXOptions"><span class="hs-identifier hs-var hs-var">resolveLaTeXOptions</span></a></span></span><span> </span><span id="local-6989586621682252360"><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252360"><span class="hs-identifier hs-var">flags</span></a></span></span><span> </span><span id="local-6989586621682252361"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682252361"><span class="hs-identifier hs-var">moduleName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-140"></span><span>  </span><span id="local-6989586621682252362"><span class="annot"><a href="#local-6989586621682252362"><span class="hs-identifier hs-var">options</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m CommandLineOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m CommandLineOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#commandLineOptions"><span class="hs-identifier hs-var">commandLineOptions</span></a></span><span>
+</span><span id="line-141"></span><span>  </span><span id="local-6989586621682252363"><span class="annot"><a href="#local-6989586621682252363"><span class="hs-identifier hs-var">modFiles</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stModuleToSourceId"><span class="hs-identifier hs-type">stModuleToSourceId</span></a></span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682252366"><span class="annot"><a href="#local-6989586621682252366"><span class="hs-identifier hs-var hs-var">msrc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+-&gt; Map TopLevelModuleName SourceFile -&gt; Maybe SourceFile
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682252361"><span class="hs-identifier hs-var">moduleName</span></a></span><span> </span><span class="annot"><span class="annottext">Map TopLevelModuleName SourceFile
+</span><a href="#local-6989586621682252363"><span class="hs-identifier hs-var">modFiles</span></a></span><span>
+</span><span id="line-143"></span><span>  </span><span id="local-6989586621682252368"><span class="annot"><a href="#local-6989586621682252368"><span class="hs-identifier hs-var">mf</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">traverse</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#srcFilePath"><span class="hs-identifier hs-type">srcFilePath</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252366"><span class="hs-identifier hs-type">msrc</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-145"></span><span>    </span><span id="local-6989586621682252370"><span class="annot"><a href="#local-6989586621682252370"><span class="hs-identifier hs-var hs-var">mSrcFileName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe AbsolutePath
+</span><a href="#local-6989586621682252368"><span class="hs-identifier hs-var">mf</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe AbsolutePath
+-&gt; (AbsolutePath -&gt; RangeFile) -&gt; Maybe RangeFile
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682252371"><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621682252371"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-146"></span><span>      </span><span class="annot"><span class="annottext">AbsolutePath -&gt; Maybe TopLevelModuleName -&gt; RangeFile
+</span><a href="Agda.Syntax.Position.html#mkRangeFile"><span class="hs-identifier hs-var">mkRangeFile</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; AbsolutePath
+</span><a href="Agda.Utils.FileName.html#mkAbsolute"><span class="hs-identifier hs-var">mkAbsolute</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AbsolutePath -&gt; [Char]
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">AbsolutePath
+</span><a href="#local-6989586621682252371"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; Maybe TopLevelModuleName
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682252361"><span class="hs-identifier hs-var">moduleName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span>      </span><span class="hs-comment">-- TODO:    ^^^^^^^^^^^^^^^^^^^^^^^^^ can this just be `f`?</span><span>
+</span><span id="line-148"></span><span>    </span><span id="local-6989586621682252372"><span class="annot"><a href="#local-6989586621682252372"><span class="hs-identifier hs-var hs-var">countClusters</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optCountClusters"><span class="hs-identifier hs-var">optCountClusters</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool)
+-&gt; (CommandLineOptions -&gt; PragmaOptions)
+-&gt; CommandLineOptions
+-&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; PragmaOptions
+</span><a href="Agda.Interaction.Options.Types.html#optPragmaOptions"><span class="hs-identifier hs-var">optPragmaOptions</span></a></span><span> </span><span class="annot"><span class="annottext">(CommandLineOptions -&gt; Bool) -&gt; CommandLineOptions -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621682252362"><span class="hs-identifier hs-var">options</span></a></span><span>
+</span><span id="line-149"></span><span>    </span><span id="local-6989586621682252373"><span class="annot"><a href="#local-6989586621682252373"><span class="hs-identifier hs-var hs-var">latexDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXFlags -&gt; [Char]
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#latexFlagOutDir"><span class="hs-identifier hs-var">latexFlagOutDir</span></a></span><span> </span><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252360"><span class="hs-identifier hs-var">flags</span></a></span><span>
+</span><span id="line-150"></span><span>    </span><span class="hs-comment">-- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or</span><span>
+</span><span id="line-151"></span><span>    </span><span class="hs-comment">-- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/</span><span>
+</span><span id="line-152"></span><span>    </span><span class="hs-comment">-- And it prevents us from doing a real &quot;one-time&quot; setup.</span><span>
+</span><span id="line-153"></span><span>    </span><span id="local-6989586621682252374"><span class="annot"><a href="#local-6989586621682252374"><span class="hs-identifier hs-var hs-var">outDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe RangeFile
+</span><a href="#local-6989586621682252370"><span class="hs-identifier hs-var">mSrcFileName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Types.html#optGHCiInteraction"><span class="hs-identifier hs-var">optGHCiInteraction</span></a></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621682252362"><span class="hs-identifier hs-var">options</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-154"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682252375"><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621682252375"><span class="hs-identifier hs-var">sourceFile</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-155"></span><span>        </span><span class="annot"><span class="annottext">AbsolutePath -&gt; [Char]
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AbsolutePath -&gt; TopLevelModuleName -&gt; AbsolutePath
+</span><a href="Agda.Syntax.TopLevelModuleName.html#projectRoot"><span class="hs-identifier hs-var">projectRoot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangeFile -&gt; AbsolutePath
+</span><a href="Agda.Syntax.Position.html#rangeFilePath"><span class="hs-identifier hs-var">rangeFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621682252375"><span class="hs-identifier hs-var">sourceFile</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682252361"><span class="hs-identifier hs-var">moduleName</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+</span><span class="hs-operator hs-var">&lt;/&gt;</span></span><span>
+</span><span id="line-156"></span><span>        </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682252373"><span class="hs-identifier hs-var">latexDir</span></a></span><span>
+</span><span id="line-157"></span><span>      </span><span class="annot"><span class="annottext">(Maybe RangeFile, Bool)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682252373"><span class="hs-identifier hs-var">latexDir</span></a></span><span>
+</span><span id="line-158"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#LaTeXOptions"><span class="hs-identifier hs-type">LaTeXOptions</span></a></span><span>
+</span><span id="line-159"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#latexOptOutDir"><span class="hs-identifier hs-var">latexOptOutDir</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682252374"><span class="hs-identifier hs-type">outDir</span></a></span><span>
+</span><span id="line-160"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#latexOptSourceFileName"><span class="hs-identifier hs-var">latexOptSourceFileName</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682252370"><span class="hs-identifier hs-type">mSrcFileName</span></a></span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#latexOptCountClusters"><span class="hs-identifier hs-var">latexOptCountClusters</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682252372"><span class="hs-identifier hs-type">countClusters</span></a></span><span>
+</span><span id="line-162"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span id="local-6989586621682251983"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#preCompileLaTeX"><span class="hs-identifier hs-type">preCompileLaTeX</span></a></span><span>
+</span><span id="line-165"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621682251983"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-166"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXFlags"><span class="hs-identifier hs-type">LaTeXFlags</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682251983"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-type">LaTeXCompileEnv</span></a></span></span><span>
+</span><span id="line-168"></span><span id="preCompileLaTeX"><span class="annot"><span class="annottext">preCompileLaTeX :: forall (m :: * -&gt; *).
+Applicative m =&gt;
+LaTeXFlags -&gt; m LaTeXCompileEnv
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#preCompileLaTeX"><span class="hs-identifier hs-var hs-var">preCompileLaTeX</span></a></span></span><span> </span><span id="local-6989586621682252382"><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252382"><span class="hs-identifier hs-var">flags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXCompileEnv -&gt; m LaTeXCompileEnv
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(LaTeXCompileEnv -&gt; m LaTeXCompileEnv)
+-&gt; LaTeXCompileEnv -&gt; m LaTeXCompileEnv
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LaTeXFlags -&gt; LaTeXCompileEnv
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-var">LaTeXCompileEnv</span></a></span><span> </span><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252382"><span class="hs-identifier hs-var">flags</span></a></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span id="local-6989586621682251984"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#preModuleLaTeX"><span class="hs-identifier hs-type">preModuleLaTeX</span></a></span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682251984"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682251984"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-type">MonadFileId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682251984"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-type">LaTeXCompileEnv</span></a></span><span>
+</span><span id="line-173"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-174"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-175"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-176"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682251984"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier hs-type">Recompile</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-type">LaTeXModuleEnv</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-type">LaTeXModule</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-177"></span><span id="preModuleLaTeX"><span class="annot"><span class="annottext">preModuleLaTeX :: forall (m :: * -&gt; *).
+(HasOptions m, ReadTCState m, MonadFileId m) =&gt;
+LaTeXCompileEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe [Char]
+-&gt; m (Recompile LaTeXModuleEnv LaTeXModule)
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#preModuleLaTeX"><span class="hs-identifier hs-var hs-var">preModuleLaTeX</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-type">LaTeXCompileEnv</span></a></span><span> </span><span id="local-6989586621682252394"><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252394"><span class="hs-identifier hs-var">flags</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621682252395"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682252395"><span class="hs-identifier hs-var">isMain</span></a></span></span><span> </span><span id="local-6989586621682252396"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682252396"><span class="hs-identifier hs-var">moduleName</span></a></span></span><span> </span><span id="local-6989586621682252397"><span class="annot"><span class="annottext">Maybe [Char]
+</span><a href="#local-6989586621682252397"><span class="hs-identifier hs-var">_ifacePath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682252395"><span class="hs-identifier hs-var">isMain</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-178"></span><span>  </span><span class="annot"><span class="annottext">IsMain
+</span><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-var">IsMain</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LaTeXModuleEnv -&gt; Recompile LaTeXModuleEnv LaTeXModule
+forall menv mod. menv -&gt; Recompile menv mod
+</span><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier hs-var">Recompile</span></a></span><span> </span><span class="annot"><span class="annottext">(LaTeXModuleEnv -&gt; Recompile LaTeXModuleEnv LaTeXModule)
+-&gt; (LaTeXOptions -&gt; LaTeXModuleEnv)
+-&gt; LaTeXOptions
+-&gt; Recompile LaTeXModuleEnv LaTeXModule
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">LaTeXOptions -&gt; LaTeXModuleEnv
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-var">LaTeXModuleEnv</span></a></span><span> </span><span class="annot"><span class="annottext">(LaTeXOptions -&gt; Recompile LaTeXModuleEnv LaTeXModule)
+-&gt; m LaTeXOptions -&gt; m (Recompile LaTeXModuleEnv LaTeXModule)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">LaTeXFlags -&gt; TopLevelModuleName -&gt; m LaTeXOptions
+forall (m :: * -&gt; *).
+(HasOptions m, ReadTCState m, MonadFileId m) =&gt;
+LaTeXFlags -&gt; TopLevelModuleName -&gt; m LaTeXOptions
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#resolveLaTeXOptions"><span class="hs-identifier hs-var">resolveLaTeXOptions</span></a></span><span> </span><span class="annot"><span class="annottext">LaTeXFlags
+</span><a href="#local-6989586621682252394"><span class="hs-identifier hs-var">flags</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682252396"><span class="hs-identifier hs-var">moduleName</span></a></span><span>
+</span><span id="line-179"></span><span>  </span><span class="annot"><span class="annottext">IsMain
+</span><a href="Agda.Syntax.Common.html#NotMain"><span class="hs-identifier hs-var">NotMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Recompile LaTeXModuleEnv LaTeXModule
+-&gt; m (Recompile LaTeXModuleEnv LaTeXModule)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Recompile LaTeXModuleEnv LaTeXModule
+ -&gt; m (Recompile LaTeXModuleEnv LaTeXModule))
+-&gt; Recompile LaTeXModuleEnv LaTeXModule
+-&gt; m (Recompile LaTeXModuleEnv LaTeXModule)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LaTeXModule -&gt; Recompile LaTeXModuleEnv LaTeXModule
+forall menv mod. mod -&gt; Recompile menv mod
+</span><a href="Agda.Compiler.Backend.Base.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">LaTeXModule
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-var">LaTeXModule</span></a></span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span id="local-6989586621682251985"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#compileDefLaTeX"><span class="hs-identifier hs-type">compileDefLaTeX</span></a></span><span>
+</span><span id="line-182"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621682251985"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-183"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-type">LaTeXCompileEnv</span></a></span><span>
+</span><span id="line-184"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-type">LaTeXModuleEnv</span></a></span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier hs-type">Definition</span></a></span><span>
+</span><span id="line-187"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682251985"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXDef"><span class="hs-identifier hs-type">LaTeXDef</span></a></span></span><span>
+</span><span id="line-188"></span><span id="compileDefLaTeX"><span class="annot"><span class="annottext">compileDefLaTeX :: forall (m :: * -&gt; *).
+Applicative m =&gt;
+LaTeXCompileEnv
+-&gt; LaTeXModuleEnv -&gt; IsMain -&gt; Definition -&gt; m LaTeXDef
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#compileDefLaTeX"><span class="hs-identifier hs-var hs-var">compileDefLaTeX</span></a></span></span><span> </span><span id="local-6989586621682252403"><span class="annot"><span class="annottext">LaTeXCompileEnv
+</span><a href="#local-6989586621682252403"><span class="hs-identifier hs-var">_cenv</span></a></span></span><span> </span><span id="local-6989586621682252404"><span class="annot"><span class="annottext">LaTeXModuleEnv
+</span><a href="#local-6989586621682252404"><span class="hs-identifier hs-var">_menv</span></a></span></span><span> </span><span id="local-6989586621682252405"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682252405"><span class="hs-identifier hs-var">_main</span></a></span></span><span> </span><span id="local-6989586621682252406"><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682252406"><span class="hs-identifier hs-var">_def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LaTeXDef -&gt; m LaTeXDef
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">LaTeXDef
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXDef"><span class="hs-identifier hs-var">LaTeXDef</span></a></span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span id="local-6989586621682251986"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#postModuleLaTeX"><span class="hs-identifier hs-type">postModuleLaTeX</span></a></span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682251986"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682251986"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621682251986"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-type">LaTeXCompileEnv</span></a></span><span>
+</span><span id="line-193"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-type">LaTeXModuleEnv</span></a></span><span>
+</span><span id="line-194"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-195"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-196"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXDef"><span class="hs-identifier hs-type">LaTeXDef</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-197"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682251986"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-type">LaTeXModule</span></a></span></span><span>
+</span><span id="line-198"></span><span id="postModuleLaTeX"><span class="annot"><span class="annottext">postModuleLaTeX :: forall (m :: * -&gt; *).
+(MonadDebug m, ReadTCState m, MonadIO m) =&gt;
+LaTeXCompileEnv
+-&gt; LaTeXModuleEnv
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; [LaTeXDef]
+-&gt; m LaTeXModule
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#postModuleLaTeX"><span class="hs-identifier hs-var hs-var">postModuleLaTeX</span></a></span></span><span> </span><span id="local-6989586621682252420"><span class="annot"><span class="annottext">LaTeXCompileEnv
+</span><a href="#local-6989586621682252420"><span class="hs-identifier hs-var">_cenv</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModuleEnv"><span class="hs-identifier hs-type">LaTeXModuleEnv</span></a></span><span> </span><span id="local-6989586621682252421"><span class="annot"><span class="annottext">LaTeXOptions
+</span><a href="#local-6989586621682252421"><span class="hs-identifier hs-var">latexOpts</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621682252422"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682252422"><span class="hs-identifier hs-var">_main</span></a></span></span><span> </span><span id="local-6989586621682252423"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621682252423"><span class="hs-identifier hs-var">_moduleName</span></a></span></span><span> </span><span id="local-6989586621682252424"><span class="annot"><span class="annottext">[LaTeXDef]
+</span><a href="#local-6989586621682252424"><span class="hs-identifier hs-var">_defs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-199"></span><span>  </span><span id="local-6989586621682252425"><span class="annot"><a href="#local-6989586621682252425"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m Interface
+forall (m :: * -&gt; *). ReadTCState m =&gt; m Interface
+</span><a href="Agda.Compiler.Common.html#curIF"><span class="hs-identifier hs-var">curIF</span></a></span><span>
+</span><span id="line-200"></span><span>  </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#runLogLaTeXDebugT"><span class="hs-identifier hs-var">runLogLaTeXDebugT</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-201"></span><span>    </span><span class="hs-comment">-- FIXME: It would be better to do &quot;prepareCommonAssets&quot; in @preCompileLaTeX@, but because</span><span>
+</span><span id="line-202"></span><span>    </span><span class="hs-comment">-- the output directory depends on the module-relative project root (when in emacs-mode),</span><span>
+</span><span id="line-203"></span><span>    </span><span class="hs-comment">-- we can't do that until we see the module.</span><span>
+</span><span id="line-204"></span><span>    </span><span class="hs-comment">-- However, for now that is OK because we only generate LaTeX for the main module.</span><span>
+</span><span id="line-205"></span><span>    </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#prepareCommonAssets"><span class="hs-identifier hs-type">prepareCommonAssets</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#latexOptOutDir"><span class="hs-identifier hs-var">latexOptOutDir</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252421"><span class="hs-identifier hs-type">latexOpts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-206"></span><span>    </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Base.html#generateLaTeXIO"><span class="hs-identifier hs-type">generateLaTeXIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252421"><span class="hs-identifier hs-type">latexOpts</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682252425"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-207"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-type">LaTeXModule</span></a></span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span id="local-6989586621682251987"><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#postCompileLaTeX"><span class="hs-identifier hs-type">postCompileLaTeX</span></a></span><span>
+</span><span id="line-210"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621682251987"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-211"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXCompileEnv"><span class="hs-identifier hs-type">LaTeXCompileEnv</span></a></span><span>
+</span><span id="line-212"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span>
+</span><span id="line-213"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#LaTeXModule"><span class="hs-identifier hs-type">LaTeXModule</span></a></span><span>
+</span><span id="line-214"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682251987"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-215"></span><span id="postCompileLaTeX"><span class="annot"><span class="annottext">postCompileLaTeX :: forall (m :: * -&gt; *).
+Applicative m =&gt;
+LaTeXCompileEnv
+-&gt; IsMain -&gt; Map TopLevelModuleName LaTeXModule -&gt; m ()
+</span><a href="Agda.Interaction.Highlighting.LaTeX.Backend.html#postCompileLaTeX"><span class="hs-identifier hs-var hs-var">postCompileLaTeX</span></a></span></span><span> </span><span id="local-6989586621682252428"><span class="annot"><span class="annottext">LaTeXCompileEnv
+</span><a href="#local-6989586621682252428"><span class="hs-identifier hs-var">_cenv</span></a></span></span><span> </span><span id="local-6989586621682252429"><span class="annot"><span class="annottext">IsMain
+</span><a href="#local-6989586621682252429"><span class="hs-identifier hs-var">_main</span></a></span></span><span> </span><span id="local-6989586621682252430"><span class="annot"><span class="annottext">Map TopLevelModuleName LaTeXModule
+</span><a href="#local-6989586621682252430"><span class="hs-identifier hs-var">_modulesByName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-216"></span></pre></body></html>

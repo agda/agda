@@ -1,0 +1,333 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-4"></span><span class="annot"><span class="hs-comment">-- | Strictification of Haskell code</span></span><span>
+</span><span id="line-5"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html"><span class="hs-identifier">Agda.Compiler.MAlonzo.Strict</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html"><span class="hs-identifier">Agda.Utils.Haskell.Syntax</span></a></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- | The function 'makeStrict' makes every function argument, case and</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- generator pattern, and 'LocalBind' binding strict (except for those</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- patterns that are marked as irrefutable, and anything in a</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- 'FakeDecl' or 'FakeExp'). Note that only the outermost patterns are</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- made strict.</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">class</span><span> </span><span id="MakeStrict"><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-var">MakeStrict</span></a></span></span><span> </span><span id="local-6989586621681695894"><span class="annot"><a href="#local-6989586621681695894"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>  </span><span id="makeStrict"><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-type">makeStrict</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681695894"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681695894"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681695895"><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695895"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681695895"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>  </span><span id="local-6989586621681695929"><span class="annot"><span class="annottext">makeStrict :: [a] -&gt; [a]
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; [a] -&gt; [a]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681695899"><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695899"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681695899"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-24"></span><span>  </span><span id="local-6989586621681695936"><span class="annot"><span class="annottext">makeStrict :: Maybe a -&gt; Maybe a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; Maybe a -&gt; Maybe a
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Module"><span class="hs-identifier hs-type">Module</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-27"></span><span>  </span><span id="local-6989586621681695942"><span class="annot"><span class="annottext">makeStrict :: Module -&gt; Module
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Module"><span class="hs-identifier hs-type">Module</span></a></span><span> </span><span id="local-6989586621681695944"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681695944"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681695945"><span class="annot"><span class="annottext">[ModulePragma]
+</span><a href="#local-6989586621681695945"><span class="hs-identifier hs-var">pragmas</span></a></span></span><span> </span><span id="local-6989586621681695946"><span class="annot"><span class="annottext">[ImportDecl]
+</span><a href="#local-6989586621681695946"><span class="hs-identifier hs-var">imps</span></a></span></span><span> </span><span id="local-6989586621681695947"><span class="annot"><span class="annottext">[Decl]
+</span><a href="#local-6989586621681695947"><span class="hs-identifier hs-var">decls</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><span class="annottext">ModuleName -&gt; [ModulePragma] -&gt; [ImportDecl] -&gt; [Decl] -&gt; Module
+</span><a href="Agda.Utils.Haskell.Syntax.html#Module"><span class="hs-identifier hs-var">Module</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681695944"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">[ModulePragma]
+</span><a href="#local-6989586621681695945"><span class="hs-identifier hs-var">pragmas</span></a></span><span> </span><span class="annot"><span class="annottext">[ImportDecl]
+</span><a href="#local-6989586621681695946"><span class="hs-identifier hs-var">imps</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Decl] -&gt; [Decl]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Decl]
+</span><a href="#local-6989586621681695947"><span class="hs-identifier hs-var">decls</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Decl"><span class="hs-identifier hs-type">Decl</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>  </span><span id="local-6989586621681695954"><span class="annot"><span class="annottext">makeStrict :: Decl -&gt; Decl
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-32"></span><span>    </span><span id="local-6989586621681695955"><span class="annot"><span class="annottext">d :: Decl
+</span><a href="#local-6989586621681695955"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TypeDecl"><span class="hs-identifier hs-type">TypeDecl</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Decl
+</span><a href="#local-6989586621681695955"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-33"></span><span>    </span><span id="local-6989586621681695957"><span class="annot"><span class="annottext">d :: Decl
+</span><a href="#local-6989586621681695957"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#DataDecl"><span class="hs-identifier hs-type">DataDecl</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Decl
+</span><a href="#local-6989586621681695957"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span id="local-6989586621681695959"><span class="annot"><span class="annottext">d :: Decl
+</span><a href="#local-6989586621681695959"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#TypeSig"><span class="hs-identifier hs-type">TypeSig</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Decl
+</span><a href="#local-6989586621681695959"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#FunBind"><span class="hs-identifier hs-type">FunBind</span></a></span><span> </span><span id="local-6989586621681695962"><span class="annot"><span class="annottext">[Match]
+</span><a href="#local-6989586621681695962"><span class="hs-identifier hs-var">ms</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Match] -&gt; Decl
+</span><a href="Agda.Utils.Haskell.Syntax.html#FunBind"><span class="hs-identifier hs-var">FunBind</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Match] -&gt; [Match]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Match]
+</span><a href="#local-6989586621681695962"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#LocalBind"><span class="hs-identifier hs-type">LocalBind</span></a></span><span> </span><span id="local-6989586621681695963"><span class="annot"><span class="annottext">Strictness
+</span><a href="#local-6989586621681695963"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681695964"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681695964"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681695965"><span class="annot"><span class="annottext">Rhs
+</span><a href="#local-6989586621681695965"><span class="hs-identifier hs-var">rhs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Strictness -&gt; Name -&gt; Rhs -&gt; Decl
+</span><a href="Agda.Utils.Haskell.Syntax.html#LocalBind"><span class="hs-identifier hs-var">LocalBind</span></a></span><span> </span><span class="annot"><span class="annottext">Strictness
+</span><a href="Agda.Utils.Haskell.Syntax.html#Strict"><span class="hs-identifier hs-var">Strict</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681695964"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rhs -&gt; Rhs
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Rhs
+</span><a href="#local-6989586621681695965"><span class="hs-identifier hs-var">rhs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>    </span><span id="local-6989586621681695967"><span class="annot"><span class="annottext">d :: Decl
+</span><a href="#local-6989586621681695967"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PatSyn"><span class="hs-identifier hs-type">PatSyn</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Decl
+</span><a href="#local-6989586621681695967"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-38"></span><span>    </span><span id="local-6989586621681695969"><span class="annot"><span class="annottext">d :: Decl
+</span><a href="#local-6989586621681695969"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#FakeDecl"><span class="hs-identifier hs-type">FakeDecl</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Decl
+</span><a href="#local-6989586621681695969"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-39"></span><span>    </span><span id="local-6989586621681695970"><span class="annot"><span class="annottext">d :: Decl
+</span><a href="#local-6989586621681695970"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Comment"><span class="hs-identifier hs-type">Comment</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Decl
+</span><a href="#local-6989586621681695970"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Match"><span class="hs-identifier hs-type">Match</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621681695980"><span class="annot"><span class="annottext">makeStrict :: Match -&gt; Match
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Match"><span class="hs-identifier hs-type">Match</span></a></span><span> </span><span id="local-6989586621681695982"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681695982"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681695983"><span class="annot"><span class="annottext">[Pat]
+</span><a href="#local-6989586621681695983"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span id="local-6989586621681695984"><span class="annot"><span class="annottext">Rhs
+</span><a href="#local-6989586621681695984"><span class="hs-identifier hs-var">rhs</span></a></span></span><span> </span><span id="local-6989586621681695985"><span class="annot"><span class="annottext">Maybe Binds
+</span><a href="#local-6989586621681695985"><span class="hs-identifier hs-var">wh</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><span class="annottext">Name -&gt; [Pat] -&gt; Rhs -&gt; Maybe Binds -&gt; Match
+</span><a href="Agda.Utils.Haskell.Syntax.html#Match"><span class="hs-identifier hs-var">Match</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681695982"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Pat] -&gt; [Pat]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Pat]
+</span><a href="#local-6989586621681695983"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rhs -&gt; Rhs
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Rhs
+</span><a href="#local-6989586621681695984"><span class="hs-identifier hs-var">rhs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Binds -&gt; Maybe Binds
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Binds
+</span><a href="#local-6989586621681695985"><span class="hs-identifier hs-var">wh</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Pat"><span class="hs-identifier hs-type">Pat</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-46"></span><span>  </span><span id="local-6989586621681695989"><span class="annot"><span class="annottext">makeStrict :: Pat -&gt; Pat
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-47"></span><span>    </span><span id="local-6989586621681695990"><span class="annot"><span class="annottext">p :: Pat
+</span><a href="#local-6989586621681695990"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PVar"><span class="hs-identifier hs-type">PVar</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat -&gt; Pat
+</span><a href="Agda.Utils.Haskell.Syntax.html#PBangPat"><span class="hs-identifier hs-var">PBangPat</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681695990"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span id="local-6989586621681695993"><span class="annot"><span class="annottext">p :: Pat
+</span><a href="#local-6989586621681695993"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PLit"><span class="hs-identifier hs-type">PLit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat -&gt; Pat
+</span><a href="Agda.Utils.Haskell.Syntax.html#PBangPat"><span class="hs-identifier hs-var">PBangPat</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681695993"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PAsPat"><span class="hs-identifier hs-type">PAsPat</span></a></span><span> </span><span id="local-6989586621681695996"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681695996"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681695997"><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681695997"><span class="hs-identifier hs-var">p</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Pat -&gt; Pat
+</span><a href="Agda.Utils.Haskell.Syntax.html#PAsPat"><span class="hs-identifier hs-var">PAsPat</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681695996"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pat -&gt; Pat
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681695997"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>    </span><span id="local-6989586621681695998"><span class="annot"><span class="annottext">p :: Pat
+</span><a href="#local-6989586621681695998"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PWildCard"><span class="hs-identifier hs-type">PWildCard</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat -&gt; Pat
+</span><a href="Agda.Utils.Haskell.Syntax.html#PBangPat"><span class="hs-identifier hs-var">PBangPat</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681695998"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-51"></span><span>    </span><span id="local-6989586621681696000"><span class="annot"><span class="annottext">p :: Pat
+</span><a href="#local-6989586621681696000"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PBangPat"><span class="hs-identifier hs-type">PBangPat</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696000"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span id="local-6989586621681696001"><span class="annot"><span class="annottext">p :: Pat
+</span><a href="#local-6989586621681696001"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PApp"><span class="hs-identifier hs-type">PApp</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat -&gt; Pat
+</span><a href="Agda.Utils.Haskell.Syntax.html#PBangPat"><span class="hs-identifier hs-var">PBangPat</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696001"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PatTypeSig"><span class="hs-identifier hs-type">PatTypeSig</span></a></span><span> </span><span id="local-6989586621681696004"><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696004"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681696005"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681696005"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat -&gt; Type -&gt; Pat
+</span><a href="Agda.Utils.Haskell.Syntax.html#PatTypeSig"><span class="hs-identifier hs-var">PatTypeSig</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pat -&gt; Pat
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696004"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681696005"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-54"></span><span>    </span><span id="local-6989586621681696006"><span class="annot"><span class="annottext">p :: Pat
+</span><a href="#local-6989586621681696006"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#PIrrPat"><span class="hs-identifier hs-type">PIrrPat</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696006"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Binds"><span class="hs-identifier hs-type">Binds</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-57"></span><span>  </span><span id="local-6989586621681696011"><span class="annot"><span class="annottext">makeStrict :: Binds -&gt; Binds
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#BDecls"><span class="hs-identifier hs-type">BDecls</span></a></span><span> </span><span id="local-6989586621681696013"><span class="annot"><span class="annottext">[Decl]
+</span><a href="#local-6989586621681696013"><span class="hs-identifier hs-var">ds</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Decl] -&gt; Binds
+</span><a href="Agda.Utils.Haskell.Syntax.html#BDecls"><span class="hs-identifier hs-var">BDecls</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Decl] -&gt; [Decl]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Decl]
+</span><a href="#local-6989586621681696013"><span class="hs-identifier hs-var">ds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Rhs"><span class="hs-identifier hs-type">Rhs</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-60"></span><span>  </span><span id="local-6989586621681696020"><span class="annot"><span class="annottext">makeStrict :: Rhs -&gt; Rhs
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#UnGuardedRhs"><span class="hs-identifier hs-type">UnGuardedRhs</span></a></span><span> </span><span id="local-6989586621681696022"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696022"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Rhs
+</span><a href="Agda.Utils.Haskell.Syntax.html#UnGuardedRhs"><span class="hs-identifier hs-var">UnGuardedRhs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696022"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhss"><span class="hs-identifier hs-type">GuardedRhss</span></a></span><span> </span><span id="local-6989586621681696024"><span class="annot"><span class="annottext">[GuardedRhs]
+</span><a href="#local-6989586621681696024"><span class="hs-identifier hs-var">rs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[GuardedRhs] -&gt; Rhs
+</span><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhss"><span class="hs-identifier hs-var">GuardedRhss</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[GuardedRhs] -&gt; [GuardedRhs]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[GuardedRhs]
+</span><a href="#local-6989586621681696024"><span class="hs-identifier hs-var">rs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhs"><span class="hs-identifier hs-type">GuardedRhs</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681696030"><span class="annot"><span class="annottext">makeStrict :: GuardedRhs -&gt; GuardedRhs
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhs"><span class="hs-identifier hs-type">GuardedRhs</span></a></span><span> </span><span id="local-6989586621681696032"><span class="annot"><span class="annottext">[Stmt]
+</span><a href="#local-6989586621681696032"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span id="local-6989586621681696033"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696033"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-65"></span><span>    </span><span class="annot"><span class="annottext">[Stmt] -&gt; Exp -&gt; GuardedRhs
+</span><a href="Agda.Utils.Haskell.Syntax.html#GuardedRhs"><span class="hs-identifier hs-var">GuardedRhs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Stmt] -&gt; [Stmt]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Stmt]
+</span><a href="#local-6989586621681696032"><span class="hs-identifier hs-var">ss</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696033"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Stmt"><span class="hs-identifier hs-type">Stmt</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681696038"><span class="annot"><span class="annottext">makeStrict :: Stmt -&gt; Stmt
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Qualifier"><span class="hs-identifier hs-type">Qualifier</span></a></span><span> </span><span id="local-6989586621681696040"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696040"><span class="hs-identifier hs-var">e</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Stmt
+</span><a href="Agda.Utils.Haskell.Syntax.html#Qualifier"><span class="hs-identifier hs-var">Qualifier</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696040"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Generator"><span class="hs-identifier hs-type">Generator</span></a></span><span> </span><span id="local-6989586621681696042"><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696042"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681696043"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696043"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat -&gt; Exp -&gt; Stmt
+</span><a href="Agda.Utils.Haskell.Syntax.html#Generator"><span class="hs-identifier hs-var">Generator</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pat -&gt; Pat
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696042"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696043"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-73"></span><span>  </span><span id="local-6989586621681696064"><span class="annot"><span class="annottext">makeStrict :: Exp -&gt; Exp
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span id="local-6989586621681696065"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696065"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-74"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696065"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-75"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696065"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-76"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696065"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-77"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696065"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-78"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#InfixApp"><span class="hs-identifier hs-type">InfixApp</span></a></span><span> </span><span id="local-6989586621681696070"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696070"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681696071"><span class="annot"><span class="annottext">QOp
+</span><a href="#local-6989586621681696071"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621681696072"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696072"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; QOp -&gt; Exp -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#InfixApp"><span class="hs-identifier hs-var">InfixApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696070"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">QOp
+</span><a href="#local-6989586621681696071"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696072"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Ann"><span class="hs-identifier hs-type">Ann</span></a></span><span> </span><span id="local-6989586621681696074"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696074"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681696075"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681696075"><span class="hs-identifier hs-var">ty</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Type -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#Ann"><span class="hs-identifier hs-var">Ann</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696074"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681696075"><span class="hs-identifier hs-var">ty</span></a></span><span>
+</span><span id="line-80"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span id="local-6989586621681696077"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696077"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681696078"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696078"><span class="hs-identifier hs-var">b</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Exp -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#App"><span class="hs-identifier hs-var">App</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696077"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696078"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span id="local-6989586621681696080"><span class="annot"><span class="annottext">[Pat]
+</span><a href="#local-6989586621681696080"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span id="local-6989586621681696081"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696081"><span class="hs-identifier hs-var">e</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Pat] -&gt; Exp -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#Lambda"><span class="hs-identifier hs-var">Lambda</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Pat] -&gt; [Pat]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Pat]
+</span><a href="#local-6989586621681696080"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696081"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Let"><span class="hs-identifier hs-type">Let</span></a></span><span> </span><span id="local-6989586621681696083"><span class="annot"><span class="annottext">Binds
+</span><a href="#local-6989586621681696083"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621681696084"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696084"><span class="hs-identifier hs-var">e</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Binds -&gt; Exp -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#Let"><span class="hs-identifier hs-var">Let</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Binds -&gt; Binds
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Binds
+</span><a href="#local-6989586621681696083"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696084"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span id="local-6989586621681696086"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696086"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681696087"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696087"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681696088"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696088"><span class="hs-identifier hs-var">c</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Exp -&gt; Exp -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#If"><span class="hs-identifier hs-var">If</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696086"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696087"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696088"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Case"><span class="hs-identifier hs-type">Case</span></a></span><span> </span><span id="local-6989586621681696090"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696090"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681696091"><span class="annot"><span class="annottext">[Alt]
+</span><a href="#local-6989586621681696091"><span class="hs-identifier hs-var">bs</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; [Alt] -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#Case"><span class="hs-identifier hs-var">Case</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696090"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Alt] -&gt; [Alt]
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Alt]
+</span><a href="#local-6989586621681696091"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ExpTypeSig"><span class="hs-identifier hs-type">ExpTypeSig</span></a></span><span> </span><span id="local-6989586621681696093"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696093"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681696094"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681696094"><span class="hs-identifier hs-var">t</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Type -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#ExpTypeSig"><span class="hs-identifier hs-var">ExpTypeSig</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696093"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681696094"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-86"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#NegApp"><span class="hs-identifier hs-type">NegApp</span></a></span><span> </span><span id="local-6989586621681696096"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696096"><span class="hs-identifier hs-var">e</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#NegApp"><span class="hs-identifier hs-var">NegApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681696096"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>      </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#FakeExp"><span class="hs-identifier hs-type">FakeExp</span></a></span><span> </span><span id="local-6989586621681696097"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681696097"><span class="hs-identifier hs-var">s</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Exp
+</span><a href="Agda.Utils.Haskell.Syntax.html#FakeExp"><span class="hs-identifier hs-var">FakeExp</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681696097"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Strict.html#MakeStrict"><span class="hs-identifier hs-type">MakeStrict</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Alt"><span class="hs-identifier hs-type">Alt</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-90"></span><span>  </span><span id="local-6989586621681696103"><span class="annot"><span class="annottext">makeStrict :: Alt -&gt; Alt
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var hs-var hs-var">makeStrict</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#Alt"><span class="hs-identifier hs-type">Alt</span></a></span><span> </span><span id="local-6989586621681696105"><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696105"><span class="hs-identifier hs-var">pat</span></a></span></span><span> </span><span id="local-6989586621681696106"><span class="annot"><span class="annottext">Rhs
+</span><a href="#local-6989586621681696106"><span class="hs-identifier hs-var">rhs</span></a></span></span><span> </span><span id="local-6989586621681696107"><span class="annot"><span class="annottext">Maybe Binds
+</span><a href="#local-6989586621681696107"><span class="hs-identifier hs-var">wh</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><span class="annottext">Pat -&gt; Rhs -&gt; Maybe Binds -&gt; Alt
+</span><a href="Agda.Utils.Haskell.Syntax.html#Alt"><span class="hs-identifier hs-var">Alt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pat -&gt; Pat
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621681696105"><span class="hs-identifier hs-var">pat</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rhs -&gt; Rhs
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Rhs
+</span><a href="#local-6989586621681696106"><span class="hs-identifier hs-var">rhs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Binds -&gt; Maybe Binds
+forall a. MakeStrict a =&gt; a -&gt; a
+</span><a href="Agda.Compiler.MAlonzo.Strict.html#makeStrict"><span class="hs-identifier hs-var">makeStrict</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Binds
+</span><a href="#local-6989586621681696107"><span class="hs-identifier hs-var">wh</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span></pre></body></html>

@@ -1,0 +1,464 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Imports</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#addImport"><span class="hs-identifier">addImport</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#locallyAddImport"><span class="hs-identifier">locallyAddImport</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#checkForImportCycle"><span class="hs-identifier">checkForImportCycle</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#dropDecodedModule"><span class="hs-identifier">dropDecodedModule</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getDecodedModule"><span class="hs-identifier">getDecodedModule</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getDecodedModules"><span class="hs-identifier">getDecodedModules</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getPrettyVisitedModules"><span class="hs-identifier">getPrettyVisitedModules</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModule"><span class="hs-identifier">getVisitedModule</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier">getVisitedModules</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#setDecodedModules"><span class="hs-identifier">setDecodedModules</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#setVisitedModules"><span class="hs-identifier">setVisitedModules</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#storeDecodedModule"><span class="hs-identifier">storeDecodedModule</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#visitModule"><span class="hs-identifier">visitModule</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>   </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">when</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">catMaybes</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#caseListM"><span class="hs-identifier">caseListM</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html"><span class="hs-identifier">Agda.Utils.List2</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List2</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier">singleton</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Tuple.html"><span class="hs-identifier">Agda.Utils.Tuple</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(***)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Register the given module as imported in the current state.</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--   Also recursively add its imports to the cumulative imports.</span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#addImport"><span class="hs-identifier hs-type">addImport</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span id="addImport"><span class="annot"><span class="annottext">addImport :: TopLevelModuleName -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#addImport"><span class="hs-identifier hs-var hs-var">addImport</span></a></span></span><span> </span><span id="local-6989586621681927682"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927682"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621681927683"><span class="annot"><a href="#local-6989586621681927683"><span class="hs-identifier hs-var">vis</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO VisitedModules
+forall (m :: * -&gt; *). ReadTCState m =&gt; m VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier hs-var">getVisitedModules</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens%27"><span class="hs-identifier hs-type">modifyTCLens'</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stImportedModulesAndTransitive"><span class="hs-identifier hs-type">stImportedModulesAndTransitive</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#updateImports"><span class="hs-identifier hs-type">updateImports</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927683"><span class="hs-identifier hs-type">vis</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927682"><span class="hs-identifier hs-type">top</span></a></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="annot"><span class="hs-comment">-- | Temporarily register the given module as imported.</span></span><span>
+</span><span id="line-46"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#locallyAddImport"><span class="hs-identifier hs-type">locallyAddImport</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span id="locallyAddImport"><span class="annot"><span class="annottext">locallyAddImport :: TopLevelModuleName -&gt; TCM () -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#locallyAddImport"><span class="hs-identifier hs-var hs-var">locallyAddImport</span></a></span></span><span> </span><span id="local-6989586621681927689"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927689"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621681927690"><span class="annot"><span class="annottext">TCM ()
+</span><a href="#local-6989586621681927690"><span class="hs-identifier hs-var">cont</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-48"></span><span>  </span><span id="local-6989586621681927691"><span class="annot"><a href="#local-6989586621681927691"><span class="hs-identifier hs-var">vis</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO VisitedModules
+forall (m :: * -&gt; *). ReadTCState m =&gt; m VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier hs-var">getVisitedModules</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#locallyTCState"><span class="hs-identifier hs-type">locallyTCState</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stImportedModulesAndTransitive"><span class="hs-identifier hs-type">stImportedModulesAndTransitive</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#updateImports"><span class="hs-identifier hs-type">updateImports</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927691"><span class="hs-identifier hs-type">vis</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927689"><span class="hs-identifier hs-type">top</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681927690"><span class="hs-identifier hs-type">cont</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#updateImports"><span class="hs-identifier hs-type">updateImports</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#VisitedModules"><span class="hs-identifier hs-type">VisitedModules</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-52"></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ImportedModules"><span class="hs-identifier hs-type">ImportedModules</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ImportedModules"><span class="hs-identifier hs-type">ImportedModules</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ImportedModules"><span class="hs-identifier hs-type">ImportedModules</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ImportedModules"><span class="hs-identifier hs-type">ImportedModules</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span id="updateImports"><span class="annot"><span class="annottext">updateImports :: VisitedModules
+-&gt; TopLevelModuleName
+-&gt; (Set TopLevelModuleName, Set TopLevelModuleName)
+-&gt; (Set TopLevelModuleName, Set TopLevelModuleName)
+</span><a href="Agda.TypeChecking.Monad.Imports.html#updateImports"><span class="hs-identifier hs-var hs-var">updateImports</span></a></span></span><span> </span><span id="local-6989586621681927696"><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927696"><span class="hs-identifier hs-var">vis</span></a></span></span><span> </span><span id="local-6989586621681927697"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927697"><span class="hs-identifier hs-var">top</span></a></span></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+-&gt; Set TopLevelModuleName -&gt; Set TopLevelModuleName
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.insert</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927697"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">(Set TopLevelModuleName -&gt; Set TopLevelModuleName)
+-&gt; (Set TopLevelModuleName -&gt; Set TopLevelModuleName)
+-&gt; (Set TopLevelModuleName, Set TopLevelModuleName)
+-&gt; (Set TopLevelModuleName, Set TopLevelModuleName)
+forall b c b' c'. (b -&gt; c) -&gt; (b' -&gt; c') -&gt; (b, b') -&gt; (c, c')
+forall (a :: * -&gt; * -&gt; *) b c b' c'.
+Arrow a =&gt;
+a b c -&gt; a b' c' -&gt; a (b, b') (c, c')
+</span><span class="hs-operator hs-var">***</span></span><span> </span><span class="annot"><span class="annottext">VisitedModules
+-&gt; Set TopLevelModuleName
+-&gt; Set TopLevelModuleName
+-&gt; Set TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Imports.html#completeTransitiveImports"><span class="hs-identifier hs-var">completeTransitiveImports</span></a></span><span> </span><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927696"><span class="hs-identifier hs-var">vis</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; Set TopLevelModuleName
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927697"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | @completeTransitiveImports ms ms'@.</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   Precondition: @ms@ disjoint from @ms'@.</span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#completeTransitiveImports"><span class="hs-identifier hs-type">completeTransitiveImports</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#VisitedModules"><span class="hs-identifier hs-type">VisitedModules</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ImportedModules"><span class="hs-identifier hs-type">ImportedModules</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ImportedModules"><span class="hs-identifier hs-type">ImportedModules</span></a></span><span>
+</span><span id="line-60"></span><span id="completeTransitiveImports"><span class="annot"><span class="annottext">completeTransitiveImports :: VisitedModules
+-&gt; Set TopLevelModuleName
+-&gt; Set TopLevelModuleName
+-&gt; Set TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Imports.html#completeTransitiveImports"><span class="hs-identifier hs-var hs-var">completeTransitiveImports</span></a></span></span><span> </span><span id="local-6989586621681927700"><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927700"><span class="hs-identifier hs-var">vis</span></a></span></span><span> </span><span id="local-6989586621681927701"><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927701"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681927702"><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927702"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName -&gt; Bool
+forall a. Set a -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927701"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927702"><span class="hs-identifier hs-var">old</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-comment">-- Add the given imports to the current set.</span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681927704"><span class="annot"><span class="annottext">next :: Set TopLevelModuleName
+</span><a href="#local-6989586621681927704"><span class="hs-identifier hs-var hs-var hs-var">next</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927702"><span class="hs-identifier hs-var">old</span></a></span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+-&gt; Set TopLevelModuleName -&gt; Set TopLevelModuleName
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927701"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-comment">-- The interfaces for the modules we added to the transitive imports.</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681927706"><span class="annot"><span class="annottext">is :: [ModuleInfo]
+</span><a href="#local-6989586621681927706"><span class="hs-identifier hs-var hs-var hs-var">is</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Maybe ModuleInfo] -&gt; [ModuleInfo]
+forall a. [Maybe a] -&gt; [a]
+</span><span class="hs-identifier hs-var">catMaybes</span></span><span> </span><span class="annot"><span class="annottext">([Maybe ModuleInfo] -&gt; [ModuleInfo])
+-&gt; [Maybe ModuleInfo] -&gt; [ModuleInfo]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; VisitedModules -&gt; Maybe ModuleInfo
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-operator hs-var">`Map.lookup`</span></span><span> </span><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927700"><span class="hs-identifier hs-var">vis</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName -&gt; Maybe ModuleInfo)
+-&gt; [TopLevelModuleName] -&gt; [Maybe ModuleInfo]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName -&gt; [TopLevelModuleName]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927701"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-comment">-- The imports of these modules.</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681927710"><span class="annot"><span class="annottext">imps :: Set TopLevelModuleName
+</span><a href="#local-6989586621681927710"><span class="hs-identifier hs-var hs-var">imps</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Set TopLevelModuleName] -&gt; Set TopLevelModuleName
+forall (f :: * -&gt; *) a. (Foldable f, Ord a) =&gt; f (Set a) -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.unions</span></span><span> </span><span class="annot"><span class="annottext">([Set TopLevelModuleName] -&gt; Set TopLevelModuleName)
+-&gt; [Set TopLevelModuleName] -&gt; Set TopLevelModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(ModuleInfo -&gt; Set TopLevelModuleName)
+-&gt; [ModuleInfo] -&gt; [Set TopLevelModuleName]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[TopLevelModuleName] -&gt; Set TopLevelModuleName
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">([TopLevelModuleName] -&gt; Set TopLevelModuleName)
+-&gt; (ModuleInfo -&gt; [TopLevelModuleName])
+-&gt; ModuleInfo
+-&gt; Set TopLevelModuleName
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((TopLevelModuleName, Hash) -&gt; TopLevelModuleName)
+-&gt; [(TopLevelModuleName, Hash)] -&gt; [TopLevelModuleName]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName, Hash) -&gt; TopLevelModuleName
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">([(TopLevelModuleName, Hash)] -&gt; [TopLevelModuleName])
+-&gt; (ModuleInfo -&gt; [(TopLevelModuleName, Hash)])
+-&gt; ModuleInfo
+-&gt; [TopLevelModuleName]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Interface -&gt; [(TopLevelModuleName, Hash)]
+</span><a href="Agda.TypeChecking.Monad.Base.html#iImportedModules"><span class="hs-identifier hs-var">iImportedModules</span></a></span><span> </span><span class="annot"><span class="annottext">(Interface -&gt; [(TopLevelModuleName, Hash)])
+-&gt; (ModuleInfo -&gt; Interface)
+-&gt; ModuleInfo
+-&gt; [(TopLevelModuleName, Hash)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ModuleInfo -&gt; Interface
+</span><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ModuleInfo]
+</span><a href="#local-6989586621681927706"><span class="hs-identifier hs-var">is</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-comment">-- Recurse on the new imports.</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><span class="annottext">VisitedModules
+-&gt; Set TopLevelModuleName
+-&gt; Set TopLevelModuleName
+-&gt; Set TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Imports.html#completeTransitiveImports"><span class="hs-identifier hs-var">completeTransitiveImports</span></a></span><span> </span><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927700"><span class="hs-identifier hs-var">vis</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927710"><span class="hs-identifier hs-var">imps</span></a></span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+-&gt; Set TopLevelModuleName -&gt; Set TopLevelModuleName
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.difference`</span></span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927704"><span class="hs-identifier hs-var">next</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set TopLevelModuleName
+</span><a href="#local-6989586621681927704"><span class="hs-identifier hs-var">next</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#visitModule"><span class="hs-identifier hs-type">visitModule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ModuleInfo"><span class="hs-identifier hs-type">ModuleInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span id="visitModule"><span class="annot"><span class="annottext">visitModule :: ModuleInfo -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#visitModule"><span class="hs-identifier hs-var hs-var">visitModule</span></a></span></span><span> </span><span id="local-6989586621681927718"><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621681927718"><span class="hs-identifier hs-var">mi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><span class="annottext">Lens' TCState VisitedModules
+-&gt; (VisitedModules -&gt; VisitedModules) -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-identifier hs-var">modifyTCLens</span></a></span><span> </span><span class="annot"><span class="annottext">(VisitedModules -&gt; f VisitedModules) -&gt; TCState -&gt; f TCState
+Lens' TCState VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Base.html#stVisitedModules"><span class="hs-identifier hs-var">stVisitedModules</span></a></span><span> </span><span class="annot"><span class="annottext">((VisitedModules -&gt; VisitedModules) -&gt; TCM ())
+-&gt; (VisitedModules -&gt; VisitedModules) -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="annottext">TopLevelModuleName
+-&gt; ModuleInfo -&gt; VisitedModules -&gt; VisitedModules
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interface -&gt; TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Base.html#iTopLevelModuleName"><span class="hs-identifier hs-var">iTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">(Interface -&gt; TopLevelModuleName)
+-&gt; Interface -&gt; TopLevelModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ModuleInfo -&gt; Interface
+</span><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621681927718"><span class="hs-identifier hs-var">mi</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621681927718"><span class="hs-identifier hs-var">mi</span></a></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#setVisitedModules"><span class="hs-identifier hs-type">setVisitedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#VisitedModules"><span class="hs-identifier hs-type">VisitedModules</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span id="setVisitedModules"><span class="annot"><span class="annottext">setVisitedModules :: VisitedModules -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#setVisitedModules"><span class="hs-identifier hs-var hs-var">setVisitedModules</span></a></span></span><span> </span><span id="local-6989586621681927725"><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927725"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState VisitedModules -&gt; VisitedModules -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; a -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-identifier hs-var">setTCLens</span></a></span><span> </span><span class="annot"><span class="annottext">(VisitedModules -&gt; f VisitedModules) -&gt; TCState -&gt; f TCState
+Lens' TCState VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Base.html#stVisitedModules"><span class="hs-identifier hs-var">stVisitedModules</span></a></span><span> </span><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927725"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span id="local-6989586621681927488"><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier hs-type">getVisitedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927488"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681927488"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#VisitedModules"><span class="hs-identifier hs-type">VisitedModules</span></a></span></span><span>
+</span><span id="line-83"></span><span id="getVisitedModules"><span class="annot"><span class="annottext">getVisitedModules :: forall (m :: * -&gt; *). ReadTCState m =&gt; m VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier hs-var hs-var">getVisitedModules</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState VisitedModules -&gt; m VisitedModules
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(VisitedModules -&gt; f VisitedModules) -&gt; TCState -&gt; f TCState
+Lens' TCState VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Base.html#stVisitedModules"><span class="hs-identifier hs-var">stVisitedModules</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span id="local-6989586621681927544"><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getPrettyVisitedModules"><span class="hs-identifier hs-type">getPrettyVisitedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927544"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681927544"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span></span><span>
+</span><span id="line-86"></span><span id="getPrettyVisitedModules"><span class="annot"><span class="annottext">getPrettyVisitedModules :: forall (m :: * -&gt; *). ReadTCState m =&gt; m Doc
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getPrettyVisitedModules"><span class="hs-identifier hs-var hs-var">getPrettyVisitedModules</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621681927757"><span class="annot"><a href="#local-6989586621681927757"><span class="hs-identifier hs-var">visited</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>  </span><span class="annot"><span class="annottext">((TopLevelModuleName, ModuleInfo) -&gt; Doc)
+-&gt; [(TopLevelModuleName, ModuleInfo)] -&gt; [Doc]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Doc -&gt; Doc -&gt; Doc) -&gt; (Doc, Doc) -&gt; Doc
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">((Doc, Doc) -&gt; Doc)
+-&gt; ((TopLevelModuleName, ModuleInfo) -&gt; (Doc, Doc))
+-&gt; (TopLevelModuleName, ModuleInfo)
+-&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName -&gt; Doc)
+-&gt; (ModuleInfo -&gt; Doc)
+-&gt; (TopLevelModuleName, ModuleInfo)
+-&gt; (Doc, Doc)
+forall b c b' c'. (b -&gt; c) -&gt; (b' -&gt; c') -&gt; (b, b') -&gt; (c, c')
+forall (a :: * -&gt; * -&gt; *) b c b' c'.
+Arrow a =&gt;
+a b c -&gt; a b' c' -&gt; a (b, b') (c, c')
+</span><span class="hs-operator hs-var">***</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleCheckMode -&gt; Doc
+</span><a href="#local-6989586621681927760"><span class="hs-identifier hs-var">prettyCheckMode</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleCheckMode -&gt; Doc)
+-&gt; (ModuleInfo -&gt; ModuleCheckMode) -&gt; ModuleInfo -&gt; Doc
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ModuleInfo -&gt; ModuleCheckMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#miMode"><span class="hs-identifier hs-var">miMode</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(TopLevelModuleName, ModuleInfo)] -&gt; [Doc])
+-&gt; (VisitedModules -&gt; [(TopLevelModuleName, ModuleInfo)])
+-&gt; VisitedModules
+-&gt; [Doc]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">VisitedModules -&gt; [(TopLevelModuleName, ModuleInfo)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span>
+</span><span id="line-88"></span><span>          </span><span class="annot"><span class="annottext">(VisitedModules -&gt; [Doc]) -&gt; m VisitedModules -&gt; m [Doc]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m VisitedModules
+forall (m :: * -&gt; *). ReadTCState m =&gt; m VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModules"><span class="hs-identifier hs-var">getVisitedModules</span></a></span><span>
+</span><span id="line-89"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#hcat"><span class="hs-identifier hs-type">hcat</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#punctuate"><span class="hs-identifier hs-type">punctuate</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;, &quot;</span></span><span> </span><span class="annot"><a href="#local-6989586621681927757"><span class="hs-identifier hs-type">visited</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-91"></span><span>  </span><span class="annot"><a href="#local-6989586621681927760"><span class="hs-identifier hs-type">prettyCheckMode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ModuleCheckMode"><span class="hs-identifier hs-type">ModuleCheckMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span id="local-6989586621681927760"><span class="annot"><span class="annottext">prettyCheckMode :: ModuleCheckMode -&gt; Doc
+</span><a href="#local-6989586621681927760"><span class="hs-identifier hs-var hs-var">prettyCheckMode</span></a></span></span><span> </span><span class="annot"><span class="annottext">ModuleCheckMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#ModuleTypeChecked"><span class="hs-identifier hs-var">ModuleTypeChecked</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-93"></span><span>  </span><span class="annot"><a href="#local-6989586621681927760"><span class="hs-identifier hs-var">prettyCheckMode</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleCheckMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#ModuleScopeChecked"><span class="hs-identifier hs-var">ModuleScopeChecked</span></a></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot; (scope only)&quot;</span></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span id="local-6989586621681927568"><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModule"><span class="hs-identifier hs-type">getVisitedModule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927568"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-96"></span><span>                 </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-97"></span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681927568"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ModuleInfo"><span class="hs-identifier hs-type">ModuleInfo</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-98"></span><span id="getVisitedModule"><span class="annot"><span class="annottext">getVisitedModule :: forall (m :: * -&gt; *).
+ReadTCState m =&gt;
+TopLevelModuleName -&gt; m (Maybe ModuleInfo)
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModule"><span class="hs-identifier hs-var hs-var">getVisitedModule</span></a></span></span><span> </span><span id="local-6989586621681927774"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927774"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; VisitedModules -&gt; Maybe ModuleInfo
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927774"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(VisitedModules -&gt; Maybe ModuleInfo)
+-&gt; m VisitedModules -&gt; m (Maybe ModuleInfo)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState VisitedModules -&gt; m VisitedModules
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(VisitedModules -&gt; f VisitedModules) -&gt; TCState -&gt; f TCState
+Lens' TCState VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Base.html#stVisitedModules"><span class="hs-identifier hs-var">stVisitedModules</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getDecodedModules"><span class="hs-identifier hs-type">getDecodedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#DecodedModules"><span class="hs-identifier hs-type">DecodedModules</span></a></span><span>
+</span><span id="line-101"></span><span id="getDecodedModules"><span class="annot"><span class="annottext">getDecodedModules :: TCMT IO VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getDecodedModules"><span class="hs-identifier hs-var hs-var">getDecodedModules</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Base.html#stDecodedModules"><span class="hs-identifier hs-var">stDecodedModules</span></a></span><span> </span><span class="annot"><span class="annottext">(PersistentTCState -&gt; VisitedModules)
+-&gt; (TCState -&gt; PersistentTCState) -&gt; TCState -&gt; VisitedModules
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; PersistentTCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; VisitedModules)
+-&gt; TCMT IO TCState -&gt; TCMT IO VisitedModules
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO TCState
+forall (m :: * -&gt; *). MonadTCState m =&gt; m TCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#getTC"><span class="hs-identifier hs-var">getTC</span></a></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#setDecodedModules"><span class="hs-identifier hs-type">setDecodedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#DecodedModules"><span class="hs-identifier hs-type">DecodedModules</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span id="setDecodedModules"><span class="annot"><span class="annottext">setDecodedModules :: VisitedModules -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#setDecodedModules"><span class="hs-identifier hs-var hs-var">setDecodedModules</span></a></span></span><span> </span><span id="local-6989586621681927781"><span class="annot"><span class="annottext">VisitedModules
+</span><a href="#local-6989586621681927781"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; TCM ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC%27"><span class="hs-identifier hs-var">modifyTC'</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; TCM ()) -&gt; (TCState -&gt; TCState) -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681927783"><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621681927783"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621681927783"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927783"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stDecodedModules"><span class="hs-identifier hs-var">stDecodedModules</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681927781"><span class="hs-identifier hs-type">ms</span></a></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getDecodedModule"><span class="hs-identifier hs-type">getDecodedModule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ModuleInfo"><span class="hs-identifier hs-type">ModuleInfo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span id="getDecodedModule"><span class="annot"><span class="annottext">getDecodedModule :: TopLevelModuleName -&gt; TCM (Maybe ModuleInfo)
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getDecodedModule"><span class="hs-identifier hs-var hs-var">getDecodedModule</span></a></span></span><span> </span><span id="local-6989586621681927784"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927784"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; VisitedModules -&gt; Maybe ModuleInfo
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927784"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(VisitedModules -&gt; Maybe ModuleInfo)
+-&gt; (TCState -&gt; VisitedModules) -&gt; TCState -&gt; Maybe ModuleInfo
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PersistentTCState -&gt; VisitedModules
+</span><a href="Agda.TypeChecking.Monad.Base.html#stDecodedModules"><span class="hs-identifier hs-var">stDecodedModules</span></a></span><span> </span><span class="annot"><span class="annottext">(PersistentTCState -&gt; VisitedModules)
+-&gt; (TCState -&gt; PersistentTCState) -&gt; TCState -&gt; VisitedModules
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCState -&gt; PersistentTCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; Maybe ModuleInfo)
+-&gt; TCMT IO TCState -&gt; TCM (Maybe ModuleInfo)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO TCState
+forall (m :: * -&gt; *). MonadTCState m =&gt; m TCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#getTC"><span class="hs-identifier hs-var">getTC</span></a></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#storeDecodedModule"><span class="hs-identifier hs-type">storeDecodedModule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ModuleInfo"><span class="hs-identifier hs-type">ModuleInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span id="storeDecodedModule"><span class="annot"><span class="annottext">storeDecodedModule :: ModuleInfo -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#storeDecodedModule"><span class="hs-identifier hs-var hs-var">storeDecodedModule</span></a></span></span><span> </span><span id="local-6989586621681927785"><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621681927785"><span class="hs-identifier hs-var">mi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; TCM ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; TCM ()) -&gt; (TCState -&gt; TCState) -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681927787"><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621681927787"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-112"></span><span>  </span><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621681927787"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-113"></span><span>        </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927787"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stDecodedModules"><span class="hs-identifier hs-var">stDecodedModules</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-114"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Map.insert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#iTopLevelModuleName"><span class="hs-identifier hs-var">iTopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927785"><span class="hs-identifier hs-type">mi</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681927785"><span class="hs-identifier hs-type">mi</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-115"></span><span>            </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stDecodedModules"><span class="hs-identifier hs-var">stDecodedModules</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927787"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-116"></span><span>        </span><span class="hs-special">}</span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#dropDecodedModule"><span class="hs-identifier hs-type">dropDecodedModule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span id="dropDecodedModule"><span class="annot"><span class="annottext">dropDecodedModule :: TopLevelModuleName -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#dropDecodedModule"><span class="hs-identifier hs-var hs-var">dropDecodedModule</span></a></span></span><span> </span><span id="local-6989586621681927788"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927788"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCState -&gt; TCState) -&gt; TCM ()
+forall (m :: * -&gt; *).
+MonadTCState m =&gt;
+(TCState -&gt; TCState) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTC"><span class="hs-identifier hs-var">modifyTC</span></a></span><span> </span><span class="annot"><span class="annottext">((TCState -&gt; TCState) -&gt; TCM ()) -&gt; (TCState -&gt; TCState) -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681927789"><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621681927789"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-121"></span><span>  </span><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621681927789"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-122"></span><span>        </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927789"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stDecodedModules"><span class="hs-identifier hs-var">stDecodedModules</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-123"></span><span>                                  </span><span class="annot"><span class="hs-identifier hs-type">Map.delete</span></span><span> </span><span class="annot"><a href="#local-6989586621681927788"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stDecodedModules"><span class="hs-identifier hs-var">stDecodedModules</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPersistentState"><span class="hs-identifier hs-var">stPersistentState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681927789"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><span id="line-124"></span><span>                              </span><span class="hs-special">}</span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | Assumes that the first module in the import path is the module we are</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--   worried about.</span><span>
+</span><span id="line-130"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#checkForImportCycle"><span class="hs-identifier hs-type">checkForImportCycle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span id="checkForImportCycle"><span class="annot"><span class="annottext">checkForImportCycle :: TCM ()
+</span><a href="Agda.TypeChecking.Monad.Imports.html#checkForImportCycle"><span class="hs-identifier hs-var hs-var">checkForImportCycle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-132"></span><span>  </span><span class="annot"><span class="annottext">TCMT IO [TopLevelModuleName]
+-&gt; TCM ()
+-&gt; (TopLevelModuleName -&gt; [TopLevelModuleName] -&gt; TCM ())
+-&gt; TCM ()
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m [a] -&gt; m b -&gt; (a -&gt; [a] -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.List.html#caseListM"><span class="hs-identifier hs-var">caseListM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(TCEnv -&gt; [TopLevelModuleName]) -&gt; TCMT IO [TopLevelModuleName]
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; (TCEnv -&gt; a) -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#asksTC"><span class="hs-identifier hs-var">asksTC</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; [TopLevelModuleName]
+</span><a href="Agda.TypeChecking.Monad.Base.html#envImportStack"><span class="hs-identifier hs-var">envImportStack</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TCM ()
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">((TopLevelModuleName -&gt; [TopLevelModuleName] -&gt; TCM ()) -&gt; TCM ())
+-&gt; (TopLevelModuleName -&gt; [TopLevelModuleName] -&gt; TCM ()) -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681927794"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927794"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681927795"><span class="annot"><span class="annottext">[TopLevelModuleName]
+</span><a href="#local-6989586621681927795"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-133"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; TCM () -&gt; TCM ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927794"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; [TopLevelModuleName] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[TopLevelModuleName]
+</span><a href="#local-6989586621681927795"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCM () -&gt; TCM ()) -&gt; TCM () -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TypeError -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadTCError m) =&gt;
+TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError"><span class="hs-identifier hs-var">typeError</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; TCM ()) -&gt; TypeError -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">List2 TopLevelModuleName -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#CyclicModuleDependency"><span class="hs-identifier hs-var">CyclicModuleDependency</span></a></span><span> </span><span class="annot"><span class="annottext">(List2 TopLevelModuleName -&gt; TypeError)
+-&gt; List2 TopLevelModuleName -&gt; TypeError
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-134"></span><span>      </span><span class="annot"><span class="annottext">List1 TopLevelModuleName
+-&gt; TopLevelModuleName -&gt; List2 TopLevelModuleName
+forall a. List1 a -&gt; a -&gt; List2 a
+</span><a href="Agda.Utils.List2.html#snoc"><span class="hs-identifier hs-var">List2.snoc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 TopLevelModuleName
+-&gt; [TopLevelModuleName] -&gt; List1 TopLevelModuleName
+forall a. List1 a -&gt; [a] -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#fromListSafe"><span class="hs-identifier hs-var">List1.fromListSafe</span></a></span><span> </span><span class="annot"><span class="annottext">List1 TopLevelModuleName
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">([TopLevelModuleName] -&gt; List1 TopLevelModuleName)
+-&gt; [TopLevelModuleName] -&gt; List1 TopLevelModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName -&gt; Bool)
+-&gt; [TopLevelModuleName] -&gt; [TopLevelModuleName]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">dropWhile</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TopLevelModuleName -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927794"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([TopLevelModuleName] -&gt; [TopLevelModuleName])
+-&gt; [TopLevelModuleName] -&gt; [TopLevelModuleName]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[TopLevelModuleName] -&gt; [TopLevelModuleName]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">[TopLevelModuleName]
+</span><a href="#local-6989586621681927795"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681927794"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-135"></span><span>        </span><span class="hs-comment">-- NB: we know that ms contains m, so even after dropWhile the list is not empty.</span><span>
+</span><span id="line-136"></span></pre></body></html>

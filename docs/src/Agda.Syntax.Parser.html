@@ -1,0 +1,839 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html"><span class="hs-identifier">Agda.Syntax.Parser</span></a></span><span>
+</span><span id="line-3"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-comment">-- * Types</span></span><span>
+</span><span id="line-4"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier">Parser</span></a></span><span>
+</span><span id="line-5"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Parse functions</span></span><span>
+</span><span id="line-6"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#parse"><span class="hs-identifier">parse</span></a></span><span>
+</span><span id="line-7"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#parsePosString"><span class="hs-identifier">parsePosString</span></a></span><span>
+</span><span id="line-8"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#parseRangeString"><span class="hs-identifier">parseRangeString</span></a></span><span>
+</span><span id="line-9"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#parseFile"><span class="hs-identifier">parseFile</span></a></span><span>
+</span><span id="line-10"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Parsers</span></span><span>
+</span><span id="line-11"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#moduleParser"><span class="hs-identifier">moduleParser</span></a></span><span>
+</span><span id="line-12"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#moduleNameParser"><span class="hs-identifier">moduleNameParser</span></a></span><span>
+</span><span id="line-13"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#agdaFileExtensions"><span class="hs-identifier">agdaFileExtensions</span></a></span><span>
+</span><span id="line-14"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#exprParser"><span class="hs-identifier">exprParser</span></a></span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#exprWhereParser"><span class="hs-identifier">exprWhereParser</span></a></span><span>
+</span><span id="line-16"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#holeContentParser"><span class="hs-identifier">holeContentParser</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#tokensParser"><span class="hs-identifier">tokensParser</span></a></span><span>
+</span><span id="line-18"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Reading files.</span></span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#readFilePM"><span class="hs-identifier">readFilePM</span></a></span><span>
+</span><span id="line-20"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Parse errors</span></span><span>
+</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseError"><span class="hs-identifier">ParseError</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseWarning"><span class="hs-identifier">ParseWarning</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier">PM</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#runPMIO"><span class="hs-identifier">runPMIO</span></a></span><span>
+</span><span id="line-25"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">forM_</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html"><span class="hs-identifier">Agda.Syntax.Parser.Monad</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseError"><span class="hs-identifier">ParseError</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseWarning"><span class="hs-identifier">ParseWarning</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseResult"><span class="hs-identifier">ParseResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseFlags"><span class="hs-identifier">ParseFlags</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LexState"><span class="hs-identifier">LexState</span></a></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseState"><span class="hs-identifier">ParseState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseWarnings"><span class="hs-identifier">parseWarnings</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseAttributes"><span class="hs-identifier">parseAttributes</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#defaultParseFlags"><span class="hs-identifier">defaultParseFlags</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseKeepComments"><span class="hs-identifier">parseKeepComments</span></a></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html"><span class="hs-identifier">Agda.Syntax.Parser.Monad</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">M</span></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Parser.html"><span class="hs-identifier">Agda.Syntax.Parser.Parser</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Lexer.html"><span class="hs-identifier">Agda.Syntax.Parser.Lexer</span></a></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html"><span class="hs-identifier">Agda.Syntax.Parser.Literate</span></a></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html"><span class="hs-identifier">Agda.Syntax.Concrete.Attribute</span></a></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html"><span class="hs-identifier">Agda.Syntax.Parser.Tokens</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.IO.UTF8.html"><span class="hs-identifier">Agda.Utils.IO.UTF8</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#readTextFile"><span class="hs-identifier">readTextFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Maybe.html#forMaybe"><span class="hs-identifier">forMaybe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html"><span class="hs-identifier">Agda.Utils.Maybe.Strict</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Strict</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- Wrapping parse results</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="annot"><span class="hs-comment">-- | A monad for handling parse errors and warnings.</span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-keyword">newtype</span><span> </span><span id="PM"><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-var">PM</span></a></span></span><span> </span><span id="local-6989586621681887067"><span class="annot"><a href="#local-6989586621681887067"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="PM"><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-var">PM</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unPM"><span class="annot"><span class="annottext">forall a. PM a -&gt; ExceptT ParseError (StateT [ParseWarning] IO) a
+</span><a href="Agda.Syntax.Parser.html#unPM"><span class="hs-identifier hs-var hs-var">unPM</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseError"><span class="hs-identifier hs-type">ParseError</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseWarning"><span class="hs-identifier hs-type">ParseWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681887067"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span> </span><span id="local-6989586621681887308"><span id="local-6989586621681887314"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; PM a -&gt; PM b)
+-&gt; (forall a b. a -&gt; PM b -&gt; PM a) -&gt; Functor PM
+forall a b. a -&gt; PM b -&gt; PM a
+forall a b. (a -&gt; b) -&gt; PM a -&gt; PM b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; PM a -&gt; PM b
+fmap :: forall a b. (a -&gt; b) -&gt; PM a -&gt; PM b
+$c&lt;$ :: forall a b. a -&gt; PM b -&gt; PM a
+&lt;$ :: forall a b. a -&gt; PM b -&gt; PM a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887328"><span id="local-6989586621681887335"><span id="local-6989586621681887341"><span id="local-6989586621681887347"><span id="local-6989586621681887353"><span class="annot"><span class="annottext">Functor PM
+Functor PM =&gt;
+(forall a. a -&gt; PM a)
+-&gt; (forall a b. PM (a -&gt; b) -&gt; PM a -&gt; PM b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; PM a -&gt; PM b -&gt; PM c)
+-&gt; (forall a b. PM a -&gt; PM b -&gt; PM b)
+-&gt; (forall a b. PM a -&gt; PM b -&gt; PM a)
+-&gt; Applicative PM
+forall a. a -&gt; PM a
+forall a b. PM a -&gt; PM b -&gt; PM a
+forall a b. PM a -&gt; PM b -&gt; PM b
+forall a b. PM (a -&gt; b) -&gt; PM a -&gt; PM b
+forall a b c. (a -&gt; b -&gt; c) -&gt; PM a -&gt; PM b -&gt; PM c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall a. a -&gt; PM a
+pure :: forall a. a -&gt; PM a
+$c&lt;*&gt; :: forall a b. PM (a -&gt; b) -&gt; PM a -&gt; PM b
+&lt;*&gt; :: forall a b. PM (a -&gt; b) -&gt; PM a -&gt; PM b
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; PM a -&gt; PM b -&gt; PM c
+liftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; PM a -&gt; PM b -&gt; PM c
+$c*&gt; :: forall a b. PM a -&gt; PM b -&gt; PM b
+*&gt; :: forall a b. PM a -&gt; PM b -&gt; PM b
+$c&lt;* :: forall a b. PM a -&gt; PM b -&gt; PM a
+&lt;* :: forall a b. PM a -&gt; PM b -&gt; PM a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887371"><span id="local-6989586621681887377"><span id="local-6989586621681887382"><span class="annot"><span class="annottext">Applicative PM
+Applicative PM =&gt;
+(forall a b. PM a -&gt; (a -&gt; PM b) -&gt; PM b)
+-&gt; (forall a b. PM a -&gt; PM b -&gt; PM b)
+-&gt; (forall a. a -&gt; PM a)
+-&gt; Monad PM
+forall a. a -&gt; PM a
+forall a b. PM a -&gt; PM b -&gt; PM b
+forall a b. PM a -&gt; (a -&gt; PM b) -&gt; PM b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall a b. PM a -&gt; (a -&gt; PM b) -&gt; PM b
+&gt;&gt;= :: forall a b. PM a -&gt; (a -&gt; PM b) -&gt; PM b
+$c&gt;&gt; :: forall a b. PM a -&gt; PM b -&gt; PM b
+&gt;&gt; :: forall a b. PM a -&gt; PM b -&gt; PM b
+$creturn :: forall a. a -&gt; PM a
+return :: forall a. a -&gt; PM a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887390"><span class="annot"><span class="annottext">Monad PM
+Monad PM =&gt; (forall a. IO a -&gt; PM a) -&gt; MonadIO PM
+forall a. IO a -&gt; PM a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. IO a -&gt; m a) -&gt; MonadIO m
+$cliftIO :: forall a. IO a -&gt; PM a
+liftIO :: forall a. IO a -&gt; PM a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadIO</span></span></span><span>
+</span><span id="line-63"></span><span>           </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887403"><span id="local-6989586621681887409"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseError"><span class="hs-identifier hs-type">ParseError</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887419"><span id="local-6989586621681887423"><span id="local-6989586621681887427"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseWarning"><span class="hs-identifier hs-type">ParseWarning</span></a></span><span class="hs-special">]</span></span></span></span><span>
+</span><span id="line-64"></span><span>           </span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- | Run a 'PM' computation, returning a list of warnings in first-to-last order</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   and either a parse error or the parsed thing.</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span id="local-6989586621681887139"><span id="local-6989586621681887140"><span class="annot"><a href="Agda.Syntax.Parser.html#runPMIO"><span class="hs-identifier hs-type">runPMIO</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681887139"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887140"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681887139"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseError"><span class="hs-identifier hs-type">ParseError</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887140"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseWarning"><span class="hs-identifier hs-type">ParseWarning</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-70"></span><span id="runPMIO"><span class="annot"><span class="annottext">runPMIO :: forall (m :: * -&gt; *) a.
+MonadIO m =&gt;
+PM a -&gt; m (Either ParseError a, [ParseWarning])
+</span><a href="Agda.Syntax.Parser.html#runPMIO"><span class="hs-identifier hs-var hs-var">runPMIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (Either ParseError a, [ParseWarning])
+-&gt; m (Either ParseError a, [ParseWarning])
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Either ParseError a, [ParseWarning])
+ -&gt; m (Either ParseError a, [ParseWarning]))
+-&gt; (PM a -&gt; IO (Either ParseError a, [ParseWarning]))
+-&gt; PM a
+-&gt; m (Either ParseError a, [ParseWarning])
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((Either ParseError a, [ParseWarning])
+ -&gt; (Either ParseError a, [ParseWarning]))
+-&gt; IO (Either ParseError a, [ParseWarning])
+-&gt; IO (Either ParseError a, [ParseWarning])
+forall a b. (a -&gt; b) -&gt; IO a -&gt; IO b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([ParseWarning] -&gt; [ParseWarning])
+-&gt; (Either ParseError a, [ParseWarning])
+-&gt; (Either ParseError a, [ParseWarning])
+forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+forall (p :: * -&gt; * -&gt; *) b c a.
+Bifunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="annot"><span class="annottext">[ParseWarning] -&gt; [ParseWarning]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO (Either ParseError a, [ParseWarning])
+ -&gt; IO (Either ParseError a, [ParseWarning]))
+-&gt; (PM a -&gt; IO (Either ParseError a, [ParseWarning]))
+-&gt; PM a
+-&gt; IO (Either ParseError a, [ParseWarning])
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(StateT [ParseWarning] IO (Either ParseError a)
+ -&gt; [ParseWarning] -&gt; IO (Either ParseError a, [ParseWarning]))
+-&gt; [ParseWarning]
+-&gt; StateT [ParseWarning] IO (Either ParseError a)
+-&gt; IO (Either ParseError a, [ParseWarning])
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">StateT [ParseWarning] IO (Either ParseError a)
+-&gt; [ParseWarning] -&gt; IO (Either ParseError a, [ParseWarning])
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(StateT [ParseWarning] IO (Either ParseError a)
+ -&gt; IO (Either ParseError a, [ParseWarning]))
+-&gt; (PM a -&gt; StateT [ParseWarning] IO (Either ParseError a))
+-&gt; PM a
+-&gt; IO (Either ParseError a, [ParseWarning])
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ExceptT ParseError (StateT [ParseWarning] IO) a
+-&gt; StateT [ParseWarning] IO (Either ParseError a)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="annot"><span class="annottext">(ExceptT ParseError (StateT [ParseWarning] IO) a
+ -&gt; StateT [ParseWarning] IO (Either ParseError a))
+-&gt; (PM a -&gt; ExceptT ParseError (StateT [ParseWarning] IO) a)
+-&gt; PM a
+-&gt; StateT [ParseWarning] IO (Either ParseError a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PM a -&gt; ExceptT ParseError (StateT [ParseWarning] IO) a
+forall a. PM a -&gt; ExceptT ParseError (StateT [ParseWarning] IO) a
+</span><a href="Agda.Syntax.Parser.html#unPM"><span class="hs-identifier hs-var">unPM</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><span class="hs-comment">-- | Add a 'ParseWarning'.</span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Agda.Syntax.Parser.html#warning"><span class="hs-identifier hs-type">warning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseWarning"><span class="hs-identifier hs-type">ParseWarning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span id="warning"><span class="annot"><span class="annottext">warning :: ParseWarning -&gt; PM ()
+</span><a href="Agda.Syntax.Parser.html#warning"><span class="hs-identifier hs-var hs-var">warning</span></a></span></span><span> </span><span id="local-6989586621681887447"><span class="annot"><span class="annottext">ParseWarning
+</span><a href="#local-6989586621681887447"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ExceptT ParseError (StateT [ParseWarning] IO) () -&gt; PM ()
+forall a. ExceptT ParseError (StateT [ParseWarning] IO) a -&gt; PM a
+</span><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-var">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([ParseWarning] -&gt; [ParseWarning])
+-&gt; ExceptT ParseError (StateT [ParseWarning] IO) ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParseWarning
+</span><a href="#local-6989586621681887447"><span class="hs-identifier hs-var">w</span></a></span><span class="annot"><span class="annottext">ParseWarning -&gt; [ParseWarning] -&gt; [ParseWarning]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="annot"><span class="hs-comment">-- | Embed a 'ParseResult' as 'PM' computation.</span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span id="local-6989586621681887164"><span class="annot"><a href="Agda.Syntax.Parser.html#wrap"><span class="hs-identifier hs-type">wrap</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseResult"><span class="hs-identifier hs-type">ParseResult</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887164"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887164"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-80"></span><span id="wrap"><span class="annot"><span class="annottext">wrap :: forall a. ParseResult a -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#wrap"><span class="hs-identifier hs-var hs-var">wrap</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseFailed"><span class="hs-identifier hs-type">ParseFailed</span></a></span><span> </span><span id="local-6989586621681887455"><span class="annot"><span class="annottext">ParseError
+</span><a href="#local-6989586621681887455"><span class="hs-identifier hs-var">err</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseError -&gt; PM (a, Attributes)
+forall a. ParseError -&gt; PM a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">ParseError
+</span><a href="#local-6989586621681887455"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-81"></span><span class="annot"><a href="Agda.Syntax.Parser.html#wrap"><span class="hs-identifier hs-var">wrap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseOk"><span class="hs-identifier hs-type">ParseOk</span></a></span><span> </span><span id="local-6989586621681887457"><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681887457"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681887458"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681887458"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">([ParseWarning] -&gt; [ParseWarning]) -&gt; PM ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify'</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParseState -&gt; [ParseWarning]
+</span><a href="Agda.Syntax.Parser.Monad.html#parseWarnings"><span class="hs-identifier hs-var">parseWarnings</span></a></span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681887457"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">[ParseWarning] -&gt; [ParseWarning] -&gt; [ParseWarning]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>  </span><span class="annot"><span class="annottext">(a, Attributes) -&gt; PM (a, Attributes)
+forall a. a -&gt; PM a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681887458"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; Attributes
+</span><a href="Agda.Syntax.Parser.Monad.html#parseAttributes"><span class="hs-identifier hs-var">parseAttributes</span></a></span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681887457"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span id="local-6989586621681887170"><span class="annot"><a href="Agda.Syntax.Parser.html#wrapM"><span class="hs-identifier hs-type">wrapM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseResult"><span class="hs-identifier hs-type">ParseResult</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887170"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887170"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-86"></span><span id="wrapM"><span class="annot"><span class="annottext">wrapM :: forall a. IO (ParseResult a) -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#wrapM"><span class="hs-identifier hs-var hs-var">wrapM</span></a></span></span><span> </span><span id="local-6989586621681887463"><span class="annot"><span class="annottext">IO (ParseResult a)
+</span><a href="#local-6989586621681887463"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (ParseResult a) -&gt; PM (ParseResult a)
+forall a. IO a -&gt; PM a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO (ParseResult a)
+</span><a href="#local-6989586621681887463"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">PM (ParseResult a)
+-&gt; (ParseResult a -&gt; PM (a, Attributes)) -&gt; PM (a, Attributes)
+forall a b. PM a -&gt; (a -&gt; PM b) -&gt; PM b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="annot"><span class="annottext">ParseResult a -&gt; PM (a, Attributes)
+forall a. ParseResult a -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#wrap"><span class="hs-identifier hs-var">wrap</span></a></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="annot"><span class="hs-comment">-- | Returns the contents of the given file.</span></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="annot"><a href="Agda.Syntax.Parser.html#readFilePM"><span class="hs-identifier hs-type">readFilePM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#RangeFile"><span class="hs-identifier hs-type">RangeFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-91"></span><span id="readFilePM"><span class="annot"><span class="annottext">readFilePM :: RangeFile -&gt; PM Text
+</span><a href="Agda.Syntax.Parser.html#readFilePM"><span class="hs-identifier hs-var hs-var">readFilePM</span></a></span></span><span> </span><span id="local-6989586621681887464"><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887464"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-92"></span><span>  </span><span class="annot"><span class="annottext">(IOError -&gt; ParseError) -&gt; IO Text -&gt; PM Text
+forall e (m :: * -&gt; *) a.
+(MonadError e m, MonadIO m) =&gt;
+(IOError -&gt; e) -&gt; IO a -&gt; m a
+</span><a href="Agda.Syntax.Parser.html#wrapIOM"><span class="hs-identifier hs-var">wrapIOM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangeFile -&gt; IOError -&gt; ParseError
+</span><a href="Agda.Syntax.Parser.Monad.html#ReadFileError"><span class="hs-identifier hs-var">ReadFileError</span></a></span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887464"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO Text -&gt; PM Text) -&gt; IO Text -&gt; PM Text
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-93"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO Text
+</span><a href="Agda.Utils.IO.UTF8.html#readTextFile"><span class="hs-identifier hs-var">readTextFile</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AbsolutePath -&gt; String
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="annot"><span class="annottext">(AbsolutePath -&gt; String) -&gt; AbsolutePath -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">RangeFile -&gt; AbsolutePath
+</span><a href="Agda.Syntax.Position.html#rangeFilePath"><span class="hs-identifier hs-var">rangeFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887464"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span id="local-6989586621681887175"><span id="local-6989586621681887176"><span id="local-6989586621681887177"><span class="annot"><a href="Agda.Syntax.Parser.html#wrapIOM"><span class="hs-identifier hs-type">wrapIOM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="#local-6989586621681887175"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887176"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681887176"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IOError</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681887175"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681887177"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681887176"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887177"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-96"></span><span id="wrapIOM"><span class="annot"><span class="annottext">wrapIOM :: forall e (m :: * -&gt; *) a.
+(MonadError e m, MonadIO m) =&gt;
+(IOError -&gt; e) -&gt; IO a -&gt; m a
+</span><a href="Agda.Syntax.Parser.html#wrapIOM"><span class="hs-identifier hs-var hs-var">wrapIOM</span></a></span></span><span> </span><span id="local-6989586621681887481"><span class="annot"><span class="annottext">IOError -&gt; e
+</span><a href="#local-6989586621681887481"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681887482"><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621681887482"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-97"></span><span>  </span><span id="local-6989586621681887483"><span class="annot"><a href="#local-6989586621681887483"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO (Either IOError a) -&gt; m (Either IOError a)
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Either IOError a) -&gt; m (Either IOError a))
+-&gt; IO (Either IOError a) -&gt; m (Either IOError a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Either IOError a
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Either IOError a) -&gt; IO a -&gt; IO (Either IOError a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621681887482"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IO (Either IOError a)
+-&gt; (IOError -&gt; IO (Either IOError a)) -&gt; IO (Either IOError a)
+forall e a. Exception e =&gt; IO a -&gt; (e -&gt; IO a) -&gt; IO a
+</span><span class="hs-operator hs-var">`catch`</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681887486"><span class="annot"><span class="annottext">IOError
+</span><a href="#local-6989586621681887486"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either IOError a -&gt; IO (Either IOError a)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either IOError a -&gt; IO (Either IOError a))
+-&gt; Either IOError a -&gt; IO (Either IOError a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IOError -&gt; Either IOError a
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IOError
+</span><a href="#local-6989586621681887486"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IOError</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621681887483"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-99"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681887487"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681887487"><span class="hs-identifier hs-var">x</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681887487"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-100"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681887488"><span class="annot"><span class="annottext">IOError
+</span><a href="#local-6989586621681887488"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">e -&gt; m a
+forall a. e -&gt; m a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IOError -&gt; e
+</span><a href="#local-6989586621681887481"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">IOError
+</span><a href="#local-6989586621681887488"><span class="hs-identifier hs-var">err</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- Parse functions</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="annot"><span class="hs-comment">-- | Wrapped Parser type.</span></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">data</span><span> </span><span id="Parser"><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-var">Parser</span></a></span></span><span> </span><span id="local-6989586621681887194"><span class="annot"><a href="#local-6989586621681887194"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Parser"><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-var">Parser</span></a></span></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="parser"><span class="annot"><span class="annottext">forall a. Parser a -&gt; Parser a
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var hs-var">parser</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">M.Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887194"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="parseFlags"><span class="annot"><span class="annottext">forall a. Parser a -&gt; ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var hs-var">parseFlags</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseFlags"><span class="hs-identifier hs-type">ParseFlags</span></a></span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="parseLiterate"><span class="annot"><span class="annottext">forall a. Parser a -&gt; LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var hs-var">parseLiterate</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#LiterateParser"><span class="hs-identifier hs-type">LiterateParser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887194"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="hs-keyword">type</span><span> </span><span id="LiterateParser"><span class="annot"><a href="Agda.Syntax.Parser.html#LiterateParser"><span class="hs-identifier hs-var">LiterateParser</span></a></span></span><span> </span><span id="local-6989586621681887493"><span class="annot"><a href="#local-6989586621681887493"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-114"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887493"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#SrcFile"><span class="hs-identifier hs-type">SrcFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887493"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="annot"><span class="hs-comment">-- | Initial state for lexing.</span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Agda.Syntax.Parser.html#normalLexState"><span class="hs-identifier hs-type">normalLexState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LexState"><span class="hs-identifier hs-type">LexState</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-119"></span><span id="normalLexState"><span class="annot"><span class="annottext">normalLexState :: [LexState]
+</span><a href="Agda.Syntax.Parser.html#normalLexState"><span class="hs-identifier hs-var hs-var">normalLexState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">LexState
+</span><a href="Agda.Syntax.Parser.Lexer.html#normal"><span class="hs-identifier hs-var">normal</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="annot"><span class="hs-comment">-- | Initial state for lexing with top-level layout.</span></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="annot"><a href="Agda.Syntax.Parser.html#layoutLexState"><span class="hs-identifier hs-type">layoutLexState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LexState"><span class="hs-identifier hs-type">LexState</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-124"></span><span id="layoutLexState"><span class="annot"><span class="annottext">layoutLexState :: [LexState]
+</span><a href="Agda.Syntax.Parser.html#layoutLexState"><span class="hs-identifier hs-var hs-var">layoutLexState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">LexState
+</span><a href="Agda.Syntax.Parser.Lexer.html#layout"><span class="hs-identifier hs-var">layout</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">LexState
+</span><a href="Agda.Syntax.Parser.Lexer.html#normal"><span class="hs-identifier hs-var">normal</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="annot"><span class="hs-comment">-- | Parse without top-level layout.</span></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span id="local-6989586621681887203"><span class="annot"><a href="Agda.Syntax.Parser.html#parse"><span class="hs-identifier hs-type">parse</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887203"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887203"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-129"></span><span id="parse"><span class="annot"><span class="annottext">parse :: forall a. Parser a -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parse"><span class="hs-identifier hs-var hs-var">parse</span></a></span></span><span> </span><span id="local-6989586621681887499"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887499"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (ParseResult a) -&gt; PM (a, Attributes)
+forall a. IO (ParseResult a) -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#wrapM"><span class="hs-identifier hs-var">wrapM</span></a></span><span> </span><span class="annot"><span class="annottext">(IO (ParseResult a) -&gt; PM (a, Attributes))
+-&gt; (String -&gt; IO (ParseResult a)) -&gt; String -&gt; PM (a, Attributes)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ParseResult a -&gt; IO (ParseResult a)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(ParseResult a -&gt; IO (ParseResult a))
+-&gt; (String -&gt; ParseResult a) -&gt; String -&gt; IO (ParseResult a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ParseFlags -&gt; [LexState] -&gt; Parser a -&gt; String -&gt; ParseResult a
+forall a.
+ParseFlags -&gt; [LexState] -&gt; Parser a -&gt; String -&gt; ParseResult a
+</span><a href="Agda.Syntax.Parser.Monad.html#parse"><span class="hs-identifier hs-var">M.parse</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser a -&gt; ParseFlags
+forall a. Parser a -&gt; ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887499"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[LexState]
+</span><a href="Agda.Syntax.Parser.html#normalLexState"><span class="hs-identifier hs-var">normalLexState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser a -&gt; Parser a
+forall a. Parser a -&gt; Parser a
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887499"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="annot"><span class="hs-comment">-- | Parse with top-level layout.</span></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span id="local-6989586621681887207"><span class="annot"><a href="Agda.Syntax.Parser.html#parseFileFromString"><span class="hs-identifier hs-type">parseFileFromString</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#SrcFile"><span class="hs-identifier hs-type">SrcFile</span></a></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ Name of source file.</span></span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887207"><span class="hs-identifier hs-type">a</span></a></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Parser to use.</span></span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Contents of source file.</span></span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887207"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-138"></span><span id="parseFileFromString"><span class="annot"><span class="annottext">parseFileFromString :: forall a. SrcFile -&gt; Parser a -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parseFileFromString"><span class="hs-identifier hs-var hs-var">parseFileFromString</span></a></span></span><span> </span><span id="local-6989586621681887503"><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887503"><span class="hs-identifier hs-var">src</span></a></span></span><span> </span><span id="local-6989586621681887504"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887504"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (ParseResult a) -&gt; PM (a, Attributes)
+forall a. IO (ParseResult a) -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#wrapM"><span class="hs-identifier hs-var">wrapM</span></a></span><span> </span><span class="annot"><span class="annottext">(IO (ParseResult a) -&gt; PM (a, Attributes))
+-&gt; (String -&gt; IO (ParseResult a)) -&gt; String -&gt; PM (a, Attributes)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ParseResult a -&gt; IO (ParseResult a)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(ParseResult a -&gt; IO (ParseResult a))
+-&gt; (String -&gt; ParseResult a) -&gt; String -&gt; IO (ParseResult a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ParseFlags
+-&gt; [LexState] -&gt; Parser a -&gt; SrcFile -&gt; String -&gt; ParseResult a
+forall a.
+ParseFlags
+-&gt; [LexState] -&gt; Parser a -&gt; SrcFile -&gt; String -&gt; ParseResult a
+</span><a href="Agda.Syntax.Parser.Monad.html#parseFromSrc"><span class="hs-identifier hs-var">M.parseFromSrc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser a -&gt; ParseFlags
+forall a. Parser a -&gt; ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887504"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[LexState]
+</span><a href="Agda.Syntax.Parser.html#layoutLexState"><span class="hs-identifier hs-var">layoutLexState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser a -&gt; Parser a
+forall a. Parser a -&gt; Parser a
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887504"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887503"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="annot"><span class="hs-comment">-- | Parse with top-level layout.</span></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span id="local-6989586621681887210"><span class="annot"><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-type">parseLiterateWithoutComments</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#LiterateParser"><span class="hs-identifier hs-type">LiterateParser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887210"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-143"></span><span id="parseLiterateWithoutComments"><span class="annot"><span class="annottext">parseLiterateWithoutComments :: forall a. LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-var hs-var">parseLiterateWithoutComments</span></a></span></span><span> </span><span id="local-6989586621681887507"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887507"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681887508"><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887508"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681887509"><span class="annot"><span class="annottext">[Layer]
+</span><a href="#local-6989586621681887509"><span class="hs-identifier hs-var">layers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SrcFile -&gt; Parser a -&gt; String -&gt; PM (a, Attributes)
+forall a. SrcFile -&gt; Parser a -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parseFileFromString"><span class="hs-identifier hs-var">parseFileFromString</span></a></span><span> </span><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887508"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887507"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; PM (a, Attributes)) -&gt; String -&gt; PM (a, Attributes)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Layer] -&gt; String
+</span><a href="Agda.Syntax.Parser.Literate.html#illiterate"><span class="hs-identifier hs-var">illiterate</span></a></span><span> </span><span class="annot"><span class="annottext">[Layer]
+</span><a href="#local-6989586621681887509"><span class="hs-identifier hs-var">layers</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="annot"><span class="hs-comment">-- | Parse with top-level layout.</span></span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="annot"><a href="Agda.Syntax.Parser.html#parseLiterateWithComments"><span class="hs-identifier hs-type">parseLiterateWithComments</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#LiterateParser"><span class="hs-identifier hs-type">LiterateParser</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-148"></span><span id="parseLiterateWithComments"><span class="annot"><span class="annottext">parseLiterateWithComments :: LiterateParser [Token]
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithComments"><span class="hs-identifier hs-var hs-var">parseLiterateWithComments</span></a></span></span><span> </span><span id="local-6989586621681887512"><span class="annot"><span class="annottext">Parser [Token]
+</span><a href="#local-6989586621681887512"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681887513"><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887513"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681887514"><span class="annot"><span class="annottext">[Layer]
+</span><a href="#local-6989586621681887514"><span class="hs-identifier hs-var">layers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681887515"><span class="annot"><a href="#local-6989586621681887515"><span class="hs-identifier hs-var">code</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887516"><span class="annot"><a href="#local-6989586621681887516"><span class="hs-identifier hs-var">coh</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LiterateParser [Token]
+forall a. LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-var">parseLiterateWithoutComments</span></a></span><span> </span><span class="annot"><span class="annottext">Parser [Token]
+</span><a href="#local-6989586621681887512"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887513"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Layer]
+</span><a href="#local-6989586621681887514"><span class="hs-identifier hs-var">layers</span></a></span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681887517"><span class="annot"><a href="#local-6989586621681887517"><span class="hs-identifier hs-var hs-var">literate</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Layer -&gt; Bool) -&gt; [Layer] -&gt; [Layer]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (Layer -&gt; Bool) -&gt; Layer -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Layer -&gt; Bool
+</span><a href="Agda.Syntax.Parser.Literate.html#isCodeLayer"><span class="hs-identifier hs-var">isCodeLayer</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Layer]
+</span><a href="#local-6989586621681887514"><span class="hs-identifier hs-var">layers</span></a></span><span>
+</span><span id="line-151"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681887520"><span class="annot"><a href="#local-6989586621681887520"><span class="hs-identifier hs-var">terms</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887521"><span class="annot"><a href="#local-6989586621681887521"><span class="hs-identifier hs-var">overlaps</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#interleaveRanges"><span class="hs-identifier hs-type">interleaveRanges</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><a href="#local-6989586621681887515"><span class="hs-identifier hs-type">code</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="annot"><a href="#local-6989586621681887517"><span class="hs-identifier hs-type">literate</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">forM_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">fst</span></span><span> </span><span class="annot"><a href="#local-6989586621681887521"><span class="hs-identifier hs-type">overlaps</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681887524"><span class="annot"><span class="annottext">Either Token Layer
+</span><a href="#local-6989586621681887524"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-154"></span><span>    </span><span class="annot"><span class="annottext">ParseWarning -&gt; PM ()
+</span><a href="Agda.Syntax.Parser.html#warning"><span class="hs-identifier hs-var">warning</span></a></span><span> </span><span class="annot"><span class="annottext">(ParseWarning -&gt; PM ()) -&gt; ParseWarning -&gt; PM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#OverlappingTokensWarning"><span class="hs-identifier hs-type">OverlappingTokensWarning</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">warnRange :: Range' SrcFile
+</span><a href="Agda.Syntax.Parser.Monad.html#warnRange"><span class="hs-identifier hs-var">warnRange</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887513"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SrcFile -&gt; Range' () -&gt; Range' SrcFile
+forall a b. a -&gt; Range' b -&gt; Range' a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Either Token Layer -&gt; Range' ()
+forall a. HasRangeWithoutFile a =&gt; a -&gt; Range' ()
+</span><a href="Agda.Syntax.Position.html#getRangeWithoutFile"><span class="hs-identifier hs-var">getRangeWithoutFile</span></a></span><span> </span><span class="annot"><span class="annottext">Either Token Layer
+</span><a href="#local-6989586621681887524"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-155"></span><span>
+</span><span id="line-156"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681887516"><span class="hs-identifier hs-type">coh</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html#forMaybe"><span class="hs-identifier hs-type">forMaybe</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887520"><span class="hs-identifier hs-type">terms</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-157"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681887528"><span class="annot"><span class="annottext">Token
+</span><a href="#local-6989586621681887528"><span class="hs-identifier hs-var">t</span></a></span></span><span>                           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Token -&gt; Maybe Token
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Token
+</span><a href="#local-6989586621681887528"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-158"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span><span> </span><span id="local-6989586621681887531"><span class="annot"><span class="annottext">IntervalWithoutFile
+</span><a href="#local-6989586621681887531"><span class="hs-identifier hs-var">interval</span></a></span></span><span> </span><span id="local-6989586621681887532"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887532"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Token -&gt; Maybe Token
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Token -&gt; Maybe Token) -&gt; Token -&gt; Maybe Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Interval, String) -&gt; Token
+</span><a href="Agda.Syntax.Parser.Tokens.html#TokTeX"><span class="hs-identifier hs-var">TokTeX</span></a></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887513"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SrcFile -&gt; IntervalWithoutFile -&gt; Interval
+forall a b. a -&gt; Interval' b -&gt; Interval' a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">IntervalWithoutFile
+</span><a href="#local-6989586621681887531"><span class="hs-identifier hs-var">interval</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887532"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Markup"><span class="hs-identifier hs-var">Markup</span></a></span><span>  </span><span id="local-6989586621681887535"><span class="annot"><span class="annottext">IntervalWithoutFile
+</span><a href="#local-6989586621681887535"><span class="hs-identifier hs-var">interval</span></a></span></span><span> </span><span id="local-6989586621681887536"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887536"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Token -&gt; Maybe Token
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Token -&gt; Maybe Token) -&gt; Token -&gt; Maybe Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Interval, String) -&gt; Token
+</span><a href="Agda.Syntax.Parser.Tokens.html#TokMarkup"><span class="hs-identifier hs-var">TokMarkup</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SrcFile
+</span><a href="#local-6989586621681887513"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SrcFile -&gt; IntervalWithoutFile -&gt; Interval
+forall a b. a -&gt; Interval' b -&gt; Interval' a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">IntervalWithoutFile
+</span><a href="#local-6989586621681887535"><span class="hs-identifier hs-var">interval</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887536"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Layer"><span class="hs-identifier hs-type">Layer</span></a></span><span> </span><span class="annot"><span class="annottext">LayerRole
+</span><a href="Agda.Syntax.Parser.Literate.html#Code"><span class="hs-identifier hs-var">Code</span></a></span><span> </span><span class="annot"><span class="annottext">IntervalWithoutFile
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Token
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span id="local-6989586621681887229"><span class="annot"><a href="Agda.Syntax.Parser.html#parseLiterateFile"><span class="hs-identifier hs-type">parseLiterateFile</span></a></span><span>
+</span><span id="line-164"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Literate.html#Processor"><span class="hs-identifier hs-type">Processor</span></a></span><span>
+</span><span id="line-165"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887229"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-166"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#RangeFile"><span class="hs-identifier hs-type">RangeFile</span></a></span><span>
+</span><span id="line-167"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ The file.</span></span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-169"></span><span>     </span><span class="hs-comment">-- ^ The file contents. Note that the file is /not/ read from</span><span>
+</span><span id="line-170"></span><span>     </span><span class="hs-comment">-- disk.</span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887229"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-172"></span><span id="parseLiterateFile"><span class="annot"><span class="annottext">parseLiterateFile :: forall a.
+Processor -&gt; Parser a -&gt; RangeFile -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parseLiterateFile"><span class="hs-identifier hs-var hs-var">parseLiterateFile</span></a></span></span><span> </span><span id="local-6989586621681887542"><span class="annot"><span class="annottext">Processor
+</span><a href="#local-6989586621681887542"><span class="hs-identifier hs-var">po</span></a></span></span><span> </span><span id="local-6989586621681887543"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887543"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681887544"><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887544"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser a -&gt; LiterateParser a
+forall a. Parser a -&gt; LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var">parseLiterate</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887543"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887543"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangeFile -&gt; SrcFile
+forall a. a -&gt; Maybe a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887544"><span class="hs-identifier hs-var">path</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Layer] -&gt; PM (a, Attributes))
+-&gt; (String -&gt; [Layer]) -&gt; String -&gt; PM (a, Attributes)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Processor
+</span><a href="#local-6989586621681887542"><span class="hs-identifier hs-var">po</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; Position' ()
+forall a. a -&gt; Position' a
+</span><a href="Agda.Syntax.Position.html#startPos%27"><span class="hs-identifier hs-var">startPos'</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span id="local-6989586621681887234"><span class="annot"><a href="Agda.Syntax.Parser.html#parsePosString"><span class="hs-identifier hs-type">parsePosString</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887234"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Position"><span class="hs-identifier hs-type">Position</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887234"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-175"></span><span id="parsePosString"><span class="annot"><span class="annottext">parsePosString :: forall a. Parser a -&gt; Position -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parsePosString"><span class="hs-identifier hs-var hs-var">parsePosString</span></a></span></span><span> </span><span id="local-6989586621681887547"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887547"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681887548"><span class="annot"><span class="annottext">Position
+</span><a href="#local-6989586621681887548"><span class="hs-identifier hs-var">pos</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (ParseResult a) -&gt; PM (a, Attributes)
+forall a. IO (ParseResult a) -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#wrapM"><span class="hs-identifier hs-var">wrapM</span></a></span><span> </span><span class="annot"><span class="annottext">(IO (ParseResult a) -&gt; PM (a, Attributes))
+-&gt; (String -&gt; IO (ParseResult a)) -&gt; String -&gt; PM (a, Attributes)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ParseResult a -&gt; IO (ParseResult a)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(ParseResult a -&gt; IO (ParseResult a))
+-&gt; (String -&gt; ParseResult a) -&gt; String -&gt; IO (ParseResult a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Position
+-&gt; ParseFlags -&gt; [LexState] -&gt; Parser a -&gt; String -&gt; ParseResult a
+forall a.
+Position
+-&gt; ParseFlags -&gt; [LexState] -&gt; Parser a -&gt; String -&gt; ParseResult a
+</span><a href="Agda.Syntax.Parser.Monad.html#parsePosString"><span class="hs-identifier hs-var">M.parsePosString</span></a></span><span> </span><span class="annot"><span class="annottext">Position
+</span><a href="#local-6989586621681887548"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser a -&gt; ParseFlags
+forall a. Parser a -&gt; ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887547"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[LexState]
+</span><a href="Agda.Syntax.Parser.html#normalLexState"><span class="hs-identifier hs-var">normalLexState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser a -&gt; Parser a
+forall a. Parser a -&gt; Parser a
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887547"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="annot"><span class="hs-comment">-- | Calls 'parsePosString' with 'Position' extracted from the Range.</span></span><span>
+</span><span id="line-178"></span><span id="local-6989586621681887238"><span class="annot"><a href="Agda.Syntax.Parser.html#parseRangeString"><span class="hs-identifier hs-type">parseRangeString</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887238"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887238"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-179"></span><span id="parseRangeString"><span class="annot"><span class="annottext">parseRangeString :: forall a.
+Parser a -&gt; Range' SrcFile -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parseRangeString"><span class="hs-identifier hs-var hs-var">parseRangeString</span></a></span></span><span> </span><span id="local-6989586621681887551"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887551"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser a -&gt; Position -&gt; String -&gt; PM (a, Attributes)
+forall a. Parser a -&gt; Position -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parsePosString"><span class="hs-identifier hs-var">parsePosString</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887551"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">(Position -&gt; String -&gt; PM (a, Attributes))
+-&gt; (Range' SrcFile -&gt; Position)
+-&gt; Range' SrcFile
+-&gt; String
+-&gt; PM (a, Attributes)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Position -&gt; Maybe Position -&gt; Position
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe RangeFile -&gt; Position
+</span><a href="Agda.Syntax.Position.html#startPos"><span class="hs-identifier hs-var">startPos</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe RangeFile
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe Position -&gt; Position)
+-&gt; (Range' SrcFile -&gt; Maybe Position) -&gt; Range' SrcFile -&gt; Position
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Range' SrcFile -&gt; Maybe Position
+forall a. Range' a -&gt; Maybe (Position' a)
+</span><a href="Agda.Syntax.Position.html#rStart"><span class="hs-identifier hs-var">rStart</span></a></span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span class="annot"><span class="hs-comment">-- | Extensions supported by `parseFile`.</span></span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="annot"><a href="Agda.Syntax.Parser.html#agdaFileExtensions"><span class="hs-identifier hs-type">agdaFileExtensions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-184"></span><span id="agdaFileExtensions"><span class="annot"><span class="annottext">agdaFileExtensions :: [String]
+</span><a href="Agda.Syntax.Parser.html#agdaFileExtensions"><span class="hs-identifier hs-var hs-var">agdaFileExtensions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;.agda&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; [String]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="Agda.Syntax.Parser.Literate.html#literateExts"><span class="hs-identifier hs-var">literateExts</span></a></span><span>
+</span><span id="line-185"></span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- | Parse a file.</span><span>
+</span><span id="line-187"></span><span class="hs-comment">--</span><span>
+</span><span id="line-188"></span><span class="hs-comment">--   The 'Bool' parameter controls whether only @```agda@ blocks</span><span>
+</span><span id="line-189"></span><span class="hs-comment">--   are treated as Agda code in Markdown/Typst files.</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--   When @True@, only blocks marked @```agda@ are considered code.</span><span>
+</span><span id="line-191"></span><span class="hs-comment">--   When @False@, both @```@ and @```agda@ blocks are code (default).</span><span>
+</span><span id="line-192"></span><span>
+</span><span id="line-193"></span><span id="local-6989586621681887243"><span class="annot"><a href="Agda.Syntax.Parser.html#parseFile"><span class="hs-identifier hs-type">parseFile</span></a></span><span>
+</span><span id="line-194"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681887243"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-195"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-196"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ When @True@, only treat @```agda@ blocks as code in Markdown/Typst.</span></span><span>
+</span><span id="line-197"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681887243"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-198"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#RangeFile"><span class="hs-identifier hs-type">RangeFile</span></a></span><span>
+</span><span id="line-199"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ The file.</span></span><span>
+</span><span id="line-200"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-201"></span><span>     </span><span class="hs-comment">-- ^ The file contents. Note that the file is /not/ read from</span><span>
+</span><span id="line-202"></span><span>     </span><span class="hs-comment">-- disk.</span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681887243"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Attribute.html#Attributes"><span class="hs-identifier hs-type">Attributes</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#FileType"><span class="hs-identifier hs-type">FileType</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-204"></span><span id="parseFile"><span class="annot"><span class="annottext">parseFile :: forall a.
+Show a =&gt;
+Bool
+-&gt; Parser a
+-&gt; RangeFile
+-&gt; String
+-&gt; PM ((a, Attributes), FileType)
+</span><a href="Agda.Syntax.Parser.html#parseFile"><span class="hs-identifier hs-var hs-var">parseFile</span></a></span></span><span> </span><span id="local-6989586621681887563"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681887563"><span class="hs-identifier hs-var">onlyAgdaBlocks</span></a></span></span><span> </span><span id="local-6989586621681887564"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887564"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681887565"><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887565"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621681887566"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887566"><span class="hs-identifier hs-var">input</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;.agda&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Bool
+</span><span class="hs-operator hs-var">`List.isSuffixOf`</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887568"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-206"></span><span>    </span><span class="hs-special">(</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="Agda.Syntax.Common.html#AgdaFileType"><span class="hs-identifier hs-var">AgdaFileType</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((a, Attributes) -&gt; ((a, Attributes), FileType))
+-&gt; PM (a, Attributes) -&gt; PM ((a, Attributes), FileType)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">SrcFile -&gt; Parser a -&gt; String -&gt; PM (a, Attributes)
+forall a. SrcFile -&gt; Parser a -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parseFileFromString"><span class="hs-identifier hs-var">parseFileFromString</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangeFile -&gt; SrcFile
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Strict.Just</span></span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887565"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887564"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887566"><span class="hs-identifier hs-var">input</span></a></span><span>
+</span><span id="line-207"></span><span>  </span><span class="hs-keyword">else</span><span>
+</span><span id="line-208"></span><span>    </span><span class="annot"><span class="annottext">[(String, (Processor, FileType))] -&gt; PM ((a, Attributes), FileType)
+</span><a href="#local-6989586621681887571"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; [(String, (Processor, FileType))]
+</span><a href="Agda.Syntax.Parser.Literate.html#literateProcessors"><span class="hs-identifier hs-var">literateProcessors</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681887563"><span class="hs-identifier hs-var">onlyAgdaBlocks</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-209"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-210"></span><span>    </span><span id="local-6989586621681887568"><span class="annot"><span class="annottext">path :: String
+</span><a href="#local-6989586621681887568"><span class="hs-identifier hs-var hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbsolutePath -&gt; String
+</span><a href="Agda.Utils.FileName.html#filePath"><span class="hs-identifier hs-var">filePath</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RangeFile -&gt; AbsolutePath
+</span><a href="Agda.Syntax.Position.html#rangeFilePath"><span class="hs-identifier hs-var">rangeFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887565"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span>    </span><span id="local-6989586621681887571"><span class="annot"><span class="annottext">go :: [(String, (Processor, FileType))] -&gt; PM ((a, Attributes), FileType)
+</span><a href="#local-6989586621681887571"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseError -&gt; PM ((a, Attributes), FileType)
+forall a. ParseError -&gt; PM a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#InvalidExtensionError"><span class="hs-identifier hs-type">InvalidExtensionError</span></a></span><span>
+</span><span id="line-213"></span><span>                   </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">errPath :: RangeFile
+</span><a href="Agda.Syntax.Parser.Monad.html#errPath"><span class="hs-identifier hs-var">errPath</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887565"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-214"></span><span>                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">errValidExts :: [String]
+</span><a href="Agda.Syntax.Parser.Monad.html#errValidExts"><span class="hs-identifier hs-var">errValidExts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="Agda.Syntax.Parser.html#agdaFileExtensions"><span class="hs-identifier hs-var">agdaFileExtensions</span></a></span><span>
+</span><span id="line-215"></span><span>                   </span><span class="hs-special">}</span><span>
+</span><span id="line-216"></span><span>    </span><span class="annot"><a href="#local-6989586621681887571"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681887576"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887576"><span class="hs-identifier hs-var">ext</span></a></span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681887577"><span class="annot"><span class="annottext">Processor
+</span><a href="#local-6989586621681887577"><span class="hs-identifier hs-var">po</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681887578"><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681887578"><span class="hs-identifier hs-var">ft</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681887579"><span class="annot"><span class="annottext">[(String, (Processor, FileType))]
+</span><a href="#local-6989586621681887579"><span class="hs-identifier hs-var">pos</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-217"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887576"><span class="hs-identifier hs-var">ext</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Bool
+</span><span class="hs-operator hs-var">`List.isSuffixOf`</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887568"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-218"></span><span>          </span><span class="hs-special">(</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681887578"><span class="hs-identifier hs-var">ft</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((a, Attributes) -&gt; ((a, Attributes), FileType))
+-&gt; PM (a, Attributes) -&gt; PM ((a, Attributes), FileType)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Processor -&gt; Parser a -&gt; RangeFile -&gt; String -&gt; PM (a, Attributes)
+forall a.
+Processor -&gt; Parser a -&gt; RangeFile -&gt; String -&gt; PM (a, Attributes)
+</span><a href="Agda.Syntax.Parser.html#parseLiterateFile"><span class="hs-identifier hs-var">parseLiterateFile</span></a></span><span> </span><span class="annot"><span class="annottext">Processor
+</span><a href="#local-6989586621681887577"><span class="hs-identifier hs-var">po</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621681887564"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">RangeFile
+</span><a href="#local-6989586621681887565"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681887566"><span class="hs-identifier hs-var">input</span></a></span><span>
+</span><span id="line-219"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(String, (Processor, FileType))] -&gt; PM ((a, Attributes), FileType)
+</span><a href="#local-6989586621681887571"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">[(String, (Processor, FileType))]
+</span><a href="#local-6989586621681887579"><span class="hs-identifier hs-var">pos</span></a></span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- Specific parsers</span><span>
+</span><span id="line-223"></span><span>
+</span><span id="line-224"></span><span class="annot"><span class="hs-comment">-- | Parses a module.</span></span><span>
+</span><span id="line-225"></span><span>
+</span><span id="line-226"></span><span class="annot"><a href="Agda.Syntax.Parser.html#moduleParser"><span class="hs-identifier hs-type">moduleParser</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Module"><span class="hs-identifier hs-type">Module</span></a></span><span>
+</span><span id="line-227"></span><span id="moduleParser"><span class="annot"><span class="annottext">moduleParser :: Parser Module
+</span><a href="Agda.Syntax.Parser.html#moduleParser"><span class="hs-identifier hs-var hs-var">moduleParser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span>
+</span><span id="line-228"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">parser :: Parser Module
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser Module
+</span><a href="Agda.Syntax.Parser.Parser.html#moduleParser"><span class="hs-identifier hs-var">P.moduleParser</span></a></span><span>
+</span><span id="line-229"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseFlags :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withoutComments"><span class="hs-identifier hs-var">withoutComments</span></a></span><span>
+</span><span id="line-230"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseLiterate :: LiterateParser Module
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var">parseLiterate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LiterateParser Module
+forall a. LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-var">parseLiterateWithoutComments</span></a></span><span>
+</span><span id="line-231"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span class="annot"><span class="hs-comment">-- | Parses a module name.</span></span><span>
+</span><span id="line-234"></span><span>
+</span><span id="line-235"></span><span class="annot"><a href="Agda.Syntax.Parser.html#moduleNameParser"><span class="hs-identifier hs-type">moduleNameParser</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-236"></span><span id="moduleNameParser"><span class="annot"><span class="annottext">moduleNameParser :: Parser QName
+</span><a href="Agda.Syntax.Parser.html#moduleNameParser"><span class="hs-identifier hs-var hs-var">moduleNameParser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span>
+</span><span id="line-237"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">parser :: Parser QName
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser QName
+</span><a href="Agda.Syntax.Parser.Parser.html#moduleNameParser"><span class="hs-identifier hs-var">P.moduleNameParser</span></a></span><span>
+</span><span id="line-238"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseFlags :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withoutComments"><span class="hs-identifier hs-var">withoutComments</span></a></span><span>
+</span><span id="line-239"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseLiterate :: LiterateParser QName
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var">parseLiterate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LiterateParser QName
+forall a. LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-var">parseLiterateWithoutComments</span></a></span><span>
+</span><span id="line-240"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span class="annot"><span class="hs-comment">-- | Parses an expression.</span></span><span>
+</span><span id="line-243"></span><span>
+</span><span id="line-244"></span><span class="annot"><a href="Agda.Syntax.Parser.html#exprParser"><span class="hs-identifier hs-type">exprParser</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Expr"><span class="hs-identifier hs-type">Expr</span></a></span><span>
+</span><span id="line-245"></span><span id="exprParser"><span class="annot"><span class="annottext">exprParser :: Parser Expr
+</span><a href="Agda.Syntax.Parser.html#exprParser"><span class="hs-identifier hs-var hs-var">exprParser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span>
+</span><span id="line-246"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">parser :: Parser Expr
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser Expr
+</span><a href="Agda.Syntax.Parser.Parser.html#exprParser"><span class="hs-identifier hs-var">P.exprParser</span></a></span><span>
+</span><span id="line-247"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseFlags :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withoutComments"><span class="hs-identifier hs-var">withoutComments</span></a></span><span>
+</span><span id="line-248"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseLiterate :: LiterateParser Expr
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var">parseLiterate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LiterateParser Expr
+forall a. LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-var">parseLiterateWithoutComments</span></a></span><span>
+</span><span id="line-249"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-250"></span><span>
+</span><span id="line-251"></span><span class="annot"><span class="hs-comment">-- | Parses an expression followed by a where clause.</span></span><span>
+</span><span id="line-252"></span><span>
+</span><span id="line-253"></span><span class="annot"><a href="Agda.Syntax.Parser.html#exprWhereParser"><span class="hs-identifier hs-type">exprWhereParser</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#ExprWhere"><span class="hs-identifier hs-type">ExprWhere</span></a></span><span>
+</span><span id="line-254"></span><span id="exprWhereParser"><span class="annot"><span class="annottext">exprWhereParser :: Parser ExprWhere
+</span><a href="Agda.Syntax.Parser.html#exprWhereParser"><span class="hs-identifier hs-var hs-var">exprWhereParser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span>
+</span><span id="line-255"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">parser :: Parser ExprWhere
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser ExprWhere
+</span><a href="Agda.Syntax.Parser.Parser.html#exprWhereParser"><span class="hs-identifier hs-var">P.exprWhereParser</span></a></span><span>
+</span><span id="line-256"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseFlags :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withoutComments"><span class="hs-identifier hs-var">withoutComments</span></a></span><span>
+</span><span id="line-257"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseLiterate :: LiterateParser ExprWhere
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var">parseLiterate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LiterateParser ExprWhere
+forall a. LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-var">parseLiterateWithoutComments</span></a></span><span>
+</span><span id="line-258"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-259"></span><span>
+</span><span id="line-260"></span><span class="annot"><span class="hs-comment">-- | Parses an expression or some other content of an interaction hole.</span></span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span class="annot"><a href="Agda.Syntax.Parser.html#holeContentParser"><span class="hs-identifier hs-type">holeContentParser</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#HoleContent"><span class="hs-identifier hs-type">HoleContent</span></a></span><span>
+</span><span id="line-263"></span><span id="holeContentParser"><span class="annot"><span class="annottext">holeContentParser :: Parser HoleContent
+</span><a href="Agda.Syntax.Parser.html#holeContentParser"><span class="hs-identifier hs-var hs-var">holeContentParser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span>
+</span><span id="line-264"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">parser :: Parser HoleContent
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser HoleContent
+</span><a href="Agda.Syntax.Parser.Parser.html#holeContentParser"><span class="hs-identifier hs-var">P.holeContentParser</span></a></span><span>
+</span><span id="line-265"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseFlags :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withoutComments"><span class="hs-identifier hs-var">withoutComments</span></a></span><span>
+</span><span id="line-266"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseLiterate :: LiterateParser HoleContent
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var">parseLiterate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LiterateParser HoleContent
+forall a. LiterateParser a
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithoutComments"><span class="hs-identifier hs-var">parseLiterateWithoutComments</span></a></span><span>
+</span><span id="line-267"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-268"></span><span>
+</span><span id="line-269"></span><span class="annot"><span class="hs-comment">-- | Gives the parsed token stream (including comments).</span></span><span>
+</span><span id="line-270"></span><span>
+</span><span id="line-271"></span><span class="annot"><a href="Agda.Syntax.Parser.html#tokensParser"><span class="hs-identifier hs-type">tokensParser</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-272"></span><span id="tokensParser"><span class="annot"><span class="annottext">tokensParser :: Parser [Token]
+</span><a href="Agda.Syntax.Parser.html#tokensParser"><span class="hs-identifier hs-var hs-var">tokensParser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span>
+</span><span id="line-273"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">parser :: Parser [Token]
+</span><a href="Agda.Syntax.Parser.html#parser"><span class="hs-identifier hs-var">parser</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser [Token]
+</span><a href="Agda.Syntax.Parser.Parser.html#tokensParser"><span class="hs-identifier hs-var">P.tokensParser</span></a></span><span>
+</span><span id="line-274"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseFlags :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#parseFlags"><span class="hs-identifier hs-var">parseFlags</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withComments"><span class="hs-identifier hs-var">withComments</span></a></span><span>
+</span><span id="line-275"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">parseLiterate :: LiterateParser [Token]
+</span><a href="Agda.Syntax.Parser.html#parseLiterate"><span class="hs-identifier hs-var">parseLiterate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LiterateParser [Token]
+</span><a href="Agda.Syntax.Parser.html#parseLiterateWithComments"><span class="hs-identifier hs-var">parseLiterateWithComments</span></a></span><span>
+</span><span id="line-276"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-277"></span><span>
+</span><span id="line-278"></span><span class="annot"><span class="hs-comment">-- | Keep comments in the token stream generated by the lexer.</span></span><span>
+</span><span id="line-279"></span><span>
+</span><span id="line-280"></span><span class="annot"><a href="Agda.Syntax.Parser.html#withComments"><span class="hs-identifier hs-type">withComments</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseFlags"><span class="hs-identifier hs-type">ParseFlags</span></a></span><span>
+</span><span id="line-281"></span><span id="withComments"><span class="annot"><span class="annottext">withComments :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withComments"><span class="hs-identifier hs-var hs-var">withComments</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.Monad.html#defaultParseFlags"><span class="hs-identifier hs-var">defaultParseFlags</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseKeepComments"><span class="hs-identifier hs-var">parseKeepComments</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-282"></span><span>
+</span><span id="line-283"></span><span class="annot"><span class="hs-comment">-- | Do not keep comments in the token stream generated by the lexer.</span></span><span>
+</span><span id="line-284"></span><span>
+</span><span id="line-285"></span><span class="annot"><a href="Agda.Syntax.Parser.html#withoutComments"><span class="hs-identifier hs-type">withoutComments</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#ParseFlags"><span class="hs-identifier hs-type">ParseFlags</span></a></span><span>
+</span><span id="line-286"></span><span id="withoutComments"><span class="annot"><span class="annottext">withoutComments :: ParseFlags
+</span><a href="Agda.Syntax.Parser.html#withoutComments"><span class="hs-identifier hs-var hs-var">withoutComments</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParseFlags
+</span><a href="Agda.Syntax.Parser.Monad.html#defaultParseFlags"><span class="hs-identifier hs-var">defaultParseFlags</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseKeepComments"><span class="hs-identifier hs-var">parseKeepComments</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-287"></span></pre></body></html>

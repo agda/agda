@@ -1,0 +1,985 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html"><span class="hs-identifier">Agda.TypeChecking.Conversion.Pure</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.String</span></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.html"><span class="hs-identifier">Agda.TypeChecking.Conversion</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html"><span class="hs-identifier">Agda.TypeChecking.Pretty</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Reduce</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#isBlocked"><span class="hs-identifier">isBlocked</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html"><span class="hs-identifier">Agda.TypeChecking.Warnings</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">data</span><span> </span><span id="FreshThings"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#FreshThings"><span class="hs-identifier hs-var">FreshThings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FreshThings"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#FreshThings"><span class="hs-identifier hs-var">FreshThings</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="freshInt"><span class="annot"><span class="annottext">FreshThings -&gt; Int
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#freshInt"><span class="hs-identifier hs-var hs-var">freshInt</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="freshProblemId"><span class="annot"><span class="annottext">FreshThings -&gt; ProblemId
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#freshProblemId"><span class="hs-identifier hs-var hs-var">freshProblemId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="freshNameId"><span class="annot"><span class="annottext">FreshThings -&gt; NameId
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#freshNameId"><span class="hs-identifier hs-var hs-var">freshNameId</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NameId"><span class="hs-identifier hs-type">NameId</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">newtype</span><span> </span><span id="PureConversionT"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-var">PureConversionT</span></a></span></span><span> </span><span id="local-6989586621682071670"><span class="annot"><a href="#local-6989586621682071670"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621682071671"><span class="annot"><a href="#local-6989586621682071671"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="PureConversionT"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-var">PureConversionT</span></a></span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="unPureConversionT"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+PureConversionT m a -&gt; ExceptT TCErr (StateT FreshThings m) a
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#unPureConversionT"><span class="hs-identifier hs-var hs-var">unPureConversionT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCErr"><span class="hs-identifier hs-type">TCErr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#FreshThings"><span class="hs-identifier hs-type">FreshThings</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071670"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682071671"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621682072121"><span id="local-6989586621682072127"><span class="annot"><span class="annottext">(forall a b.
+ (a -&gt; b) -&gt; PureConversionT m a -&gt; PureConversionT m b)
+-&gt; (forall a b. a -&gt; PureConversionT m b -&gt; PureConversionT m a)
+-&gt; Functor (PureConversionT m)
+forall a b. a -&gt; PureConversionT m b -&gt; PureConversionT m a
+forall a b. (a -&gt; b) -&gt; PureConversionT m a -&gt; PureConversionT m b
+forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+a -&gt; PureConversionT m b -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; PureConversionT m a -&gt; PureConversionT m b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; PureConversionT m a -&gt; PureConversionT m b
+fmap :: forall a b. (a -&gt; b) -&gt; PureConversionT m a -&gt; PureConversionT m b
+$c&lt;$ :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+a -&gt; PureConversionT m b -&gt; PureConversionT m a
+&lt;$ :: forall a b. a -&gt; PureConversionT m b -&gt; PureConversionT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682072140"><span id="local-6989586621682072147"><span id="local-6989586621682072153"><span id="local-6989586621682072159"><span id="local-6989586621682072165"><span class="annot"><span class="annottext">Functor (PureConversionT m)
+Functor (PureConversionT m) =&gt;
+(forall a. a -&gt; PureConversionT m a)
+-&gt; (forall a b.
+    PureConversionT m (a -&gt; b)
+    -&gt; PureConversionT m a -&gt; PureConversionT m b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c)
+    -&gt; PureConversionT m a
+    -&gt; PureConversionT m b
+    -&gt; PureConversionT m c)
+-&gt; (forall a b.
+    PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b)
+-&gt; (forall a b.
+    PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m a)
+-&gt; Applicative (PureConversionT m)
+forall a. a -&gt; PureConversionT m a
+forall a b.
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m a
+forall a b.
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+forall a b.
+PureConversionT m (a -&gt; b)
+-&gt; PureConversionT m a -&gt; PureConversionT m b
+forall a b c.
+(a -&gt; b -&gt; c)
+-&gt; PureConversionT m a
+-&gt; PureConversionT m b
+-&gt; PureConversionT m c
+forall (m :: * -&gt; *). Monad m =&gt; Functor (PureConversionT m)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m (a -&gt; b)
+-&gt; PureConversionT m a -&gt; PureConversionT m b
+forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+(a -&gt; b -&gt; c)
+-&gt; PureConversionT m a
+-&gt; PureConversionT m b
+-&gt; PureConversionT m c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; PureConversionT m a
+pure :: forall a. a -&gt; PureConversionT m a
+$c&lt;*&gt; :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m (a -&gt; b)
+-&gt; PureConversionT m a -&gt; PureConversionT m b
+&lt;*&gt; :: forall a b.
+PureConversionT m (a -&gt; b)
+-&gt; PureConversionT m a -&gt; PureConversionT m b
+$cliftA2 :: forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+(a -&gt; b -&gt; c)
+-&gt; PureConversionT m a
+-&gt; PureConversionT m b
+-&gt; PureConversionT m c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c)
+-&gt; PureConversionT m a
+-&gt; PureConversionT m b
+-&gt; PureConversionT m c
+$c*&gt; :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+*&gt; :: forall a b.
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+$c&lt;* :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m a
+&lt;* :: forall a b.
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682072182"><span id="local-6989586621682072188"><span id="local-6989586621682072193"><span class="annot"><span class="annottext">Applicative (PureConversionT m)
+Applicative (PureConversionT m) =&gt;
+(forall a b.
+ PureConversionT m a
+ -&gt; (a -&gt; PureConversionT m b) -&gt; PureConversionT m b)
+-&gt; (forall a b.
+    PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b)
+-&gt; (forall a. a -&gt; PureConversionT m a)
+-&gt; Monad (PureConversionT m)
+forall a. a -&gt; PureConversionT m a
+forall a b.
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+forall a b.
+PureConversionT m a
+-&gt; (a -&gt; PureConversionT m b) -&gt; PureConversionT m b
+forall (m :: * -&gt; *). Monad m =&gt; Applicative (PureConversionT m)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a
+-&gt; (a -&gt; PureConversionT m b) -&gt; PureConversionT m b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a
+-&gt; (a -&gt; PureConversionT m b) -&gt; PureConversionT m b
+&gt;&gt;= :: forall a b.
+PureConversionT m a
+-&gt; (a -&gt; PureConversionT m b) -&gt; PureConversionT m b
+$c&gt;&gt; :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+&gt;&gt; :: forall a b.
+PureConversionT m a -&gt; PureConversionT m b -&gt; PureConversionT m b
+$creturn :: forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; PureConversionT m a
+return :: forall a. a -&gt; PureConversionT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682072203"><span id="local-6989586621682072209"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCErr"><span class="hs-identifier hs-type">TCErr</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682072221"><span id="local-6989586621682072227"><span id="local-6989586621682072232"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#FreshThings"><span class="hs-identifier hs-type">FreshThings</span></a></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682072247"><span id="local-6989586621682072253"><span class="annot"><span class="annottext">Monad (PureConversionT m)
+Monad (PureConversionT m) =&gt;
+(FileId -&gt; PureConversionT m File)
+-&gt; (File -&gt; PureConversionT m FileId)
+-&gt; MonadFileId (PureConversionT m)
+File -&gt; PureConversionT m FileId
+FileId -&gt; PureConversionT m File
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(FileId -&gt; m File) -&gt; (File -&gt; m FileId) -&gt; MonadFileId m
+forall (m :: * -&gt; *). MonadFileId m =&gt; Monad (PureConversionT m)
+forall (m :: * -&gt; *).
+MonadFileId m =&gt;
+File -&gt; PureConversionT m FileId
+forall (m :: * -&gt; *).
+MonadFileId m =&gt;
+FileId -&gt; PureConversionT m File
+$cfileFromId :: forall (m :: * -&gt; *).
+MonadFileId m =&gt;
+FileId -&gt; PureConversionT m File
+fileFromId :: FileId -&gt; PureConversionT m File
+$cidFromFile :: forall (m :: * -&gt; *).
+MonadFileId m =&gt;
+File -&gt; PureConversionT m FileId
+idFromFile :: File -&gt; PureConversionT m FileId
+</span><a href="Agda.Utils.FileId.html#MonadFileId"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var">MonadFileId</span></a></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">MonadFileId (PureConversionT m)
+MonadTCEnv (PureConversionT m)
+MonadReduce (PureConversionT m)
+ReadTCState (PureConversionT m)
+HasBuiltins (PureConversionT m)
+MonadAddContext (PureConversionT m)
+MonadDebug (PureConversionT m)
+HasConstInfo (PureConversionT m)
+(HasBuiltins (PureConversionT m), HasConstInfo (PureConversionT m),
+ MonadAddContext (PureConversionT m),
+ MonadDebug (PureConversionT m), MonadFileId (PureConversionT m),
+ MonadReduce (PureConversionT m), MonadTCEnv (PureConversionT m),
+ ReadTCState (PureConversionT m)) =&gt;
+PureTCM (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+MonadFileId (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+MonadTCEnv (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+MonadReduce (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+ReadTCState (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+HasBuiltins (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+MonadAddContext (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+MonadDebug (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadFileId m,
+ MonadReduce m) =&gt;
+HasConstInfo (PureConversionT m)
+forall (m :: * -&gt; *).
+(HasBuiltins m, HasConstInfo m, MonadAddContext m, MonadDebug m,
+ MonadFileId m, MonadReduce m, MonadTCEnv m, ReadTCState m) =&gt;
+PureTCM m
+</span><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">PureTCM</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTerm"><span class="hs-pragma hs-type">pureEqualTerm</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-pragma hs-type">Type</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">Bool</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-34"></span><span id="local-6989586621682071790"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTerm"><span class="hs-identifier hs-type">pureEqualTerm</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071790"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadBlock"><span class="hs-identifier hs-type">MonadBlock</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071790"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682071790"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-37"></span><span id="pureEqualTerm"><span class="annot"><span class="annottext">pureEqualTerm :: forall (m :: * -&gt; *).
+(PureTCM m, MonadBlock m) =&gt;
+Type -&gt; Term -&gt; Term -&gt; m Bool
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTerm"><span class="hs-identifier hs-var hs-var">pureEqualTerm</span></a></span></span><span> </span><span id="local-6989586621682072337"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072337"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682072338"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072338"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span id="local-6989586621682072339"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072339"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><span class="annottext">Maybe () -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isJust</span></span><span> </span><span class="annot"><span class="annottext">(Maybe () -&gt; Bool) -&gt; m (Maybe ()) -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m () -&gt; m (Maybe ())
+forall (m :: * -&gt; *) a.
+(MonadBlock m, PureTCM m) =&gt;
+PureConversionT m a -&gt; m (Maybe a)
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversion"><span class="hs-identifier hs-var">runPureConversion</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type -&gt; Term -&gt; Term -&gt; PureConversionT m ()
+forall (m :: * -&gt; *).
+MonadConversion m =&gt;
+Type -&gt; Term -&gt; Term -&gt; m ()
+</span><a href="Agda.TypeChecking.Conversion.html#equalTerm"><span class="hs-identifier hs-var">equalTerm</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072337"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072338"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072339"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTermB"><span class="hs-pragma hs-type">pureEqualTermB</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-pragma hs-type">Type</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-pragma hs-type">Blocker</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">Bool</span></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-41"></span><span class="annot"><span class="hs-comment">-- | Return the blocker instead of throwing a `patternViolation`.</span></span><span>
+</span><span id="line-42"></span><span id="local-6989586621682071821"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTermB"><span class="hs-identifier hs-type">pureEqualTermB</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071821"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682071821"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-43"></span><span id="pureEqualTermB"><span class="annot"><span class="annottext">pureEqualTermB :: forall (m :: * -&gt; *).
+PureTCM m =&gt;
+Type -&gt; Term -&gt; Term -&gt; m (Either Blocker Bool)
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTermB"><span class="hs-identifier hs-var hs-var">pureEqualTermB</span></a></span></span><span> </span><span id="local-6989586621682072369"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072369"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682072370"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072370"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span id="local-6989586621682072371"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072371"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><span class="annottext">(Maybe () -&gt; Bool)
+-&gt; Either Blocker (Maybe ()) -&gt; Either Blocker Bool
+forall a b. (a -&gt; b) -&gt; Either Blocker a -&gt; Either Blocker b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Maybe () -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isJust</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocker (Maybe ()) -&gt; Either Blocker Bool)
+-&gt; m (Either Blocker (Maybe ())) -&gt; m (Either Blocker Bool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m () -&gt; m (Either Blocker (Maybe ()))
+forall (m :: * -&gt; *) a.
+PureTCM m =&gt;
+PureConversionT m a -&gt; m (Either Blocker (Maybe a))
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversionB"><span class="hs-identifier hs-var">runPureConversionB</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type -&gt; Term -&gt; Term -&gt; PureConversionT m ()
+forall (m :: * -&gt; *).
+MonadConversion m =&gt;
+Type -&gt; Term -&gt; Term -&gt; m ()
+</span><a href="Agda.TypeChecking.Conversion.html#equalTerm"><span class="hs-identifier hs-var">equalTerm</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072369"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072370"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072371"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualType"><span class="hs-pragma hs-type">pureEqualType</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-pragma hs-type">Type</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-pragma hs-type">Type</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">Bool</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-47"></span><span id="local-6989586621682071827"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualType"><span class="hs-identifier hs-type">pureEqualType</span></a></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071827"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadBlock"><span class="hs-identifier hs-type">MonadBlock</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071827"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682071827"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-50"></span><span id="pureEqualType"><span class="annot"><span class="annottext">pureEqualType :: forall (m :: * -&gt; *).
+(PureTCM m, MonadBlock m) =&gt;
+Type -&gt; Type -&gt; m Bool
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualType"><span class="hs-identifier hs-var hs-var">pureEqualType</span></a></span></span><span> </span><span id="local-6989586621682072396"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072396"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682072397"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072397"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-51"></span><span>  </span><span class="annot"><span class="annottext">Maybe () -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isJust</span></span><span> </span><span class="annot"><span class="annottext">(Maybe () -&gt; Bool) -&gt; m (Maybe ()) -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m () -&gt; m (Maybe ())
+forall (m :: * -&gt; *) a.
+(MonadBlock m, PureTCM m) =&gt;
+PureConversionT m a -&gt; m (Maybe a)
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversion"><span class="hs-identifier hs-var">runPureConversion</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type -&gt; Type -&gt; PureConversionT m ()
+forall (m :: * -&gt; *). MonadConversion m =&gt; Type -&gt; Type -&gt; m ()
+</span><a href="Agda.TypeChecking.Conversion.html#equalType"><span class="hs-identifier hs-var">equalType</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072396"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072397"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualType"><span class="hs-pragma hs-type">pureEqualType</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-pragma hs-type">Type</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-pragma hs-type">Type</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">Bool</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-54"></span><span class="annot"><span class="hs-comment">-- | Return the blocker instead of throwing a `patternViolation`.</span></span><span>
+</span><span id="line-55"></span><span id="local-6989586621682071830"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTypeB"><span class="hs-identifier hs-type">pureEqualTypeB</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071830"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682071830"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-56"></span><span id="pureEqualTypeB"><span class="annot"><span class="annottext">pureEqualTypeB :: forall (m :: * -&gt; *).
+PureTCM m =&gt;
+Type -&gt; Type -&gt; m (Either Blocker Bool)
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#pureEqualTypeB"><span class="hs-identifier hs-var hs-var">pureEqualTypeB</span></a></span></span><span> </span><span id="local-6989586621682072421"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072421"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682072422"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072422"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><span class="annottext">(Maybe () -&gt; Bool)
+-&gt; Either Blocker (Maybe ()) -&gt; Either Blocker Bool
+forall a b. (a -&gt; b) -&gt; Either Blocker a -&gt; Either Blocker b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Maybe () -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isJust</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocker (Maybe ()) -&gt; Either Blocker Bool)
+-&gt; m (Either Blocker (Maybe ())) -&gt; m (Either Blocker Bool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m () -&gt; m (Either Blocker (Maybe ()))
+forall (m :: * -&gt; *) a.
+PureTCM m =&gt;
+PureConversionT m a -&gt; m (Either Blocker (Maybe a))
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversionB"><span class="hs-identifier hs-var">runPureConversionB</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type -&gt; Type -&gt; PureConversionT m ()
+forall (m :: * -&gt; *). MonadConversion m =&gt; Type -&gt; Type -&gt; m ()
+</span><a href="Agda.TypeChecking.Conversion.html#equalType"><span class="hs-identifier hs-var">equalType</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072421"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682072422"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureCompareAs"><span class="hs-pragma hs-type">pureCompareAs</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Comparison"><span class="hs-pragma hs-type">Comparison</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CompareAs"><span class="hs-pragma hs-type">CompareAs</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-pragma hs-type">Term</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">Bool</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-60"></span><span id="local-6989586621682071832"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#pureCompareAs"><span class="hs-identifier hs-type">pureCompareAs</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071832"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadBlock"><span class="hs-identifier hs-type">MonadBlock</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071832"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Comparison"><span class="hs-identifier hs-type">Comparison</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CompareAs"><span class="hs-identifier hs-type">CompareAs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682071832"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-63"></span><span id="pureCompareAs"><span class="annot"><span class="annottext">pureCompareAs :: forall (m :: * -&gt; *).
+(PureTCM m, MonadBlock m) =&gt;
+Comparison -&gt; CompareAs -&gt; Term -&gt; Term -&gt; m Bool
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#pureCompareAs"><span class="hs-identifier hs-var hs-var">pureCompareAs</span></a></span></span><span> </span><span id="local-6989586621682072446"><span class="annot"><span class="annottext">Comparison
+</span><a href="#local-6989586621682072446"><span class="hs-identifier hs-var">cmp</span></a></span></span><span> </span><span id="local-6989586621682072447"><span class="annot"><span class="annottext">CompareAs
+</span><a href="#local-6989586621682072447"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682072448"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072448"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span id="local-6989586621682072449"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072449"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><span class="annottext">Maybe () -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isJust</span></span><span> </span><span class="annot"><span class="annottext">(Maybe () -&gt; Bool) -&gt; m (Maybe ()) -&gt; m Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m () -&gt; m (Maybe ())
+forall (m :: * -&gt; *) a.
+(MonadBlock m, PureTCM m) =&gt;
+PureConversionT m a -&gt; m (Maybe a)
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversion"><span class="hs-identifier hs-var">runPureConversion</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Comparison -&gt; CompareAs -&gt; Term -&gt; Term -&gt; PureConversionT m ()
+forall (m :: * -&gt; *).
+MonadConversion m =&gt;
+Comparison -&gt; CompareAs -&gt; Term -&gt; Term -&gt; m ()
+</span><a href="Agda.TypeChecking.Conversion.html#compareAs"><span class="hs-identifier hs-var">compareAs</span></a></span><span> </span><span class="annot"><span class="annottext">Comparison
+</span><a href="#local-6989586621682072446"><span class="hs-identifier hs-var">cmp</span></a></span><span> </span><span class="annot"><span class="annottext">CompareAs
+</span><a href="#local-6989586621682072447"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072448"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682072449"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversion"><span class="hs-pragma hs-type">runPureConversion</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621682072451"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-pragma hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072451"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621682072451"><span class="hs-pragma hs-type">a</span></a></span><span class="hs-pragma">)</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-67"></span><span id="local-6989586621682071818"><span id="local-6989586621682071819"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversion"><span class="hs-identifier hs-type">runPureConversion</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadBlock"><span class="hs-identifier hs-type">MonadBlock</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071818"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071818"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071818"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071819"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682071818"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621682071819"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-70"></span><span id="runPureConversion"><span class="annot"><span class="annottext">runPureConversion :: forall (m :: * -&gt; *) a.
+(MonadBlock m, PureTCM m) =&gt;
+PureConversionT m a -&gt; m (Maybe a)
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversion"><span class="hs-identifier hs-var hs-var">runPureConversion</span></a></span></span><span> </span><span id="local-6989586621682072460"><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072460"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Blocker -&gt; m (Maybe a))
+-&gt; (Maybe a -&gt; m (Maybe a))
+-&gt; Either Blocker (Maybe a)
+-&gt; m (Maybe a)
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; m (Maybe a)
+forall a. Blocker -&gt; m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; m (Maybe a)
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocker (Maybe a) -&gt; m (Maybe a))
+-&gt; m (Either Blocker (Maybe a)) -&gt; m (Maybe a)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m a -&gt; m (Either Blocker (Maybe a))
+forall (m :: * -&gt; *) a.
+PureTCM m =&gt;
+PureConversionT m a -&gt; m (Either Blocker (Maybe a))
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversionB"><span class="hs-identifier hs-var">runPureConversionB</span></a></span><span> </span><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072460"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversionB"><span class="hs-pragma hs-type">runPureConversionB</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621682072463"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-pragma hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072463"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-pragma hs-type">Blocker</span></a></span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621682072463"><span class="hs-pragma hs-type">a</span></a></span><span class="hs-pragma">)</span><span class="hs-pragma">)</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-73"></span><span id="local-6989586621682071825"><span id="local-6989586621682071826"><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversionB"><span class="hs-identifier hs-type">runPureConversionB</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071825"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071825"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071826"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682071825"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Blockers.html#Blocker"><span class="hs-identifier hs-type">Blocker</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621682071826"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-74"></span><span id="runPureConversionB"><span class="annot"><span class="annottext">runPureConversionB :: forall (m :: * -&gt; *) a.
+PureTCM m =&gt;
+PureConversionT m a -&gt; m (Either Blocker (Maybe a))
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#runPureConversionB"><span class="hs-identifier hs-var hs-var">runPureConversionB</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span id="local-6989586621682072535"><span class="annot"><span class="annottext">ExceptT TCErr (StateT FreshThings m) a
+</span><a href="#local-6989586621682072535"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv Bool
+-&gt; (Bool -&gt; Bool)
+-&gt; m (Either Blocker (Maybe a))
+-&gt; m (Either Blocker (Maybe a))
+forall (m :: * -&gt; *) a b.
+MonadTCEnv m =&gt;
+Lens' TCEnv a -&gt; (a -&gt; a) -&gt; m b -&gt; m b
+</span><a href="Agda.TypeChecking.Monad.Base.html#locallyTC"><span class="hs-identifier hs-var">locallyTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; f Bool) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv Bool
+</span><a href="Agda.TypeChecking.Monad.Base.html#eCompareBlocked"><span class="hs-identifier hs-var">eCompareBlocked</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m (Either Blocker (Maybe a)) -&gt; m (Either Blocker (Maybe a)))
+-&gt; m (Either Blocker (Maybe a)) -&gt; m (Either Blocker (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-75"></span><span>  </span><span class="annot"><span class="annottext">VerboseKey
+-&gt; Int
+-&gt; VerboseKey
+-&gt; m (Either Blocker (Maybe a))
+-&gt; m (Either Blocker (Maybe a))
+forall a. VerboseKey -&gt; Int -&gt; VerboseKey -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadDebug m =&gt;
+VerboseKey -&gt; Int -&gt; VerboseKey -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Debug.html#verboseBracket"><span class="hs-identifier hs-var">verboseBracket</span></a></span><span> </span><span class="annot"><span class="annottext">VerboseKey
+</span><span class="hs-string">&quot;tc.conv.pure&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">40</span></span><span> </span><span class="annot"><span class="annottext">VerboseKey
+</span><span class="hs-string">&quot;runPureConversion&quot;</span></span><span> </span><span class="annot"><span class="annottext">(m (Either Blocker (Maybe a)) -&gt; m (Either Blocker (Maybe a)))
+-&gt; m (Either Blocker (Maybe a)) -&gt; m (Either Blocker (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621682072542"><span class="annot"><a href="#local-6989586621682072542"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCState Int -&gt; m Int
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; f Int) -&gt; TCState -&gt; f TCState
+Lens' TCState Int
+</span><a href="Agda.TypeChecking.Monad.Base.html#stFreshInt"><span class="hs-identifier hs-var">stFreshInt</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621682072547"><span class="annot"><a href="#local-6989586621682072547"><span class="hs-identifier hs-var">pid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-type">useR</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stFreshProblemId"><span class="hs-identifier hs-type">stFreshProblemId</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621682072551"><span class="annot"><a href="#local-6989586621682072551"><span class="hs-identifier hs-var">nid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-type">useR</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stFreshNameId"><span class="hs-identifier hs-type">stFreshNameId</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682072555"><span class="annot"><a href="#local-6989586621682072555"><span class="hs-identifier hs-var hs-var">frsh</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; ProblemId -&gt; NameId -&gt; FreshThings
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#FreshThings"><span class="hs-identifier hs-var">FreshThings</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682072542"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><a href="#local-6989586621682072547"><span class="hs-identifier hs-var">pid</span></a></span><span> </span><span class="annot"><span class="annottext">NameId
+</span><a href="#local-6989586621682072551"><span class="hs-identifier hs-var">nid</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621682072556"><span class="annot"><a href="#local-6989586621682072556"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">fst</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">runExceptT</span></span><span> </span><span class="annot"><a href="#local-6989586621682072535"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682072555"><span class="hs-identifier hs-type">frsh</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621682072556"><span class="hs-identifier hs-type">result</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PatternErr"><span class="hs-identifier hs-type">PatternErr</span></a></span><span> </span><span id="local-6989586621682072561"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072561"><span class="hs-identifier hs-var">block</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>     </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072561"><span class="hs-identifier hs-var">block</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Blocker -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#neverUnblock"><span class="hs-identifier hs-var">neverUnblock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-84"></span><span>         </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; m ()
+forall {m :: * -&gt; *}. MonadDebug m =&gt; TCMT IO Doc -&gt; m ()
+</span><a href="#local-6989586621682072563"><span class="hs-identifier hs-var">debugResult</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;stuck&quot;</span></span><span>
+</span><span id="line-85"></span><span>         </span><span class="annot"><span class="annottext">Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a)))
+-&gt; Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Either Blocker (Maybe a)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-86"></span><span>     </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-87"></span><span>         </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; m ()
+forall {m :: * -&gt; *}. MonadDebug m =&gt; TCMT IO Doc -&gt; m ()
+</span><a href="#local-6989586621682072563"><span class="hs-identifier hs-var">debugResult</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO Doc -&gt; m ()) -&gt; TCMT IO Doc -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;blocked on&quot;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-var">&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; TCMT IO Doc
+forall a (m :: * -&gt; *). (PrettyTCM a, MonadPretty m) =&gt; a -&gt; m Doc
+forall (m :: * -&gt; *). MonadPretty m =&gt; Blocker -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier hs-var">prettyTCM</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072561"><span class="hs-identifier hs-var">block</span></a></span><span>
+</span><span id="line-88"></span><span>         </span><span class="annot"><span class="annottext">Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a)))
+-&gt; Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Either Blocker (Maybe a)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072561"><span class="hs-identifier hs-var">block</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TypeError"><span class="hs-identifier hs-type">TypeError</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-90"></span><span>      </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; m ()
+forall {m :: * -&gt; *}. MonadDebug m =&gt; TCMT IO Doc -&gt; m ()
+</span><a href="#local-6989586621682072563"><span class="hs-identifier hs-var">debugResult</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;type error&quot;</span></span><span>
+</span><span id="line-91"></span><span>      </span><span class="annot"><span class="annottext">Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a)))
+-&gt; Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Either Blocker (Maybe a)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-92"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#GenericException"><span class="hs-identifier hs-type">GenericException</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m (Either Blocker (Maybe a))
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#IOException"><span class="hs-identifier hs-type">IOException</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m (Either Blocker (Maybe a))
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-94"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ParserError"><span class="hs-identifier hs-type">ParserError</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m (Either Blocker (Maybe a))
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621682072571"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682072571"><span class="hs-identifier hs-var">x</span></a></span></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-96"></span><span>      </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; m ()
+forall {m :: * -&gt; *}. MonadDebug m =&gt; TCMT IO Doc -&gt; m ()
+</span><a href="#local-6989586621682072563"><span class="hs-identifier hs-var">debugResult</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;success&quot;</span></span><span>
+</span><span id="line-97"></span><span>      </span><span class="annot"><span class="annottext">Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a)))
+-&gt; Either Blocker (Maybe a) -&gt; m (Either Blocker (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Either Blocker (Maybe a)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Either Blocker (Maybe a))
+-&gt; Maybe a -&gt; Either Blocker (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682072571"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>    </span><span id="local-6989586621682072563"><span class="annot"><span class="annottext">debugResult :: TCMT IO Doc -&gt; m ()
+</span><a href="#local-6989586621682072563"><span class="hs-identifier hs-var hs-var">debugResult</span></a></span></span><span> </span><span id="local-6989586621682072591"><span class="annot"><span class="annottext">TCMT IO Doc
+</span><a href="#local-6989586621682072591"><span class="hs-identifier hs-var">msg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VerboseKey -&gt; Int -&gt; TCMT IO Doc -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+VerboseKey -&gt; Int -&gt; TCMT IO Doc -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-var">reportSDoc</span></a></span><span> </span><span class="annot"><span class="annottext">VerboseKey
+</span><span class="hs-string">&quot;tc.conv.pure&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">40</span></span><span> </span><span class="annot"><span class="annottext">(TCMT IO Doc -&gt; m ()) -&gt; TCMT IO Doc -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;runPureConversion result: &quot;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-var">&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><a href="#local-6989586621682072591"><span class="hs-identifier hs-var">msg</span></a></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadTrans</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-102"></span><span>  </span><span id="local-6989586621682072605"><span class="annot"><span class="annottext">lift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; PureConversionT m a
+</span><a href="#local-6989586621682072605"><span class="hs-identifier hs-var hs-var hs-var">lift</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ExceptT TCErr (StateT FreshThings m) a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a.
+ExceptT TCErr (StateT FreshThings m) a -&gt; PureConversionT m a
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-var">PureConversionT</span></a></span><span> </span><span class="annot"><span class="annottext">(ExceptT TCErr (StateT FreshThings m) a -&gt; PureConversionT m a)
+-&gt; (m a -&gt; ExceptT TCErr (StateT FreshThings m) a)
+-&gt; m a
+-&gt; PureConversionT m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">StateT FreshThings m a -&gt; ExceptT TCErr (StateT FreshThings m) a
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ExceptT TCErr m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(StateT FreshThings m a -&gt; ExceptT TCErr (StateT FreshThings m) a)
+-&gt; (m a -&gt; StateT FreshThings m a)
+-&gt; m a
+-&gt; ExceptT TCErr (StateT FreshThings m) a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m a -&gt; StateT FreshThings m a
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; StateT FreshThings m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span id="local-6989586621682071926"><span id="local-6989586621682072613"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span>       </span><span class="annot"><a href="#local-6989586621682071926"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span>       </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071926"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-105"></span><span id="local-6989586621682071789"><span id="local-6989586621682072632"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Builtin.html#HasBuiltins"><span class="hs-identifier hs-type">HasBuiltins</span></a></span><span>     </span><span class="annot"><a href="#local-6989586621682071789"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Builtin.html#HasBuiltins"><span class="hs-identifier hs-type">HasBuiltins</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071789"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-106"></span><span id="local-6989586621682071788"><span id="local-6989586621682072658"><span id="local-6989586621682072667"><span id="local-6989586621682072675"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#HasConstInfo"><span class="hs-identifier hs-type">HasConstInfo</span></a></span><span>    </span><span class="annot"><a href="#local-6989586621682071788"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#HasConstInfo"><span class="hs-identifier hs-type">HasConstInfo</span></a></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071788"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-107"></span><span id="local-6989586621682071945"><span id="local-6989586621682072697"><span id="local-6989586621682072703"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span>      </span><span class="annot"><a href="#local-6989586621682071945"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071945"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-108"></span><span id="local-6989586621682071787"><span id="local-6989586621682072717"><span id="local-6989586621682072723"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span>      </span><span class="annot"><a href="#local-6989586621682071787"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071787"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-109"></span><span id="local-6989586621682071786"><span id="local-6989586621682072737"><span id="local-6989586621682072743"><span id="local-6989586621682072748"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span>     </span><span class="annot"><a href="#local-6989586621682071786"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071786"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-110"></span><span id="local-6989586621682071785"><span id="local-6989586621682072772"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadReduce"><span class="hs-identifier hs-type">MonadReduce</span></a></span><span>     </span><span class="annot"><a href="#local-6989586621682071785"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadReduce"><span class="hs-identifier hs-type">MonadReduce</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071785"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-111"></span><span id="local-6989586621682071784"><span id="local-6989586621682072787"><span id="local-6989586621682072793"><span id="local-6989586621682072798"><span id="local-6989586621682072803"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Context.html#MonadAddContext"><span class="hs-identifier hs-type">MonadAddContext</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071784"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Context.html#MonadAddContext"><span class="hs-identifier hs-type">MonadAddContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071784"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span></span><span>
+</span><span id="line-112"></span><span id="local-6989586621682071783"><span id="local-6989586621682072824"><span id="local-6989586621682072830"><span id="local-6989586621682072835"><span id="local-6989586621682072840"><span id="local-6989586621682072845"><span id="local-6989586621682072850"><span id="local-6989586621682072855"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span>      </span><span class="annot"><a href="#local-6989586621682071783"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071783"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682072019"><span id="local-6989586621682072020"><span id="local-6989586621682072871"><span id="local-6989586621682072875"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621682072019"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="#local-6989586621682072020"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072019"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072020"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-115"></span><span>  </span><span id="local-6989586621682072885"><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072885"><span class="hs-identifier hs-var">d1</span></a></span></span><span> </span><span id="local-6989586621682072886"><span class="annot"><span class="annottext">&lt;&gt; :: PureConversionT m a -&gt; PureConversionT m a -&gt; PureConversionT m a
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621682072887"><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072887"><span class="hs-identifier hs-var">d2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; a) -&gt; PureConversionT m a -&gt; PureConversionT m (a -&gt; a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072885"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="annot"><span class="annottext">PureConversionT m (a -&gt; a)
+-&gt; PureConversionT m a -&gt; PureConversionT m a
+forall a b.
+PureConversionT m (a -&gt; b)
+-&gt; PureConversionT m a -&gt; PureConversionT m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072887"><span class="hs-identifier hs-var">d2</span></a></span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682072023"><span id="local-6989586621682072024"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="annot"><a href="#local-6989586621682072023"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621682072024"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072024"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072023"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-118"></span><span>  </span><span id="local-6989586621682072895"><span class="annot"><span class="annottext">fromString :: VerboseKey -&gt; PureConversionT m a
+</span><span class="hs-identifier hs-var hs-var hs-var">fromString</span></span></span><span> </span><span id="local-6989586621682072896"><span class="annot"><span class="annottext">VerboseKey
+</span><a href="#local-6989586621682072896"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; PureConversionT m a
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VerboseKey -&gt; a
+forall a. IsString a =&gt; VerboseKey -&gt; a
+</span><span class="hs-identifier hs-var">fromString</span></span><span> </span><span class="annot"><span class="annottext">VerboseKey
+</span><a href="#local-6989586621682072896"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682072027"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621682072027"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072027"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-121"></span><span>  </span><span id="local-6989586621682072905"><span class="annot"><span class="annottext">empty :: PureConversionT m Doc
+</span><a href="#local-6989586621682072905"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; PureConversionT m Doc
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Doc
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621682072909"><span class="annot"><span class="annottext">null :: PureConversionT m Doc -&gt; Bool
+</span><a href="#local-6989586621682072909"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PureConversionT m Doc -&gt; Bool
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682072031"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621682072031"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadBlock"><span class="hs-identifier hs-type">MonadBlock</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072031"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621682072919"><span class="annot"><span class="annottext">patternViolation :: forall a. Blocker -&gt; PureConversionT m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var hs-var hs-var">patternViolation</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCErr -&gt; PureConversionT m a
+forall a. TCErr -&gt; PureConversionT m a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(TCErr -&gt; PureConversionT m a)
+-&gt; (Blocker -&gt; TCErr) -&gt; Blocker -&gt; PureConversionT m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; TCErr
+</span><a href="Agda.TypeChecking.Monad.Base.html#PatternErr"><span class="hs-identifier hs-var">PatternErr</span></a></span><span>
+</span><span id="line-126"></span><span>  </span><span id="local-6989586621682072922"><span class="annot"><span class="annottext">catchPatternErr :: forall a.
+(Blocker -&gt; PureConversionT m a)
+-&gt; PureConversionT m a -&gt; PureConversionT m a
+</span><a href="#local-6989586621682072922"><span class="hs-identifier hs-var hs-var hs-var">catchPatternErr</span></a></span></span><span> </span><span id="local-6989586621682072924"><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m a
+</span><a href="#local-6989586621682072924"><span class="hs-identifier hs-var">handle</span></a></span></span><span> </span><span id="local-6989586621682072925"><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072925"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PureConversionT m a
+</span><a href="#local-6989586621682072925"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">PureConversionT m a
+-&gt; (TCErr -&gt; PureConversionT m a) -&gt; PureConversionT m a
+forall a.
+PureConversionT m a
+-&gt; (TCErr -&gt; PureConversionT m a) -&gt; PureConversionT m a
+forall e (m :: * -&gt; *) a.
+MonadError e m =&gt;
+m a -&gt; (e -&gt; m a) -&gt; m a
+</span><span class="hs-operator hs-var">`catchError`</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-127"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#PatternErr"><span class="hs-identifier hs-type">PatternErr</span></a></span><span> </span><span id="local-6989586621682072926"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072926"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m a
+</span><a href="#local-6989586621682072924"><span class="hs-identifier hs-var">handle</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072926"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-128"></span><span>    </span><span id="local-6989586621682072927"><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621682072927"><span class="hs-identifier hs-var">err</span></a></span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCErr -&gt; PureConversionT m a
+forall a. TCErr -&gt; PureConversionT m a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">TCErr
+</span><a href="#local-6989586621682072927"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682071813"><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071813"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Constraints.html#MonadConstraint"><span class="hs-identifier hs-type">MonadConstraint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071813"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621682072958"><span class="annot"><span class="annottext">addConstraint :: Blocker -&gt; Constraint -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072958"><span class="hs-identifier hs-var hs-var hs-var">addConstraint</span></a></span></span><span> </span><span id="local-6989586621682072960"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072960"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="annot"><span class="annottext">Constraint
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072960"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-133"></span><span>  </span><span id="local-6989586621682072962"><span class="annot"><span class="annottext">addAwakeConstraint :: Blocker -&gt; Constraint -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072962"><span class="hs-identifier hs-var hs-var hs-var">addAwakeConstraint</span></a></span></span><span> </span><span id="local-6989586621682072964"><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072964"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="annot"><span class="annottext">Constraint
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682072964"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span id="local-6989586621682072966"><span class="annot"><span class="annottext">solveConstraint :: Constraint -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072966"><span class="hs-identifier hs-var hs-var hs-var">solveConstraint</span></a></span></span><span> </span><span id="local-6989586621682072968"><span class="annot"><span class="annottext">Constraint
+</span><a href="#local-6989586621682072968"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-var">alwaysUnblock</span></a></span><span>  </span><span class="hs-comment">-- TODO: does this happen?</span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621682072971"><span class="annot"><span class="annottext">solveSomeAwakeConstraints :: (ProblemConstraint -&gt; Bool) -&gt; Bool -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072971"><span class="hs-identifier hs-var hs-var hs-var">solveSomeAwakeConstraints</span></a></span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>  </span><span id="local-6989586621682072974"><span class="annot"><span class="annottext">wakeConstraints :: (ProblemConstraint -&gt; WakeUp) -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072974"><span class="hs-identifier hs-var hs-var hs-var">wakeConstraints</span></a></span></span><span> </span><span class="annot"><span class="annottext">ProblemConstraint -&gt; WakeUp
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span>  </span><span id="local-6989586621682072977"><span class="annot"><span class="annottext">stealConstraints :: ProblemId -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072977"><span class="hs-identifier hs-var hs-var hs-var">stealConstraints</span></a></span></span><span> </span><span class="annot"><span class="annottext">ProblemId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-138"></span><span>  </span><span id="local-6989586621682072980"><span class="annot"><span class="annottext">modifyAwakeConstraints :: (Constraints -&gt; Constraints) -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072980"><span class="hs-identifier hs-var hs-var hs-var">modifyAwakeConstraints</span></a></span></span><span> </span><span class="annot"><span class="annottext">Constraints -&gt; Constraints
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-var">alwaysUnblock</span></a></span><span>  </span><span class="hs-comment">-- TODO: does this happen?</span><span>
+</span><span id="line-139"></span><span>  </span><span id="local-6989586621682072983"><span class="annot"><span class="annottext">modifySleepingConstraints :: (Constraints -&gt; Constraints) -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682072983"><span class="hs-identifier hs-var hs-var hs-var">modifySleepingConstraints</span></a></span></span><span> </span><span class="annot"><span class="annottext">Constraints -&gt; Constraints
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-var">alwaysUnblock</span></a></span><span>  </span><span class="hs-comment">-- TODO: does this happen?</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682071812"><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071812"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.MetaVars.html#MonadMetaSolver"><span class="hs-identifier hs-type">MonadMetaSolver</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071812"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-142"></span><span>  </span><span id="local-6989586621682073018"><span class="annot"><span class="annottext">newMeta' :: forall a.
+MetaInstantiation
+-&gt; Frozen
+-&gt; MetaInfo
+-&gt; MetaPriority
+-&gt; Permutation
+-&gt; Judgement a
+-&gt; PureConversionT m MetaId
+</span><a href="#local-6989586621682073018"><span class="hs-identifier hs-var hs-var hs-var">newMeta'</span></a></span></span><span> </span><span class="annot"><span class="annottext">MetaInstantiation
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Frozen
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">MetaInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">MetaPriority
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Permutation
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Judgement a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m MetaId
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-var">alwaysUnblock</span></a></span><span>  </span><span class="hs-comment">-- TODO: does this happen?</span><span>
+</span><span id="line-143"></span><span>  </span><span id="local-6989586621682073027"><span class="annot"><span class="annottext">assignV :: CompareDirection
+-&gt; MetaId -&gt; Args -&gt; Term -&gt; CompareAs -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073027"><span class="hs-identifier hs-var hs-var hs-var">assignV</span></a></span></span><span> </span><span class="annot"><span class="annottext">CompareDirection
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682073029"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682073029"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="annot"><span class="annottext">Args
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682073030"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682073030"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="annot"><span class="annottext">CompareAs
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-144"></span><span>    </span><span id="local-6989586621682073031"><span class="annot"><a href="#local-6989586621682073031"><span class="hs-identifier hs-var">bv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; PureConversionT m (Maybe Blocker)
+forall t (m :: * -&gt; *).
+(Reduce t, IsMeta t, MonadReduce m) =&gt;
+t -&gt; m (Maybe Blocker)
+</span><a href="Agda.TypeChecking.Reduce.html#isBlocked"><span class="hs-identifier hs-var">isBlocked</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682073030"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-145"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682073032"><span class="annot"><a href="#local-6989586621682073032"><span class="hs-identifier hs-var hs-var">blocker</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Blocker
+-&gt; (Blocker -&gt; Blocker)
+-&gt; (Blocker -&gt; Blocker -&gt; Blocker)
+-&gt; Blocker
+-&gt; Blocker
+forall a b. Maybe a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Maybe.html#caseMaybe"><span class="hs-identifier hs-var">caseMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Blocker
+</span><a href="#local-6989586621682073031"><span class="hs-identifier hs-var">bv</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Blocker
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Blocker -&gt; Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#unblockOnEither"><span class="hs-identifier hs-var">unblockOnEither</span></a></span><span> </span><span class="annot"><span class="annottext">(Blocker -&gt; Blocker) -&gt; Blocker -&gt; Blocker
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#unblockOnMeta"><span class="hs-identifier hs-var">unblockOnMeta</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682073029"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-146"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-type">patternViolation</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682073032"><span class="hs-identifier hs-type">blocker</span></a></span><span>
+</span><span id="line-147"></span><span>  </span><span id="local-6989586621682073052"><span class="annot"><span class="annottext">assignTerm' :: MonadMetaSolver (PureConversionT m) =&gt;
+MetaId -&gt; [Arg VerboseKey] -&gt; Term -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073052"><span class="hs-identifier hs-var hs-var hs-var">assignTerm'</span></a></span></span><span> </span><span id="local-6989586621682073054"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682073054"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Arg VerboseKey]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682073055"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682073055"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-148"></span><span>    </span><span id="local-6989586621682073056"><span class="annot"><a href="#local-6989586621682073056"><span class="hs-identifier hs-var">bv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; PureConversionT m (Maybe Blocker)
+forall t (m :: * -&gt; *).
+(Reduce t, IsMeta t, MonadReduce m) =&gt;
+t -&gt; m (Maybe Blocker)
+</span><a href="Agda.TypeChecking.Reduce.html#isBlocked"><span class="hs-identifier hs-var">isBlocked</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682073055"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-149"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682073057"><span class="annot"><a href="#local-6989586621682073057"><span class="hs-identifier hs-var hs-var">blocker</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Blocker
+-&gt; (Blocker -&gt; Blocker)
+-&gt; (Blocker -&gt; Blocker -&gt; Blocker)
+-&gt; Blocker
+-&gt; Blocker
+forall a b. Maybe a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Maybe.html#caseMaybe"><span class="hs-identifier hs-var">caseMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Blocker
+</span><a href="#local-6989586621682073056"><span class="hs-identifier hs-var">bv</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Blocker
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; Blocker -&gt; Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#unblockOnEither"><span class="hs-identifier hs-var">unblockOnEither</span></a></span><span> </span><span class="annot"><span class="annottext">(Blocker -&gt; Blocker) -&gt; Blocker -&gt; Blocker
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#unblockOnMeta"><span class="hs-identifier hs-var">unblockOnMeta</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682073054"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-150"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-type">patternViolation</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682073057"><span class="hs-identifier hs-type">blocker</span></a></span><span>
+</span><span id="line-151"></span><span>  </span><span id="local-6989586621682073059"><span class="annot"><span class="annottext">etaExpandMeta :: [MetaClass] -&gt; MetaId -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073059"><span class="hs-identifier hs-var hs-var hs-var">etaExpandMeta</span></a></span></span><span> </span><span class="annot"><span class="annottext">[MetaClass]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>  </span><span id="local-6989586621682073062"><span class="annot"><span class="annottext">updateMetaVar :: MetaId -&gt; (MetaVariable -&gt; MetaVariable) -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073062"><span class="hs-identifier hs-var hs-var hs-var">updateMetaVar</span></a></span></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">MetaVariable -&gt; MetaVariable
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-var">alwaysUnblock</span></a></span><span>  </span><span class="hs-comment">-- TODO: does this happen?</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621682073066"><span class="annot"><span class="annottext">speculateMetas :: PureConversionT m ()
+-&gt; PureConversionT m KeepMetas -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073066"><span class="hs-identifier hs-var hs-var hs-var">speculateMetas</span></a></span></span><span> </span><span id="local-6989586621682073068"><span class="annot"><span class="annottext">PureConversionT m ()
+</span><a href="#local-6989586621682073068"><span class="hs-identifier hs-var">fallback</span></a></span></span><span> </span><span id="local-6989586621682073069"><span class="annot"><span class="annottext">PureConversionT m KeepMetas
+</span><a href="#local-6989586621682073069"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PureConversionT m KeepMetas
+</span><a href="#local-6989586621682073069"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">PureConversionT m KeepMetas
+-&gt; (KeepMetas -&gt; PureConversionT m ()) -&gt; PureConversionT m ()
+forall a b.
+PureConversionT m a
+-&gt; (a -&gt; PureConversionT m b) -&gt; PureConversionT m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-154"></span><span>    </span><span class="annot"><span class="annottext">KeepMetas
+</span><a href="Agda.TypeChecking.Monad.MetaVars.html#KeepMetas"><span class="hs-identifier hs-var">KeepMetas</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-155"></span><span>    </span><span class="annot"><span class="annottext">KeepMetas
+</span><a href="Agda.TypeChecking.Monad.MetaVars.html#RollBackMetas"><span class="hs-identifier hs-var">RollBackMetas</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PureConversionT m ()
+</span><a href="#local-6989586621682073068"><span class="hs-identifier hs-var">fallback</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682072068"><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072068"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.MetaVars.html#MonadInteractionPoints"><span class="hs-identifier hs-type">MonadInteractionPoints</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072068"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621682073086"><span class="annot"><span class="annottext">freshInteractionId :: PureConversionT m InteractionId
+</span><a href="#local-6989586621682073086"><span class="hs-identifier hs-var hs-var hs-var">freshInteractionId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m InteractionId
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-var">alwaysUnblock</span></a></span><span>  </span><span class="hs-comment">-- TODO: does this happen?</span><span>
+</span><span id="line-159"></span><span>  </span><span id="local-6989586621682073089"><span class="annot"><span class="annottext">modifyInteractionPoints :: (InteractionPoints -&gt; InteractionPoints) -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073089"><span class="hs-identifier hs-var hs-var hs-var">modifyInteractionPoints</span></a></span></span><span> </span><span class="annot"><span class="annottext">InteractionPoints -&gt; InteractionPoints
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#alwaysUnblock"><span class="hs-identifier hs-var">alwaysUnblock</span></a></span><span>  </span><span class="hs-comment">-- TODO: does this happen?</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- This is a bogus instance that promptly forgets all concrete names,</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- but we don't really care</span><span>
+</span><span id="line-163"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682072073"><span id="local-6989586621682073097"><span id="local-6989586621682073101"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072073"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadStConcreteNames"><span class="hs-identifier hs-type">MonadStConcreteNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072073"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-164"></span><span>  </span><span id="local-6989586621682073109"><span class="annot"><span class="annottext">runStConcreteNames :: forall a.
+StateT ConcreteNames (PureConversionT m) a -&gt; PureConversionT m a
+</span><a href="#local-6989586621682073109"><span class="hs-identifier hs-var hs-var hs-var">runStConcreteNames</span></a></span></span><span> </span><span id="local-6989586621682073111"><span class="annot"><span class="annottext">StateT ConcreteNames (PureConversionT m) a
+</span><a href="#local-6989586621682073111"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-165"></span><span>    </span><span id="local-6989586621682073112"><span class="annot"><a href="#local-6989586621682073112"><span class="hs-identifier hs-var">concNames</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCState ConcreteNames -&gt; PureConversionT m ConcreteNames
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">(ConcreteNames -&gt; f ConcreteNames) -&gt; TCState -&gt; f TCState
+Lens' TCState ConcreteNames
+</span><a href="Agda.TypeChecking.Monad.Base.html#stConcreteNames"><span class="hs-identifier hs-var">stConcreteNames</span></a></span><span>
+</span><span id="line-166"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">fst</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="annot"><a href="#local-6989586621682073111"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682073112"><span class="hs-identifier hs-type">concNames</span></a></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682071811"><span class="annot"><a href="Agda.TypeChecking.Monad.Pure.html#PureTCM"><span class="hs-identifier hs-type">PureTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071811"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071811"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-169"></span><span>  </span><span id="local-6989586621682073146"><span class="annot"><span class="annottext">addWarning :: Bool -&gt; TCWarning -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073146"><span class="hs-identifier hs-var hs-var hs-var">addWarning</span></a></span></span><span> </span><span id="local-6989586621682073148"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621682073148"><span class="hs-identifier hs-var">_enabled</span></a></span></span><span> </span><span id="local-6989586621682073149"><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621682073149"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Warning -&gt; WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#classifyWarning"><span class="hs-identifier hs-var">classifyWarning</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TCWarning -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#tcWarning"><span class="hs-identifier hs-var">tcWarning</span></a></span><span> </span><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621682073149"><span class="hs-identifier hs-var">w</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-170"></span><span>    </span><span class="annot"><span class="annottext">WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#ErrorWarnings"><span class="hs-identifier hs-var">ErrorWarnings</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; PureConversionT m ()
+forall a. Blocker -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. MonadBlock m =&gt; Blocker -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#patternViolation"><span class="hs-identifier hs-var">patternViolation</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="Agda.Syntax.Internal.Blockers.html#neverUnblock"><span class="hs-identifier hs-var">neverUnblock</span></a></span><span>
+</span><span id="line-171"></span><span>    </span><span class="annot"><span class="annottext">WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#AllWarnings"><span class="hs-identifier hs-var">AllWarnings</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682071810"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071810"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071810"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-174"></span><span>  </span><span id="local-6989586621682073162"><span class="annot"><span class="annottext">tickN :: VerboseKey -&gt; Word64 -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073162"><span class="hs-identifier hs-var hs-var hs-var">tickN</span></a></span></span><span>   </span><span class="annot"><span class="annottext">VerboseKey
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-175"></span><span>  </span><span id="local-6989586621682073165"><span class="annot"><span class="annottext">tickMax :: VerboseKey -&gt; Word64 -&gt; PureConversionT m ()
+</span><a href="#local-6989586621682073165"><span class="hs-identifier hs-var hs-var hs-var">tickMax</span></a></span></span><span> </span><span class="annot"><span class="annottext">VerboseKey
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; PureConversionT m ()
+forall a. a -&gt; PureConversionT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682071809"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621682071809"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadFresh"><span class="hs-identifier hs-type">MonadFresh</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ProblemId"><span class="hs-identifier hs-type">ProblemId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071809"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-178"></span><span>  </span><span id="local-6989586621682073180"><span class="annot"><span class="annottext">fresh :: PureConversionT m ProblemId
+</span><a href="#local-6989586621682073180"><span class="hs-identifier hs-var hs-var hs-var">fresh</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-179"></span><span>    </span><span id="local-6989586621682073182"><span class="annot"><a href="#local-6989586621682073182"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(FreshThings -&gt; ProblemId) -&gt; PureConversionT m ProblemId
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">FreshThings -&gt; ProblemId
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#freshProblemId"><span class="hs-identifier hs-var">freshProblemId</span></a></span><span>
+</span><span id="line-180"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">modify</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621682073185"><span class="annot"><span class="annottext">FreshThings
+</span><a href="#local-6989586621682073185"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FreshThings
+</span><a href="#local-6989586621682073185"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#freshProblemId"><span class="hs-identifier hs-var">freshProblemId</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682073182"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-181"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682073182"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682072080"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621682072080"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadFresh"><span class="hs-identifier hs-type">MonadFresh</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NameId"><span class="hs-identifier hs-type">NameId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682072080"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-184"></span><span>  </span><span id="local-6989586621682073198"><span class="annot"><span class="annottext">fresh :: PureConversionT m NameId
+</span><a href="Agda.TypeChecking.Monad.Base.html#fresh"><span class="hs-identifier hs-var hs-var hs-var">fresh</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-185"></span><span>    </span><span id="local-6989586621682073199"><span class="annot"><a href="#local-6989586621682073199"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(FreshThings -&gt; NameId) -&gt; PureConversionT m NameId
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">FreshThings -&gt; NameId
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#freshNameId"><span class="hs-identifier hs-var">freshNameId</span></a></span><span>
+</span><span id="line-186"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">modify</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621682073200"><span class="annot"><span class="annottext">FreshThings
+</span><a href="#local-6989586621682073200"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FreshThings
+</span><a href="#local-6989586621682073200"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#freshNameId"><span class="hs-identifier hs-var">freshNameId</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">succ</span></span><span> </span><span class="annot"><a href="#local-6989586621682073199"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-187"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682073199"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682071808"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621682071808"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadFresh"><span class="hs-identifier hs-type">MonadFresh</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#PureConversionT"><span class="hs-identifier hs-type">PureConversionT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682071808"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-190"></span><span>  </span><span id="local-6989586621682073214"><span class="annot"><span class="annottext">fresh :: PureConversionT m Int
+</span><a href="Agda.TypeChecking.Monad.Base.html#fresh"><span class="hs-identifier hs-var hs-var hs-var">fresh</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-191"></span><span>    </span><span id="local-6989586621682073215"><span class="annot"><a href="#local-6989586621682073215"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(FreshThings -&gt; Int) -&gt; PureConversionT m Int
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">FreshThings -&gt; Int
+</span><a href="Agda.TypeChecking.Conversion.Pure.html#freshInt"><span class="hs-identifier hs-var">freshInt</span></a></span><span>
+</span><span id="line-192"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">modify</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621682073216"><span class="annot"><span class="annottext">FreshThings
+</span><a href="#local-6989586621682073216"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FreshThings
+</span><a href="#local-6989586621682073216"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Conversion.Pure.html#freshInt"><span class="hs-identifier hs-var">freshInt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682073215"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-193"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682073215"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-194"></span></pre></body></html>

@@ -1,0 +1,1056 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module      :  Agda.Utils.GetOpt</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  (c) Sven Panne 2002-2005, Andreas Abel 2025</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  BSD-style</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- This module provides facilities for parsing the command-line options</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- in a standalone program.  It is essentially a Haskell port of the GNU</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- @getopt@ library.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- It is a fork of &quot;System.Console.GetOpt&quot; from the base package of GHC,</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- written by Sven Panne.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- We modify it to remove the &quot;allow prefixes of long options&quot; behavior.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html"><span class="hs-identifier">Agda.Utils.GetOpt</span></a></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-18"></span><span>   </span><span class="annot"><span class="hs-comment">-- * GetOpt</span></span><span>
+</span><span id="line-19"></span><span>   </span><span class="annot"><a href="Agda.Utils.GetOpt.html#getOpt"><span class="hs-identifier">getOpt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#getOpt%27"><span class="hs-identifier">getOpt'</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-20"></span><span>   </span><span class="annot"><a href="Agda.Utils.GetOpt.html#usageInfo"><span class="hs-identifier">usageInfo</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-21"></span><span>   </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgOrder"><span class="hs-identifier">ArgOrder</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-22"></span><span>   </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier">OptDescr</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>   </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier">ArgDescr</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">rnf</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">find</span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="annot"><span class="hs-comment">-- | What to do with options following non-options.</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="ArgOrder"><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgOrder"><span class="hs-identifier hs-var">ArgOrder</span></a></span></span><span> </span><span id="local-6989586621681695043"><span class="annot"><a href="#local-6989586621681695043"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="RequireOrder"><span class="annot"><a href="Agda.Utils.GetOpt.html#RequireOrder"><span class="hs-identifier hs-var">RequireOrder</span></a></span></span><span>                </span><span class="annot"><span class="hs-comment">-- ^ no option processing after first non-option</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Permute"><span class="annot"><a href="Agda.Utils.GetOpt.html#Permute"><span class="hs-identifier hs-var">Permute</span></a></span></span><span>                     </span><span class="annot"><span class="hs-comment">-- ^ freely intersperse options and non-options</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ReturnInOrder"><span class="annot"><a href="Agda.Utils.GetOpt.html#ReturnInOrder"><span class="hs-identifier hs-var">ReturnInOrder</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681695043"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-comment">-- ^ wrap non-options into options</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="annot"><span class="hs-comment">{-|
+Each 'OptDescr' describes a single option.
+
+The arguments to 'Option' are:
+
+* list of short option characters
+
+* list of long option strings (without \&quot;--\&quot;)
+
+* argument descriptor
+
+* explanation of option for user
+-}</span></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">data</span><span> </span><span id="OptDescr"><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-var">OptDescr</span></a></span></span><span> </span><span id="local-6989586621681695051"><span class="annot"><a href="#local-6989586621681695051"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-50"></span><span>  </span><span id="Option"><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span></span><span>               </span><span class="annot"><span class="hs-comment">-- ^ description of a single options:</span></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span>             </span><span class="annot"><span class="hs-comment">-- ^ list of short option characters</span></span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>           </span><span class="annot"><span class="hs-comment">-- ^ list of long option strings (without &quot;--&quot;)</span></span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier hs-type">ArgDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695051"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>       </span><span class="annot"><span class="hs-comment">-- ^ argument descriptor</span></span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>             </span><span class="annot"><span class="hs-comment">-- ^ explanation of option for user</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | Describes whether an option takes an argument or not, and if so</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- how the argument is injected into a value of type @a@.</span><span>
+</span><span id="line-58"></span><span class="hs-keyword">data</span><span> </span><span id="ArgDescr"><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier hs-var">ArgDescr</span></a></span></span><span> </span><span id="local-6989586621681695054"><span class="annot"><a href="#local-6989586621681695054"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="NoArg"><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-var">NoArg</span></a></span></span><span>                   </span><span class="annot"><a href="#local-6989586621681695054"><span class="hs-identifier hs-type">a</span></a></span><span>          </span><span class="annot"><span class="hs-comment">-- ^ no argument expected</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ReqArg"><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-var">ReqArg</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681695054"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ option requires argument</span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="OptArg"><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-var">OptArg</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681695054"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ optional argument</span></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681695134"><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgOrder"><span class="hs-identifier hs-type">ArgOrder</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681695138"><span class="annot"><span class="annottext">fmap :: forall a b. (a -&gt; b) -&gt; ArgOrder a -&gt; ArgOrder b
+</span><span class="hs-identifier hs-var hs-var hs-var">fmap</span></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#RequireOrder"><span class="hs-identifier hs-var">RequireOrder</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ArgOrder b
+forall a. ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#RequireOrder"><span class="hs-identifier hs-var">RequireOrder</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#Permute"><span class="hs-identifier hs-var">Permute</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ArgOrder b
+forall a. ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#Permute"><span class="hs-identifier hs-var">Permute</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">fmap</span></span><span> </span><span id="local-6989586621681695139"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695139"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReturnInOrder"><span class="hs-identifier hs-type">ReturnInOrder</span></a></span><span> </span><span id="local-6989586621681695140"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695140"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; b) -&gt; ArgOrder b
+forall a. ([Char] -&gt; a) -&gt; ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#ReturnInOrder"><span class="hs-identifier hs-var">ReturnInOrder</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695139"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; ([Char] -&gt; a) -&gt; [Char] -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695140"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681695144"><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621681695149"><span class="annot"><span class="annottext">fmap :: forall a b. (a -&gt; b) -&gt; OptDescr a -&gt; OptDescr b
+</span><span class="hs-identifier hs-var hs-var hs-var">fmap</span></span></span><span> </span><span id="local-6989586621681695150"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695150"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span id="local-6989586621681695151"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695151"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681695152"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695152"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681695153"><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695153"><span class="hs-identifier hs-var">argDescr</span></a></span></span><span> </span><span id="local-6989586621681695154"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695154"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; ArgDescr b -&gt; [Char] -&gt; OptDescr b
+forall a. [Char] -&gt; [[Char]] -&gt; ArgDescr a -&gt; [Char] -&gt; OptDescr a
+</span><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-var">Option</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695151"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695152"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; ArgDescr a -&gt; ArgDescr b
+forall a b. (a -&gt; b) -&gt; ArgDescr a -&gt; ArgDescr b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695150"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695153"><span class="hs-identifier hs-var">argDescr</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695154"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681695157"><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier hs-type">ArgDescr</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621681695159"><span class="annot"><span class="annottext">fmap :: forall a b. (a -&gt; b) -&gt; ArgDescr a -&gt; ArgDescr b
+</span><span class="hs-identifier hs-var hs-var hs-var">fmap</span></span></span><span> </span><span id="local-6989586621681695160"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695160"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span> </span><span id="local-6989586621681695161"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695161"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; ArgDescr b
+forall a. a -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-var">NoArg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695160"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695161"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">fmap</span></span><span> </span><span id="local-6989586621681695162"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695162"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span id="local-6989586621681695163"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695163"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621681695164"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695164"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; b) -&gt; [Char] -&gt; ArgDescr b
+forall a. ([Char] -&gt; a) -&gt; [Char] -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-var">ReqArg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695162"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; ([Char] -&gt; a) -&gt; [Char] -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695163"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695164"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-74"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">fmap</span></span><span> </span><span id="local-6989586621681695165"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695165"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span id="local-6989586621681695166"><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695166"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621681695167"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695167"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe [Char] -&gt; b) -&gt; [Char] -&gt; ArgDescr b
+forall a. (Maybe [Char] -&gt; a) -&gt; [Char] -&gt; ArgDescr a
+</span><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-var">OptArg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681695165"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; (Maybe [Char] -&gt; a) -&gt; Maybe [Char] -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695166"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695167"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><span class="hs-comment">-- | Kind of command line argument (internal use only):</span></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">data</span><span> </span><span id="OptKind"><span class="annot"><a href="Agda.Utils.GetOpt.html#OptKind"><span class="hs-identifier hs-var">OptKind</span></a></span></span><span> </span><span id="local-6989586621681695093"><span class="annot"><a href="#local-6989586621681695093"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Opt"><span class="annot"><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span></span><span>       </span><span class="annot"><a href="#local-6989586621681695093"><span class="hs-identifier hs-type">a</span></a></span><span>        </span><span class="annot"><span class="hs-comment">-- ^  an option</span></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UnreqOpt"><span class="annot"><a href="Agda.Utils.GetOpt.html#UnreqOpt"><span class="hs-identifier hs-var">UnreqOpt</span></a></span></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>   </span><span class="annot"><span class="hs-comment">-- ^  an un-recognized option</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="NonOpt"><span class="annot"><a href="Agda.Utils.GetOpt.html#NonOpt"><span class="hs-identifier hs-var">NonOpt</span></a></span></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>   </span><span class="annot"><span class="hs-comment">-- ^  a non-option</span></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="EndOfOpts"><span class="annot"><a href="Agda.Utils.GetOpt.html#EndOfOpts"><span class="hs-identifier hs-var">EndOfOpts</span></a></span></span><span>          </span><span class="annot"><span class="hs-comment">-- ^  end-of-options marker (i.e. &quot;--&quot;)</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="OptErr"><span class="annot"><a href="Agda.Utils.GetOpt.html#OptErr"><span class="hs-identifier hs-var">OptErr</span></a></span></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>   </span><span class="annot"><span class="hs-comment">-- ^  something went wrong...</span></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- | Return a string describing the usage of a command, derived from</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- the header (first argument) and the options described by the</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- second argument.</span><span>
+</span><span id="line-87"></span><span id="local-6989586621681695055"><span class="annot"><a href="Agda.Utils.GetOpt.html#usageInfo"><span class="hs-identifier hs-type">usageInfo</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-88"></span><span>     </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>               </span><span class="annot"><span class="hs-comment">-- ^ minimal width of long option column</span></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>            </span><span class="annot"><span class="hs-comment">-- ^ header</span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695055"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>      </span><span class="annot"><span class="hs-comment">-- ^ option descriptors</span></span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>            </span><span class="annot"><span class="hs-comment">-- ^ nicely formatted description of options</span></span><span>
+</span><span id="line-92"></span><span id="usageInfo"><span class="annot"><span class="annottext">usageInfo :: forall a. Int -&gt; [Char] -&gt; [OptDescr a] -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#usageInfo"><span class="hs-identifier hs-var hs-var">usageInfo</span></a></span></span><span> </span><span id="local-6989586621681695178"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681695178"><span class="hs-identifier hs-var">width</span></a></span></span><span> </span><span id="local-6989586621681695179"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695179"><span class="hs-identifier hs-var">header</span></a></span></span><span> </span><span id="local-6989586621681695180"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695180"><span class="hs-identifier hs-var">optDescr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; [Char]
+</span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695179"><span class="hs-identifier hs-var">header</span></a></span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695182"><span class="hs-identifier hs-var">table</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-94"></span><span>     </span><span class="hs-special">(</span><span id="local-6989586621681695183"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695183"><span class="hs-identifier hs-var">ss</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695184"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695184"><span class="hs-identifier hs-var">ls</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695185"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695185"><span class="hs-identifier hs-var">ds</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[([Char], [Char], [Char])] -&gt; ([[Char]], [[Char]], [[Char]])
+forall a b c. [(a, b, c)] -&gt; ([a], [b], [c])
+</span><span class="hs-identifier hs-var">unzip3</span></span><span> </span><span class="annot"><span class="annottext">([([Char], [Char], [Char])] -&gt; ([[Char]], [[Char]], [[Char]]))
+-&gt; [([Char], [Char], [Char])] -&gt; ([[Char]], [[Char]], [[Char]])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(OptDescr a -&gt; [([Char], [Char], [Char])])
+-&gt; [OptDescr a] -&gt; [([Char], [Char], [Char])]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">OptDescr a -&gt; [([Char], [Char], [Char])]
+forall a. OptDescr a -&gt; [([Char], [Char], [Char])]
+</span><a href="Agda.Utils.GetOpt.html#fmtOpt"><span class="hs-identifier hs-var">fmtOpt</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695180"><span class="hs-identifier hs-var">optDescr</span></a></span><span>
+</span><span id="line-95"></span><span>     </span><span id="local-6989586621681695182"><span class="annot"><span class="annottext">table :: [[Char]]
+</span><a href="#local-6989586621681695182"><span class="hs-identifier hs-var hs-var">table</span></a></span></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char] -&gt; [Char] -&gt; [Char])
+-&gt; [[Char]] -&gt; [[Char]] -&gt; [[Char]] -&gt; [[Char]]
+forall a b c d. (a -&gt; b -&gt; c -&gt; d) -&gt; [a] -&gt; [b] -&gt; [c] -&gt; [d]
+</span><span class="hs-identifier hs-var">zipWith3</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621681695190"><span class="hs-identifier hs-var">paste</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[[Char]] -&gt; [[Char]]
+</span><a href="#local-6989586621681695191"><span class="hs-identifier hs-var">sameLen</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695183"><span class="hs-identifier hs-var">ss</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[[Char]] -&gt; [[Char]]
+</span><a href="#local-6989586621681695191"><span class="hs-identifier hs-var">sameLen</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695184"><span class="hs-identifier hs-var">ls</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695185"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-96"></span><span>     </span><span id="local-6989586621681695190"><span class="annot"><span class="annottext">paste :: [Char] -&gt; [Char] -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621681695190"><span class="hs-identifier hs-var hs-var">paste</span></a></span></span><span> </span><span id="local-6989586621681695192"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695192"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681695193"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695193"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681695194"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695194"><span class="hs-identifier hs-var">z</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;  &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621681695195"><span class="hs-identifier hs-var">pad</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681695178"><span class="hs-identifier hs-var">width</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695192"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;  &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695193"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;  &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695194"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-97"></span><span>     </span><span id="local-6989586621681695191"><span class="annot"><span class="annottext">sameLen :: [[Char]] -&gt; [[Char]]
+</span><a href="#local-6989586621681695191"><span class="hs-identifier hs-var hs-var">sameLen</span></a></span></span><span> </span><span id="local-6989586621681695200"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695200"><span class="hs-identifier hs-var">xs</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [[Char]] -&gt; [[Char]]
+</span><a href="#local-6989586621681695201"><span class="hs-identifier hs-var">flushLeft</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Int] -&gt; Int
+forall a. Ord a =&gt; [a] -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="annot"><span class="annottext">([Int] -&gt; Int) -&gt; ([[Char]] -&gt; [Int]) -&gt; [[Char]] -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Int) -&gt; [[Char]] -&gt; [Int]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695200"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695200"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-98"></span><span>     </span><span id="local-6989586621681695201"><span class="annot"><span class="annottext">flushLeft :: Int -&gt; [[Char]] -&gt; [[Char]]
+</span><a href="#local-6989586621681695201"><span class="hs-identifier hs-var hs-var">flushLeft</span></a></span></span><span> </span><span id="local-6989586621681695204"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681695204"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681695205"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695205"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621681695195"><span class="hs-identifier hs-var">pad</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681695204"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695206"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681695206"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695206"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695205"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-99"></span><span>     </span><span id="local-6989586621681695195"><span class="annot"><span class="annottext">pad :: Int -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621681695195"><span class="hs-identifier hs-var hs-var">pad</span></a></span></span><span> </span><span id="local-6989586621681695210"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681695210"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681695211"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695211"><span class="hs-identifier hs-var">x</span></a></span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695211"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Char -&gt; [Char]
+forall a. Int -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681695210"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695211"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span id="local-6989586621681695067"><span class="annot"><a href="Agda.Utils.GetOpt.html#fmtOpt"><span class="hs-identifier hs-type">fmtOpt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695067"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-102"></span><span id="fmtOpt"><span class="annot"><span class="annottext">fmtOpt :: forall a. OptDescr a -&gt; [([Char], [Char], [Char])]
+</span><a href="Agda.Utils.GetOpt.html#fmtOpt"><span class="hs-identifier hs-var hs-var">fmtOpt</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span id="local-6989586621681695213"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695213"><span class="hs-identifier hs-var">sos</span></a></span></span><span> </span><span id="local-6989586621681695214"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695214"><span class="hs-identifier hs-var">los</span></a></span></span><span> </span><span id="local-6989586621681695215"><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695215"><span class="hs-identifier hs-var">ad</span></a></span></span><span> </span><span id="local-6989586621681695216"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695216"><span class="hs-identifier hs-var">descr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-103"></span><span>   </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]]
+</span><span class="hs-identifier hs-var">lines</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695216"><span class="hs-identifier hs-var">descr</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-104"></span><span>     </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695218"><span class="hs-identifier hs-var">sosFmt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695219"><span class="hs-identifier hs-var">losFmt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-105"></span><span>     </span><span class="hs-special">(</span><span id="local-6989586621681695220"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695220"><span class="hs-identifier hs-var">d</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695221"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695221"><span class="hs-identifier hs-var">ds</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695218"><span class="hs-identifier hs-var">sosFmt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695219"><span class="hs-identifier hs-var">losFmt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695220"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [Char], [Char])
+-&gt; [([Char], [Char], [Char])] -&gt; [([Char], [Char], [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695222"><span class="hs-identifier hs-var">d'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681695222"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695222"><span class="hs-identifier hs-var">d'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695221"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-106"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-107"></span><span>     </span><span id="local-6989586621681695225"><span class="annot"><span class="annottext">sepBy :: Char -&gt; [[Char]] -&gt; [Char]
+</span><a href="#local-6989586621681695225"><span class="hs-identifier hs-var hs-var">sepBy</span></a></span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-108"></span><span>     </span><span class="annot"><a href="#local-6989586621681695225"><span class="hs-identifier hs-var">sepBy</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-special">[</span><span id="local-6989586621681695226"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695226"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">]</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695226"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-109"></span><span>     </span><span class="annot"><a href="#local-6989586621681695225"><span class="hs-identifier hs-var">sepBy</span></a></span><span> </span><span id="local-6989586621681695227"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695227"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695228"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695228"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695229"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695229"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695228"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695227"><span class="hs-identifier hs-var">ch</span></a></span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">' '</span></span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">Char -&gt; [[Char]] -&gt; [Char]
+</span><a href="#local-6989586621681695225"><span class="hs-identifier hs-var">sepBy</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695227"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695229"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-110"></span><span>     </span><span id="local-6989586621681695218"><span class="annot"><span class="annottext">sosFmt :: [Char]
+</span><a href="#local-6989586621681695218"><span class="hs-identifier hs-var hs-var">sosFmt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; [[Char]] -&gt; [Char]
+</span><a href="#local-6989586621681695225"><span class="hs-identifier hs-var">sepBy</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">','</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Char -&gt; [Char]) -&gt; [Char] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ArgDescr a -&gt; Char -&gt; [Char]
+forall a. ArgDescr a -&gt; Char -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#fmtShort"><span class="hs-identifier hs-var">fmtShort</span></a></span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695215"><span class="hs-identifier hs-var">ad</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695213"><span class="hs-identifier hs-var">sos</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>     </span><span id="local-6989586621681695219"><span class="annot"><span class="annottext">losFmt :: [Char]
+</span><a href="#local-6989586621681695219"><span class="hs-identifier hs-var hs-var">losFmt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; [[Char]] -&gt; [Char]
+</span><a href="#local-6989586621681695225"><span class="hs-identifier hs-var">sepBy</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">','</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; [[Char]] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ArgDescr a -&gt; [Char] -&gt; [Char]
+forall a. ArgDescr a -&gt; [Char] -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#fmtLong"><span class="hs-identifier hs-var">fmtLong</span></a></span><span>  </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695215"><span class="hs-identifier hs-var">ad</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695214"><span class="hs-identifier hs-var">los</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span id="local-6989586621681695082"><span class="annot"><a href="Agda.Utils.GetOpt.html#fmtShort"><span class="hs-identifier hs-type">fmtShort</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier hs-type">ArgDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695082"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-114"></span><span id="fmtShort"><span class="annot"><span class="annottext">fmtShort :: forall a. ArgDescr a -&gt; Char -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#fmtShort"><span class="hs-identifier hs-var hs-var">fmtShort</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span>  </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695238"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695238"><span class="hs-identifier hs-var">so</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;-&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695238"><span class="hs-identifier hs-var">so</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#fmtShort"><span class="hs-identifier hs-var">fmtShort</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695239"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695239"><span class="hs-identifier hs-var">ad</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695240"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695240"><span class="hs-identifier hs-var">so</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;-&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695240"><span class="hs-identifier hs-var">so</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695239"><span class="hs-identifier hs-var">ad</span></a></span><span>
+</span><span id="line-116"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#fmtShort"><span class="hs-identifier hs-var">fmtShort</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695241"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695241"><span class="hs-identifier hs-var">ad</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695242"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695242"><span class="hs-identifier hs-var">so</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;-&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695242"><span class="hs-identifier hs-var">so</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695241"><span class="hs-identifier hs-var">ad</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;]&quot;</span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span id="local-6989586621681695083"><span class="annot"><a href="Agda.Utils.GetOpt.html#fmtLong"><span class="hs-identifier hs-type">fmtLong</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier hs-type">ArgDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695083"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-119"></span><span id="fmtLong"><span class="annot"><span class="annottext">fmtLong :: forall a. ArgDescr a -&gt; [Char] -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#fmtLong"><span class="hs-identifier hs-var hs-var">fmtLong</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span>  </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695249"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695249"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;--&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695249"><span class="hs-identifier hs-var">lo</span></a></span><span>
+</span><span id="line-120"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#fmtLong"><span class="hs-identifier hs-var">fmtLong</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695250"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695250"><span class="hs-identifier hs-var">ad</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695251"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695251"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;--&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695251"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;=&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695250"><span class="hs-identifier hs-var">ad</span></a></span><span>
+</span><span id="line-121"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#fmtLong"><span class="hs-identifier hs-var">fmtLong</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695252"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695252"><span class="hs-identifier hs-var">ad</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695253"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695253"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;--&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695253"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;[=&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695252"><span class="hs-identifier hs-var">ad</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;]&quot;</span></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="annot"><span class="hs-comment">{-|
+Process the command-line, and return the list of values that matched
+(and those that didn\'t). The arguments are:
+
+* The order requirements (see 'ArgOrder')
+
+* The option descriptions (see 'OptDescr')
+
+* The actual command line arguments (presumably got from
+  'GHC.Internal.System.Environment.getArgs').
+
+'getOpt' returns a triple consisting of the option arguments, a list
+of non-options, and a list of error messages.
+-}</span></span><span>
+</span><span id="line-137"></span><span id="local-6989586621681695086"><span class="annot"><a href="Agda.Utils.GetOpt.html#getOpt"><span class="hs-identifier hs-type">getOpt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgOrder"><span class="hs-identifier hs-type">ArgOrder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695086"><span class="hs-identifier hs-type">a</span></a></span><span>                   </span><span class="annot"><span class="hs-comment">-- ^ non-option handling</span></span><span>
+</span><span id="line-138"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695086"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>                 </span><span class="annot"><span class="hs-comment">-- ^ option descriptors</span></span><span>
+</span><span id="line-139"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>                     </span><span class="annot"><span class="hs-comment">-- ^ the command-line arguments</span></span><span>
+</span><span id="line-140"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681695086"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ @(options, non-options, error messages)@</span></span><span>
+</span><span id="line-141"></span><span id="getOpt"><span class="annot"><span class="annottext">getOpt :: forall a.
+ArgOrder a -&gt; [OptDescr a] -&gt; [[Char]] -&gt; ([a], [[Char]], [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#getOpt"><span class="hs-identifier hs-var hs-var">getOpt</span></a></span></span><span> </span><span id="local-6989586621681695254"><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="#local-6989586621681695254"><span class="hs-identifier hs-var">ordering</span></a></span></span><span> </span><span id="local-6989586621681695255"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695255"><span class="hs-identifier hs-var">optDescr</span></a></span></span><span> </span><span id="local-6989586621681695256"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695256"><span class="hs-identifier hs-var">args</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695257"><span class="hs-identifier hs-var">os</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695258"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695259"><span class="hs-identifier hs-var">es</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; [[Char]] -&gt; [[Char]]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; [[Char]] -&gt; [[Char]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#errUnrec"><span class="hs-identifier hs-var">errUnrec</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695261"><span class="hs-identifier hs-var">us</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-143"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681695257"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695257"><span class="hs-identifier hs-var">os</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695258"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695258"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695261"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695261"><span class="hs-identifier hs-var">us</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695259"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695259"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+-&gt; [OptDescr a] -&gt; [[Char]] -&gt; ([a], [[Char]], [[Char]], [[Char]])
+forall a.
+ArgOrder a
+-&gt; [OptDescr a] -&gt; [[Char]] -&gt; ([a], [[Char]], [[Char]], [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#getOpt%27"><span class="hs-identifier hs-var">getOpt'</span></a></span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="#local-6989586621681695254"><span class="hs-identifier hs-var">ordering</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695255"><span class="hs-identifier hs-var">optDescr</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695256"><span class="hs-identifier hs-var">args</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="annot"><span class="hs-comment">{-|
+This is almost the same as 'getOpt', but returns a quadruple
+consisting of the option arguments, a list of non-options, a list of
+unrecognized options, and a list of error messages.
+-}</span></span><span>
+</span><span id="line-150"></span><span id="local-6989586621681695088"><span class="annot"><a href="Agda.Utils.GetOpt.html#getOpt%27"><span class="hs-identifier hs-type">getOpt'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgOrder"><span class="hs-identifier hs-type">ArgOrder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695088"><span class="hs-identifier hs-type">a</span></a></span><span>                           </span><span class="annot"><span class="hs-comment">-- ^ non-option handling</span></span><span>
+</span><span id="line-151"></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695088"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>                         </span><span class="annot"><span class="hs-comment">-- ^ option descriptors</span></span><span>
+</span><span id="line-152"></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>                             </span><span class="annot"><span class="hs-comment">-- ^ the command-line arguments</span></span><span>
+</span><span id="line-153"></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681695088"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ @(options, non-options, unrecognized, error messages)@</span></span><span>
+</span><span id="line-154"></span><span id="getOpt%27"><span class="annot"><span class="annottext">getOpt' :: forall a.
+ArgOrder a
+-&gt; [OptDescr a] -&gt; [[Char]] -&gt; ([a], [[Char]], [[Char]], [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#getOpt%27"><span class="hs-identifier hs-var hs-var">getOpt'</span></a></span></span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-special">[</span><span class="hs-special">]</span><span>         </span><span class="hs-glyph">=</span><span>  </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-155"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#getOpt%27"><span class="hs-identifier hs-var">getOpt'</span></a></span><span> </span><span id="local-6989586621681695262"><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="#local-6989586621681695262"><span class="hs-identifier hs-var">ordering</span></a></span></span><span> </span><span id="local-6989586621681695263"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695263"><span class="hs-identifier hs-var">optDescr</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695264"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695264"><span class="hs-identifier hs-var">arg</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695265"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695265"><span class="hs-identifier hs-var">args</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OptKind a -&gt; ArgOrder a -&gt; ([a], [[Char]], [[Char]], [[Char]])
+</span><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="annot"><span class="annottext">OptKind a
+</span><a href="#local-6989586621681695267"><span class="hs-identifier hs-var">opt</span></a></span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="#local-6989586621681695262"><span class="hs-identifier hs-var">ordering</span></a></span><span>
+</span><span id="line-156"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-157"></span><span>     </span><span id="local-6989586621681695266"><span class="annot"><span class="annottext">procNextOpt :: OptKind a -&gt; ArgOrder a -&gt; ([a], [[Char]], [[Char]], [[Char]])
+</span><a href="#local-6989586621681695266"><span class="hs-identifier hs-var hs-var">procNextOpt</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-type">Opt</span></a></span><span> </span><span id="local-6989586621681695268"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695268"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span>      </span><span class="annot"><span class="annottext">ArgOrder a
+</span><span class="hs-identifier">_</span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695268"><span class="hs-identifier hs-var">o</span></a></span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695269"><span class="hs-identifier hs-var">os</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695270"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695271"><span class="hs-identifier hs-var">us</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695272"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-158"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#UnreqOpt"><span class="hs-identifier hs-type">UnreqOpt</span></a></span><span> </span><span id="local-6989586621681695273"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695273"><span class="hs-identifier hs-var">u</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+</span><span class="hs-identifier">_</span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695269"><span class="hs-identifier hs-var">os</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695270"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695273"><span class="hs-identifier hs-var">u</span></a></span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695271"><span class="hs-identifier hs-var">us</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695272"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NonOpt"><span class="hs-identifier hs-type">NonOpt</span></a></span><span> </span><span id="local-6989586621681695274"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695274"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#RequireOrder"><span class="hs-identifier hs-var">RequireOrder</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695274"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695275"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NonOpt"><span class="hs-identifier hs-type">NonOpt</span></a></span><span> </span><span id="local-6989586621681695276"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695276"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#Permute"><span class="hs-identifier hs-var">Permute</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695269"><span class="hs-identifier hs-var">os</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695276"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695270"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695271"><span class="hs-identifier hs-var">us</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695272"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NonOpt"><span class="hs-identifier hs-type">NonOpt</span></a></span><span> </span><span id="local-6989586621681695277"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695277"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReturnInOrder"><span class="hs-identifier hs-type">ReturnInOrder</span></a></span><span> </span><span id="local-6989586621681695278"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695278"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695278"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695277"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695269"><span class="hs-identifier hs-var">os</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695270"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695271"><span class="hs-identifier hs-var">us</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695272"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-162"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="annot"><span class="annottext">OptKind a
+</span><a href="Agda.Utils.GetOpt.html#EndOfOpts"><span class="hs-identifier hs-var">EndOfOpts</span></a></span><span>    </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#RequireOrder"><span class="hs-identifier hs-var">RequireOrder</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695275"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-163"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="annot"><span class="annottext">OptKind a
+</span><a href="Agda.Utils.GetOpt.html#EndOfOpts"><span class="hs-identifier hs-var">EndOfOpts</span></a></span><span>    </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="Agda.Utils.GetOpt.html#Permute"><span class="hs-identifier hs-var">Permute</span></a></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695275"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-164"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="annot"><span class="annottext">OptKind a
+</span><a href="Agda.Utils.GetOpt.html#EndOfOpts"><span class="hs-identifier hs-var">EndOfOpts</span></a></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReturnInOrder"><span class="hs-identifier hs-type">ReturnInOrder</span></a></span><span> </span><span id="local-6989586621681695279"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695279"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; a) -&gt; [[Char]] -&gt; [a]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695279"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695275"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-165"></span><span>     </span><span class="annot"><a href="#local-6989586621681695266"><span class="hs-identifier hs-var">procNextOpt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptErr"><span class="hs-identifier hs-type">OptErr</span></a></span><span> </span><span id="local-6989586621681695280"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695280"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="annot"><span class="annottext">ArgOrder a
+</span><span class="hs-identifier">_</span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695269"><span class="hs-identifier hs-var">os</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695270"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695271"><span class="hs-identifier hs-var">us</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695280"><span class="hs-identifier hs-var">e</span></a></span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695272"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span>     </span><span class="hs-special">(</span><span id="local-6989586621681695267"><span class="annot"><span class="annottext">OptKind a
+</span><a href="#local-6989586621681695267"><span class="hs-identifier hs-var">opt</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695275"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695275"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+forall a.
+[Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#getNext"><span class="hs-identifier hs-var">getNext</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695264"><span class="hs-identifier hs-var">arg</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695265"><span class="hs-identifier hs-var">args</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695263"><span class="hs-identifier hs-var">optDescr</span></a></span><span>
+</span><span id="line-168"></span><span>     </span><span class="hs-special">(</span><span id="local-6989586621681695269"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681695269"><span class="hs-identifier hs-var">os</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695270"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695270"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695271"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695271"><span class="hs-identifier hs-var">us</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695272"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695272"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+-&gt; [OptDescr a] -&gt; [[Char]] -&gt; ([a], [[Char]], [[Char]], [[Char]])
+forall a.
+ArgOrder a
+-&gt; [OptDescr a] -&gt; [[Char]] -&gt; ([a], [[Char]], [[Char]], [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#getOpt%27"><span class="hs-identifier hs-var">getOpt'</span></a></span><span> </span><span class="annot"><span class="annottext">ArgOrder a
+</span><a href="#local-6989586621681695262"><span class="hs-identifier hs-var">ordering</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695263"><span class="hs-identifier hs-var">optDescr</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695275"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="annot"><span class="hs-comment">-- | Take a look at the next cmd line arg and decide what to do with it.</span></span><span>
+</span><span id="line-171"></span><span id="local-6989586621681695091"><span class="annot"><a href="Agda.Utils.GetOpt.html#getNext"><span class="hs-identifier hs-type">getNext</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695091"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptKind"><span class="hs-identifier hs-type">OptKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695091"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>
+</span><span id="line-172"></span><span id="getNext"><span class="annot"><span class="annottext">getNext :: forall a.
+[Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#getNext"><span class="hs-identifier hs-var hs-var">getNext</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695282"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695282"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OptKind a
+forall a. OptKind a
+</span><a href="Agda.Utils.GetOpt.html#EndOfOpts"><span class="hs-identifier hs-var">EndOfOpts</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695282"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-173"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#getNext"><span class="hs-identifier hs-var">getNext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695283"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695283"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695284"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695284"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span id="local-6989586621681695285"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695285"><span class="hs-identifier hs-var">optDescr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+forall a.
+[Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#longOpt"><span class="hs-identifier hs-var">longOpt</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695283"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695284"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695285"><span class="hs-identifier hs-var">optDescr</span></a></span><span>
+</span><span id="line-174"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#getNext"><span class="hs-identifier hs-var">getNext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681695287"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695287"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695288"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695288"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695289"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695289"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span id="local-6989586621681695290"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695290"><span class="hs-identifier hs-var">optDescr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+forall a.
+Char -&gt; [Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#shortOpt"><span class="hs-identifier hs-var">shortOpt</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695287"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695288"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695289"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695290"><span class="hs-identifier hs-var">optDescr</span></a></span><span>
+</span><span id="line-175"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#getNext"><span class="hs-identifier hs-var">getNext</span></a></span><span> </span><span id="local-6989586621681695292"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695292"><span class="hs-identifier hs-var">a</span></a></span></span><span>            </span><span id="local-6989586621681695293"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695293"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#NonOpt"><span class="hs-identifier hs-var">NonOpt</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695292"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695293"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="annot"><span class="hs-comment">-- | Handle long option.</span></span><span>
+</span><span id="line-178"></span><span id="local-6989586621681695294"><span class="annot"><a href="Agda.Utils.GetOpt.html#longOpt"><span class="hs-identifier hs-type">longOpt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695294"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptKind"><span class="hs-identifier hs-type">OptKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695294"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>
+</span><span id="line-179"></span><span id="longOpt"><span class="annot"><span class="annottext">longOpt :: forall a.
+[Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#longOpt"><span class="hs-identifier hs-var hs-var">longOpt</span></a></span></span><span> </span><span id="local-6989586621681695305"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695305"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span id="local-6989586621681695306"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695306"><span class="hs-identifier hs-var">rs</span></a></span></span><span> </span><span id="local-6989586621681695307"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695307"><span class="hs-identifier hs-var">optDescr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[ArgDescr a] -&gt; [Char] -&gt; [[Char]] -&gt; (OptKind a, [[Char]])
+</span><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><a href="#local-6989586621681695309"><span class="hs-identifier hs-var">ads</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695310"><span class="hs-identifier hs-var">arg</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695306"><span class="hs-identifier hs-var">rs</span></a></span><span>
+</span><span id="line-180"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-181"></span><span>     </span><span class="hs-special">(</span><span id="local-6989586621681695311"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695311"><span class="hs-identifier hs-var">opt</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695310"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695310"><span class="hs-identifier hs-var">arg</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; [Char] -&gt; ([Char], [Char])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">break</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'='</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695305"><span class="hs-identifier hs-var">ls</span></a></span><span>
+</span><span id="line-182"></span><span>     </span><span id="local-6989586621681695313"><span class="annot"><span class="annottext">getWith :: ([Char] -&gt; [Char] -&gt; Bool) -&gt; [OptDescr a]
+</span><a href="#local-6989586621681695313"><span class="hs-identifier hs-var hs-var">getWith</span></a></span></span><span> </span><span id="local-6989586621681695314"><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; Bool
+</span><a href="#local-6989586621681695314"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">OptDescr a
+</span><a href="#local-6989586621681695315"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681695315"><span class="annot"><span class="annottext">o :: OptDescr a
+</span><a href="#local-6989586621681695315"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695316"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695316"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695307"><span class="hs-identifier hs-var">optDescr</span></a></span><span>
+</span><span id="line-183"></span><span>                     </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Bool) -&gt; [[Char]] -&gt; Maybe [Char]
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">find</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; Bool
+</span><a href="#local-6989586621681695314"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695311"><span class="hs-identifier hs-var">opt</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695316"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe [Char] -&gt; Maybe [Char] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Maybe [Char]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-184"></span><span>     </span><span id="local-6989586621681695318"><span class="annot"><span class="annottext">options :: [OptDescr a]
+</span><a href="#local-6989586621681695318"><span class="hs-identifier hs-var hs-var">options</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char] -&gt; Bool) -&gt; [OptDescr a]
+</span><a href="#local-6989586621681695313"><span class="hs-identifier hs-var">getWith</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">(==)</span></span><span>
+</span><span id="line-185"></span><span>     </span><span class="hs-comment">-- Diff to System.Console.GetOpt here: do not allow prefixes</span><span>
+</span><span id="line-186"></span><span>     </span><span id="local-6989586621681695309"><span class="annot"><span class="annottext">ads :: [ArgDescr a]
+</span><a href="#local-6989586621681695309"><span class="hs-identifier hs-var hs-var">ads</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695319"><span class="hs-identifier hs-var">ad</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695319"><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695319"><span class="hs-identifier hs-var">ad</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695318"><span class="hs-identifier hs-var">options</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-187"></span><span>     </span><span id="local-6989586621681695320"><span class="annot"><span class="annottext">optStr :: [Char]
+</span><a href="#local-6989586621681695320"><span class="hs-identifier hs-var hs-var">optStr</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;--&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695311"><span class="hs-identifier hs-var">opt</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span>     </span><span id="local-6989586621681695308"><span class="annot"><span class="annottext">long :: [ArgDescr a] -&gt; [Char] -&gt; [[Char]] -&gt; (OptKind a, [[Char]])
+</span><a href="#local-6989586621681695308"><span class="hs-identifier hs-var hs-var">long</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ArgDescr a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">ArgDescr a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>      </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span>        </span><span id="local-6989586621681695321"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695321"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[OptDescr a] -&gt; [Char] -&gt; OptKind a
+forall a. [OptDescr a] -&gt; [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errAmbig"><span class="hs-identifier hs-var">errAmbig</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695318"><span class="hs-identifier hs-var">options</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695320"><span class="hs-identifier hs-var">optStr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695321"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span>  </span><span id="local-6989586621681695323"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695323"><span class="hs-identifier hs-var">a</span></a></span></span><span>  </span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span id="local-6989586621681695324"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695324"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695323"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695324"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-191"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span>  </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'='</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>  </span><span id="local-6989586621681695325"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695325"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errNoArg"><span class="hs-identifier hs-var">errNoArg</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695320"><span class="hs-identifier hs-var">optStr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695325"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-192"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695327"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695327"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; OptKind a
+forall a. [Char] -&gt; [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errReq"><span class="hs-identifier hs-var">errReq</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695327"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695320"><span class="hs-identifier hs-var">optStr</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-193"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span id="local-6989586621681695329"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695329"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-special">(</span><span id="local-6989586621681695330"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695330"><span class="hs-identifier hs-var">r</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695331"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695331"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695329"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695330"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695331"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-194"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span id="local-6989586621681695332"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695332"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'='</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695333"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695333"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695334"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695334"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695332"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695333"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695334"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-195"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span id="local-6989586621681695335"><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695335"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span id="local-6989586621681695336"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695336"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695335"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe [Char]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695336"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-196"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span id="local-6989586621681695337"><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695337"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'='</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695338"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695338"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695339"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695339"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695337"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695338"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695339"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-197"></span><span>     </span><span class="annot"><a href="#local-6989586621681695308"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span>            </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span>        </span><span id="local-6989586621681695340"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695340"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#UnreqOpt"><span class="hs-identifier hs-var">UnreqOpt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;--&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695305"><span class="hs-identifier hs-var">ls</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695340"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span class="annot"><span class="hs-comment">-- | Handle short option.</span></span><span>
+</span><span id="line-200"></span><span id="local-6989586621681695094"><span class="annot"><a href="Agda.Utils.GetOpt.html#shortOpt"><span class="hs-identifier hs-type">shortOpt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695094"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptKind"><span class="hs-identifier hs-type">OptKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695094"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>
+</span><span id="line-201"></span><span id="shortOpt"><span class="annot"><span class="annottext">shortOpt :: forall a.
+Char -&gt; [Char] -&gt; [[Char]] -&gt; [OptDescr a] -&gt; (OptKind a, [[Char]])
+</span><a href="Agda.Utils.GetOpt.html#shortOpt"><span class="hs-identifier hs-var hs-var">shortOpt</span></a></span></span><span> </span><span id="local-6989586621681695342"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695342"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681695343"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695343"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621681695344"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695344"><span class="hs-identifier hs-var">rs</span></a></span></span><span> </span><span id="local-6989586621681695345"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695345"><span class="hs-identifier hs-var">optDescr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[ArgDescr a] -&gt; [Char] -&gt; [[Char]] -&gt; (OptKind a, [[Char]])
+</span><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><a href="#local-6989586621681695347"><span class="hs-identifier hs-var">ads</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695343"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695344"><span class="hs-identifier hs-var">rs</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-203"></span><span>    </span><span id="local-6989586621681695348"><span class="annot"><span class="annottext">options :: [OptDescr a]
+</span><a href="#local-6989586621681695348"><span class="hs-identifier hs-var hs-var">options</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">OptDescr a
+</span><a href="#local-6989586621681695349"><span class="hs-identifier hs-var">o</span></a></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681695349"><span class="annot"><span class="annottext">o :: OptDescr a
+</span><a href="#local-6989586621681695349"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span id="local-6989586621681695350"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695350"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695345"><span class="hs-identifier hs-var">optDescr</span></a></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681695351"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695351"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695350"><span class="hs-identifier hs-var">ss</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695342"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695351"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-204"></span><span>    </span><span id="local-6989586621681695347"><span class="annot"><span class="annottext">ads :: [ArgDescr a]
+</span><a href="#local-6989586621681695347"><span class="hs-identifier hs-var hs-var">ads</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695352"><span class="hs-identifier hs-var">ad</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695352"><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695352"><span class="hs-identifier hs-var">ad</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695348"><span class="hs-identifier hs-var">options</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-205"></span><span>    </span><span id="local-6989586621681695353"><span class="annot"><span class="annottext">optStr :: [Char]
+</span><a href="#local-6989586621681695353"><span class="hs-identifier hs-var hs-var">optStr</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681695342"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span>    </span><span id="local-6989586621681695346"><span class="annot"><span class="annottext">short :: [ArgDescr a] -&gt; [Char] -&gt; [[Char]] -&gt; (OptKind a, [[Char]])
+</span><a href="#local-6989586621681695346"><span class="hs-identifier hs-var hs-var">short</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ArgDescr a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">ArgDescr a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>        </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span>  </span><span id="local-6989586621681695354"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695354"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[OptDescr a] -&gt; [Char] -&gt; OptKind a
+forall a. [OptDescr a] -&gt; [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errAmbig"><span class="hs-identifier hs-var">errAmbig</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695348"><span class="hs-identifier hs-var">options</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695353"><span class="hs-identifier hs-var">optStr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695354"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-208"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span>  </span><span id="local-6989586621681695355"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695355"><span class="hs-identifier hs-var">a</span></a></span></span><span>  </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621681695356"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695356"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695355"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695356"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-209"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span>  </span><span id="local-6989586621681695357"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695357"><span class="hs-identifier hs-var">a</span></a></span></span><span>  </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695358"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695358"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681695359"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695359"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695357"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695358"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695359"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-210"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681695360"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695360"><span class="hs-identifier hs-var">d</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; OptKind a
+forall a. [Char] -&gt; [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errReq"><span class="hs-identifier hs-var">errReq</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695360"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695353"><span class="hs-identifier hs-var">optStr</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-211"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span id="local-6989586621681695361"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695361"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681695362"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695362"><span class="hs-identifier hs-var">r</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681695363"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695363"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695361"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695362"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695363"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-212"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span id="local-6989586621681695364"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695364"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695365"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695365"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681695366"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695366"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695364"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695365"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695366"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-213"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span id="local-6989586621681695367"><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695367"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621681695368"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695368"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695367"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe [Char]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695368"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-214"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span id="local-6989586621681695369"><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695369"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[ArgDescr a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681695370"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695370"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681695371"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695371"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; OptKind a
+forall a. a -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#Opt"><span class="hs-identifier hs-var">Opt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695369"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695370"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695371"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-215"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>             </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621681695372"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695372"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#UnreqOpt"><span class="hs-identifier hs-var">UnreqOpt</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695353"><span class="hs-identifier hs-var">optStr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695372"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-216"></span><span>    </span><span class="annot"><a href="#local-6989586621681695346"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>             </span><span id="local-6989586621681695373"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695373"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681695374"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695374"><span class="hs-identifier hs-var">rest</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#UnreqOpt"><span class="hs-identifier hs-var">UnreqOpt</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695353"><span class="hs-identifier hs-var">optStr</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695373"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695374"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-217"></span><span>
+</span><span id="line-218"></span><span class="annot"><span class="hs-comment">-- * Miscellaneous error formatting</span></span><span>
+</span><span id="line-219"></span><span>
+</span><span id="line-220"></span><span id="local-6989586621681695102"><span class="annot"><a href="Agda.Utils.GetOpt.html#errAmbig"><span class="hs-identifier hs-type">errAmbig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695102"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptKind"><span class="hs-identifier hs-type">OptKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695102"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-221"></span><span id="errAmbig"><span class="annot"><span class="annottext">errAmbig :: forall a. [OptDescr a] -&gt; [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errAmbig"><span class="hs-identifier hs-var hs-var">errAmbig</span></a></span></span><span> </span><span id="local-6989586621681695377"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695377"><span class="hs-identifier hs-var">ods</span></a></span></span><span> </span><span id="local-6989586621681695378"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695378"><span class="hs-identifier hs-var">optStr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#OptErr"><span class="hs-identifier hs-var">OptErr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; [Char] -&gt; [OptDescr a] -&gt; [Char]
+forall a. Int -&gt; [Char] -&gt; [OptDescr a] -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#usageInfo"><span class="hs-identifier hs-var">usageInfo</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695379"><span class="hs-identifier hs-var">header</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681695377"><span class="hs-identifier hs-var">ods</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-222"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-223"></span><span>     </span><span id="local-6989586621681695379"><span class="annot"><span class="annottext">header :: [Char]
+</span><a href="#local-6989586621681695379"><span class="hs-identifier hs-var hs-var">header</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;option `&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695378"><span class="hs-identifier hs-var">optStr</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;' is ambiguous; could be one of:&quot;</span></span><span>
+</span><span id="line-224"></span><span>
+</span><span id="line-225"></span><span id="local-6989586621681695103"><span class="annot"><a href="Agda.Utils.GetOpt.html#errReq"><span class="hs-identifier hs-type">errReq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptKind"><span class="hs-identifier hs-type">OptKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695103"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-226"></span><span id="errReq"><span class="annot"><span class="annottext">errReq :: forall a. [Char] -&gt; [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errReq"><span class="hs-identifier hs-var hs-var">errReq</span></a></span></span><span> </span><span id="local-6989586621681695383"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695383"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681695384"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695384"><span class="hs-identifier hs-var">optStr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#OptErr"><span class="hs-identifier hs-var">OptErr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;option `&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695384"><span class="hs-identifier hs-var">optStr</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;' requires an argument &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695383"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;\n&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-227"></span><span>
+</span><span id="line-228"></span><span class="annot"><a href="Agda.Utils.GetOpt.html#errUnrec"><span class="hs-identifier hs-type">errUnrec</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-229"></span><span id="errUnrec"><span class="annot"><span class="annottext">errUnrec :: [Char] -&gt; [Char]
+</span><a href="Agda.Utils.GetOpt.html#errUnrec"><span class="hs-identifier hs-var hs-var">errUnrec</span></a></span></span><span> </span><span id="local-6989586621681695385"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695385"><span class="hs-identifier hs-var">optStr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;unrecognized option `&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695385"><span class="hs-identifier hs-var">optStr</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;'\n&quot;</span></span><span>
+</span><span id="line-230"></span><span>
+</span><span id="line-231"></span><span id="local-6989586621681695386"><span class="annot"><a href="Agda.Utils.GetOpt.html#errNoArg"><span class="hs-identifier hs-type">errNoArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptKind"><span class="hs-identifier hs-type">OptKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695386"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-232"></span><span id="errNoArg"><span class="annot"><span class="annottext">errNoArg :: forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#errNoArg"><span class="hs-identifier hs-var hs-var">errNoArg</span></a></span></span><span> </span><span id="local-6989586621681695389"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695389"><span class="hs-identifier hs-var">optStr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; OptKind a
+forall a. [Char] -&gt; OptKind a
+</span><a href="Agda.Utils.GetOpt.html#OptErr"><span class="hs-identifier hs-var">OptErr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;option `&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695389"><span class="hs-identifier hs-var">optStr</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;' doesn't allow an argument\n&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-233"></span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- NFData instances (new over &quot;System.Console.GetOpt&quot;)</span><span>
+</span><span id="line-235"></span><span>
+</span><span id="line-236"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681695111"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681695111"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695111"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-237"></span><span>  </span><span id="local-6989586621681695402"><span class="annot"><span class="annottext">rnf :: OptDescr a -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span id="local-6989586621681695403"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695403"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681695404"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695404"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681695405"><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695405"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681695406"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695406"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695403"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621681695404"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">ArgDescr a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681695405"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695406"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-238"></span><span>
+</span><span id="line-239"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681695113"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681695113"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier hs-type">ArgDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681695113"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-240"></span><span>  </span><span id="local-6989586621681695413"><span class="annot"><span class="annottext">rnf :: ArgDescr a -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-241"></span><span>    </span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span> </span><span id="local-6989586621681695414"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695414"><span class="hs-identifier hs-var">a</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681695414"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-242"></span><span>    </span><span class="hs-comment">-- Andreas, 2025-07-31, cannot serialize functions</span><span>
+</span><span id="line-243"></span><span>    </span><span class="hs-comment">-- see https://github.com/haskell/deepseq/issues/111.</span><span>
+</span><span id="line-244"></span><span>    </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span id="local-6989586621681695415"><span class="annot"><span class="annottext">[Char] -&gt; a
+</span><a href="#local-6989586621681695415"><span class="hs-identifier hs-var">_fun</span></a></span></span><span> </span><span id="local-6989586621681695416"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695416"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695416"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-245"></span><span>    </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span id="local-6989586621681695417"><span class="annot"><span class="annottext">Maybe [Char] -&gt; a
+</span><a href="#local-6989586621681695417"><span class="hs-identifier hs-var">_fun</span></a></span></span><span> </span><span id="local-6989586621681695418"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695418"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681695418"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-246"></span></pre></body></html>

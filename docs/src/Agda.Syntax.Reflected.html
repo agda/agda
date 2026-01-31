@@ -1,0 +1,185 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-binds #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html"><span class="hs-identifier">Agda.Syntax.Reflected</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Literal.html"><span class="hs-identifier">Agda.Syntax.Literal</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier">Dom</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">type</span><span> </span><span id="Args"><span class="annot"><a href="Agda.Syntax.Reflected.html#Args"><span class="hs-identifier hs-var">Args</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">data</span><span> </span><span id="Elim%27"><span class="annot"><a href="Agda.Syntax.Reflected.html#Elim%27"><span class="hs-identifier hs-var">Elim'</span></a></span></span><span> </span><span id="local-6989586621681779901"><span class="annot"><a href="#local-6989586621681779901"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Apply"><span class="annot"><a href="Agda.Syntax.Reflected.html#Apply"><span class="hs-identifier hs-var">Apply</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681779901"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- no record projections for now</span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681779927"><span id="local-6989586621681779933"><span id="local-6989586621681779937"><span class="annot"><span class="annottext">Int -&gt; Elim' a -&gt; ShowS
+[Elim' a] -&gt; ShowS
+Elim' a -&gt; String
+(Int -&gt; Elim' a -&gt; ShowS)
+-&gt; (Elim' a -&gt; String) -&gt; ([Elim' a] -&gt; ShowS) -&gt; Show (Elim' a)
+forall a. Show a =&gt; Int -&gt; Elim' a -&gt; ShowS
+forall a. Show a =&gt; [Elim' a] -&gt; ShowS
+forall a. Show a =&gt; Elim' a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Elim' a -&gt; ShowS
+showsPrec :: Int -&gt; Elim' a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Elim' a -&gt; String
+show :: Elim' a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Elim' a] -&gt; ShowS
+showList :: [Elim' a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">type</span><span> </span><span id="Elim"><span class="annot"><a href="Agda.Syntax.Reflected.html#Elim"><span class="hs-identifier hs-var">Elim</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">type</span><span> </span><span id="Elims"><span class="annot"><a href="Agda.Syntax.Reflected.html#Elims"><span class="hs-identifier hs-var">Elims</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elim"><span class="hs-identifier hs-type">Elim</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="annot"><a href="Agda.Syntax.Reflected.html#argsToElims"><span class="hs-identifier hs-type">argsToElims</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Args"><span class="hs-identifier hs-type">Args</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elims"><span class="hs-identifier hs-type">Elims</span></a></span><span>
+</span><span id="line-24"></span><span id="argsToElims"><span class="annot"><span class="annottext">argsToElims :: Args -&gt; Elims
+</span><a href="Agda.Syntax.Reflected.html#argsToElims"><span class="hs-identifier hs-var hs-var">argsToElims</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Arg Term -&gt; Elim) -&gt; Args -&gt; Elims
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Arg Term -&gt; Elim
+forall a. Arg a -&gt; Elim' a
+</span><a href="Agda.Syntax.Reflected.html#Apply"><span class="hs-identifier hs-var">Apply</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">data</span><span> </span><span id="Abs"><span class="annot"><a href="Agda.Syntax.Reflected.html#Abs"><span class="hs-identifier hs-var">Abs</span></a></span></span><span> </span><span id="local-6989586621681779942"><span class="annot"><a href="#local-6989586621681779942"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Abs"><span class="annot"><a href="Agda.Syntax.Reflected.html#Abs"><span class="hs-identifier hs-var">Abs</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="#local-6989586621681779942"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681779946"><span id="local-6989586621681779953"><span id="local-6989586621681779957"><span class="annot"><span class="annottext">Int -&gt; Abs a -&gt; ShowS
+[Abs a] -&gt; ShowS
+Abs a -&gt; String
+(Int -&gt; Abs a -&gt; ShowS)
+-&gt; (Abs a -&gt; String) -&gt; ([Abs a] -&gt; ShowS) -&gt; Show (Abs a)
+forall a. Show a =&gt; Int -&gt; Abs a -&gt; ShowS
+forall a. Show a =&gt; [Abs a] -&gt; ShowS
+forall a. Show a =&gt; Abs a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Abs a -&gt; ShowS
+showsPrec :: Int -&gt; Abs a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Abs a -&gt; String
+show :: Abs a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Abs a] -&gt; ShowS
+showList :: [Abs a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">data</span><span> </span><span id="Term"><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-var">Term</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Var"><span class="annot"><a href="Agda.Syntax.Reflected.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elims"><span class="hs-identifier hs-type">Elims</span></a></span><span>
+</span><span id="line-30"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Con"><span class="annot"><a href="Agda.Syntax.Reflected.html#Con"><span class="hs-identifier hs-var">Con</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elims"><span class="hs-identifier hs-type">Elims</span></a></span><span>
+</span><span id="line-31"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Def"><span class="annot"><a href="Agda.Syntax.Reflected.html#Def"><span class="hs-identifier hs-var">Def</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elims"><span class="hs-identifier hs-type">Elims</span></a></span><span>
+</span><span id="line-32"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Meta"><span class="annot"><a href="Agda.Syntax.Reflected.html#Meta"><span class="hs-identifier hs-var">Meta</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elims"><span class="hs-identifier hs-type">Elims</span></a></span><span>
+</span><span id="line-33"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Lam"><span class="annot"><a href="Agda.Syntax.Reflected.html#Lam"><span class="hs-identifier hs-var">Lam</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Hiding"><span class="hs-identifier hs-type">Hiding</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Reflected.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="ExtLam"><span class="annot"><a href="Agda.Syntax.Reflected.html#ExtLam"><span class="hs-identifier hs-var">ExtLam</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Elims"><span class="hs-identifier hs-type">Elims</span></a></span><span>
+</span><span id="line-35"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Pi"><span class="annot"><a href="Agda.Syntax.Reflected.html#Pi"><span class="hs-identifier hs-var">Pi</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Reflected.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Sort"><span class="annot"><a href="Agda.Syntax.Reflected.html#Sort"><span class="hs-identifier hs-var">Sort</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span>
+</span><span id="line-37"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Lit"><span class="annot"><a href="Agda.Syntax.Reflected.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Literal.html#Literal"><span class="hs-identifier hs-type">Literal</span></a></span><span>
+</span><span id="line-38"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="Unknown"><span class="annot"><a href="Agda.Syntax.Reflected.html#Unknown"><span class="hs-identifier hs-var">Unknown</span></a></span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681779972"><span id="local-6989586621681780011"><span id="local-6989586621681780015"><span class="annot"><span class="annottext">Int -&gt; Term -&gt; ShowS
+[Term] -&gt; ShowS
+Term -&gt; String
+(Int -&gt; Term -&gt; ShowS)
+-&gt; (Term -&gt; String) -&gt; ([Term] -&gt; ShowS) -&gt; Show Term
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Term -&gt; ShowS
+showsPrec :: Int -&gt; Term -&gt; ShowS
+$cshow :: Term -&gt; String
+show :: Term -&gt; String
+$cshowList :: [Term] -&gt; ShowS
+showList :: [Term] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">type</span><span> </span><span id="Type"><span class="annot"><a href="Agda.Syntax.Reflected.html#Type"><span class="hs-identifier hs-var">Type</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">data</span><span> </span><span id="Sort"><span class="annot"><a href="Agda.Syntax.Reflected.html#Sort"><span class="hs-identifier hs-var">Sort</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SetS"><span class="annot"><a href="Agda.Syntax.Reflected.html#SetS"><span class="hs-identifier hs-var">SetS</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-44"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="LitS"><span class="annot"><a href="Agda.Syntax.Reflected.html#LitS"><span class="hs-identifier hs-var">LitS</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-45"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="PropS"><span class="annot"><a href="Agda.Syntax.Reflected.html#PropS"><span class="hs-identifier hs-var">PropS</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-46"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="PropLitS"><span class="annot"><a href="Agda.Syntax.Reflected.html#PropLitS"><span class="hs-identifier hs-var">PropLitS</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-47"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="InfS"><span class="annot"><a href="Agda.Syntax.Reflected.html#InfS"><span class="hs-identifier hs-var">InfS</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-48"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="UnknownS"><span class="annot"><a href="Agda.Syntax.Reflected.html#UnknownS"><span class="hs-identifier hs-var">UnknownS</span></a></span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681780026"><span id="local-6989586621681780039"><span id="local-6989586621681780042"><span class="annot"><span class="annottext">Int -&gt; Sort -&gt; ShowS
+[Sort] -&gt; ShowS
+Sort -&gt; String
+(Int -&gt; Sort -&gt; ShowS)
+-&gt; (Sort -&gt; String) -&gt; ([Sort] -&gt; ShowS) -&gt; Show Sort
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Sort -&gt; ShowS
+showsPrec :: Int -&gt; Sort -&gt; ShowS
+$cshow :: Sort -&gt; String
+show :: Sort -&gt; String
+$cshowList :: [Sort] -&gt; ShowS
+showList :: [Sort] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">data</span><span> </span><span id="Pattern"><span class="annot"><a href="Agda.Syntax.Reflected.html#Pattern"><span class="hs-identifier hs-var">Pattern</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ConP"><span class="annot"><a href="Agda.Syntax.Reflected.html#ConP"><span class="hs-identifier hs-var">ConP</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Pattern"><span class="hs-identifier hs-type">Pattern</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-52"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="DotP"><span class="annot"><a href="Agda.Syntax.Reflected.html#DotP"><span class="hs-identifier hs-var">DotP</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-53"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="VarP"><span class="annot"><a href="Agda.Syntax.Reflected.html#VarP"><span class="hs-identifier hs-var">VarP</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-54"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="LitP"><span class="annot"><a href="Agda.Syntax.Reflected.html#LitP"><span class="hs-identifier hs-var">LitP</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Literal.html#Literal"><span class="hs-identifier hs-type">Literal</span></a></span><span>
+</span><span id="line-55"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="AbsurdP"><span class="annot"><a href="Agda.Syntax.Reflected.html#AbsurdP"><span class="hs-identifier hs-var">AbsurdP</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-56"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="ProjP"><span class="annot"><a href="Agda.Syntax.Reflected.html#ProjP"><span class="hs-identifier hs-var">ProjP</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681780051"><span id="local-6989586621681780067"><span id="local-6989586621681780071"><span class="annot"><span class="annottext">Int -&gt; Pattern -&gt; ShowS
+[Pattern] -&gt; ShowS
+Pattern -&gt; String
+(Int -&gt; Pattern -&gt; ShowS)
+-&gt; (Pattern -&gt; String) -&gt; ([Pattern] -&gt; ShowS) -&gt; Show Pattern
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Pattern -&gt; ShowS
+showsPrec :: Int -&gt; Pattern -&gt; ShowS
+$cshow :: Pattern -&gt; String
+show :: Pattern -&gt; String
+$cshowList :: [Pattern] -&gt; ShowS
+showList :: [Pattern] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">data</span><span> </span><span id="Clause"><span class="annot"><a href="Agda.Syntax.Reflected.html#Clause"><span class="hs-identifier hs-var">Clause</span></a></span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Clause"><span class="annot"><a href="Agda.Syntax.Reflected.html#Clause"><span class="hs-identifier hs-var">Clause</span></a></span></span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="clauseTel"><span class="annot"><span class="annottext">Clause -&gt; [(Text, Arg Term)]
+</span><a href="Agda.Syntax.Reflected.html#clauseTel"><span class="hs-identifier hs-var hs-var">clauseTel</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-62"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="clausePats"><span class="annot"><span class="annottext">Clause -&gt; [Arg Pattern]
+</span><a href="Agda.Syntax.Reflected.html#clausePats"><span class="hs-identifier hs-var hs-var">clausePats</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Pattern"><span class="hs-identifier hs-type">Pattern</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="clauseRHS"><span class="annot"><span class="annottext">Clause -&gt; Term
+</span><a href="Agda.Syntax.Reflected.html#clauseRHS"><span class="hs-identifier hs-var hs-var">clauseRHS</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="AbsurdClause"><span class="annot"><a href="Agda.Syntax.Reflected.html#AbsurdClause"><span class="hs-identifier hs-var">AbsurdClause</span></a></span></span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="clauseTel"><span class="annot"><a href="Agda.Syntax.Reflected.html#clauseTel"><span class="hs-identifier hs-var">clauseTel</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-67"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="clausePats"><span class="annot"><a href="Agda.Syntax.Reflected.html#clausePats"><span class="hs-identifier hs-var">clausePats</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Pattern"><span class="hs-identifier hs-type">Pattern</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681780080"><span id="local-6989586621681780092"><span id="local-6989586621681780095"><span class="annot"><span class="annottext">Int -&gt; Clause -&gt; ShowS
+[Clause] -&gt; ShowS
+Clause -&gt; String
+(Int -&gt; Clause -&gt; ShowS)
+-&gt; (Clause -&gt; String) -&gt; ([Clause] -&gt; ShowS) -&gt; Show Clause
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Clause -&gt; ShowS
+showsPrec :: Int -&gt; Clause -&gt; ShowS
+$cshow :: Clause -&gt; String
+show :: Clause -&gt; String
+$cshowList :: [Clause] -&gt; ShowS
+showList :: [Clause] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">data</span><span> </span><span id="Definition"><span class="annot"><a href="Agda.Syntax.Reflected.html#Definition"><span class="hs-identifier hs-var">Definition</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FunDef"><span class="annot"><a href="Agda.Syntax.Reflected.html#FunDef"><span class="hs-identifier hs-var">FunDef</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Reflected.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Reflected.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-72"></span><span>                </span><span class="hs-glyph">|</span><span> </span><span id="DataDef"><span class="annot"><a href="Agda.Syntax.Reflected.html#DataDef"><span class="hs-identifier hs-var">DataDef</span></a></span></span><span>   </span><span class="hs-comment">-- nothing for now</span><span>
+</span><span id="line-73"></span><span>                </span><span class="hs-glyph">|</span><span> </span><span id="RecordDef"><span class="annot"><a href="Agda.Syntax.Reflected.html#RecordDef"><span class="hs-identifier hs-var">RecordDef</span></a></span></span><span> </span><span class="hs-comment">-- nothing for now</span><span>
+</span><span id="line-74"></span><span>                </span><span class="hs-glyph">|</span><span> </span><span id="DataConstructor"><span class="annot"><a href="Agda.Syntax.Reflected.html#DataConstructor"><span class="hs-identifier hs-var">DataConstructor</span></a></span></span><span>
+</span><span id="line-75"></span><span>                </span><span class="hs-glyph">|</span><span> </span><span id="Axiom"><span class="annot"><a href="Agda.Syntax.Reflected.html#Axiom"><span class="hs-identifier hs-var">Axiom</span></a></span></span><span>
+</span><span id="line-76"></span><span>                </span><span class="hs-glyph">|</span><span> </span><span id="Primitive"><span class="annot"><a href="Agda.Syntax.Reflected.html#Primitive"><span class="hs-identifier hs-var">Primitive</span></a></span></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681780109"><span id="local-6989586621681780115"><span id="local-6989586621681780119"><span class="annot"><span class="annottext">Int -&gt; Definition -&gt; ShowS
+[Definition] -&gt; ShowS
+Definition -&gt; String
+(Int -&gt; Definition -&gt; ShowS)
+-&gt; (Definition -&gt; String)
+-&gt; ([Definition] -&gt; ShowS)
+-&gt; Show Definition
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Definition -&gt; ShowS
+showsPrec :: Int -&gt; Definition -&gt; ShowS
+$cshow :: Definition -&gt; String
+show :: Definition -&gt; String
+$cshowList :: [Definition] -&gt; ShowS
+showList :: [Definition] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span></pre></body></html>

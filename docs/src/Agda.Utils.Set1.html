@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Non-empty sets.</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--   Provides type @Set1@ of non-empty sets.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--   Import:</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--     import           Agda.Utils.Set1 (Set1)</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--     import qualified Agda.Utils.Set1 as Set1</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Set1.html"><span class="hs-identifier">Agda.Utils.Set1</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Set1.html"><span class="hs-identifier">Agda.Utils.Set1</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">Set1</span></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">empty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set.NonEmpty</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set1</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">type</span><span> </span><span id="Set1"><span class="annot"><a href="Agda.Utils.Set1.html#Set1"><span class="hs-identifier hs-var">Set1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set1.NESet</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span id="local-6989586621681704254"><span id="local-6989586621681704256"><span class="annot"><a href="Agda.Utils.Set1.html#ifNull"><span class="hs-identifier hs-type">ifNull</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="#local-6989586621681704254"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704256"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Set1.html#Set1"><span class="hs-identifier hs-type">Set1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704254"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704256"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704256"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-24"></span><span id="ifNull"><span class="annot"><span class="annottext">ifNull :: forall a b. Set a -&gt; b -&gt; (Set1 a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Set1.html#ifNull"><span class="hs-identifier hs-var hs-var">ifNull</span></a></span></span><span> </span><span id="local-6989586621681704292"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681704292"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681704293"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681704293"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681704294"><span class="annot"><span class="annottext">Set1 a -&gt; b
+</span><a href="#local-6989586621681704294"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; (Set1 a -&gt; b) -&gt; Set a -&gt; b
+forall r a. r -&gt; (NESet a -&gt; r) -&gt; Set a -&gt; r
+</span><span class="hs-identifier hs-var">Set1.withNonEmpty</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681704293"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Set1 a -&gt; b
+</span><a href="#local-6989586621681704294"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621681704292"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- | Lossless 'toSet'.  Opposite of 'nonEmptySet'.</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span id="local-6989586621681704263"><span class="annot"><a href="Agda.Utils.Set1.html#toSet%27"><span class="hs-identifier hs-type">toSet'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Set1.html#Set1"><span class="hs-identifier hs-type">Set1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704263"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="#local-6989586621681704263"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-29"></span><span id="toSet%27"><span class="annot"><span class="annottext">toSet' :: forall a. Maybe (Set1 a) -&gt; Set a
+</span><a href="Agda.Utils.Set1.html#toSet%27"><span class="hs-identifier hs-var hs-var">toSet'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set a -&gt; (Set1 a -&gt; Set a) -&gt; Maybe (Set1 a) -&gt; Set a
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">Set a
+forall a. Set a
+</span><span class="hs-identifier hs-var">empty</span></span><span> </span><span class="annot"><span class="annottext">Set1 a -&gt; Set a
+forall a. NESet a -&gt; Set a
+</span><span class="hs-identifier hs-var">toSet</span></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- | A more general type would be @Null m =&gt; Set a -&gt; (Set1 a -&gt; m) -&gt; m@</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--   but this type is problematic as we do not have a general</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--   @instance Applicative m =&gt; Null (m ())@.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--</span><span>
+</span><span id="line-35"></span><span id="local-6989586621681704269"><span id="local-6989586621681704270"><span class="annot"><a href="Agda.Utils.Set1.html#unlessNull"><span class="hs-identifier hs-type">unlessNull</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621681704269"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="#local-6989586621681704270"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Set1.html#Set1"><span class="hs-identifier hs-type">Set1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704270"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704269"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704269"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-36"></span><span id="unlessNull"><span class="annot"><span class="annottext">unlessNull :: forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+Set a -&gt; (Set1 a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Set1.html#unlessNull"><span class="hs-identifier hs-var hs-var">unlessNull</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Set1 a -&gt; m ()) -&gt; Set a -&gt; m ())
+-&gt; Set a -&gt; (Set1 a -&gt; m ()) -&gt; m ()
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">(((Set1 a -&gt; m ()) -&gt; Set a -&gt; m ())
+ -&gt; Set a -&gt; (Set1 a -&gt; m ()) -&gt; m ())
+-&gt; ((Set1 a -&gt; m ()) -&gt; Set a -&gt; m ())
+-&gt; Set a
+-&gt; (Set1 a -&gt; m ())
+-&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m () -&gt; (Set1 a -&gt; m ()) -&gt; Set a -&gt; m ()
+forall r a. r -&gt; (NESet a -&gt; r) -&gt; Set a -&gt; r
+</span><span class="hs-identifier hs-var">Set1.withNonEmpty</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; (Set1 a -&gt; m ()) -&gt; Set a -&gt; m ())
+-&gt; m () -&gt; (Set1 a -&gt; m ()) -&gt; Set a -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Set1.html#unlessNull"><span class="hs-pragma hs-type">unlessNull</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span id="local-6989586621681704283"><span id="local-6989586621681704284"><span class="annot"><a href="Agda.Utils.Set1.html#unlessNullM"><span class="hs-identifier hs-type">unlessNullM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681704283"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704283"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="#local-6989586621681704284"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Set1.html#Set1"><span class="hs-identifier hs-type">Set1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681704284"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704283"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681704283"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-40"></span><span id="unlessNullM"><span class="annot"><span class="annottext">unlessNullM :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m (Set a) -&gt; (Set1 a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Set1.html#unlessNullM"><span class="hs-identifier hs-var hs-var">unlessNullM</span></a></span></span><span> </span><span id="local-6989586621681704310"><span class="annot"><span class="annottext">m (Set a)
+</span><a href="#local-6989586621681704310"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681704311"><span class="annot"><span class="annottext">Set1 a -&gt; m ()
+</span><a href="#local-6989586621681704311"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Set a)
+</span><a href="#local-6989586621681704310"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">m (Set a) -&gt; (Set a -&gt; m ()) -&gt; m ()
+forall a b. m a -&gt; (a -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set a -&gt; (Set1 a -&gt; m ()) -&gt; m ()
+forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+Set a -&gt; (Set1 a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Set1.html#unlessNull"><span class="hs-operator hs-var">`unlessNull`</span></a></span><span> </span><span class="annot"><span class="annottext">Set1 a -&gt; m ()
+</span><a href="#local-6989586621681704311"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Set1.html#unlessNullM"><span class="hs-pragma hs-type">unlessNullM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-42"></span></pre></body></html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Module name encoding</span><span>
+</span><span id="line-5"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Encode.html"><span class="hs-identifier">Agda.Compiler.MAlonzo.Encode</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Encode.html#encodeModuleName"><span class="hs-identifier">encodeModuleName</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html"><span class="hs-identifier">Agda.Utils.Haskell.Syntax</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">HS</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Compiler.MAlonzo.Misc.html"><span class="hs-identifier">Agda.Compiler.MAlonzo.Misc</span></a></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- | Haskell module names have to satisfy the Haskell (including the</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- hierarchical module namespace extension) lexical syntax:</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--   @modid -&gt; [modid.] large {small | large | digit | ' }@</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- 'encodeModuleName' is an injective function into the set of module</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- names defined by @modid@. The function preserves @.@s, and it also</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- preserves module names whose first name part is not 'mazstr'.</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- Precondition: The input must not start or end with @.@, and no two</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- @.@s may be adjacent.</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="annot"><a href="Agda.Compiler.MAlonzo.Encode.html#encodeModuleName"><span class="hs-identifier hs-type">encodeModuleName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-type">HS.ModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-type">HS.ModuleName</span></a></span><span>
+</span><span id="line-30"></span><span id="encodeModuleName"><span class="annot"><span class="annottext">encodeModuleName :: ModuleName -&gt; ModuleName
+</span><a href="Agda.Compiler.MAlonzo.Encode.html#encodeModuleName"><span class="hs-identifier hs-var hs-var">encodeModuleName</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-type">HS.ModuleName</span></a></span><span> </span><span id="local-6989586621682237868"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237868"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ModuleName
+</span><a href="Agda.Utils.Haskell.Syntax.html#ModuleName"><span class="hs-identifier hs-var">HS.ModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; ModuleName) -&gt; [Char] -&gt; ModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; Maybe [Char]
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Maybe [a]
+</span><span class="hs-identifier hs-var">List.stripPrefix</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Compiler.MAlonzo.Misc.html#mazstr"><span class="hs-identifier hs-var">mazstr</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237868"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682237870"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237870"><span class="hs-identifier hs-var">s'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="Agda.Compiler.MAlonzo.Misc.html#mazstr"><span class="hs-identifier hs-var">mazstr</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char] -&gt; [Char]) -&gt; [Char] -&gt; [[Char]] -&gt; [Char]
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621682237872"><span class="hs-identifier hs-var">encNamePart</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237873"><span class="hs-identifier hs-var">splitUp'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237870"><span class="hs-identifier hs-var">s'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><span class="annottext">Maybe [Char]
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237868"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-comment">-- splitUp &quot;.apa.bepa.&quot; == [&quot;.&quot;,&quot;apa&quot;,&quot;.&quot;,&quot;bepa&quot;,&quot;.&quot;]</span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-comment">-- splitUp = groupBy ((&amp;&amp;) `on` (/= '.'))</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-comment">-- Since comparison against &quot;.&quot; is wasteful, and modules name components are nonempty,</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-comment">-- we can use &quot;&quot; as the separator.</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-comment">-- Since modules name components are nonempty,</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-comment">-- this is more efficient than adding a Maybe wrapper:</span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-comment">-- We are effectively using ``String = Maybe NEString''.</span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-comment">-- splitUp' &quot;.apa.bepa.&quot; == [&quot;&quot;,&quot;apa&quot;,&quot;&quot;,&quot;bepa&quot;,&quot;&quot;]</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><a href="#local-6989586621682237873"><span class="hs-identifier hs-type">splitUp'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-45"></span><span>  </span><span id="local-6989586621682237873"><span class="annot"><span class="annottext">splitUp' :: [Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237873"><span class="hs-identifier hs-var hs-var">splitUp'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237874"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>      </span><span id="local-6989586621682237874"><span class="annot"><span class="annottext">h :: [Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237874"><span class="hs-identifier hs-var hs-var">h</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-48"></span><span>      </span><span class="annot"><a href="#local-6989586621682237874"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682237878"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237878"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621682237879"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237879"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237878"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-49"></span><span>        </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'.'</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237874"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237879"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-50"></span><span>        </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; [Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237880"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237878"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237879"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-51"></span><span>      </span><span id="local-6989586621682237880"><span class="annot"><span class="annottext">g :: ([Char] -&gt; [Char]) -&gt; [Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237880"><span class="hs-identifier hs-var hs-var">g</span></a></span></span><span> </span><span id="local-6989586621682237881"><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><a href="#local-6989586621682237881"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><a href="#local-6989586621682237881"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-52"></span><span>      </span><span class="annot"><a href="#local-6989586621682237880"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span id="local-6989586621682237882"><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><a href="#local-6989586621682237882"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682237883"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237883"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621682237884"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237884"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237883"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-53"></span><span>        </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'.'</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><a href="#local-6989586621682237882"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; [[Char]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237874"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237884"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-54"></span><span>        </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; [Char] -&gt; [[Char]]
+</span><a href="#local-6989586621682237880"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><a href="#local-6989586621682237882"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; ([Char] -&gt; [Char]) -&gt; [Char] -&gt; [Char]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237883"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237884"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span>  </span><span id="local-6989586621682237872"><span class="annot"><span class="annottext">encNamePart :: [Char] -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621682237872"><span class="hs-identifier hs-var hs-var">encNamePart</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span id="local-6989586621682237892"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237892"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'.'</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237892"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><a href="#local-6989586621682237872"><span class="hs-identifier hs-var">encNamePart</span></a></span><span> </span><span id="local-6989586621682237893"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237893"><span class="hs-identifier hs-var">s</span></a></span></span><span>  </span><span id="local-6989586621682237894"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237894"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621682237895"><span class="hs-identifier hs-var">ensureFirstCharLarge</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237893"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; [Char] -&gt; [Char]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; [Char] -&gt; [Char]) -&gt; [Char] -&gt; [Char] -&gt; [Char]
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621682237896"><span class="hs-identifier hs-var">enc</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237894"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237893"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>  </span><span id="local-6989586621682237895"><span class="annot"><span class="annottext">ensureFirstCharLarge :: [Char] -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621682237895"><span class="hs-identifier hs-var hs-var">ensureFirstCharLarge</span></a></span></span><span> </span><span id="local-6989586621682237898"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237898"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621682237899"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237899"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237898"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-60"></span><span>    </span><span id="local-6989586621682237900"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237900"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621682237901"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237901"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isUpper</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237900"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237900"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237905"><span class="hs-identifier hs-var">largeChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237899"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span>                                    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237905"><span class="hs-identifier hs-var">largeChar</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237899"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span>  </span><span id="local-6989586621682237905"><span class="annot"><span class="annottext">largeChar :: Char
+</span><a href="#local-6989586621682237905"><span class="hs-identifier hs-var hs-var">largeChar</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'Q'</span></span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621682237906"><span class="annot"><span class="annottext">escapeChar :: Char
+</span><a href="#local-6989586621682237906"><span class="hs-identifier hs-var hs-var">escapeChar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'Z'</span></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span>  </span><span id="local-6989586621682237908"><span class="annot"><span class="annottext">isOK :: Char -&gt; Bool
+</span><a href="#local-6989586621682237908"><span class="hs-identifier hs-var hs-var">isOK</span></a></span></span><span> </span><span id="local-6989586621682237909"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237909"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237909"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237906"><span class="hs-identifier hs-var">escapeChar</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Agda.Compiler.MAlonzo.Misc.html#isModChar"><span class="hs-identifier hs-var">isModChar</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237909"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621682237896"><span class="annot"><span class="annottext">enc :: Char -&gt; [Char] -&gt; [Char]
+</span><a href="#local-6989586621682237896"><span class="hs-identifier hs-var hs-var">enc</span></a></span></span><span> </span><span id="local-6989586621682237915"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237915"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621682237916"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237916"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="#local-6989586621682237908"><span class="hs-identifier hs-var">isOK</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237915"><span class="hs-identifier hs-var">c</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237915"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237916"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-69"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237906"><span class="hs-identifier hs-var">escapeChar</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Char] -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char] -&gt; [Char]
+</span><span class="hs-identifier hs-var">shows</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237915"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621682237906"><span class="hs-identifier hs-var">escapeChar</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621682237916"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span></pre></body></html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- | Small sets represented as a bitmask for fast membership checking.</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- With the exception of converting to/from lists, all operations are O(1).</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Mimics the interface of 'Data.Set'.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Import as:</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--    import qualified Agda.Utils.SmallSet as SmallSet</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--    import Agda.Utils.SmallSet (SmallSet)</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html"><span class="hs-identifier">Agda.Utils.SmallSet</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier">SmallSet</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier">SmallSetElement</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Ix</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#%5C%5C"><span class="hs-operator">(\\)</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#complement"><span class="hs-identifier">complement</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#delete"><span class="hs-identifier">delete</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#difference"><span class="hs-identifier">difference</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#elems"><span class="hs-identifier">elems</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#empty"><span class="hs-identifier">empty</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#fromList"><span class="hs-identifier">fromList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#fromAscList"><span class="hs-identifier">fromAscList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#fromDistinctAscList"><span class="hs-identifier">fromDistinctAscList</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#insert"><span class="hs-identifier">insert</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#intersection"><span class="hs-identifier">intersection</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#member"><span class="hs-identifier">member</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#notMember"><span class="hs-identifier">notMember</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#null"><span class="hs-identifier">null</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#singleton"><span class="hs-identifier">singleton</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#toList"><span class="hs-identifier">toList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#toAscList"><span class="hs-identifier">toAscList</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#total"><span class="hs-identifier">total</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#union"><span class="hs-identifier">union</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word64</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#if !MIN_VERSION_base(4,20,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.List</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">foldl'</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">complement</span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Bits</span></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Ix</span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Null</span></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | An element in a small set.</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- This must implement 'Bounded' and 'Ix', and contain at most 64 values.</span><span>
+</span><span id="line-56"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Bounded</span></span><span> </span><span class="annot"><a href="#local-6989586621681708746"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ix</span></span><span> </span><span class="annot"><a href="#local-6989586621681708746"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="SmallSetElement"><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-var">SmallSetElement</span></a></span></span><span> </span><span id="local-6989586621681708746"><span class="annot"><a href="#local-6989586621681708746"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">newtype</span><span> </span><span id="SmallSet"><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span></span><span> </span><span id="local-6989586621681708748"><span class="annot"><a href="#local-6989586621681708748"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SmallSet"><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="theSmallSet"><span class="annot"><span class="annottext">forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var hs-var">theSmallSet</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681708855"><span id="local-6989586621681708860"><span class="annot"><span class="annottext">SmallSet a -&gt; SmallSet a -&gt; Bool
+(SmallSet a -&gt; SmallSet a -&gt; Bool)
+-&gt; (SmallSet a -&gt; SmallSet a -&gt; Bool) -&gt; Eq (SmallSet a)
+forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+== :: SmallSet a -&gt; SmallSet a -&gt; Bool
+$c/= :: forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+/= :: SmallSet a -&gt; SmallSet a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681708869"><span id="local-6989586621681708874"><span id="local-6989586621681708878"><span id="local-6989586621681708882"><span id="local-6989586621681708886"><span id="local-6989586621681708890"><span id="local-6989586621681708894"><span class="annot"><span class="annottext">Eq (SmallSet a)
+Eq (SmallSet a) =&gt;
+(SmallSet a -&gt; SmallSet a -&gt; Ordering)
+-&gt; (SmallSet a -&gt; SmallSet a -&gt; Bool)
+-&gt; (SmallSet a -&gt; SmallSet a -&gt; Bool)
+-&gt; (SmallSet a -&gt; SmallSet a -&gt; Bool)
+-&gt; (SmallSet a -&gt; SmallSet a -&gt; Bool)
+-&gt; (SmallSet a -&gt; SmallSet a -&gt; SmallSet a)
+-&gt; (SmallSet a -&gt; SmallSet a -&gt; SmallSet a)
+-&gt; Ord (SmallSet a)
+SmallSet a -&gt; SmallSet a -&gt; Bool
+SmallSet a -&gt; SmallSet a -&gt; Ordering
+SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+forall a. Eq (SmallSet a)
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+forall a. SmallSet a -&gt; SmallSet a -&gt; Ordering
+forall a. SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+$ccompare :: forall a. SmallSet a -&gt; SmallSet a -&gt; Ordering
+compare :: SmallSet a -&gt; SmallSet a -&gt; Ordering
+$c&lt; :: forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+&lt; :: SmallSet a -&gt; SmallSet a -&gt; Bool
+$c&lt;= :: forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+&lt;= :: SmallSet a -&gt; SmallSet a -&gt; Bool
+$c&gt; :: forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+&gt; :: SmallSet a -&gt; SmallSet a -&gt; Bool
+$c&gt;= :: forall a. SmallSet a -&gt; SmallSet a -&gt; Bool
+&gt;= :: SmallSet a -&gt; SmallSet a -&gt; Bool
+$cmax :: forall a. SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+max :: SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+$cmin :: forall a. SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+min :: SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681708906"><span id="local-6989586621681708912"><span id="local-6989586621681708916"><span class="annot"><span class="annottext">Int -&gt; SmallSet a -&gt; ShowS
+[SmallSet a] -&gt; ShowS
+SmallSet a -&gt; String
+(Int -&gt; SmallSet a -&gt; ShowS)
+-&gt; (SmallSet a -&gt; String)
+-&gt; ([SmallSet a] -&gt; ShowS)
+-&gt; Show (SmallSet a)
+forall a. Int -&gt; SmallSet a -&gt; ShowS
+forall a. [SmallSet a] -&gt; ShowS
+forall a. SmallSet a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Int -&gt; SmallSet a -&gt; ShowS
+showsPrec :: Int -&gt; SmallSet a -&gt; ShowS
+$cshow :: forall a. SmallSet a -&gt; String
+show :: SmallSet a -&gt; String
+$cshowList :: forall a. [SmallSet a] -&gt; ShowS
+showList :: [SmallSet a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681708921"><span class="annot"><span class="annottext">SmallSet a -&gt; ()
+(SmallSet a -&gt; ()) -&gt; NFData (SmallSet a)
+forall a. SmallSet a -&gt; ()
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: forall a. SmallSet a -&gt; ()
+rnf :: SmallSet a -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681708771"><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708771"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null.Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708771"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-63"></span><span>  </span><span id="local-6989586621681708934"><span class="annot"><span class="annottext">empty :: SmallSet a
+</span><a href="#local-6989586621681708934"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a
+forall a. SmallSetElement a =&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681708937"><span class="annot"><span class="annottext">null :: SmallSet a -&gt; Bool
+</span><a href="#local-6989586621681708937"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Bool
+forall a. SmallSetElement a =&gt; SmallSet a -&gt; Bool
+</span><a href="Agda.Utils.SmallSet.html#null"><span class="hs-identifier hs-var">null</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681708776"><span id="local-6989586621681708942"><span id="local-6989586621681708946"><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708776"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708776"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-67"></span><span>  </span><span id="local-6989586621681708952"><span class="annot"><span class="annottext">&lt;&gt; :: SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><span class="hs-operator hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+forall a.
+SmallSetElement a =&gt;
+SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#union"><span class="hs-identifier hs-var">union</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681708779"><span id="local-6989586621681708958"><span id="local-6989586621681708962"><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708779"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708779"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-70"></span><span>  </span><span id="local-6989586621681708966"><span class="annot"><span class="annottext">mempty :: SmallSet a
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a
+forall a. SmallSetElement a =&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="annot"><span class="hs-comment">-- * Query</span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><span class="hs-comment">-- | Time O(1).</span></span><span>
+</span><span id="line-75"></span><span id="local-6989586621681708967"><span class="annot"><a href="Agda.Utils.SmallSet.html#null"><span class="hs-identifier hs-type">null</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708967"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708967"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-76"></span><span id="null"><span class="annot"><span class="annottext">null :: forall a. SmallSetElement a =&gt; SmallSet a -&gt; Bool
+</span><a href="Agda.Utils.SmallSet.html#null"><span class="hs-identifier hs-var hs-var">null</span></a></span></span><span> </span><span id="local-6989586621681708972"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681708972"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681708972"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="annot"><span class="hs-comment">-- | Time O(1).</span></span><span>
+</span><span id="line-79"></span><span id="local-6989586621681708782"><span class="annot"><a href="Agda.Utils.SmallSet.html#member"><span class="hs-identifier hs-type">member</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708782"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681708782"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708782"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-80"></span><span id="member"><span class="annot"><span class="annottext">member :: forall a. SmallSetElement a =&gt; a -&gt; SmallSet a -&gt; Bool
+</span><a href="Agda.Utils.SmallSet.html#member"><span class="hs-identifier hs-var hs-var">member</span></a></span></span><span> </span><span id="local-6989586621681708977"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681708977"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681708978"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681708978"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681708978"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Int -&gt; Bool
+forall a. Bits a =&gt; a -&gt; Int -&gt; Bool
+</span><span class="hs-operator hs-var">`testBit`</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Int
+forall a. SmallSetElement a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.SmallSet.html#idx"><span class="hs-identifier hs-var">idx</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681708977"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><span class="hs-comment">-- | @not . member a@.  Time O(1).</span></span><span>
+</span><span id="line-83"></span><span id="local-6989586621681708981"><span class="annot"><a href="Agda.Utils.SmallSet.html#notMember"><span class="hs-identifier hs-type">notMember</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708981"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681708981"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708981"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-84"></span><span id="notMember"><span class="annot"><span class="annottext">notMember :: forall a. SmallSetElement a =&gt; a -&gt; SmallSet a -&gt; Bool
+</span><a href="Agda.Utils.SmallSet.html#notMember"><span class="hs-identifier hs-var hs-var">notMember</span></a></span></span><span> </span><span id="local-6989586621681708984"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681708984"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (SmallSet a -&gt; Bool) -&gt; SmallSet a -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; SmallSet a -&gt; Bool
+forall a. SmallSetElement a =&gt; a -&gt; SmallSet a -&gt; Bool
+</span><a href="Agda.Utils.SmallSet.html#member"><span class="hs-identifier hs-var">member</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681708984"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="annot"><span class="hs-comment">-- * Construction</span></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="annot"><span class="hs-comment">-- | The empty set.  Time O(1).</span></span><span>
+</span><span id="line-89"></span><span id="local-6989586621681708987"><span class="annot"><a href="Agda.Utils.SmallSet.html#empty"><span class="hs-identifier hs-type">empty</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708987"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708987"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-90"></span><span id="empty"><span class="annot"><span class="annottext">empty :: forall a. SmallSetElement a =&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#empty"><span class="hs-identifier hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><span class="hs-comment">-- | The full set.  Time O(1).</span></span><span>
+</span><span id="line-93"></span><span class="annot"><a href="Agda.Utils.SmallSet.html#total"><span class="hs-identifier hs-type">total</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681708990"><span class="annot"><a href="#local-6989586621681708990"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708990"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708990"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-94"></span><span id="total"><span class="annot"><span class="annottext">total :: forall a. SmallSetElement a =&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#total"><span class="hs-identifier hs-var hs-var">total</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a) -&gt; Word64 -&gt; SmallSet a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64
+forall a. Bits a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">Bits.complement</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="annot"><span class="hs-comment">-- | A singleton set.  Time O(1).</span></span><span>
+</span><span id="line-97"></span><span id="local-6989586621681708797"><span class="annot"><a href="Agda.Utils.SmallSet.html#singleton"><span class="hs-identifier hs-type">singleton</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708797"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681708797"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708797"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-98"></span><span id="singleton"><span class="annot"><span class="annottext">singleton :: forall a. SmallSetElement a =&gt; a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#singleton"><span class="hs-identifier hs-var hs-var">singleton</span></a></span></span><span> </span><span id="local-6989586621681708997"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681708997"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a) -&gt; Word64 -&gt; SmallSet a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Word64
+forall a. Bits a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">bit</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Int
+forall a. SmallSetElement a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.SmallSet.html#idx"><span class="hs-identifier hs-var">idx</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681708997"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><span class="hs-comment">-- | Time O(1).</span></span><span>
+</span><span id="line-101"></span><span id="local-6989586621681708799"><span class="annot"><a href="Agda.Utils.SmallSet.html#insert"><span class="hs-identifier hs-type">insert</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708799"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681708799"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708799"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708799"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-102"></span><span id="insert"><span class="annot"><span class="annottext">insert :: forall a. SmallSetElement a =&gt; a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#insert"><span class="hs-identifier hs-var hs-var">insert</span></a></span></span><span> </span><span id="local-6989586621681709002"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709002"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681709003"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709003"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a) -&gt; Word64 -&gt; SmallSet a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709003"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Int -&gt; Word64
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`setBit`</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Int
+forall a. SmallSetElement a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.SmallSet.html#idx"><span class="hs-identifier hs-var">idx</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709002"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="annot"><span class="hs-comment">-- | Time O(1).</span></span><span>
+</span><span id="line-105"></span><span id="local-6989586621681709005"><span class="annot"><a href="Agda.Utils.SmallSet.html#delete"><span class="hs-identifier hs-type">delete</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709005"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709005"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709005"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709005"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-106"></span><span id="delete"><span class="annot"><span class="annottext">delete :: forall a. SmallSetElement a =&gt; a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#delete"><span class="hs-identifier hs-var hs-var">delete</span></a></span></span><span> </span><span id="local-6989586621681709009"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709009"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681709010"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709010"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a) -&gt; Word64 -&gt; SmallSet a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709010"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Int -&gt; Word64
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`clearBit`</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Int
+forall a. SmallSetElement a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.SmallSet.html#idx"><span class="hs-identifier hs-var">idx</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709009"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="annot"><span class="hs-comment">-- * Combine</span></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="annot"><span class="hs-comment">-- | Time O(n).</span></span><span>
+</span><span id="line-111"></span><span id="local-6989586621681708802"><span class="annot"><a href="Agda.Utils.SmallSet.html#complement"><span class="hs-identifier hs-type">complement</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708802"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708802"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708802"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-112"></span><span id="complement"><span class="annot"><span class="annottext">complement :: forall a. SmallSetElement a =&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#complement"><span class="hs-identifier hs-var hs-var">complement</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a)
+-&gt; (SmallSet a -&gt; Word64) -&gt; SmallSet a -&gt; SmallSet a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64
+forall a. Bits a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">Bits.complement</span></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Word64)
+-&gt; (SmallSet a -&gt; Word64) -&gt; SmallSet a -&gt; Word64
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="annot"><span class="hs-comment">-- | Time O(1).</span></span><span>
+</span><span id="line-115"></span><span id="local-6989586621681709014"><span class="annot"><a href="Agda.Utils.SmallSet.html#difference"><span class="hs-identifier hs-type">difference</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#%5C%5C"><span class="hs-operator hs-type">(\\)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709014"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709014"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709014"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709014"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-116"></span><span id="difference"><span class="annot"><span class="annottext">difference :: forall a.
+SmallSetElement a =&gt;
+SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#difference"><span class="hs-identifier hs-var hs-var">difference</span></a></span></span><span> </span><span id="local-6989586621681709018"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709018"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681709019"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709019"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a) -&gt; Word64 -&gt; SmallSet a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709018"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word64
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.&amp;.</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64
+forall a. Bits a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">Bits.complement</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709019"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-117"></span><span id="%5C%5C"><span class="annot"><span class="annottext">\\ :: forall a.
+SmallSetElement a =&gt;
+SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#%5C%5C"><span class="hs-operator hs-var hs-var">(\\)</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+forall a.
+SmallSetElement a =&gt;
+SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#difference"><span class="hs-identifier hs-var">difference</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="annot"><span class="hs-comment">-- | Time O(1).</span></span><span>
+</span><span id="line-120"></span><span id="local-6989586621681709023"><span class="annot"><a href="Agda.Utils.SmallSet.html#intersection"><span class="hs-identifier hs-type">intersection</span></a></span><span> </span><span class="hs-glyph">::</span><span>  </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709023"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-121"></span><span id="intersection"><span class="annot"><span class="annottext">intersection :: forall a.
+SmallSetElement a =&gt;
+SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#intersection"><span class="hs-identifier hs-var hs-var">intersection</span></a></span></span><span> </span><span id="local-6989586621681709026"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709026"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681709027"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709027"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a) -&gt; Word64 -&gt; SmallSet a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709026"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word64
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.&amp;.</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709027"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="annot"><span class="hs-comment">-- | Time O(n).</span></span><span>
+</span><span id="line-124"></span><span id="local-6989586621681709028"><span class="annot"><a href="Agda.Utils.SmallSet.html#union"><span class="hs-identifier hs-type">union</span></a></span><span> </span><span class="hs-glyph">::</span><span>  </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709028"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709028"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709028"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709028"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-125"></span><span id="union"><span class="annot"><span class="annottext">union :: forall a.
+SmallSetElement a =&gt;
+SmallSet a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#union"><span class="hs-identifier hs-var hs-var">union</span></a></span></span><span> </span><span id="local-6989586621681709031"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709031"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681709032"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709032"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SmallSet a
+forall a. Word64 -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-var">SmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; SmallSet a) -&gt; Word64 -&gt; SmallSet a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709031"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word64
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.|.</span></span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709032"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="annot"><span class="hs-comment">-- * Conversion</span></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="annot"><span class="hs-comment">-- | Time O(n).</span></span><span>
+</span><span id="line-130"></span><span id="local-6989586621681708808"><span class="annot"><a href="Agda.Utils.SmallSet.html#elems"><span class="hs-identifier hs-type">elems</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#toList"><span class="hs-identifier hs-type">toList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#toAscList"><span class="hs-identifier hs-type">toAscList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708808"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708808"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681708808"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-131"></span><span id="elems"><span class="annot"><span class="annottext">elems :: forall a. SmallSetElement a =&gt; SmallSet a -&gt; [a]
+</span><a href="Agda.Utils.SmallSet.html#elems"><span class="hs-identifier hs-var hs-var">elems</span></a></span></span><span> </span><span id="local-6989586621681709040"><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709040"><span class="hs-identifier hs-var">s</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Bool) -&gt; [a] -&gt; [a]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681709041"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709041"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; Word64
+forall a. SmallSet a -&gt; Word64
+</span><a href="Agda.Utils.SmallSet.html#theSmallSet"><span class="hs-identifier hs-var">theSmallSet</span></a></span><span> </span><span class="annot"><span class="annottext">SmallSet a
+</span><a href="#local-6989586621681709040"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Int -&gt; Bool
+forall a. Bits a =&gt; a -&gt; Int -&gt; Bool
+</span><span class="hs-operator hs-var">`testBit`</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Int
+forall a. SmallSetElement a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.SmallSet.html#idx"><span class="hs-identifier hs-var">idx</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709041"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a, a) -&gt; [a]
+forall a. Ix a =&gt; (a, a) -&gt; [a]
+</span><span class="hs-identifier hs-var">range</span></span><span> </span><span class="annot"><span class="annottext">(a, a)
+forall a. SmallSetElement a =&gt; (a, a)
+</span><a href="Agda.Utils.SmallSet.html#bounds"><span class="hs-identifier hs-var">bounds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span id="toList"><span class="annot"><span class="annottext">toList :: forall a. SmallSetElement a =&gt; SmallSet a -&gt; [a]
+</span><a href="Agda.Utils.SmallSet.html#toList"><span class="hs-identifier hs-var hs-var">toList</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; [a]
+forall a. SmallSetElement a =&gt; SmallSet a -&gt; [a]
+</span><a href="Agda.Utils.SmallSet.html#elems"><span class="hs-identifier hs-var">elems</span></a></span><span>
+</span><span id="line-133"></span><span id="toAscList"><span class="annot"><span class="annottext">toAscList :: forall a. SmallSetElement a =&gt; SmallSet a -&gt; [a]
+</span><a href="Agda.Utils.SmallSet.html#toAscList"><span class="hs-identifier hs-var hs-var">toAscList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SmallSet a -&gt; [a]
+forall a. SmallSetElement a =&gt; SmallSet a -&gt; [a]
+</span><a href="Agda.Utils.SmallSet.html#elems"><span class="hs-identifier hs-var">elems</span></a></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="annot"><span class="hs-comment">-- | Time O(n).</span></span><span>
+</span><span id="line-136"></span><span id="local-6989586621681708815"><span class="annot"><a href="Agda.Utils.SmallSet.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#fromAscList"><span class="hs-identifier hs-type">fromAscList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#fromDistinctAscList"><span class="hs-identifier hs-type">fromDistinctAscList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708815"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681708815"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSet"><span class="hs-identifier hs-type">SmallSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708815"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-137"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: forall a. SmallSetElement a =&gt; [a] -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#fromList"><span class="hs-identifier hs-var hs-var">fromList</span></a></span></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SmallSet a -&gt; a -&gt; SmallSet a) -&gt; SmallSet a -&gt; [a] -&gt; SmallSet a
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl'</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; SmallSet a -&gt; SmallSet a) -&gt; SmallSet a -&gt; a -&gt; SmallSet a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; SmallSet a -&gt; SmallSet a
+forall a. SmallSetElement a =&gt; a -&gt; SmallSet a -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#insert"><span class="hs-identifier hs-var">insert</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SmallSet a
+forall a. SmallSetElement a =&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-138"></span><span id="fromAscList"><span class="annot"><span class="annottext">fromAscList :: forall a. SmallSetElement a =&gt; [a] -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#fromAscList"><span class="hs-identifier hs-var hs-var">fromAscList</span></a></span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; SmallSet a
+forall a. SmallSetElement a =&gt; [a] -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#fromList"><span class="hs-identifier hs-var">fromList</span></a></span><span>
+</span><span id="line-139"></span><span id="fromDistinctAscList"><span class="annot"><span class="annottext">fromDistinctAscList :: forall a. SmallSetElement a =&gt; [a] -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#fromDistinctAscList"><span class="hs-identifier hs-var hs-var">fromDistinctAscList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; SmallSet a
+forall a. SmallSetElement a =&gt; [a] -&gt; SmallSet a
+</span><a href="Agda.Utils.SmallSet.html#fromList"><span class="hs-identifier hs-var">fromList</span></a></span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><span class="hs-comment">-- * Internals</span></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span id="local-6989586621681708812"><span class="annot"><a href="Agda.Utils.SmallSet.html#bounds"><span class="hs-identifier hs-type">bounds</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708812"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681708812"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681708812"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-144"></span><span id="bounds"><span class="annot"><span class="annottext">bounds :: forall a. SmallSetElement a =&gt; (a, a)
+</span><a href="Agda.Utils.SmallSet.html#bounds"><span class="hs-identifier hs-var hs-var">bounds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span id="local-6989586621681708786"><span class="annot"><a href="Agda.Utils.SmallSet.html#idx"><span class="hs-identifier hs-type">idx</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.SmallSet.html#SmallSetElement"><span class="hs-identifier hs-type">SmallSetElement</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681708786"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681708786"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-147"></span><span id="idx"><span class="annot"><span class="annottext">idx :: forall a. SmallSetElement a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.SmallSet.html#idx"><span class="hs-identifier hs-var hs-var">idx</span></a></span></span><span> </span><span id="local-6989586621681709069"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709069"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, a) -&gt; a -&gt; Int
+forall a. Ix a =&gt; (a, a) -&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">index</span></span><span> </span><span class="annot"><span class="annottext">(a, a)
+forall a. SmallSetElement a =&gt; (a, a)
+</span><a href="Agda.Utils.SmallSet.html#bounds"><span class="hs-identifier hs-var">bounds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709069"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-148"></span></pre></body></html>

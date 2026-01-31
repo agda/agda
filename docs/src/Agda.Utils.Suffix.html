@@ -1,0 +1,276 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Suffix.html"><span class="hs-identifier">Agda.Utils.Suffix</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Subscript digits</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="annot"><span class="hs-comment">-- | Is the character one of the subscripts @'&#8320;'@-@'&#8329;'@?</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="annot"><a href="Agda.Utils.Suffix.html#isSubscriptDigit"><span class="hs-identifier hs-type">isSubscriptDigit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-16"></span><span id="isSubscriptDigit"><span class="annot"><span class="annottext">isSubscriptDigit :: Char -&gt; Bool
+</span><a href="Agda.Utils.Suffix.html#isSubscriptDigit"><span class="hs-identifier hs-var hs-var">isSubscriptDigit</span></a></span></span><span> </span><span id="local-6989586621681705153"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705153"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&#8320;'</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705153"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705153"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&#8329;'</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | Converts @'0'@-@'9'@ to @'&#8320;'@-@'&#8329;'@</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- Precondition: The digit needs to be in range.</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="annot"><a href="Agda.Utils.Suffix.html#toSubscriptDigit"><span class="hs-identifier hs-type">toSubscriptDigit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-23"></span><span id="toSubscriptDigit"><span class="annot"><span class="annottext">toSubscriptDigit :: Char -&gt; Char
+</span><a href="Agda.Utils.Suffix.html#toSubscriptDigit"><span class="hs-identifier hs-var hs-var">toSubscriptDigit</span></a></span></span><span> </span><span id="local-6989586621681705157"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705157"><span class="hs-identifier hs-var">d</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isDigit</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705157"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Char
+forall a. Enum a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">toEnum</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&#8320;'</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705157"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'0'</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- | Converts @'&#8320;'@-@'&#8329;'@ to @'0'@-@'9'@.</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- Precondition: The digit needs to be in range.</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Agda.Utils.Suffix.html#fromSubscriptDigit"><span class="hs-identifier hs-type">fromSubscriptDigit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-32"></span><span id="fromSubscriptDigit"><span class="annot"><span class="annottext">fromSubscriptDigit :: Char -&gt; Char
+</span><a href="Agda.Utils.Suffix.html#fromSubscriptDigit"><span class="hs-identifier hs-var hs-var">fromSubscriptDigit</span></a></span></span><span> </span><span id="local-6989586621681705164"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705164"><span class="hs-identifier hs-var">d</span></a></span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Agda.Utils.Suffix.html#isSubscriptDigit"><span class="hs-identifier hs-var">isSubscriptDigit</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705164"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Char
+forall a. Enum a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">toEnum</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'0'</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681705164"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'&#8320;'</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- Suffices</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><span class="hs-comment">-- | Classification of identifier variants.</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">data</span><span> </span><span id="Suffix"><span class="annot"><a href="Agda.Utils.Suffix.html#Suffix"><span class="hs-identifier hs-var">Suffix</span></a></span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Prime"><span class="annot"><a href="Agda.Utils.Suffix.html#Prime"><span class="hs-identifier hs-var">Prime</span></a></span></span><span>     </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Identifier ends in @Integer@ many primes.</span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Index"><span class="annot"><a href="Agda.Utils.Suffix.html#Index"><span class="hs-identifier hs-var">Index</span></a></span></span><span>     </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Identifier ends in number @Integer@ (ordinary digits).</span></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Subscript"><span class="annot"><a href="Agda.Utils.Suffix.html#Subscript"><span class="hs-identifier hs-var">Subscript</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Identifier ends in number @Integer@ (subscript digits).</span></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><span class="hs-comment">-- | Increase the suffix by one.</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Agda.Utils.Suffix.html#nextSuffix"><span class="hs-identifier hs-type">nextSuffix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Suffix.html#Suffix"><span class="hs-identifier hs-type">Suffix</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Suffix.html#Suffix"><span class="hs-identifier hs-type">Suffix</span></a></span><span>
+</span><span id="line-49"></span><span id="nextSuffix"><span class="annot"><span class="annottext">nextSuffix :: Suffix -&gt; Suffix
+</span><a href="Agda.Utils.Suffix.html#nextSuffix"><span class="hs-identifier hs-var hs-var">nextSuffix</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Suffix.html#Prime"><span class="hs-identifier hs-type">Prime</span></a></span><span> </span><span id="local-6989586621681705169"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705169"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Suffix
+</span><a href="Agda.Utils.Suffix.html#Prime"><span class="hs-identifier hs-var">Prime</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Suffix) -&gt; Integer -&gt; Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705169"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-50"></span><span class="annot"><a href="Agda.Utils.Suffix.html#nextSuffix"><span class="hs-identifier hs-var">nextSuffix</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Suffix.html#Index"><span class="hs-identifier hs-type">Index</span></a></span><span> </span><span id="local-6989586621681705170"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705170"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Suffix
+</span><a href="Agda.Utils.Suffix.html#Index"><span class="hs-identifier hs-var">Index</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Suffix) -&gt; Integer -&gt; Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705170"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Agda.Utils.Suffix.html#nextSuffix"><span class="hs-identifier hs-var">nextSuffix</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Suffix.html#Subscript"><span class="hs-identifier hs-type">Subscript</span></a></span><span> </span><span id="local-6989586621681705171"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705171"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Suffix
+</span><a href="Agda.Utils.Suffix.html#Subscript"><span class="hs-identifier hs-var">Subscript</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Suffix) -&gt; Integer -&gt; Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705171"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><span class="hs-comment">-- | Parse suffix.</span></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Agda.Utils.Suffix.html#suffixView"><span class="hs-identifier hs-type">suffixView</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Utils.Suffix.html#Suffix"><span class="hs-identifier hs-type">Suffix</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span id="suffixView"><span class="annot"><span class="annottext">suffixView :: String -&gt; (String, Maybe Suffix)
+</span><a href="Agda.Utils.Suffix.html#suffixView"><span class="hs-identifier hs-var hs-var">suffixView</span></a></span></span><span> </span><span id="local-6989586621681705173"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705173"><span class="hs-identifier hs-var">s</span></a></span></span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681705174"><span class="annot"><span class="annottext">ps :: String
+</span><a href="#local-6989586621681705174"><span class="hs-identifier hs-var">ps</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705175"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705175"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; String -&gt; (String, String)
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">span</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\''</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705177"><span class="hs-identifier hs-var">rs</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705175"><span class="hs-identifier hs-var">s'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Suffix -&gt; Maybe Suffix
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Suffix -&gt; Maybe Suffix) -&gt; Suffix -&gt; Maybe Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Suffix
+</span><a href="Agda.Utils.Suffix.html#Prime"><span class="hs-identifier hs-var">Prime</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Suffix) -&gt; Integer -&gt; Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Integer
+forall i a. Num i =&gt; [a] -&gt; i
+</span><span class="hs-identifier hs-var">List.genericLength</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705174"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681705180"><span class="annot"><span class="annottext">ns :: String
+</span><a href="#local-6989586621681705180"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705181"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705181"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; String -&gt; (String, String)
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">span</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isDigit</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705177"><span class="hs-identifier hs-var">rs</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705181"><span class="hs-identifier hs-var">s'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Suffix -&gt; Maybe Suffix
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Suffix -&gt; Maybe Suffix) -&gt; Suffix -&gt; Maybe Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Suffix
+</span><a href="Agda.Utils.Suffix.html#Index"><span class="hs-identifier hs-var">Index</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Suffix) -&gt; Integer -&gt; Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Integer
+forall a. Read a =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">read</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Integer) -&gt; String -&gt; Integer
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705180"><span class="hs-identifier hs-var">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681705183"><span class="annot"><span class="annottext">ns :: String
+</span><a href="#local-6989586621681705183"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681705184"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705184"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; String -&gt; (String, String)
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">span</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Agda.Utils.Suffix.html#isSubscriptDigit"><span class="hs-identifier hs-var">isSubscriptDigit</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705177"><span class="hs-identifier hs-var">rs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705184"><span class="hs-identifier hs-var">s'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Suffix -&gt; Maybe Suffix
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Suffix -&gt; Maybe Suffix) -&gt; Suffix -&gt; Maybe Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Suffix
+</span><a href="Agda.Utils.Suffix.html#Subscript"><span class="hs-identifier hs-var">Subscript</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Suffix) -&gt; Integer -&gt; Suffix
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Integer
+forall a. Read a =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">read</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Integer) -&gt; String -&gt; Integer
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-60"></span><span>                                                      </span><span class="annot"><span class="annottext">(Char -&gt; Char) -&gt; String -&gt; String
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="Agda.Utils.Suffix.html#fromSubscriptDigit"><span class="hs-identifier hs-var">fromSubscriptDigit</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; String) -&gt; String -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705183"><span class="hs-identifier hs-var">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>                                  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705173"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe Suffix
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681705177"><span class="annot"><span class="annottext">rs :: String
+</span><a href="#local-6989586621681705177"><span class="hs-identifier hs-var hs-var">rs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705173"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- Note: suffixView could be implemented using spanEnd, but the implementation using reverse</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- looks more efficient, since the reversal is only done once.</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- suffixView :: String -&gt; (String, Maybe Suffix)</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- suffixView s</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--     | (s', ps@(_:_)) &lt;- spanEnd (=='\'') s         = (s', Just $ Prime $ length ps)</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--     | (s', ns@(_:_)) &lt;- spanEnd isDigit s          = (s', Just $ Index $ read ns)</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--     | (s', ns@(_:_)) &lt;- spanEnd isSubscriptDigit s = (s', Just $ Subscript $ read $ map fromSubscriptDigit ns)</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--     | otherwise                                    = (s, Nothing)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><span class="hs-comment">-- | Print suffix.</span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Agda.Utils.Suffix.html#renderSuffix"><span class="hs-identifier hs-type">renderSuffix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Suffix.html#Suffix"><span class="hs-identifier hs-type">Suffix</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-77"></span><span id="renderSuffix"><span class="annot"><span class="annottext">renderSuffix :: Suffix -&gt; String
+</span><a href="Agda.Utils.Suffix.html#renderSuffix"><span class="hs-identifier hs-var hs-var">renderSuffix</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Suffix.html#Prime"><span class="hs-identifier hs-type">Prime</span></a></span><span> </span><span id="local-6989586621681705186"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705186"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Char -&gt; String
+forall i a. Integral i =&gt; i -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">List.genericReplicate</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705186"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\''</span></span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Agda.Utils.Suffix.html#renderSuffix"><span class="hs-identifier hs-var">renderSuffix</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Suffix.html#Index"><span class="hs-identifier hs-type">Index</span></a></span><span> </span><span id="local-6989586621681705188"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705188"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705188"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Agda.Utils.Suffix.html#renderSuffix"><span class="hs-identifier hs-var">renderSuffix</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Suffix.html#Subscript"><span class="hs-identifier hs-type">Subscript</span></a></span><span> </span><span id="local-6989586621681705190"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705190"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Char) -&gt; String -&gt; String
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="Agda.Utils.Suffix.html#toSubscriptDigit"><span class="hs-identifier hs-var">toSubscriptDigit</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681705190"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="annot"><a href="Agda.Utils.Suffix.html#addSuffix"><span class="hs-identifier hs-type">addSuffix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Suffix.html#Suffix"><span class="hs-identifier hs-type">Suffix</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-82"></span><span id="addSuffix"><span class="annot"><span class="annottext">addSuffix :: String -&gt; Suffix -&gt; String
+</span><a href="Agda.Utils.Suffix.html#addSuffix"><span class="hs-identifier hs-var hs-var">addSuffix</span></a></span></span><span> </span><span id="local-6989586621681705192"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705192"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span id="local-6989586621681705193"><span class="annot"><span class="annottext">Suffix
+</span><a href="#local-6989586621681705193"><span class="hs-identifier hs-var">suffix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681705192"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Suffix -&gt; String
+</span><a href="Agda.Utils.Suffix.html#renderSuffix"><span class="hs-identifier hs-var">renderSuffix</span></a></span><span> </span><span class="annot"><span class="annottext">Suffix
+</span><a href="#local-6989586621681705193"><span class="hs-identifier hs-var">suffix</span></a></span><span>
+</span><span id="line-83"></span></pre></body></html>

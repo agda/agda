@@ -1,0 +1,410 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-binds   #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- | Tools for shell completion scripts.</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Bash completion takes a list of completion words (the current commandline)</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- and a completion index (the current word to be completed) and returns</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- a list of possible completions of this word.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- To do bash completion /inside/ Agda, we need to pass this data to Agda.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- So we equip Agda with a special option @--bash-completion@ which takes</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- first the completion index (number) and then the completion words.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- E.g.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--    agda --bash-completion 1 --warn</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- This should complete @--warn@ to @--warning=@.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--    agda --bash-completion 1 --warning=</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- This would list the possible values for WARNING.</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- However, these are too many and one may get the annoying question</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- whether one really wants to see all.</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- So we should only produce a small enough list.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- We show the common prefixes of all values up to a maximal number (threshold).</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- To this end, we may store the possible completion as a compressed trie</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- where instead of letters we use maximal non-overlapping prefixes.</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- Then we compute a fair truncation of the tree so that the</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- total number of leaves stay below the threshold.</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html"><span class="hs-identifier">Agda.Interaction.Options.BashCompletion</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">first</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>       </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Read</span></span><span>      </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">readMaybe</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html"><span class="hs-identifier">Agda.Interaction.Options.Arguments</span></a></span><span>      </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#optionValues"><span class="hs-identifier">optionValues</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html"><span class="hs-identifier">Agda.Interaction.Options.Base</span></a></span><span>           </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#standardOptions"><span class="hs-identifier">standardOptions</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html"><span class="hs-identifier">Agda.Utils.Function</span></a></span><span>       </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html#applyWhenJust"><span class="hs-identifier">applyWhenJust</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html"><span class="hs-identifier">Agda.Utils.GetOpt</span></a></span><span>         </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier">OptDescr</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ArgDescr"><span class="hs-identifier">ArgDescr</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>           </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#%21%21%21"><span class="hs-operator">(!!!)</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>          </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html"><span class="hs-identifier">Agda.Utils.Trie</span></a></span><span>           </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier">Trie</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html"><span class="hs-identifier">Agda.Utils.Trie</span></a></span><span>           </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trie</span></span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.CompressedTrie.html"><span class="hs-identifier">Agda.Utils.CompressedTrie</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">CompressedTrie</span></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">type</span><span> </span><span id="Help"><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Help"><span class="hs-identifier hs-var">Help</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#printedOptions"><span class="hs-identifier hs-type">printedOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-60"></span><span id="printedOptions"><span class="annot"><span class="annottext">printedOptions :: [Help]
+</span><a href="Agda.Interaction.Options.BashCompletion.html#printedOptions"><span class="hs-identifier hs-var hs-var">printedOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Help, Help) -&gt; Help) -&gt; [(Help, Help)] -&gt; [Help]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Help, Help) -&gt; Help
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[(Help, Help)]
+</span><a href="Agda.Interaction.Options.BashCompletion.html#printedOptionsWithHelp"><span class="hs-identifier hs-var">printedOptionsWithHelp</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#printedOptionsWithHelp"><span class="hs-identifier hs-type">printedOptionsWithHelp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Help"><span class="hs-identifier hs-type">Help</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span id="printedOptionsWithHelp"><span class="annot"><span class="annottext">printedOptionsWithHelp :: [(Help, Help)]
+</span><a href="Agda.Interaction.Options.BashCompletion.html#printedOptionsWithHelp"><span class="hs-identifier hs-var hs-var">printedOptionsWithHelp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[OptDescr (Flag CommandLineOptions)] -&gt; [(Help, Help)]
+forall a. [OptDescr a] -&gt; [(Help, Help)]
+</span><a href="Agda.Interaction.Options.BashCompletion.html#printOptions"><span class="hs-identifier hs-var">printOptions</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr (Flag CommandLineOptions)]
+</span><a href="Agda.Interaction.Options.Base.html#standardOptions"><span class="hs-identifier hs-var">standardOptions</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- | Print just the names of the given options (e.g. for bash completion scripts).</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--   For long options with finitely enumerable arguments, print all variants.</span><span>
+</span><span id="line-67"></span><span id="local-6989586621681820532"><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#printOptions"><span class="hs-identifier hs-type">printOptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptDescr"><span class="hs-identifier hs-type">OptDescr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681820532"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Help"><span class="hs-identifier hs-type">Help</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-68"></span><span id="printOptions"><span class="annot"><span class="annottext">printOptions :: forall a. [OptDescr a] -&gt; [(Help, Help)]
+</span><a href="Agda.Interaction.Options.BashCompletion.html#printOptions"><span class="hs-identifier hs-var hs-var">printOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[[(Help, Help)]] -&gt; [(Help, Help)]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="annot"><span class="annottext">([[(Help, Help)]] -&gt; [(Help, Help)])
+-&gt; ([OptDescr a] -&gt; [[(Help, Help)]])
+-&gt; [OptDescr a]
+-&gt; [(Help, Help)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(OptDescr a -&gt; [(Help, Help)]) -&gt; [OptDescr a] -&gt; [[(Help, Help)]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><a href="Agda.Utils.GetOpt.html#Option"><span class="hs-identifier hs-type">Option</span></a></span><span> </span><span id="local-6989586621681820642"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820642"><span class="hs-identifier hs-var">short</span></a></span></span><span> </span><span id="local-6989586621681820643"><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820643"><span class="hs-identifier hs-var">long</span></a></span></span><span> </span><span id="local-6989586621681820644"><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681820644"><span class="hs-identifier hs-var">arg</span></a></span></span><span> </span><span id="local-6989586621681820645"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820645"><span class="hs-identifier hs-var">help</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[[(Help, Help)]] -&gt; [(Help, Help)]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="annot"><span class="annottext">([[(Help, Help)]] -&gt; [(Help, Help)])
+-&gt; [[(Help, Help)]] -&gt; [(Help, Help)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><span class="annottext">(Help -&gt; (Help, Help)) -&gt; [Help] -&gt; [(Help, Help)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820645"><span class="hs-identifier hs-var">help</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820646"><span class="hs-identifier hs-var">ss</span></a></span><span> </span><span class="annot"><span class="annottext">[(Help, Help)] -&gt; [[(Help, Help)]] -&gt; [[(Help, Help)]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="annottext">(Help -&gt; (Help, Help)) -&gt; [Help] -&gt; [(Help, Help)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820645"><span class="hs-identifier hs-var">help</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820647"><span class="hs-identifier hs-var">ls</span></a></span><span> </span><span class="annot"><span class="annottext">[(Help, Help)] -&gt; [[(Help, Help)]] -&gt; [[(Help, Help)]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><span class="annottext">([Help] -&gt; [(Help, Help)]) -&gt; [[Help]] -&gt; [[(Help, Help)]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Help -&gt; (Help, Help)) -&gt; [Help] -&gt; [(Help, Help)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820648"><span class="hs-identifier hs-var">noHelp</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820649"><span class="hs-identifier hs-var">s</span></a></span><span>        </span><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Help
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820650"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681820649"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820649"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820646"><span class="hs-identifier hs-var">ss</span></a></span><span> </span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Help] -&gt; [Help] -&gt; [Help]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-74"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820651"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Help
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><span class="hs-string">&quot;=&quot;</span></span><span> </span><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Help
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820650"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681820651"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820651"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820647"><span class="hs-identifier hs-var">ls</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681820650"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820650"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820652"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-78"></span><span>      </span><span class="annot"><a href="#local-6989586621681820646"><span class="hs-identifier hs-type">ss</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-79"></span><span>      </span><span id="local-6989586621681820646"><span class="annot"><span class="annottext">ss :: [Help]
+</span><a href="#local-6989586621681820646"><span class="hs-identifier hs-var hs-var">ss</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Help -&gt; Help
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681820653"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Help -&gt; Help
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681820653"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681820653"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820642"><span class="hs-identifier hs-var">short</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-80"></span><span>      </span><span class="annot"><a href="#local-6989586621681820647"><span class="hs-identifier hs-type">ls</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-81"></span><span>      </span><span id="local-6989586621681820647"><span class="annot"><span class="annottext">ls :: [Help]
+</span><a href="#local-6989586621681820647"><span class="hs-identifier hs-var hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Help
+</span><span class="hs-string">&quot;--&quot;</span></span><span> </span><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Help
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820654"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681820654"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820654"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820643"><span class="hs-identifier hs-var">long</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-82"></span><span>      </span><span class="annot"><a href="#local-6989586621681820652"><span class="hs-keyword hs-type">as</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-83"></span><span>      </span><span id="local-6989586621681820652"><span class="annot"><span class="annottext">as :: [Help]
+</span><a href="#local-6989586621681820652"><span class="hs-keyword hs-var hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Help] -&gt; Maybe [Help] -&gt; [Help]
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-84"></span><span>        </span><span id="local-6989586621681820656"><span class="annot"><a href="#local-6989586621681820656"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe Help
+</span><a href="#local-6989586621681820657"><span class="hs-identifier hs-var">argType</span></a></span><span>
+</span><span id="line-85"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Map.lookup</span></span><span> </span><span class="annot"><a href="#local-6989586621681820656"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Arguments.html#optionValues"><span class="hs-identifier hs-type">optionValues</span></a></span><span>
+</span><span id="line-86"></span><span>      </span><span class="annot"><a href="#local-6989586621681820657"><span class="hs-identifier hs-type">argType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-87"></span><span>      </span><span id="local-6989586621681820657"><span class="annot"><span class="annottext">argType :: Maybe Help
+</span><a href="#local-6989586621681820657"><span class="hs-identifier hs-var hs-var">argType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681820644"><span class="hs-identifier hs-var">arg</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-88"></span><span>        </span><span class="annot"><a href="Agda.Utils.GetOpt.html#NoArg"><span class="hs-identifier hs-type">NoArg</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Help
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-89"></span><span>        </span><span class="annot"><a href="Agda.Utils.GetOpt.html#ReqArg"><span class="hs-identifier hs-type">ReqArg</span></a></span><span> </span><span class="annot"><span class="annottext">Help -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681820661"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820661"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Help -&gt; Maybe Help
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820661"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-90"></span><span>        </span><span class="annot"><a href="Agda.Utils.GetOpt.html#OptArg"><span class="hs-identifier hs-type">OptArg</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Help -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681820663"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820663"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Help -&gt; Maybe Help
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820663"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-91"></span><span>      </span><span class="annot"><a href="#local-6989586621681820648"><span class="hs-identifier hs-type">noHelp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Help"><span class="hs-identifier hs-type">Help</span></a></span><span>
+</span><span id="line-92"></span><span>      </span><span id="local-6989586621681820648"><span class="annot"><span class="annottext">noHelp :: Help
+</span><a href="#local-6989586621681820648"><span class="hs-identifier hs-var hs-var">noHelp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Help
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="annot"><span class="hs-comment">-- | Should the 'completions' be truncated to a given maximum number of prefixes?</span></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">type</span><span> </span><span id="Truncate"><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Truncate"><span class="hs-identifier hs-var">Truncate</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | Handle the option @--bash-complete@.</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--   It expects the index @COMP_CWORD@ as first argument</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--   that tells which of the following arguments @COMP_WORDS@</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--   is supposed to be completed.</span><span>
+</span><span id="line-101"></span><span class="hs-comment">--</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--   It either returns an error message or the result for @COMPREPLY@.</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--</span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#bashComplete"><span class="hs-identifier hs-type">bashComplete</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-105"></span><span>     </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Truncate"><span class="hs-identifier hs-type">Truncate</span></a></span><span>
+</span><span id="line-106"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Truncate completions suggestions?  To how many?</span></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-108"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Arguments following @--bash-complete@.</span></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-110"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Error or @COMPREPLY@.</span></span><span>
+</span><span id="line-111"></span><span id="bashComplete"><span class="annot"><span class="annottext">bashComplete :: Truncate -&gt; [Help] -&gt; Either Help Help
+</span><a href="Agda.Interaction.Options.BashCompletion.html#bashComplete"><span class="hs-identifier hs-var hs-var">bashComplete</span></a></span></span><span> </span><span id="local-6989586621681820666"><span class="annot"><span class="annottext">Truncate
+</span><a href="#local-6989586621681820666"><span class="hs-identifier hs-var">tr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-112"></span><span>  </span><span id="local-6989586621681820667"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820667"><span class="hs-identifier hs-var">cword</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681820668"><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820668"><span class="hs-identifier hs-var">words</span></a></span></span><span>
+</span><span id="line-113"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681820669"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681820669"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Help -&gt; Truncate
+forall a. Read a =&gt; Help -&gt; Maybe a
+</span><span class="hs-identifier hs-var">readMaybe</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820667"><span class="hs-identifier hs-var">cword</span></a></span><span>
+</span><span id="line-114"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Help] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820668"><span class="hs-identifier hs-var">words</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681820669"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681820672"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820672"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820668"><span class="hs-identifier hs-var">words</span></a></span><span> </span><span class="annot"><span class="annottext">[Help] -&gt; Int -&gt; Maybe Help
+forall a. [a] -&gt; Int -&gt; Maybe a
+</span><a href="Agda.Utils.List.html#%21%21%21"><span class="hs-operator hs-var">!!!</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681820669"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-116"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Truncate -&gt; Help -&gt; Completion
+</span><a href="Agda.Interaction.Options.BashCompletion.html#complete"><span class="hs-identifier hs-var">complete</span></a></span><span> </span><span class="annot"><span class="annottext">Truncate
+</span><a href="#local-6989586621681820666"><span class="hs-identifier hs-var">tr</span></a></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820672"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-117"></span><span>        </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-type">Completion</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681820675"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820675"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(Help, Help)]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Help -&gt; Either Help Help
+forall a. a -&gt; Either Help a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820675"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-118"></span><span>        </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-type">Completion</span></a></span><span> </span><span id="local-6989586621681820676"><span class="annot"><span class="annottext">Maybe Help
+</span><a href="#local-6989586621681820676"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681820677"><span class="annot"><span class="annottext">[(Help, Help)]
+</span><a href="#local-6989586621681820677"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-119"></span><span>          </span><span class="annot"><span class="annottext">Help -&gt; Either Help Help
+forall a. a -&gt; Either Help a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Help -&gt; Either Help Help) -&gt; Help -&gt; Either Help Help
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Help] -&gt; Help
+</span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="annot"><span class="annottext">([Help] -&gt; Help) -&gt; [Help] -&gt; Help
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[[Help]] -&gt; [Help]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span>
+</span><span id="line-120"></span><span>            </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Maybe Help -&gt; [Help]
+forall a. Maybe a -&gt; [a]
+</span><span class="hs-identifier hs-var">maybeToList</span></span><span> </span><span class="annot"><span class="annottext">Maybe Help
+</span><a href="#local-6989586621681820676"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-121"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">((Help, Help) -&gt; Help) -&gt; [(Help, Help)] -&gt; [Help]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Help, Help) -&gt; Help
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[(Help, Help)]
+</span><a href="#local-6989586621681820677"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-122"></span><span>            </span><span class="hs-special">]</span><span>
+</span><span id="line-123"></span><span>  </span><span id="local-6989586621681820680"><span class="annot"><span class="annottext">[Help]
+</span><a href="#local-6989586621681820680"><span class="hs-identifier hs-var">_args</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Help -&gt; Either Help Help
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><span class="hs-string">&quot;Error: Wrong invokation of --bash-complete&quot;</span></span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="annot"><span class="hs-comment">-- | The result of an invokation of (bash) completion.</span></span><span>
+</span><span id="line-126"></span><span class="hs-keyword">data</span><span> </span><span id="Completion"><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-var">Completion</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Completion"><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-var">Completion</span></a></span></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="extended"><span class="annot"><span class="annottext">Completion -&gt; Maybe Help
+</span><a href="Agda.Interaction.Options.BashCompletion.html#extended"><span class="hs-identifier hs-var hs-var">extended</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-128"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ If 'Nothing', then the completion word cannot become a valid option ever.</span></span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="completions"><span class="annot"><span class="annottext">Completion -&gt; [(Help, Help)]
+</span><a href="Agda.Interaction.Options.BashCompletion.html#completions"><span class="hs-identifier hs-var hs-var">completions</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Help"><span class="hs-identifier hs-type">Help</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-130"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ If 'null', the 'extended' word cannot be further completed.</span></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><span class="hs-comment">-- | Cached trie of options.</span></span><span>
+</span><span id="line-134"></span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#optionsTrie"><span class="hs-identifier hs-type">optionsTrie</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Trie</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Help"><span class="hs-identifier hs-type">Help</span></a></span><span>
+</span><span id="line-135"></span><span id="optionsTrie"><span class="annot"><span class="annottext">optionsTrie :: Trie Char Help
+</span><a href="Agda.Interaction.Options.BashCompletion.html#optionsTrie"><span class="hs-identifier hs-var hs-var">optionsTrie</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(Help, Help)] -&gt; Trie Char Help
+forall k v. Ord k =&gt; [([k], v)] -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#fromList"><span class="hs-identifier hs-var">Trie.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">[(Help, Help)]
+</span><a href="Agda.Interaction.Options.BashCompletion.html#printedOptionsWithHelp"><span class="hs-identifier hs-var">printedOptionsWithHelp</span></a></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">-- | Complete the given word as an option.</span></span><span>
+</span><span id="line-138"></span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#complete"><span class="hs-identifier hs-type">complete</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Truncate"><span class="hs-identifier hs-type">Truncate</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-type">Completion</span></a></span><span>
+</span><span id="line-139"></span><span id="complete"><span class="annot"><span class="annottext">complete :: Truncate -&gt; Help -&gt; Completion
+</span><a href="Agda.Interaction.Options.BashCompletion.html#complete"><span class="hs-identifier hs-var hs-var">complete</span></a></span></span><span> </span><span id="local-6989586621681820685"><span class="annot"><span class="annottext">Truncate
+</span><a href="#local-6989586621681820685"><span class="hs-identifier hs-var">trunc</span></a></span></span><span> </span><span id="local-6989586621681820686"><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820686"><span class="hs-identifier hs-var">s</span></a></span></span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-comment">-- No completion possible?</span><span>
+</span><span id="line-141"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Trie Char Help -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Trie Char Help
+</span><a href="#local-6989586621681820687"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-142"></span><span>      </span><span class="annot"><span class="annottext">Maybe Help -&gt; [(Help, Help)] -&gt; Completion
+</span><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-var">Completion</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Help
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-comment">-- Unambiguously (partially) complete by at least one letter.</span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681820688"><span class="annot"><span class="annottext">List1 Char
+</span><a href="#local-6989586621681820688"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681820689"><span class="annot"><span class="annottext">Trie Char Help
+</span><a href="#local-6989586621681820689"><span class="hs-identifier hs-var">_t'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Trie Char Help -&gt; Maybe (List1 Char, Trie Char Help)
+forall k v. Trie k v -&gt; Maybe (List1 k, Trie k v)
+</span><a href="Agda.Utils.CompressedTrie.html#isSingleBranch"><span class="hs-identifier hs-var">CompressedTrie.isSingleBranch</span></a></span><span> </span><span class="annot"><span class="annottext">Trie Char Help
+</span><a href="#local-6989586621681820687"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-145"></span><span>      </span><span class="annot"><span class="annottext">Maybe Help -&gt; [(Help, Help)] -&gt; Completion
+</span><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-var">Completion</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Help -&gt; Maybe Help
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Help -&gt; Maybe Help) -&gt; Help -&gt; Maybe Help
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820686"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Help
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">List1 Char -&gt; [Item (List1 Char)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">List1 Char
+</span><a href="#local-6989586621681820688"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(Help, Help)]
+</span><a href="#local-6989586621681820691"><span class="hs-identifier hs-var">compls</span></a></span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-comment">-- No unambiguous completion possible: just return suggestions.</span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-148"></span><span>      </span><span class="annot"><span class="annottext">Maybe Help -&gt; [(Help, Help)] -&gt; Completion
+</span><a href="Agda.Interaction.Options.BashCompletion.html#Completion"><span class="hs-identifier hs-var">Completion</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Help
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">[(Help, Help)]
+</span><a href="#local-6989586621681820691"><span class="hs-identifier hs-var">compls</span></a></span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-150"></span><span>    </span><span class="hs-comment">-- The possible suffixes.</span><span>
+</span><span id="line-151"></span><span>    </span><span id="local-6989586621681820687"><span class="annot"><span class="annottext">t :: Trie Char Help
+</span><a href="#local-6989586621681820687"><span class="hs-identifier hs-var hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Trie Char Help -&gt; Trie Char Help
+forall k v. Ord k =&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#compress"><span class="hs-identifier hs-var">CompressedTrie.compress</span></a></span><span> </span><span class="annot"><span class="annottext">(Trie Char Help -&gt; Trie Char Help)
+-&gt; Trie Char Help -&gt; Trie Char Help
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Help -&gt; Trie Char Help -&gt; Trie Char Help
+forall k v. Ord k =&gt; [k] -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#delete"><span class="hs-identifier hs-var">Trie.delete</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(Trie Char Help -&gt; Trie Char Help)
+-&gt; Trie Char Help -&gt; Trie Char Help
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Help -&gt; Trie Char Help -&gt; Trie Char Help
+forall k v. Ord k =&gt; [k] -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#lookupTrie"><span class="hs-identifier hs-var">Trie.lookupTrie</span></a></span><span> </span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820686"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Trie Char Help
+</span><a href="Agda.Interaction.Options.BashCompletion.html#optionsTrie"><span class="hs-identifier hs-var">optionsTrie</span></a></span><span>
+</span><span id="line-152"></span><span>    </span><span class="hs-comment">-- The possibly truncated list of completions.</span><span>
+</span><span id="line-153"></span><span>    </span><span id="local-6989586621681820691"><span class="annot"><span class="annottext">compls :: [(Help, Help)]
+</span><a href="#local-6989586621681820691"><span class="hs-identifier hs-var hs-var">compls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Help, Help) -&gt; (Help, Help)) -&gt; [(Help, Help)] -&gt; [(Help, Help)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Help -&gt; Help) -&gt; (Help, Help) -&gt; (Help, Help)
+forall a b c. (a -&gt; b) -&gt; (a, c) -&gt; (b, c)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; p a c -&gt; p b c
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Help
+</span><a href="#local-6989586621681820686"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Help
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(Help, Help)] -&gt; [(Help, Help)])
+-&gt; [(Help, Help)] -&gt; [(Help, Help)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Trie Char Help -&gt; [(Help, Help)]
+forall k v. Ord k =&gt; Trie k v -&gt; [([k], v)]
+</span><a href="Agda.Utils.CompressedTrie.html#toList"><span class="hs-identifier hs-var">CompressedTrie.toList</span></a></span><span> </span><span class="annot"><span class="annottext">(Trie Char Help -&gt; [(Help, Help)])
+-&gt; Trie Char Help -&gt; [(Help, Help)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Help -&gt; Trie Char Help) -&gt; Trie Char Help -&gt; Trie Char Help
+forall v k. (Maybe v -&gt; Trie k v) -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#substLeaves"><span class="hs-identifier hs-var">CompressedTrie.substLeaves</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Help -&gt; Trie Char Help
+</span><a href="#local-6989586621681820697"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Trie Char Help
+</span><a href="#local-6989586621681820698"><span class="hs-identifier hs-var">tt</span></a></span><span>
+</span><span id="line-154"></span><span>      </span><span class="hs-keyword">where</span><span>
+</span><span id="line-155"></span><span>        </span><span class="hs-comment">-- t truncated.</span><span>
+</span><span id="line-156"></span><span>        </span><span id="local-6989586621681820698"><span class="annot"><span class="annottext">tt :: Trie Char Help
+</span><a href="#local-6989586621681820698"><span class="hs-identifier hs-var hs-var">tt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Truncate
+-&gt; (Int -&gt; Trie Char Help -&gt; Trie Char Help)
+-&gt; Trie Char Help
+-&gt; Trie Char Help
+forall b a. Maybe b -&gt; (b -&gt; a -&gt; a) -&gt; a -&gt; a
+</span><a href="Agda.Utils.Function.html#applyWhenJust"><span class="hs-identifier hs-var">applyWhenJust</span></a></span><span> </span><span class="annot"><span class="annottext">Truncate
+</span><a href="#local-6989586621681820685"><span class="hs-identifier hs-var">trunc</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Trie Char Help -&gt; Trie Char Help
+forall k v. Int -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#truncateSizeWithLeaves"><span class="hs-identifier hs-var">CompressedTrie.truncateSizeWithLeaves</span></a></span><span> </span><span class="annot"><span class="annottext">Trie Char Help
+</span><a href="#local-6989586621681820687"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-157"></span><span>        </span><span class="hs-comment">-- Replace empty leaves by &quot;...&quot; branches.</span><span>
+</span><span id="line-158"></span><span>        </span><span id="local-6989586621681820697"><span class="annot"><span class="annottext">f :: Maybe Help -&gt; Trie Char Help
+</span><a href="#local-6989586621681820697"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Trie Char Help
+-&gt; (Help -&gt; Trie Char Help) -&gt; Maybe Help -&gt; Trie Char Help
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Help -&gt; Help -&gt; Trie Char Help
+forall k v. [k] -&gt; v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#singleton"><span class="hs-identifier hs-var">CompressedTrie.singleton</span></a></span><span> </span><span class="annot"><span class="annottext">Help
+</span><span class="hs-string">&quot;...&quot;</span></span><span> </span><span class="annot"><span class="annottext">Help
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Help -&gt; Trie Char Help
+forall v k. v -&gt; Trie k v
+</span><a href="Agda.Utils.CompressedTrie.html#root"><span class="hs-identifier hs-var">CompressedTrie.root</span></a></span><span>
+</span><span id="line-159"></span></pre></body></html>

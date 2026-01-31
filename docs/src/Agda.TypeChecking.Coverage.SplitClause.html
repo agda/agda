@@ -1,0 +1,275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">{-| SplitClause and CoverResult types.
+ -}</span></span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html"><span class="hs-identifier">Agda.TypeChecking.Coverage.SplitClause</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(!!)</span></span><span class="hs-special">)</span><span>  </span><span class="hs-comment">-- do not use partial functions like !!</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntSet</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntSet</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntSet</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntSet</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#DataOrRecord"><span class="hs-identifier">DataOrRecord</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier">Pretty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier">pretty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier">prettyShow</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.Match.html"><span class="hs-identifier">Agda.TypeChecking.Coverage.Match</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitPattern.html"><span class="hs-identifier">Agda.TypeChecking.Coverage.SplitPattern</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html"><span class="hs-identifier">Agda.TypeChecking.Coverage.SplitTree</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Reduce</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Records.html"><span class="hs-identifier">Agda.TypeChecking.Records</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Telescope.html"><span class="hs-identifier">Agda.TypeChecking.Telescope</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Telescope.Path.html"><span class="hs-identifier">Agda.TypeChecking.Telescope.Path</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.MetaVars.html"><span class="hs-identifier">Agda.TypeChecking.MetaVars</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html"><span class="hs-identifier">Agda.TypeChecking.Warnings</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Either.html"><span class="hs-identifier">Agda.Utils.Either</span></a></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Permutation.html"><span class="hs-identifier">Agda.Utils.Permutation</span></a></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Size.html"><span class="hs-identifier">Agda.Utils.Size</span></a></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html"><span class="hs-identifier">Agda.Utils.WithDefault</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">data</span><span> </span><span id="SplitClause"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SplitClause"><span class="hs-identifier hs-var">SplitClause</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SClause"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SClause"><span class="hs-identifier hs-var">SClause</span></a></span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="scTel"><span class="annot"><span class="annottext">SplitClause -&gt; Telescope
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scTel"><span class="hs-identifier hs-var hs-var">scTel</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Type of variables in @scPats@.</span></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="scPats"><span class="annot"><span class="annottext">SplitClause -&gt; [NamedArg SplitPattern]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scPats"><span class="hs-identifier hs-var hs-var">scPats</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#NamedArg"><span class="hs-identifier hs-type">NamedArg</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitPattern.html#SplitPattern"><span class="hs-identifier hs-type">SplitPattern</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-comment">-- ^ The patterns leading to the currently considered branch of</span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-comment">--   the split tree.</span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="scSubst"><span class="annot"><span class="annottext">SplitClause -&gt; Substitution' SplitPattern
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scSubst"><span class="hs-identifier hs-var hs-var">scSubst</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Substitution%27"><span class="hs-identifier hs-type">Substitution'</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitPattern.html#SplitPattern"><span class="hs-identifier hs-type">SplitPattern</span></a></span><span>
+</span><span id="line-54"></span><span>    </span><span class="hs-comment">-- ^ Substitution from 'scTel' to old context.</span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-comment">--   Only needed directly after split on variable:</span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-comment">--   * To update 'scTarget'</span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-comment">--   * To rename other split variables when splitting on</span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-comment">--     multiple variables.</span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-comment">--   @scSubst@ is not ``transitive'', i.e., does not record</span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-comment">--   the substitution from the original context to 'scTel'</span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-comment">--   over a series of splits.  It is freshly computed</span><span>
+</span><span id="line-62"></span><span>    </span><span class="hs-comment">--   after each split by 'computeNeighborhood'; also</span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-comment">--   'splitResult', which does not split on a variable,</span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-comment">--   should reset it to the identity 'idS', lest it be</span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-comment">--   applied to 'scTarget' again, leading to Issue 1294.</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="scCheckpoints"><span class="annot"><span class="annottext">SplitClause -&gt; Map CheckpointId Substitution
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scCheckpoints"><span class="hs-identifier hs-var hs-var">scCheckpoints</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#CheckpointId"><span class="hs-identifier hs-type">CheckpointId</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Substitution"><span class="hs-identifier hs-type">Substitution</span></a></span><span>
+</span><span id="line-67"></span><span>    </span><span class="hs-comment">-- ^ We need to keep track of the module parameter checkpoints for the</span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-comment">-- clause for the purpose of inferring missing instance clauses.</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="scTarget"><span class="annot"><span class="annottext">SplitClause -&gt; Maybe (Dom Type)
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scTarget"><span class="hs-identifier hs-var hs-var">scTarget</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-comment">-- ^ The type of the rhs, living in context 'scTel'.</span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-comment">--   'fixTargetType' computes the new 'scTarget' by applying</span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-comment">--   substitution 'scSubst'.</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621682114076"><span id="local-6989586621682114095"><span id="local-6989586621682114099"><span class="annot"><span class="annottext">Int -&gt; SplitClause -&gt; ShowS
+[SplitClause] -&gt; ShowS
+SplitClause -&gt; String
+(Int -&gt; SplitClause -&gt; ShowS)
+-&gt; (SplitClause -&gt; String)
+-&gt; ([SplitClause] -&gt; ShowS)
+-&gt; Show SplitClause
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SplitClause -&gt; ShowS
+showsPrec :: Int -&gt; SplitClause -&gt; ShowS
+$cshow :: SplitClause -&gt; String
+show :: SplitClause -&gt; String
+$cshowList :: [SplitClause] -&gt; ShowS
+showList :: [SplitClause] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682114124"><span id="local-6989586621682114128"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SplitClause"><span class="hs-identifier hs-type">SplitClause</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621682114155"><span class="annot"><span class="annottext">pretty :: SplitClause -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SClause"><span class="hs-identifier hs-type">SClause</span></a></span><span> </span><span id="local-6989586621682114156"><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621682114156"><span class="hs-identifier hs-var">tel</span></a></span></span><span> </span><span id="local-6989586621682114157"><span class="annot"><span class="annottext">[NamedArg SplitPattern]
+</span><a href="#local-6989586621682114157"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span id="local-6989586621682114158"><span class="annot"><span class="annottext">Substitution' SplitPattern
+</span><a href="#local-6989586621682114158"><span class="hs-identifier hs-var">_rho</span></a></span></span><span> </span><span id="local-6989586621682114159"><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621682114159"><span class="hs-identifier hs-var">_cps</span></a></span></span><span> </span><span id="local-6989586621682114160"><span class="annot"><span class="annottext">Maybe (Dom Type)
+</span><a href="#local-6989586621682114160"><span class="hs-identifier hs-var">mt</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><span class="annottext">[Doc] -&gt; Doc
+forall (t :: * -&gt; *). Foldable t =&gt; t Doc -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#vcat"><span class="hs-identifier hs-var">P.vcat</span></a></span><span>
+</span><span id="line-79"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;SplitClause&quot;</span></span><span>
+</span><span id="line-80"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">P.text</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;tel =&quot;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">P.&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">P.pretty</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621682114156"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-81"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">P.text</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ps  =&quot;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">P.&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">[NamedArg SplitPattern] -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">P.pretty</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg SplitPattern]
+</span><a href="#local-6989586621682114157"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-82"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+forall a. String -&gt; Doc a
+</span><span class="hs-identifier hs-var">P.text</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;mt  =&quot;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">P.&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">Maybe (Dom Type) -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">P.pretty</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (Dom Type)
+</span><a href="#local-6989586621682114160"><span class="hs-identifier hs-var">mt</span></a></span><span>
+</span><span id="line-83"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">data</span><span> </span><span id="UnifyEquiv"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#UnifyEquiv"><span class="hs-identifier hs-var">UnifyEquiv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="UE"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#UE"><span class="hs-identifier hs-var">UE</span></a></span></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="infoTel0"><span class="annot"><span class="annottext">UnifyEquiv -&gt; Telescope
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoTel0"><span class="hs-identifier hs-var hs-var">infoTel0</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span>            </span><span class="hs-comment">-- &#915;0</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="infoTel"><span class="annot"><span class="annottext">UnifyEquiv -&gt; Telescope
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoTel"><span class="hs-identifier hs-var hs-var">infoTel</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span>            </span><span class="hs-comment">-- &#915;'</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="infoEqTel"><span class="annot"><span class="annottext">UnifyEquiv -&gt; Telescope
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoEqTel"><span class="hs-identifier hs-var hs-var">infoEqTel</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span>            </span><span class="hs-comment">-- &#915;0 &#8866; &#916;</span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="infoEqLHS"><span class="annot"><span class="annottext">UnifyEquiv -&gt; [Term]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoEqLHS"><span class="hs-identifier hs-var hs-var">infoEqLHS</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span>               </span><span class="hs-comment">-- &#915;0 &#8866; us : &#916;</span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="infoEqRHS"><span class="annot"><span class="annottext">UnifyEquiv -&gt; [Term]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoEqRHS"><span class="hs-identifier hs-var hs-var">infoEqRHS</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span>               </span><span class="hs-comment">-- &#915;0 &#8866; vs : &#916;</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="infoRho"><span class="annot"><span class="annottext">UnifyEquiv -&gt; PatternSubstitution
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoRho"><span class="hs-identifier hs-var hs-var">infoRho</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#PatternSubstitution"><span class="hs-identifier hs-type">PatternSubstitution</span></a></span><span>  </span><span class="hs-comment">-- &#915;' &#8866; &#961; : &#915;0</span><span>
+</span><span id="line-92"></span><span>                                        </span><span class="hs-comment">-- &#915; = &#915;0,(&#966; : I),(eqs : Paths &#916; us vs)</span><span>
+</span><span id="line-93"></span><span>                                        </span><span class="hs-comment">-- &#915;' &#8866; &#961;,i1,refls : &#915;</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="infoTau"><span class="annot"><span class="annottext">UnifyEquiv -&gt; Substitution
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoTau"><span class="hs-identifier hs-var hs-var">infoTau</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Substitution"><span class="hs-identifier hs-type">Substitution</span></a></span><span>         </span><span class="hs-comment">-- &#915;  &#8866; &#964;           : &#915;'</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="infoLeftInv"><span class="annot"><span class="annottext">UnifyEquiv -&gt; Substitution
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#infoLeftInv"><span class="hs-identifier hs-var hs-var">infoLeftInv</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Substitution"><span class="hs-identifier hs-type">Substitution</span></a></span><span>         </span><span class="hs-comment">-- &#915; | (i : I) &#8866; leftInv : &#915;</span><span>
+</span><span id="line-96"></span><span>                                        </span><span class="hs-comment">-- leftInv[i=0] = &#961;[&#964;],i1s,refls</span><span>
+</span><span id="line-97"></span><span>                                        </span><span class="hs-comment">-- leftInv[i=1] = idS</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621682114174"><span id="local-6989586621682114188"><span id="local-6989586621682114192"><span class="annot"><span class="annottext">Int -&gt; UnifyEquiv -&gt; ShowS
+[UnifyEquiv] -&gt; ShowS
+UnifyEquiv -&gt; String
+(Int -&gt; UnifyEquiv -&gt; ShowS)
+-&gt; (UnifyEquiv -&gt; String)
+-&gt; ([UnifyEquiv] -&gt; ShowS)
+-&gt; Show UnifyEquiv
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; UnifyEquiv -&gt; ShowS
+showsPrec :: Int -&gt; UnifyEquiv -&gt; ShowS
+$cshow :: UnifyEquiv -&gt; String
+show :: UnifyEquiv -&gt; String
+$cshowList :: [UnifyEquiv] -&gt; ShowS
+showList :: [UnifyEquiv] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-keyword">data</span><span> </span><span id="IInfo"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#IInfo"><span class="hs-identifier hs-var">IInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="TheInfo"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#TheInfo"><span class="hs-identifier hs-var">TheInfo</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#UnifyEquiv"><span class="hs-identifier hs-type">UnifyEquiv</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="NoInfo"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#NoInfo"><span class="hs-identifier hs-var">NoInfo</span></a></span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621682114200"><span id="local-6989586621682114204"><span id="local-6989586621682114208"><span class="annot"><span class="annottext">Int -&gt; IInfo -&gt; ShowS
+[IInfo] -&gt; ShowS
+IInfo -&gt; String
+(Int -&gt; IInfo -&gt; ShowS)
+-&gt; (IInfo -&gt; String) -&gt; ([IInfo] -&gt; ShowS) -&gt; Show IInfo
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; IInfo -&gt; ShowS
+showsPrec :: Int -&gt; IInfo -&gt; ShowS
+$cshow :: IInfo -&gt; String
+show :: IInfo -&gt; String
+$cshowList :: [IInfo] -&gt; ShowS
+showList :: [IInfo] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="annot"><span class="hs-comment">-- | A @Covering@ is the result of splitting a 'SplitClause'.</span></span><span>
+</span><span id="line-104"></span><span class="hs-keyword">data</span><span> </span><span id="Covering"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#Covering"><span class="hs-identifier hs-var">Covering</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Covering"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#Covering"><span class="hs-identifier hs-var">Covering</span></a></span></span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="covSplitArg"><span class="annot"><span class="annottext">Covering -&gt; Arg Int
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#covSplitArg"><span class="hs-identifier hs-var hs-var">covSplitArg</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span>
+</span><span id="line-106"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ De Bruijn level (counting dot patterns) of argument we split on.</span></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="covSplitClauses"><span class="annot"><span class="annottext">Covering -&gt; [(SplitTag, (SplitClause, IInfo))]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#covSplitClauses"><span class="hs-identifier hs-var hs-var">covSplitClauses</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTag"><span class="hs-identifier hs-type">SplitTag</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SplitClause"><span class="hs-identifier hs-type">SplitClause</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#IInfo"><span class="hs-identifier hs-type">IInfo</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-108"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Covering clauses, indexed by constructor/literal these clauses share.</span></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="annot"><span class="hs-comment">-- | Project the split clauses out of a covering.</span></span><span>
+</span><span id="line-112"></span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#splitClauses"><span class="hs-identifier hs-type">splitClauses</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#Covering"><span class="hs-identifier hs-type">Covering</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SplitClause"><span class="hs-identifier hs-type">SplitClause</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-113"></span><span id="splitClauses"><span class="annot"><span class="annottext">splitClauses :: Covering -&gt; [SplitClause]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#splitClauses"><span class="hs-identifier hs-var hs-var">splitClauses</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#Covering"><span class="hs-identifier hs-type">Covering</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Int
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682114215"><span class="annot"><span class="annottext">[(SplitTag, (SplitClause, IInfo))]
+</span><a href="#local-6989586621682114215"><span class="hs-identifier hs-var">qcs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((SplitTag, (SplitClause, IInfo)) -&gt; SplitClause)
+-&gt; [(SplitTag, (SplitClause, IInfo))] -&gt; [SplitClause]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(SplitClause, IInfo) -&gt; SplitClause
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">((SplitClause, IInfo) -&gt; SplitClause)
+-&gt; ((SplitTag, (SplitClause, IInfo)) -&gt; (SplitClause, IInfo))
+-&gt; (SplitTag, (SplitClause, IInfo))
+-&gt; SplitClause
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(SplitTag, (SplitClause, IInfo)) -&gt; (SplitClause, IInfo)
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(SplitTag, (SplitClause, IInfo))]
+</span><a href="#local-6989586621682114215"><span class="hs-identifier hs-var">qcs</span></a></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="annot"><span class="hs-comment">-- | Create a split clause from a clause in internal syntax. Used by make-case.</span></span><span>
+</span><span id="line-116"></span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#clauseToSplitClause"><span class="hs-identifier hs-type">clauseToSplitClause</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SplitClause"><span class="hs-identifier hs-type">SplitClause</span></a></span><span>
+</span><span id="line-117"></span><span id="clauseToSplitClause"><span class="annot"><span class="annottext">clauseToSplitClause :: Clause -&gt; SplitClause
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#clauseToSplitClause"><span class="hs-identifier hs-var hs-var">clauseToSplitClause</span></a></span></span><span> </span><span id="local-6989586621682114220"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682114220"><span class="hs-identifier hs-var">cl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#SClause"><span class="hs-identifier hs-type">SClause</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">scTel :: Telescope
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scTel"><span class="hs-identifier hs-var">scTel</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Clause -&gt; Telescope
+</span><a href="Agda.Syntax.Internal.html#clauseTel"><span class="hs-identifier hs-var">clauseTel</span></a></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682114220"><span class="hs-identifier hs-var">cl</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scPats :: [NamedArg SplitPattern]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scPats"><span class="hs-identifier hs-var">scPats</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[NamedArg (Pattern' DBPatVar)] -&gt; [NamedArg SplitPattern]
+</span><a href="Agda.TypeChecking.Coverage.SplitPattern.html#toSplitPatterns"><span class="hs-identifier hs-var">toSplitPatterns</span></a></span><span> </span><span class="annot"><span class="annottext">([NamedArg (Pattern' DBPatVar)] -&gt; [NamedArg SplitPattern])
+-&gt; [NamedArg (Pattern' DBPatVar)] -&gt; [NamedArg SplitPattern]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Clause -&gt; [NamedArg (Pattern' DBPatVar)]
+</span><a href="Agda.Syntax.Internal.html#namedClausePats"><span class="hs-identifier hs-var">namedClausePats</span></a></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682114220"><span class="hs-identifier hs-var">cl</span></a></span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scSubst :: Substitution' SplitPattern
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scSubst"><span class="hs-identifier hs-var">scSubst</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Substitution' SplitPattern
+forall a. Substitution' a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#idS"><span class="hs-identifier hs-var">idS</span></a></span><span>  </span><span class="hs-comment">-- Andreas, 2014-07-15  TODO: Is this ok?</span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scCheckpoints :: Map CheckpointId Substitution
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scCheckpoints"><span class="hs-identifier hs-var">scCheckpoints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span> </span><span class="hs-comment">-- #2996: not __IMPOSSIBLE__ for debug printing</span><span>
+</span><span id="line-122"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scTarget :: Maybe (Dom Type)
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#scTarget"><span class="hs-identifier hs-var">scTarget</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg Type -&gt; Dom Type
+forall a. Arg a -&gt; Dom a
+</span><a href="Agda.Syntax.Internal.html#domFromArg"><span class="hs-identifier hs-var">domFromArg</span></a></span><span> </span><span class="annot"><span class="annottext">(Arg Type -&gt; Dom Type) -&gt; Maybe (Arg Type) -&gt; Maybe (Dom Type)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Clause -&gt; Maybe (Arg Type)
+</span><a href="Agda.Syntax.Internal.html#clauseType"><span class="hs-identifier hs-var">clauseType</span></a></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621682114220"><span class="hs-identifier hs-var">cl</span></a></span><span>
+</span><span id="line-123"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-comment">---------------------------------------------</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- Record type for the results of @cover@</span><span>
+</span><span id="line-128"></span><span class="hs-comment">---------------------------------------------</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-keyword">data</span><span> </span><span id="CoverResult"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#CoverResult"><span class="hs-identifier hs-var">CoverResult</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CoverResult"><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitClause.html#CoverResult"><span class="hs-identifier hs-var">CoverResult</span></a></span></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="coverSplitTree"><span class="annot"><span class="annottext">CoverResult -&gt; SplitTree
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#coverSplitTree"><span class="hs-identifier hs-var hs-var">coverSplitTree</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Coverage.SplitTree.html#SplitTree"><span class="hs-identifier hs-type">SplitTree</span></a></span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="coverUsedClauses"><span class="annot"><span class="annottext">CoverResult -&gt; IntSet
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#coverUsedClauses"><span class="hs-identifier hs-var hs-var">coverUsedClauses</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntSet</span></span><span> </span><span class="hs-comment">-- Set Nat</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="coverMissingClauses"><span class="annot"><span class="annottext">CoverResult -&gt; [(Telescope, [NamedArg (Pattern' DBPatVar)])]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#coverMissingClauses"><span class="hs-identifier hs-var hs-var">coverMissingClauses</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#NamedArg"><span class="hs-identifier hs-type">NamedArg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#DeBruijnPattern"><span class="hs-identifier hs-type">DeBruijnPattern</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="coverPatterns"><span class="annot"><span class="annottext">CoverResult -&gt; [Clause]
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#coverPatterns"><span class="hs-identifier hs-var hs-var">coverPatterns</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-135"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ The set of patterns used as cover.</span></span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="coverNoExactClauses"><span class="annot"><span class="annottext">CoverResult -&gt; IntSet
+</span><a href="Agda.TypeChecking.Coverage.SplitClause.html#coverNoExactClauses"><span class="hs-identifier hs-var hs-var">coverNoExactClauses</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntSet</span></span><span> </span><span class="hs-comment">-- Set Nat</span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-138"></span></pre></body></html>

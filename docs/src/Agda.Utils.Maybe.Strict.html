@@ -1,0 +1,282 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | A strict version of the 'Maybe' type.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--   Import qualified, as in</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--     import qualified Agda.Utils.Maybe.Strict as Strict</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html"><span class="hs-identifier">Agda.Utils.Maybe.Strict</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">Data.Strict.Maybe</span></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">Data.Strict.Classes</span></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html"><span class="hs-identifier">Agda.Utils.Maybe.Strict</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Maybe</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">maybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Lazy</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Strict.Classes</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Strict.Maybe</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator">(&lt;.&gt;)</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier">Lens'</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- | Note that strict Maybe is an 'Applicative' only modulo strictness.</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--   The laws only hold in the strict semantics.</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--   Eg. @pure f &lt;*&gt; pure _|_ = _|_@, but according to the laws for</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--   'Applicative' it should be @pure (f _|_)@.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--   We ignore this issue here, it applies also to 'Foldable' and 'Traversable'.</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681709933"><span id="local-6989586621681709937"><span id="local-6989586621681709940"><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>  </span><span id="local-6989586621681709943"><span class="annot"><span class="annottext">pure :: forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var hs-var hs-var">pure</span></span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681709945"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681709945"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681709946"><span class="annot"><span class="annottext">&lt;*&gt; :: forall a b. Maybe (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;*&gt;</span></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681709947"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709947"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Maybe b
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Maybe b) -&gt; b -&gt; Maybe b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681709945"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709947"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="annot"><span class="annottext">Maybe (a -&gt; b)
+</span><span class="hs-identifier">_</span></span><span>      </span><span class="annot"><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier">_</span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe b
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681709847"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709847"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621681709953"><span class="annot"><span class="annottext">empty :: Maybe a
+</span><a href="#local-6989586621681709953"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621681709955"><span class="annot"><span class="annottext">null :: Maybe a -&gt; Bool
+</span><a href="#local-6989586621681709955"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNothing</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><span class="hs-comment">-- * Conversion to lazy @Maybe@.</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span id="local-6989586621681709849"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#lensMaybeLazy"><span class="hs-identifier hs-type">lensMaybeLazy</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709849"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Lazy.Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709849"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-44"></span><span id="lensMaybeLazy"><span class="annot"><span class="annottext">lensMaybeLazy :: forall a (f :: * -&gt; *).
+Functor f =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; Maybe a -&gt; f (Maybe a)
+</span><a href="Agda.Utils.Maybe.Strict.html#lensMaybeLazy"><span class="hs-identifier hs-var hs-var">lensMaybeLazy</span></a></span></span><span> </span><span id="local-6989586621681709964"><span class="annot"><span class="annottext">Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621681709964"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+forall lazy strict. Strict lazy strict =&gt; lazy -&gt; strict
+</span><span class="hs-identifier hs-var">toStrict</span></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a)
+-&gt; (Maybe a -&gt; f (Maybe a)) -&gt; Maybe a -&gt; f (Maybe a)
+forall (m :: * -&gt; *) b c a.
+Functor m =&gt;
+(b -&gt; c) -&gt; (a -&gt; m b) -&gt; a -&gt; m c
+</span><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator hs-var">&lt;.&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621681709964"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; f (Maybe a))
+-&gt; (Maybe a -&gt; Maybe a) -&gt; Maybe a -&gt; f (Maybe a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+forall lazy strict. Strict lazy strict =&gt; strict -&gt; lazy
+</span><span class="hs-identifier hs-var">toLazy</span></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><span class="hs-comment">-- * Collection operations.</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><span class="hs-comment">-- | @unionWith@ for collections of size &lt;= 1.</span></span><span>
+</span><span id="line-49"></span><span id="local-6989586621681709863"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#unionMaybeWith"><span class="hs-identifier hs-type">unionMaybeWith</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709863"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709863"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709863"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709863"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709863"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709863"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-50"></span><span id="unionMaybeWith"><span class="annot"><span class="annottext">unionMaybeWith :: forall a. (a -&gt; a -&gt; a) -&gt; Maybe a -&gt; Maybe a -&gt; Maybe a
+</span><a href="Agda.Utils.Maybe.Strict.html#unionMaybeWith"><span class="hs-identifier hs-var hs-var">unionMaybeWith</span></a></span></span><span> </span><span id="local-6989586621681709969"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681709969"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span id="local-6989586621681709970"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681709970"><span class="hs-identifier hs-var">mb</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681709970"><span class="hs-identifier hs-var">mb</span></a></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#unionMaybeWith"><span class="hs-identifier hs-var">unionMaybeWith</span></a></span><span> </span><span id="local-6989586621681709971"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681709971"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681709972"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681709972"><span class="hs-identifier hs-var">ma</span></a></span></span><span>      </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681709972"><span class="hs-identifier hs-var">ma</span></a></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#unionMaybeWith"><span class="hs-identifier hs-var">unionMaybeWith</span></a></span><span> </span><span id="local-6989586621681709973"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681709973"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681709974"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709974"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681709975"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709975"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe a) -&gt; a -&gt; Maybe a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681709973"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709974"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709975"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="annot"><span class="hs-comment">-- | Unzipping a list of length &lt;= 1.</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span id="local-6989586621681709865"><span id="local-6989586621681709866"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#unzipMaybe"><span class="hs-identifier hs-type">unzipMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709865"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681709866"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709865"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709866"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-57"></span><span id="unzipMaybe"><span class="annot"><span class="annottext">unzipMaybe :: forall a b. Maybe (a, b) -&gt; (Maybe a, Maybe b)
+</span><a href="Agda.Utils.Maybe.Strict.html#unzipMaybe"><span class="hs-identifier hs-var hs-var">unzipMaybe</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe (a, b)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe b
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#unzipMaybe"><span class="hs-identifier hs-var">unzipMaybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681709977"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709977"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681709978"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681709978"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709977"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b -&gt; Maybe b
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681709978"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Filtering a singleton list.</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--   @filterMaybe p a = 'listToMaybe' ('filter' p [a])@</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span id="local-6989586621681709869"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#filterMaybe"><span class="hs-identifier hs-type">filterMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709869"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709869"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709869"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-65"></span><span id="filterMaybe"><span class="annot"><span class="annottext">filterMaybe :: forall a. (a -&gt; Bool) -&gt; a -&gt; Maybe a
+</span><a href="Agda.Utils.Maybe.Strict.html#filterMaybe"><span class="hs-identifier hs-var hs-var">filterMaybe</span></a></span></span><span> </span><span id="local-6989586621681709981"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681709981"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681709982"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709982"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681709981"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709982"><span class="hs-identifier hs-var">a</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681709982"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="annot"><span class="hs-comment">-- * Conditionals and loops.</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><span class="hs-comment">-- | Version of 'mapMaybe' with different argument ordering.</span></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span id="local-6989586621681709871"><span id="local-6989586621681709872"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#forMaybe"><span class="hs-identifier hs-type">forMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681709871"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709871"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709872"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681709872"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-74"></span><span id="forMaybe"><span class="annot"><span class="annottext">forMaybe :: forall a b. [a] -&gt; (a -&gt; Maybe b) -&gt; [b]
+</span><a href="Agda.Utils.Maybe.Strict.html#forMaybe"><span class="hs-identifier hs-var hs-var">forMaybe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; Maybe b) -&gt; [a] -&gt; [b]) -&gt; [a] -&gt; (a -&gt; Maybe b) -&gt; [b]
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | Version of 'maybe' with different argument ordering.</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--   Often, we want to case on a 'Maybe', do something interesting</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--   in the 'Just' case, but only a default action in the 'Nothing'</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--   case.  Then, the argument ordering of @caseMaybe@ is preferable.</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   @caseMaybe m err f = flip (maybe err) m f@</span><span>
+</span><span id="line-82"></span><span id="local-6989586621681709881"><span id="local-6989586621681709882"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#caseMaybe"><span class="hs-identifier hs-type">caseMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709881"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709882"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709881"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709882"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709882"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-83"></span><span id="caseMaybe"><span class="annot"><span class="annottext">caseMaybe :: forall a b. Maybe a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Maybe.Strict.html#caseMaybe"><span class="hs-identifier hs-var hs-var">caseMaybe</span></a></span></span><span> </span><span id="local-6989586621681709988"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681709988"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681709989"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681709989"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span id="local-6989586621681709990"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681709990"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681709989"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681709990"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681709988"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><span class="hs-comment">-- * Monads and Maybe.</span></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="annot"><span class="hs-comment">-- | Monadic version of 'maybe'.</span></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span id="local-6989586621681709887"><span id="local-6989586621681709888"><span id="local-6989586621681709889"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#maybeM"><span class="hs-identifier hs-type">maybeM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681709887"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709887"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709888"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709889"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709887"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709888"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709887"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709889"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709887"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709888"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-90"></span><span id="maybeM"><span class="annot"><span class="annottext">maybeM :: forall (m :: * -&gt; *) b a.
+Monad m =&gt;
+m b -&gt; (a -&gt; m b) -&gt; m (Maybe a) -&gt; m b
+</span><a href="Agda.Utils.Maybe.Strict.html#maybeM"><span class="hs-identifier hs-var hs-var">maybeM</span></a></span></span><span> </span><span id="local-6989586621681709994"><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621681709994"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681709995"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681709995"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span id="local-6989586621681709996"><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681709996"><span class="hs-identifier hs-var">mm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m b -&gt; (a -&gt; m b) -&gt; Maybe a -&gt; m b
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621681709994"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681709995"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; m b) -&gt; m (Maybe a) -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681709996"><span class="hs-identifier hs-var">mm</span></a></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><span class="hs-comment">-- | Monadic version of 'fromMaybe'.</span></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span id="local-6989586621681709896"><span id="local-6989586621681709897"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#fromMaybeM"><span class="hs-identifier hs-type">fromMaybeM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681709896"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709896"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709897"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709896"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709897"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709896"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709897"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-95"></span><span id="fromMaybeM"><span class="annot"><span class="annottext">fromMaybeM :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; m (Maybe a) -&gt; m a
+</span><a href="Agda.Utils.Maybe.Strict.html#fromMaybeM"><span class="hs-identifier hs-var hs-var">fromMaybeM</span></a></span></span><span> </span><span id="local-6989586621681710003"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681710003"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681710004"><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710004"><span class="hs-identifier hs-var">mm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m a -&gt; (a -&gt; m a) -&gt; m (Maybe a) -&gt; m a
+forall (m :: * -&gt; *) b a.
+Monad m =&gt;
+m b -&gt; (a -&gt; m b) -&gt; m (Maybe a) -&gt; m b
+</span><a href="Agda.Utils.Maybe.Strict.html#maybeM"><span class="hs-identifier hs-var">maybeM</span></a></span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621681710003"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710004"><span class="hs-identifier hs-var">mm</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | Monadic version of 'caseMaybe'.</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--   That is, 'maybeM' with a different argument ordering.</span><span>
+</span><span id="line-99"></span><span id="local-6989586621681709902"><span id="local-6989586621681709903"><span id="local-6989586621681709904"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#caseMaybeM"><span class="hs-identifier hs-type">caseMaybeM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681709902"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709902"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709903"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709902"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709904"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709903"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709902"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709904"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709902"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709904"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-100"></span><span id="caseMaybeM"><span class="annot"><span class="annottext">caseMaybeM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m (Maybe a) -&gt; m b -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.Maybe.Strict.html#caseMaybeM"><span class="hs-identifier hs-var hs-var">caseMaybeM</span></a></span></span><span> </span><span id="local-6989586621681710008"><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710008"><span class="hs-identifier hs-var">mm</span></a></span></span><span> </span><span id="local-6989586621681710009"><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621681710009"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span id="local-6989586621681710010"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681710010"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m b -&gt; (a -&gt; m b) -&gt; m (Maybe a) -&gt; m b
+forall (m :: * -&gt; *) b a.
+Monad m =&gt;
+m b -&gt; (a -&gt; m b) -&gt; m (Maybe a) -&gt; m b
+</span><a href="Agda.Utils.Maybe.Strict.html#maybeM"><span class="hs-identifier hs-var">maybeM</span></a></span><span>  </span><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621681710009"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621681710010"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710008"><span class="hs-identifier hs-var">mm</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="annot"><span class="hs-comment">-- | 'caseMaybeM' with flipped branches.</span></span><span>
+</span><span id="line-103"></span><span id="local-6989586621681709908"><span id="local-6989586621681709909"><span id="local-6989586621681709910"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#ifJustM"><span class="hs-identifier hs-type">ifJustM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681709908"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709908"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709909"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709909"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709908"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709910"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709908"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709910"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709908"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681709910"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-104"></span><span id="ifJustM"><span class="annot"><span class="annottext">ifJustM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m (Maybe a) -&gt; (a -&gt; m b) -&gt; m b -&gt; m b
+</span><a href="Agda.Utils.Maybe.Strict.html#ifJustM"><span class="hs-identifier hs-var hs-var">ifJustM</span></a></span></span><span> </span><span id="local-6989586621681710014"><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710014"><span class="hs-identifier hs-var">mm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m b -&gt; (a -&gt; m b) -&gt; m b) -&gt; (a -&gt; m b) -&gt; m b -&gt; m b
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m (Maybe a) -&gt; m b -&gt; (a -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m (Maybe a) -&gt; m b -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.Maybe.Strict.html#caseMaybeM"><span class="hs-identifier hs-var">caseMaybeM</span></a></span><span> </span><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710014"><span class="hs-identifier hs-var">mm</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- | A more telling name for 'Traversable.forM' for the 'Maybe' collection type.</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--   Or: 'caseMaybe' without the 'Nothing' case.</span><span>
+</span><span id="line-108"></span><span id="local-6989586621681709914"><span id="local-6989586621681709915"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#whenJust"><span class="hs-identifier hs-type">whenJust</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681709914"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709915"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709915"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709914"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709914"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-109"></span><span id="whenJust"><span class="annot"><span class="annottext">whenJust :: forall (m :: * -&gt; *) a. Monad m =&gt; Maybe a -&gt; (a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Maybe.Strict.html#whenJust"><span class="hs-identifier hs-var hs-var">whenJust</span></a></span></span><span> </span><span id="local-6989586621681710018"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681710018"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681710019"><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621681710019"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; m () -&gt; (a -&gt; m ()) -&gt; m ()
+forall a b. Maybe a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Maybe.Strict.html#caseMaybe"><span class="hs-identifier hs-var">caseMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681710018"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621681710019"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="annot"><span class="hs-comment">-- | 'caseMaybeM' without the 'Nothing' case.</span></span><span>
+</span><span id="line-112"></span><span id="local-6989586621681709918"><span id="local-6989586621681709919"><span class="annot"><a href="Agda.Utils.Maybe.Strict.html#whenJustM"><span class="hs-identifier hs-type">whenJustM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681709918"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709918"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681709919"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681709919"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709918"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681709918"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-113"></span><span id="whenJustM"><span class="annot"><span class="annottext">whenJustM :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m (Maybe a) -&gt; (a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Maybe.Strict.html#whenJustM"><span class="hs-identifier hs-var hs-var">whenJustM</span></a></span></span><span> </span><span id="local-6989586621681710024"><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710024"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681710025"><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621681710025"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe a)
+</span><a href="#local-6989586621681710024"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">m (Maybe a) -&gt; (Maybe a -&gt; m ()) -&gt; m ()
+forall a b. m a -&gt; (a -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe a -&gt; (a -&gt; m ()) -&gt; m ()
+forall (m :: * -&gt; *) a. Monad m =&gt; Maybe a -&gt; (a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Maybe.Strict.html#whenJust"><span class="hs-operator hs-var">`whenJust`</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621681710025"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span></pre></body></html>

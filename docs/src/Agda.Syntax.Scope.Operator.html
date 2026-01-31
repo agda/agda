@@ -1,0 +1,808 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-comment">-- | Computing scopes of names that are relevant to parsing</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--   some raw expression.</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html"><span class="hs-identifier">Agda.Syntax.Scope.Operator</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OperatorScope"><span class="hs-identifier">OperatorScope</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#getOperatorScope"><span class="hs-identifier">getOperatorScope</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#getDefinedNames"><span class="hs-identifier">getDefinedNames</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#localNames"><span class="hs-identifier">localNames</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(||)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">partitionEithers</span></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Notation.html"><span class="hs-identifier">Agda.Syntax.Notation</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html"><span class="hs-identifier">Agda.Syntax.Scope.Base</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Monad.html"><span class="hs-identifier">Agda.Syntax.Scope.Monad</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Boolean.html"><span class="hs-identifier">Agda.Utils.Boolean</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator">(||)</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html"><span class="hs-identifier">Agda.Utils.Function</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html#applyWhenJust"><span class="hs-identifier">applyWhenJust</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.AssocList.html"><span class="hs-identifier">Agda.Utils.AssocList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.AssocList.html#AssocList"><span class="hs-identifier">AssocList</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- | Looking up all name parts of a QName.</span></span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#namePartScopeLookup"><span class="hs-identifier hs-type">namePartScopeLookup</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#ScopeInfo"><span class="hs-identifier hs-type">ScopeInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-45"></span><span id="namePartScopeLookup"><span class="annot"><span class="annottext">namePartScopeLookup :: QName -&gt; ScopeInfo -&gt; [Map Name (List1 AbstractName)]
+</span><a href="Agda.Syntax.Scope.Operator.html#namePartScopeLookup"><span class="hs-identifier hs-var hs-var">namePartScopeLookup</span></a></span></span><span> </span><span id="local-6989586621681963740"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963740"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span id="local-6989586621681963741"><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681963741"><span class="hs-identifier hs-var">scope</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Map Name (List1 AbstractName)]
+</span><a href="#local-6989586621681963742"><span class="hs-identifier hs-var">inAllScopes</span></a></span><span> </span><span class="annot"><span class="annottext">[Map Name (List1 AbstractName)]
+-&gt; [Map Name (List1 AbstractName)]
+-&gt; [Map Name (List1 AbstractName)]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Map Name (List1 AbstractName)]
+</span><a href="#local-6989586621681963743"><span class="hs-identifier hs-var">imports</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-comment">-- 1. Finding a name in the current scope and its parents.</span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><a href="#local-6989586621681963742"><span class="hs-identifier hs-type">inAllScopes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-49"></span><span>    </span><span id="local-6989586621681963742"><span class="annot"><span class="annottext">inAllScopes :: [Map Name (List1 AbstractName)]
+</span><a href="#local-6989586621681963742"><span class="hs-identifier hs-var hs-var">inAllScopes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Scope -&gt; [Map Name (List1 AbstractName)])
+-&gt; [Scope] -&gt; [Map Name (List1 AbstractName)]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Scope -&gt; [Map Name (List1 AbstractName)]
+</span><a href="#local-6989586621681963745"><span class="hs-identifier hs-var">findName</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963740"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Scope]
+</span><a href="#local-6989586621681963746"><span class="hs-identifier hs-var">allScopes</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-comment">-- 2. Finding a name in the imports belonging to an initial part of the qualifier.</span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><a href="#local-6989586621681963743"><span class="hs-identifier hs-type">imports</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-53"></span><span>    </span><span id="local-6989586621681963743"><span class="annot"><span class="annottext">imports :: [Map Name (List1 AbstractName)]
+</span><a href="#local-6989586621681963743"><span class="hs-identifier hs-var hs-var">imports</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-54"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span class="hs-comment">-- return all possible splittings, e.g.</span><span>
+</span><span id="line-55"></span><span>          </span><span class="hs-comment">-- splitName X.Y.Z = [(X, Y.Z), (X.Y, Z)]</span><span>
+</span><span id="line-56"></span><span>          </span><span class="annot"><a href="#local-6989586621681963747"><span class="hs-identifier hs-type">splitName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-57"></span><span>          </span><span id="local-6989586621681963747"><span class="annot"><span class="annottext">splitName :: QName -&gt; [(QName, QName)]
+</span><a href="#local-6989586621681963747"><span class="hs-identifier hs-var hs-var hs-var">splitName</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span id="local-6989586621681963749"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963749"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-58"></span><span>          </span><span class="annot"><a href="#local-6989586621681963747"><span class="hs-identifier hs-var">splitName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Qual"><span class="hs-identifier hs-type">Qual</span></a></span><span> </span><span id="local-6989586621681963751"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963751"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681963752"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963752"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-59"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; QName
+</span><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-var">QName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963751"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963752"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(QName, QName) -&gt; [(QName, QName)] -&gt; [(QName, QName)]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; QName -&gt; QName
+</span><a href="Agda.Syntax.Concrete.Name.html#Qual"><span class="hs-identifier hs-var">Qual</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963751"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963753"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963754"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681963753"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963753"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963754"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963754"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">QName -&gt; [(QName, QName)]
+</span><a href="#local-6989586621681963747"><span class="hs-identifier hs-var">splitName</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963752"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681963755"><span class="annot"><a href="#local-6989586621681963755"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963756"><span class="annot"><a href="#local-6989586621681963756"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">QName -&gt; [(QName, QName)]
+</span><a href="#local-6989586621681963747"><span class="hs-identifier hs-var">splitName</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963740"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-62"></span><span>      </span><span id="local-6989586621681963757"><span class="annot"><a href="#local-6989586621681963757"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681963746"><span class="hs-identifier hs-type">allScopes</span></a></span><span>
+</span><span id="line-63"></span><span>      </span><span id="local-6989586621681963758"><span class="annot"><a href="#local-6989586621681963758"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">maybeToList</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.lookup</span></span><span> </span><span class="annot"><a href="#local-6989586621681963755"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#scopeImports"><span class="hs-identifier hs-var">scopeImports</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963757"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><span id="line-64"></span><span>      </span><span class="annot"><a href="#local-6989586621681963745"><span class="hs-identifier hs-type">findName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963756"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#restrictPrivate"><span class="hs-identifier hs-type">restrictPrivate</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681963763"><span class="hs-identifier hs-type">moduleScope</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963758"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><a href="#local-6989586621681963763"><span class="hs-identifier hs-type">moduleScope</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">A.ModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Scope"><span class="hs-identifier hs-type">Scope</span></a></span><span>
+</span><span id="line-67"></span><span>    </span><span id="local-6989586621681963763"><span class="annot"><span class="annottext">moduleScope :: ModuleName -&gt; Scope
+</span><a href="#local-6989586621681963763"><span class="hs-identifier hs-var hs-var">moduleScope</span></a></span></span><span> </span><span id="local-6989586621681963764"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681963764"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Scope -&gt; Maybe Scope -&gt; Scope
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">Scope
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Scope -&gt; Scope) -&gt; Maybe Scope -&gt; Scope
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; Map ModuleName Scope -&gt; Maybe Scope
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681963764"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">(Map ModuleName Scope -&gt; Maybe Scope)
+-&gt; Map ModuleName Scope -&gt; Maybe Scope
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681963741"><span class="hs-identifier hs-var">scope</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+-&gt; Lens' ScopeInfo (Map ModuleName Scope) -&gt; Map ModuleName Scope
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(Map ModuleName Scope -&gt; f (Map ModuleName Scope))
+-&gt; ScopeInfo -&gt; f ScopeInfo
+Lens' ScopeInfo (Map ModuleName Scope)
+</span><a href="Agda.Syntax.Scope.Base.html#scopeModules"><span class="hs-identifier hs-var">scopeModules</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="#local-6989586621681963746"><span class="hs-identifier hs-type">allScopes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Scope"><span class="hs-identifier hs-type">Scope</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-70"></span><span>    </span><span id="local-6989586621681963746"><span class="annot"><span class="annottext">allScopes :: [Scope]
+</span><a href="#local-6989586621681963746"><span class="hs-identifier hs-var hs-var">allScopes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Scope
+</span><a href="#local-6989586621681963771"><span class="hs-identifier hs-var">current</span></a></span><span> </span><span class="annot"><span class="annottext">Scope -&gt; [Scope] -&gt; [Scope]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(ModuleName -&gt; Scope) -&gt; [ModuleName] -&gt; [Scope]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; Scope
+</span><a href="#local-6989586621681963763"><span class="hs-identifier hs-var">moduleScope</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Scope -&gt; [ModuleName]
+</span><a href="Agda.Syntax.Scope.Base.html#scopeParents"><span class="hs-identifier hs-var">scopeParents</span></a></span><span> </span><span class="annot"><span class="annottext">Scope
+</span><a href="#local-6989586621681963771"><span class="hs-identifier hs-var">current</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>      </span><span id="local-6989586621681963771"><span class="annot"><span class="annottext">current :: Scope
+</span><a href="#local-6989586621681963771"><span class="hs-identifier hs-var hs-var">current</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; Scope
+</span><a href="#local-6989586621681963763"><span class="hs-identifier hs-var">moduleScope</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleName -&gt; Scope) -&gt; ModuleName -&gt; Scope
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681963741"><span class="hs-identifier hs-var">scope</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeInfo -&gt; Lens' ScopeInfo ModuleName -&gt; ModuleName
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleName -&gt; f ModuleName) -&gt; ScopeInfo -&gt; f ScopeInfo
+Lens' ScopeInfo ModuleName
+</span><a href="Agda.Syntax.Scope.Base.html#scopeCurrent"><span class="hs-identifier hs-var">scopeCurrent</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><a href="#local-6989586621681963745"><span class="hs-identifier hs-type">findName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Scope"><span class="hs-identifier hs-type">Scope</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621681963745"><span class="annot"><span class="annottext">findName :: QName -&gt; Scope -&gt; [Map Name (List1 AbstractName)]
+</span><a href="#local-6989586621681963745"><span class="hs-identifier hs-var hs-var">findName</span></a></span></span><span> </span><span id="local-6989586621681963776"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963776"><span class="hs-identifier hs-var">q0</span></a></span></span><span> </span><span id="local-6989586621681963777"><span class="annot"><span class="annottext">Scope
+</span><a href="#local-6989586621681963777"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963776"><span class="hs-identifier hs-var">q0</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-75"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span id="local-6989586621681963778"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963778"><span class="hs-identifier hs-var">x</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-76"></span><span>        </span><span id="local-6989586621681963779"><span class="annot"><a href="#local-6989586621681963779"><span class="hs-identifier hs-var">n</span></a></span></span><span>       </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Name -&gt; [[Char]]
+</span><a href="Agda.Syntax.Concrete.Name.html#nameStringParts"><span class="hs-identifier hs-var">nameStringParts</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963778"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-77"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963781"><span class="annot"><a href="#local-6989586621681963781"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#scopeNameSpaces"><span class="hs-identifier hs-var">scopeNameSpaces</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963777"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><span id="line-78"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">maybeToList</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.lookup</span></span><span> </span><span class="annot"><a href="#local-6989586621681963779"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#nsNameParts"><span class="hs-identifier hs-var">nsNameParts</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963781"><span class="hs-identifier hs-type">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Qual"><span class="hs-identifier hs-type">Qual</span></a></span><span> </span><span id="local-6989586621681963784"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963784"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681963785"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963785"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-80"></span><span>        </span><span id="local-6989586621681963786"><span class="annot"><a href="#local-6989586621681963786"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">AbstractModule -&gt; ModuleName
+</span><a href="Agda.Syntax.Scope.Base.html#amodName"><span class="hs-identifier hs-var">amodName</span></a></span><span> </span><span class="annot"><span class="annottext">(AbstractModule -&gt; ModuleName)
+-&gt; ((AbstractModule, Access) -&gt; AbstractModule)
+-&gt; (AbstractModule, Access)
+-&gt; ModuleName
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(AbstractModule, Access) -&gt; AbstractModule
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">((AbstractModule, Access) -&gt; ModuleName)
+-&gt; [(AbstractModule, Access)] -&gt; [ModuleName]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Scope -&gt; [(AbstractModule, Access)]
+forall a. InScope a =&gt; Name -&gt; Scope -&gt; [(a, Access)]
+</span><a href="Agda.Syntax.Scope.Base.html#findNameInScope"><span class="hs-identifier hs-var">findNameInScope</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963784"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Scope
+</span><a href="#local-6989586621681963777"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-81"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681963792"><span class="annot"><a href="#local-6989586621681963792"><span class="hs-identifier hs-var hs-var">ss</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Scope -&gt; Scope
+</span><a href="Agda.Syntax.Scope.Base.html#restrictPrivate"><span class="hs-identifier hs-var">restrictPrivate</span></a></span><span> </span><span class="annot"><span class="annottext">(Scope -&gt; Scope) -&gt; Maybe Scope -&gt; Maybe Scope
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleName -&gt; Map ModuleName Scope -&gt; Maybe Scope
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681963786"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">(Map ModuleName Scope -&gt; Maybe Scope)
+-&gt; Map ModuleName Scope -&gt; Maybe Scope
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681963741"><span class="hs-identifier hs-var">scope</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+-&gt; Lens' ScopeInfo (Map ModuleName Scope) -&gt; Map ModuleName Scope
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(Map ModuleName Scope -&gt; f (Map ModuleName Scope))
+-&gt; ScopeInfo -&gt; f ScopeInfo
+Lens' ScopeInfo (Map ModuleName Scope)
+</span><a href="Agda.Syntax.Scope.Base.html#scopeModules"><span class="hs-identifier hs-var">scopeModules</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>        </span><span id="local-6989586621681963795"><span class="annot"><a href="#local-6989586621681963795"><span class="hs-identifier hs-var">s'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">maybeToList</span></span><span> </span><span class="annot"><a href="#local-6989586621681963792"><span class="hs-identifier hs-type">ss</span></a></span><span>
+</span><span id="line-83"></span><span>        </span><span class="annot"><a href="#local-6989586621681963745"><span class="hs-identifier hs-type">findName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963785"><span class="hs-identifier hs-type">q</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963795"><span class="hs-identifier hs-type">s'</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#getOperatorScope"><span class="hs-identifier hs-type">getOperatorScope</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#ScopeInfo"><span class="hs-identifier hs-type">ScopeInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OperatorScope"><span class="hs-identifier hs-type">OperatorScope</span></a></span><span>
+</span><span id="line-86"></span><span id="getOperatorScope"><span class="annot"><span class="annottext">getOperatorScope :: Set QName -&gt; ScopeInfo -&gt; OperatorScope
+</span><a href="Agda.Syntax.Scope.Operator.html#getOperatorScope"><span class="hs-identifier hs-var hs-var">getOperatorScope</span></a></span></span><span> </span><span id="local-6989586621681963796"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681963796"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span id="local-6989586621681963797"><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681963797"><span class="hs-identifier hs-var">scope</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><a href="#local-6989586621681963798"><span class="hs-identifier hs-type">nameList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-89"></span><span>    </span><span id="local-6989586621681963798"><span class="annot"><span class="annottext">nameList :: [QName]
+</span><a href="#local-6989586621681963798"><span class="hs-identifier hs-var hs-var">nameList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set QName -&gt; [QName]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681963796"><span class="hs-identifier hs-var">names</span></a></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><a href="#local-6989586621681963800"><span class="hs-identifier hs-type">namePartSet</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#NameParts"><span class="hs-identifier hs-type">NameParts</span></a></span><span>
+</span><span id="line-92"></span><span>    </span><span id="local-6989586621681963800"><span class="annot"><span class="annottext">namePartSet :: Set NameParts
+</span><a href="#local-6989586621681963800"><span class="hs-identifier hs-var hs-var">namePartSet</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span>
+</span><span id="line-93"></span><span>      </span><span class="annot"><a href="#local-6989586621681963801"><span class="hs-identifier hs-type">getParts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#NameParts"><span class="hs-identifier hs-type">NameParts</span></a></span><span>
+</span><span id="line-94"></span><span>      </span><span id="local-6989586621681963801"><span class="annot"><span class="annottext">getParts :: QName -&gt; NameParts
+</span><a href="#local-6989586621681963801"><span class="hs-identifier hs-var hs-var">getParts</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span id="local-6989586621681963802"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963802"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; NameParts
+</span><a href="Agda.Syntax.Concrete.Name.html#nameParts"><span class="hs-identifier hs-var">nameParts</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963802"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-95"></span><span>      </span><span class="annot"><a href="#local-6989586621681963801"><span class="hs-identifier hs-var">getParts</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Qual"><span class="hs-identifier hs-type">Qual</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681963804"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963804"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; NameParts
+</span><a href="#local-6989586621681963801"><span class="hs-identifier hs-var">getParts</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963804"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span>      </span><span class="annot"><a href="#local-6989586621681963805"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#NameParts"><span class="hs-identifier hs-type">NameParts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#NameParts"><span class="hs-identifier hs-type">NameParts</span></a></span><span>
+</span><span id="line-98"></span><span>      </span><span id="local-6989586621681963805"><span class="annot"><span class="annottext">go :: Set NameParts -&gt; QName -&gt; Set NameParts
+</span><a href="#local-6989586621681963805"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681963806"><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963806"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621681963807"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963807"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span>
+</span><span id="line-99"></span><span>        </span><span id="local-6989586621681963808"><span class="annot"><span class="annottext">parts :: NameParts
+</span><a href="#local-6989586621681963808"><span class="hs-identifier hs-var hs-var">parts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; NameParts
+</span><a href="#local-6989586621681963801"><span class="hs-identifier hs-var">getParts</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963807"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-100"></span><span>        </span><span id="local-6989586621681963811"><span class="annot"><span class="annottext">goPart :: Set NameParts -&gt; NamePart -&gt; Set NameParts
+</span><a href="#local-6989586621681963811"><span class="hs-identifier hs-var hs-var">goPart</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681963812"><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963812"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="annot"><span class="annottext">NamePart
+</span><a href="Agda.Syntax.Concrete.Name.html#Hole"><span class="hs-identifier hs-var">Hole</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963812"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-101"></span><span>        </span><span class="annot"><a href="#local-6989586621681963811"><span class="hs-identifier hs-var">goPart</span></a></span><span> </span><span id="local-6989586621681963814"><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963814"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Id"><span class="hs-identifier hs-type">Id</span></a></span><span> </span><span id="local-6989586621681963816"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681963816"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameParts -&gt; Set NameParts -&gt; Set NameParts
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.insert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; NamePart
+</span><a href="Agda.Syntax.Concrete.Name.html#Id"><span class="hs-identifier hs-var">Id</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681963816"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">NamePart -&gt; [NamePart] -&gt; NameParts
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963814"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-102"></span><span>        </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">(Set NameParts -&gt; NamePart -&gt; Set NameParts)
+-&gt; Set NameParts -&gt; NameParts -&gt; Set NameParts
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; NonEmpty a -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl'</span></span><span> </span><span class="annot"><span class="annottext">Set NameParts -&gt; NamePart -&gt; Set NameParts
+</span><a href="#local-6989586621681963811"><span class="hs-identifier hs-var">goPart</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NameParts -&gt; Set NameParts -&gt; Set NameParts
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.insert</span></span><span> </span><span class="annot"><span class="annottext">NameParts
+</span><a href="#local-6989586621681963808"><span class="hs-identifier hs-var">parts</span></a></span><span> </span><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963806"><span class="hs-identifier hs-var">acc</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NameParts
+</span><a href="#local-6989586621681963808"><span class="hs-identifier hs-var">parts</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span>      </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">(Set NameParts -&gt; QName -&gt; Set NameParts)
+-&gt; Set NameParts -&gt; [QName] -&gt; Set NameParts
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl'</span></span><span> </span><span class="annot"><span class="annottext">Set NameParts -&gt; QName -&gt; Set NameParts
+</span><a href="#local-6989586621681963805"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Set NameParts
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621681963798"><span class="hs-identifier hs-var">nameList</span></a></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span>    </span><span class="hs-comment">-- look up the name as a full identifier</span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><a href="#local-6989586621681963820"><span class="hs-identifier hs-type">fullNameLookups</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-108"></span><span>    </span><span id="local-6989586621681963820"><span class="annot"><span class="annottext">fullNameLookups :: [(QName, List1 AbstractName)]
+</span><a href="#local-6989586621681963820"><span class="hs-identifier hs-var hs-var">fullNameLookups</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-109"></span><span>      </span><span id="local-6989586621681963821"><span class="annot"><a href="#local-6989586621681963821"><span class="hs-identifier hs-var">qname</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621681963798"><span class="hs-identifier hs-var">nameList</span></a></span><span>
+</span><span id="line-110"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#scopeLookup"><span class="hs-identifier hs-type">scopeLookup</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963821"><span class="hs-identifier hs-type">qname</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963797"><span class="hs-identifier hs-type">scope</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-111"></span><span>        </span><span class="hs-special">[</span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-112"></span><span>        </span><span id="local-6989586621681963823"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681963823"><span class="hs-identifier hs-var">a</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681963824"><span class="annot"><span class="annottext">[AbstractName]
+</span><a href="#local-6989586621681963824"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963821"><span class="hs-identifier hs-var">qname</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681963823"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; [AbstractName] -&gt; List1 AbstractName
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[AbstractName]
+</span><a href="#local-6989586621681963824"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span>    </span><span class="annot"><a href="#local-6989586621681963825"><span class="hs-identifier hs-type">requalify</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span id="local-6989586621681963825"><span class="annot"><span class="annottext">requalify :: QName -&gt; Name -&gt; QName
+</span><a href="#local-6989586621681963825"><span class="hs-identifier hs-var hs-var">requalify</span></a></span></span><span> </span><span id="local-6989586621681963826"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963826"><span class="hs-identifier hs-var">qn</span></a></span></span><span> </span><span id="local-6989586621681963827"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963827"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963826"><span class="hs-identifier hs-var">qn</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-116"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; QName
+</span><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-var">QName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963827"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-117"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Qual"><span class="hs-identifier hs-type">Qual</span></a></span><span> </span><span id="local-6989586621681963828"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963828"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681963829"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963829"><span class="hs-identifier hs-var">qn</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; QName -&gt; QName
+</span><a href="Agda.Syntax.Concrete.Name.html#Qual"><span class="hs-identifier hs-var">Qual</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963828"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; QName) -&gt; QName -&gt; QName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$!</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Name -&gt; QName
+</span><a href="#local-6989586621681963825"><span class="hs-identifier hs-var">requalify</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963829"><span class="hs-identifier hs-var">qn</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963827"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-comment">-- lookup all parts of a name as operator/notation parts</span><span>
+</span><span id="line-120"></span><span>    </span><span class="annot"><a href="#local-6989586621681963831"><span class="hs-identifier hs-type">namePartLookups</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-121"></span><span>    </span><span id="local-6989586621681963831"><span class="annot"><span class="annottext">namePartLookups :: [(QName, List1 AbstractName)]
+</span><a href="#local-6989586621681963831"><span class="hs-identifier hs-var hs-var">namePartLookups</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-122"></span><span>      </span><span id="local-6989586621681963832"><span class="annot"><a href="#local-6989586621681963832"><span class="hs-identifier hs-var">qname</span></a></span></span><span>      </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621681963798"><span class="hs-identifier hs-var">nameList</span></a></span><span>
+</span><span id="line-123"></span><span>      </span><span id="local-6989586621681963833"><span class="annot"><a href="#local-6989586621681963833"><span class="hs-identifier hs-var">map</span></a></span></span><span>        </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#namePartScopeLookup"><span class="hs-identifier hs-type">namePartScopeLookup</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963832"><span class="hs-identifier hs-type">qname</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681963797"><span class="hs-identifier hs-type">scope</span></a></span><span>
+</span><span id="line-124"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681963834"><span class="annot"><a href="#local-6989586621681963834"><span class="hs-identifier hs-var">name</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963835"><span class="annot"><a href="#local-6989586621681963835"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.toList</span></span><span> </span><span class="annot"><a href="#local-6989586621681963833"><span class="hs-identifier hs-type">map</span></a></span><span>
+</span><span id="line-125"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681963837"><span class="annot"><a href="#local-6989586621681963837"><span class="hs-identifier hs-var hs-var">name'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Name -&gt; QName
+</span><a href="#local-6989586621681963825"><span class="hs-identifier hs-var">requalify</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963832"><span class="hs-identifier hs-var">qname</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963834"><span class="hs-identifier hs-var">name</span></a></span><span>
+</span><span id="line-126"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681963837"><span class="hs-identifier hs-type">name'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681963835"><span class="hs-keyword hs-type">as</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span>    </span><span class="annot"><a href="#local-6989586621681963838"><span class="hs-identifier hs-type">goLocals</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#LocalVars"><span class="hs-identifier hs-type">LocalVars</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.AssocList.html#AssocList"><span class="hs-identifier hs-type">AssocList</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">A.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-129"></span><span>    </span><span id="local-6989586621681963838"><span class="annot"><span class="annottext">goLocals :: LocalVars -&gt; (AssocList Name Name, Bool)
+</span><a href="#local-6989586621681963838"><span class="hs-identifier hs-var hs-var">goLocals</span></a></span></span><span> </span><span id="local-6989586621681963839"><span class="annot"><span class="annottext">LocalVars
+</span><a href="#local-6989586621681963839"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LocalVars -&gt; Set Name -&gt; (AssocList Name Name, Bool)
+</span><a href="#local-6989586621681963840"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">LocalVars
+</span><a href="#local-6989586621681963839"><span class="hs-identifier hs-var">ls</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-130"></span><span>      </span><span class="annot"><a href="#local-6989586621681963840"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#LocalVars"><span class="hs-identifier hs-type">LocalVars</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.AssocList.html#AssocList"><span class="hs-identifier hs-type">AssocList</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">A.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>      </span><span id="local-6989586621681963840"><span class="annot"><span class="annottext">go :: LocalVars -&gt; Set Name -&gt; (AssocList Name Name, Bool)
+</span><a href="#local-6989586621681963840"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681963841"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681963841"><span class="hs-identifier hs-var">seen</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>      </span><span class="annot"><a href="#local-6989586621681963840"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681963842"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963842"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963843"><span class="annot"><span class="annottext">LocalVar
+</span><a href="#local-6989586621681963843"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681963844"><span class="annot"><span class="annottext">LocalVars
+</span><a href="#local-6989586621681963844"><span class="hs-identifier hs-var">ls</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681963845"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681963845"><span class="hs-identifier hs-var">seen</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Set Name -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963842"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681963845"><span class="hs-identifier hs-var">seen</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LocalVars -&gt; Set Name -&gt; (AssocList Name Name, Bool)
+</span><a href="#local-6989586621681963840"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">LocalVars
+</span><a href="#local-6989586621681963844"><span class="hs-identifier hs-var">ls</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681963845"><span class="hs-identifier hs-var">seen</span></a></span><span>
+</span><span id="line-133"></span><span>      </span><span class="annot"><a href="#local-6989586621681963840"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681963847"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963847"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963848"><span class="annot"><span class="annottext">LocalVar
+</span><a href="#local-6989586621681963848"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681963849"><span class="annot"><span class="annottext">LocalVars
+</span><a href="#local-6989586621681963849"><span class="hs-identifier hs-var">ls</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681963850"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681963850"><span class="hs-identifier hs-var">seen</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">LocalVar -&gt; Maybe Name
+</span><a href="Agda.Syntax.Scope.Base.html#notShadowedLocal"><span class="hs-identifier hs-var">notShadowedLocal</span></a></span><span> </span><span class="annot"><span class="annottext">LocalVar
+</span><a href="#local-6989586621681963848"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-134"></span><span>        </span><span class="annot"><span class="annottext">Maybe Name
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LocalVars -&gt; Set Name -&gt; (AssocList Name Name, Bool)
+</span><a href="#local-6989586621681963840"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">LocalVars
+</span><a href="#local-6989586621681963849"><span class="hs-identifier hs-var">ls</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681963850"><span class="hs-identifier hs-var">seen</span></a></span><span>
+</span><span id="line-135"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681963852"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963852"><span class="hs-identifier hs-var">a</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-136"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681963855"><span class="annot"><span class="annottext">goNamePart :: NamePart -&gt; Bool
+</span><a href="#local-6989586621681963855"><span class="hs-identifier hs-var hs-var">goNamePart</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-137"></span><span>                </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Id"><span class="hs-identifier hs-type">Id</span></a></span><span> </span><span id="local-6989586621681963856"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681963856"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameParts -&gt; Set NameParts -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; NamePart
+</span><a href="Agda.Syntax.Concrete.Name.html#Id"><span class="hs-identifier hs-var">Id</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681963856"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">NamePart -&gt; [NamePart] -&gt; NameParts
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963800"><span class="hs-identifier hs-var">namePartSet</span></a></span><span>
+</span><span id="line-138"></span><span>                </span><span class="annot"><span class="annottext">NamePart
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-139"></span><span>              </span><span id="local-6989586621681963859"><span class="annot"><span class="annottext">goNotPart :: NotationPart -&gt; Bool
+</span><a href="#local-6989586621681963859"><span class="hs-identifier hs-var hs-var">goNotPart</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-140"></span><span>                </span><span class="annot"><a href="Agda.Syntax.Common.html#IdPart"><span class="hs-identifier hs-type">IdPart</span></a></span><span> </span><span id="local-6989586621681963861"><span class="annot"><span class="annottext">RString
+</span><a href="#local-6989586621681963861"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NameParts -&gt; Set NameParts -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; NamePart
+</span><a href="Agda.Syntax.Concrete.Name.html#Id"><span class="hs-identifier hs-var">Id</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RString -&gt; [Char]
+forall a. Ranged a -&gt; a
+</span><a href="Agda.Syntax.Common.html#rangedThing"><span class="hs-identifier hs-var">rangedThing</span></a></span><span> </span><span class="annot"><span class="annottext">RString
+</span><a href="#local-6989586621681963861"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NamePart -&gt; [NamePart] -&gt; NameParts
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963800"><span class="hs-identifier hs-var">namePartSet</span></a></span><span>
+</span><span id="line-141"></span><span>                </span><span class="annot"><span class="annottext">NotationPart
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-142"></span><span>              </span><span id="local-6989586621681963863"><span class="annot"><span class="annottext">not :: Notation
+</span><a href="#local-6989586621681963863"><span class="hs-identifier hs-var hs-var">not</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Fixity' -&gt; Notation
+</span><a href="Agda.Syntax.Common.html#theNotation"><span class="hs-identifier hs-var">theNotation</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Fixity'
+</span><a href="Agda.Syntax.Abstract.Name.html#nameFixity"><span class="hs-identifier hs-var">A.nameFixity</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963852"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>              </span><span id="local-6989586621681963866"><span class="annot"><span class="annottext">parts :: NameParts
+</span><a href="#local-6989586621681963866"><span class="hs-identifier hs-var hs-var">parts</span></a></span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; NameParts
+</span><a href="Agda.Syntax.Concrete.Name.html#nameParts"><span class="hs-identifier hs-var">nameParts</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963847"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-144"></span><span>              </span><span id="local-6989586621681963867"><span class="annot"><span class="annottext">anyOp :: Bool
+</span><a href="#local-6989586621681963867"><span class="hs-identifier hs-var hs-var">anyOp</span></a></span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(NamePart -&gt; Bool) -&gt; NameParts -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NamePart -&gt; NamePart -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">NamePart
+</span><a href="Agda.Syntax.Concrete.Name.html#Hole"><span class="hs-identifier hs-var">Hole</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NameParts
+</span><a href="#local-6989586621681963866"><span class="hs-identifier hs-var">parts</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">(NamePart -&gt; Bool) -&gt; NameParts -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="annot"><span class="annottext">NamePart -&gt; Bool
+</span><a href="#local-6989586621681963855"><span class="hs-identifier hs-var">goNamePart</span></a></span><span> </span><span class="annot"><span class="annottext">NameParts
+</span><a href="#local-6989586621681963866"><span class="hs-identifier hs-var">parts</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+forall a. Boolean a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator hs-var">||</span></a></span><span> </span><span class="annot"><span class="annottext">(NotationPart -&gt; Bool) -&gt; Notation -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="annot"><span class="annottext">NotationPart -&gt; Bool
+</span><a href="#local-6989586621681963859"><span class="hs-identifier hs-var">goNotPart</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681963863"><span class="hs-identifier hs-var">not</span></a></span><span>
+</span><span id="line-145"></span><span>              </span><span id="local-6989586621681963870"><span class="annot"><span class="annottext">anyName :: Bool
+</span><a href="#local-6989586621681963870"><span class="hs-identifier hs-var hs-var">anyName</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameParts -&gt; Set NameParts -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">NameParts
+</span><a href="#local-6989586621681963866"><span class="hs-identifier hs-var">parts</span></a></span><span> </span><span class="annot"><span class="annottext">Set NameParts
+</span><a href="#local-6989586621681963800"><span class="hs-identifier hs-var">namePartSet</span></a></span><span>
+</span><span id="line-146"></span><span>              </span><span class="hs-special">(</span><span id="local-6989586621681963871"><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963871"><span class="hs-identifier hs-var">ls'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963872"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963872"><span class="hs-identifier hs-var">anyOp'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LocalVars -&gt; Set Name -&gt; (AssocList Name Name, Bool)
+</span><a href="#local-6989586621681963840"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">LocalVars
+</span><a href="#local-6989586621681963849"><span class="hs-identifier hs-var">ls</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.insert</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681963850"><span class="hs-identifier hs-var">seen</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span>              </span><span class="hs-glyph">!</span><span id="local-6989586621681963873"><span class="annot"><span class="annottext">anyOp'' :: Bool
+</span><a href="#local-6989586621681963873"><span class="hs-identifier hs-var hs-var">anyOp''</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963867"><span class="hs-identifier hs-var">anyOp</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+forall a. Boolean a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator hs-var">||</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963872"><span class="hs-identifier hs-var">anyOp'</span></a></span><span>
+</span><span id="line-148"></span><span>              </span><span class="hs-glyph">!</span><span id="local-6989586621681963874"><span class="annot"><span class="annottext">ls'' :: AssocList Name Name
+</span><a href="#local-6989586621681963874"><span class="hs-identifier hs-var hs-var">ls''</span></a></span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963867"><span class="hs-identifier hs-var">anyOp</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+forall a. Boolean a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator hs-var">||</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963870"><span class="hs-identifier hs-var">anyName</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963847"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963852"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">(Name, Name) -&gt; AssocList Name Name -&gt; AssocList Name Name
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963871"><span class="hs-identifier hs-var">ls'</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963871"><span class="hs-identifier hs-var">ls'</span></a></span><span>
+</span><span id="line-149"></span><span>          </span><span class="hs-keyword">in</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963874"><span class="hs-identifier hs-var">ls''</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963873"><span class="hs-identifier hs-var">anyOp''</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681963875"><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963875"><span class="hs-identifier hs-var">locals</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963876"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963876"><span class="hs-identifier hs-var">hasLocalOp</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LocalVars -&gt; (AssocList Name Name, Bool)
+</span><a href="#local-6989586621681963838"><span class="hs-identifier hs-var">goLocals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681963797"><span class="hs-identifier hs-var">scope</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeInfo -&gt; Lens' ScopeInfo LocalVars -&gt; LocalVars
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(LocalVars -&gt; f LocalVars) -&gt; ScopeInfo -&gt; f ScopeInfo
+Lens' ScopeInfo LocalVars
+</span><a href="Agda.Syntax.Scope.Base.html#scopeLocals"><span class="hs-identifier hs-var">scopeLocals</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[(QName, List1 AbstractName)] -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[(QName, List1 AbstractName)]
+</span><a href="#local-6989586621681963831"><span class="hs-identifier hs-var">namePartLookups</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681963876"><span class="hs-identifier hs-var">hasLocalOp</span></a></span><span>
+</span><span id="line-154"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Bool
+-&gt; Map QName (List1 AbstractName)
+-&gt; AssocList Name Name
+-&gt; OperatorScope
+</span><a href="Agda.Syntax.Scope.Base.html#OpScope"><span class="hs-identifier hs-var">OpScope</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName)
+-&gt; [(QName, List1 AbstractName)] -&gt; Map QName (List1 AbstractName)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName)
+-&gt; List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName
+forall a. Eq a =&gt; List1 a -&gt; List1 a -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#union"><span class="hs-identifier hs-var">List1.union</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(QName, List1 AbstractName)]
+</span><a href="#local-6989586621681963820"><span class="hs-identifier hs-var">fullNameLookups</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963875"><span class="hs-identifier hs-var">locals</span></a></span><span>
+</span><span id="line-155"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Bool
+-&gt; Map QName (List1 AbstractName)
+-&gt; AssocList Name Name
+-&gt; OperatorScope
+</span><a href="Agda.Syntax.Scope.Base.html#OpScope"><span class="hs-identifier hs-var">OpScope</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName)
+-&gt; [(QName, List1 AbstractName)] -&gt; Map QName (List1 AbstractName)
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName)
+-&gt; List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">List1 AbstractName -&gt; List1 AbstractName -&gt; List1 AbstractName
+forall a. Eq a =&gt; List1 a -&gt; List1 a -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#union"><span class="hs-identifier hs-var">List1.union</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(QName, List1 AbstractName)]
+</span><a href="#local-6989586621681963820"><span class="hs-identifier hs-var">fullNameLookups</span></a></span><span> </span><span class="annot"><span class="annottext">[(QName, List1 AbstractName)]
+-&gt; [(QName, List1 AbstractName)] -&gt; [(QName, List1 AbstractName)]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[(QName, List1 AbstractName)]
+</span><a href="#local-6989586621681963831"><span class="hs-identifier hs-var">namePartLookups</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963875"><span class="hs-identifier hs-var">locals</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- | Compute all defined names in scope and their fixities/notations.</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- Note that overloaded names (constructors) can have several</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)</span><span>
+</span><span id="line-161"></span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#getDefinedNames%27"><span class="hs-identifier hs-type">getDefinedNames'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OperatorScope"><span class="hs-identifier hs-type">OperatorScope</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Notation.html#NewNotation"><span class="hs-identifier hs-type">NewNotation</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-162"></span><span id="getDefinedNames%27"><span class="annot"><span class="annottext">getDefinedNames' :: (AbstractName -&gt; Bool) -&gt; OperatorScope -&gt; [List1 NewNotation]
+</span><a href="Agda.Syntax.Scope.Operator.html#getDefinedNames%27"><span class="hs-identifier hs-var hs-var">getDefinedNames'</span></a></span></span><span> </span><span id="local-6989586621681963888"><span class="annot"><span class="annottext">AbstractName -&gt; Bool
+</span><a href="#local-6989586621681963888"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OpScope"><span class="hs-identifier hs-type">OpScope</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681963889"><span class="annot"><span class="annottext">Map QName (List1 AbstractName)
+</span><a href="#local-6989586621681963889"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span class="annot"><span class="annottext">AssocList Name Name
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-163"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">List1 NewNotation -&gt; List1 NewNotation
+</span><a href="Agda.Syntax.Notation.html#mergeNotations"><span class="hs-identifier hs-var">mergeNotations</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 NewNotation -&gt; List1 NewNotation)
+-&gt; List1 NewNotation -&gt; List1 NewNotation
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; NewNotation)
+-&gt; List1 AbstractName -&gt; List1 NewNotation
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Name -&gt; NewNotation
+</span><a href="Agda.Syntax.Notation.html#namesToNotation"><span class="hs-identifier hs-var">namesToNotation</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963891"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; NewNotation)
+-&gt; (AbstractName -&gt; Name) -&gt; AbstractName -&gt; NewNotation
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Name
+</span><a href="Agda.Syntax.Abstract.Name.html#qnameName"><span class="hs-identifier hs-var">A.qnameName</span></a></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Name) -&gt; (AbstractName -&gt; QName) -&gt; AbstractName -&gt; Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; QName
+</span><a href="Agda.Syntax.Scope.Base.html#anameName"><span class="hs-identifier hs-var">anameName</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681963894"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-164"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681963891"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963891"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963894"><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681963894"><span class="hs-identifier hs-var">ds</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Map QName (List1 AbstractName) -&gt; [(QName, List1 AbstractName)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">Map QName (List1 AbstractName)
+</span><a href="#local-6989586621681963889"><span class="hs-identifier hs-var">names</span></a></span><span>
+</span><span id="line-165"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; Bool) -&gt; List1 AbstractName -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; Bool
+</span><a href="#local-6989586621681963888"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681963894"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-166"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-comment">-- Andreas, 2013-03-21 see Issue 822</span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-comment">-- Names can have different kinds, i.e., 'defined' and 'constructor'.</span><span>
+</span><span id="line-169"></span><span>  </span><span class="hs-comment">-- We need to consider all names that have *any* matching kind,</span><span>
+</span><span id="line-170"></span><span>  </span><span class="hs-comment">-- not only those whose first appearing kind is matching.</span><span>
+</span><span id="line-171"></span><span>
+</span><span id="line-172"></span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#getDefinedNames"><span class="hs-identifier hs-type">getDefinedNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#KindsOfNames"><span class="hs-identifier hs-type">KindsOfNames</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OperatorScope"><span class="hs-identifier hs-type">OperatorScope</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Notation.html#NewNotation"><span class="hs-identifier hs-type">NewNotation</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-173"></span><span id="getDefinedNames"><span class="annot"><span class="annottext">getDefinedNames :: KindsOfNames -&gt; OperatorScope -&gt; [List1 NewNotation]
+</span><a href="Agda.Syntax.Scope.Operator.html#getDefinedNames"><span class="hs-identifier hs-var hs-var">getDefinedNames</span></a></span></span><span> </span><span id="local-6989586621681963895"><span class="annot"><span class="annottext">KindsOfNames
+</span><a href="#local-6989586621681963895"><span class="hs-identifier hs-var">kinds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; Bool) -&gt; OperatorScope -&gt; [List1 NewNotation]
+</span><a href="Agda.Syntax.Scope.Operator.html#getDefinedNames%27"><span class="hs-identifier hs-var">getDefinedNames'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">KindsOfNames -&gt; AbstractName -&gt; Bool
+</span><a href="Agda.Syntax.Scope.Operator.html#filterByKind"><span class="hs-identifier hs-var">filterByKind</span></a></span><span> </span><span class="annot"><span class="annottext">KindsOfNames
+</span><a href="#local-6989586621681963895"><span class="hs-identifier hs-var">kinds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#filterByKind"><span class="hs-identifier hs-type">filterByKind</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#KindsOfNames"><span class="hs-identifier hs-type">KindsOfNames</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-176"></span><span id="filterByKind"><span class="annot"><span class="annottext">filterByKind :: KindsOfNames -&gt; AbstractName -&gt; Bool
+</span><a href="Agda.Syntax.Scope.Operator.html#filterByKind"><span class="hs-identifier hs-var hs-var">filterByKind</span></a></span></span><span> </span><span id="local-6989586621681963897"><span class="annot"><span class="annottext">KindsOfNames
+</span><a href="#local-6989586621681963897"><span class="hs-identifier hs-var">kinds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">KindOfName -&gt; KindsOfNames -&gt; Bool
+</span><a href="Agda.Syntax.Scope.Base.html#elemKindsOfNames"><span class="hs-operator hs-var">`elemKindsOfNames`</span></a></span><span> </span><span class="annot"><span class="annottext">KindsOfNames
+</span><a href="#local-6989586621681963897"><span class="hs-identifier hs-var">kinds</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(KindOfName -&gt; Bool)
+-&gt; (AbstractName -&gt; KindOfName) -&gt; AbstractName -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#anameKind"><span class="hs-identifier hs-var">anameKind</span></a></span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span class="hs-comment">-- | Compute all names (first component) and operators/notations</span><span>
+</span><span id="line-179"></span><span class="hs-comment">--   (second component) in scope.</span><span>
+</span><span id="line-180"></span><span class="hs-comment">--</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--   For 'IsPattern', only constructor-like names are returned.</span><span>
+</span><span id="line-182"></span><span class="hs-comment">--</span><span>
+</span><span id="line-183"></span><span class="annot"><a href="Agda.Syntax.Scope.Operator.html#localNames"><span class="hs-identifier hs-type">localNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ExprKind"><span class="hs-identifier hs-type">ExprKind</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OperatorScope"><span class="hs-identifier hs-type">OperatorScope</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.State.html#ScopeM"><span class="hs-identifier hs-type">ScopeM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Notation.html#NewNotation"><span class="hs-identifier hs-type">NewNotation</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-184"></span><span id="localNames"><span class="annot"><span class="annottext">localNames :: ExprKind
+-&gt; Maybe QName -&gt; OperatorScope -&gt; ScopeM ([QName], [NewNotation])
+</span><a href="Agda.Syntax.Scope.Operator.html#localNames"><span class="hs-identifier hs-var hs-var">localNames</span></a></span></span><span> </span><span id="local-6989586621681963901"><span class="annot"><span class="annottext">ExprKind
+</span><a href="#local-6989586621681963901"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681963902"><span class="annot"><span class="annottext">Maybe QName
+</span><a href="#local-6989586621681963902"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621681963903"><span class="annot"><span class="annottext">opScope :: OperatorScope
+</span><a href="#local-6989586621681963903"><span class="hs-identifier hs-var">opScope</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OpScope"><span class="hs-identifier hs-type">OpScope</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Map QName (List1 AbstractName)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681963904"><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963904"><span class="hs-identifier hs-var">locals</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-comment">-- Construct a filter for the names we consider.</span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-187"></span><span>    </span><span id="local-6989586621681963905"><span class="annot"><span class="annottext">f :: AbstractName -&gt; Bool
+</span><a href="#local-6989586621681963905"><span class="hs-identifier hs-var hs-var hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ExprKind
+</span><a href="#local-6989586621681963901"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-188"></span><span>      </span><span class="annot"><span class="annottext">ExprKind
+</span><a href="Agda.Syntax.Common.html#IsExpr"><span class="hs-identifier hs-var">IsExpr</span></a></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; AbstractName -&gt; Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-189"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Common.html#IsPattern"><span class="hs-identifier hs-type">IsPattern</span></a></span><span> </span><span class="annot"><span class="annottext">DisplayLHS
+</span><a href="Agda.Syntax.Common.html#YesDisplayLHS"><span class="hs-identifier hs-var">YesDisplayLHS</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; AbstractName -&gt; Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-190"></span><span>        </span><span class="hs-comment">-- #8228: Non-constructor-like operators are useful in DISPLAY</span><span>
+</span><span id="line-191"></span><span>        </span><span class="hs-comment">-- pragmas.</span><span>
+</span><span id="line-192"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Common.html#IsPattern"><span class="hs-identifier hs-type">IsPattern</span></a></span><span> </span><span class="annot"><span class="annottext">DisplayLHS
+</span><a href="Agda.Syntax.Common.html#NoDisplayLHS"><span class="hs-identifier hs-var">NoDisplayLHS</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">let</span><span>
+</span><span id="line-193"></span><span>          </span><span class="hs-comment">-- Andreas, 2025-02-28, issue #7722</span><span>
+</span><span id="line-194"></span><span>          </span><span class="hs-comment">-- Filter by kind.</span><span>
+</span><span id="line-195"></span><span>          </span><span class="hs-comment">-- Just return the constructor-like operators,</span><span>
+</span><span id="line-196"></span><span>          </span><span class="hs-comment">-- otherwise the pattern parser blows up.</span><span>
+</span><span id="line-197"></span><span>          </span><span id="local-6989586621681963910"><span class="annot"><span class="annottext">fk :: AbstractName -&gt; Bool
+</span><a href="#local-6989586621681963910"><span class="hs-identifier hs-var hs-var">fk</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">KindsOfNames -&gt; AbstractName -&gt; Bool
+</span><a href="Agda.Syntax.Scope.Operator.html#filterByKind"><span class="hs-identifier hs-var">filterByKind</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[KindOfName] -&gt; KindsOfNames
+</span><a href="Agda.Syntax.Scope.Base.html#someKindsOfNames"><span class="hs-identifier hs-var">someKindsOfNames</span></a></span><span> </span><span class="annot"><span class="annottext">([KindOfName] -&gt; KindsOfNames) -&gt; [KindOfName] -&gt; KindsOfNames
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">KindOfName
+</span><a href="Agda.Syntax.Scope.Base.html#FldName"><span class="hs-identifier hs-var">FldName</span></a></span><span> </span><span class="annot"><span class="annottext">KindOfName -&gt; [KindOfName] -&gt; [KindOfName]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[KindOfName]
+</span><a href="Agda.Syntax.Scope.Base.html#conLikeNameKinds"><span class="hs-identifier hs-var">conLikeNameKinds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-198"></span><span>          </span><span class="hs-comment">-- Filter by name, keeping @top@ in.</span><span>
+</span><span id="line-199"></span><span>          </span><span id="local-6989586621681963914"><span class="annot"><span class="annottext">ft :: Maybe (AbstractName -&gt; Bool)
+</span><a href="#local-6989586621681963914"><span class="hs-identifier hs-var hs-var">ft</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe QName
+</span><a href="#local-6989586621681963902"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe QName
+-&gt; (QName -&gt; AbstractName -&gt; Bool) -&gt; Maybe (AbstractName -&gt; Bool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681963916"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963916"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Name
+</span><a href="Agda.Syntax.Concrete.Name.html#unqualify"><span class="hs-identifier hs-var">unqualify</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681963916"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Name -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Bool) -&gt; (AbstractName -&gt; Name) -&gt; AbstractName -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Name
+</span><a href="Agda.Syntax.Abstract.Name.html#nameConcrete"><span class="hs-identifier hs-var">A.nameConcrete</span></a></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Name) -&gt; (AbstractName -&gt; Name) -&gt; AbstractName -&gt; Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Name
+</span><a href="Agda.Syntax.Abstract.Name.html#qnameName"><span class="hs-identifier hs-var">A.qnameName</span></a></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Name) -&gt; (AbstractName -&gt; QName) -&gt; AbstractName -&gt; Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; QName
+</span><a href="Agda.Syntax.Scope.Base.html#anameName"><span class="hs-identifier hs-var">anameName</span></a></span><span>
+</span><span id="line-200"></span><span>        </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Maybe (AbstractName -&gt; Bool)
+-&gt; ((AbstractName -&gt; Bool)
+    -&gt; (AbstractName -&gt; Bool) -&gt; AbstractName -&gt; Bool)
+-&gt; (AbstractName -&gt; Bool)
+-&gt; AbstractName
+-&gt; Bool
+forall b a. Maybe b -&gt; (b -&gt; a -&gt; a) -&gt; a -&gt; a
+</span><a href="Agda.Utils.Function.html#applyWhenJust"><span class="hs-identifier hs-var">applyWhenJust</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (AbstractName -&gt; Bool)
+</span><a href="#local-6989586621681963914"><span class="hs-identifier hs-var">ft</span></a></span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; Bool)
+-&gt; (AbstractName -&gt; Bool) -&gt; AbstractName -&gt; Bool
+forall a. Boolean a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator hs-var">(||)</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; Bool
+</span><a href="#local-6989586621681963910"><span class="hs-identifier hs-var">fk</span></a></span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-comment">-- Retrieve the names of interest from the flat scope.</span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681963919"><span class="annot"><span class="annottext">defs :: [List1 NewNotation]
+</span><a href="#local-6989586621681963919"><span class="hs-identifier hs-var hs-var hs-var">defs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; Bool) -&gt; OperatorScope -&gt; [List1 NewNotation]
+</span><a href="Agda.Syntax.Scope.Operator.html#getDefinedNames%27"><span class="hs-identifier hs-var">getDefinedNames'</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; Bool
+</span><a href="#local-6989586621681963905"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">OperatorScope
+</span><a href="#local-6989586621681963903"><span class="hs-identifier hs-var">opScope</span></a></span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-comment">-- Note: Debug printout aligned with the one in</span><span>
+</span><span id="line-206"></span><span>  </span><span class="hs-comment">-- Agda.Syntax.Concrete.Operators.buildParsers.</span><span>
+</span><span id="line-207"></span><span>  </span><span class="annot"><span class="annottext">[Char] -&gt; VerboseLevel -&gt; [[Char]] -&gt; TCMT IO ()
+forall a (m :: * -&gt; *).
+(ReportS a, MonadDebug m) =&gt;
+[Char] -&gt; VerboseLevel -&gt; a -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+[Char] -&gt; VerboseLevel -&gt; [[Char]] -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportS"><span class="hs-identifier hs-var">reportS</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;scope.operators&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">50</span></span><span>
+</span><span id="line-208"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;opScope  = &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">OperatorScope -&gt; [Char]
+forall a. Pretty a =&gt; a -&gt; [Char]
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">OperatorScope
+</span><a href="#local-6989586621681963903"><span class="hs-identifier hs-var">opScope</span></a></span><span>
+</span><span id="line-209"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;defs     = &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[List1 NewNotation] -&gt; [Char]
+forall a. Pretty a =&gt; a -&gt; [Char]
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">[List1 NewNotation]
+</span><a href="#local-6989586621681963919"><span class="hs-identifier hs-var">defs</span></a></span><span>
+</span><span id="line-210"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;locals   = &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">AssocList Name Name -&gt; [Char]
+forall a. Pretty a =&gt; a -&gt; [Char]
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963904"><span class="hs-identifier hs-var">locals</span></a></span><span>
+</span><span id="line-211"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-212"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681963922"><span class="annot"><span class="annottext">localNots :: [NewNotation]
+</span><a href="#local-6989586621681963922"><span class="hs-identifier hs-var hs-var">localNots</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Name, Name) -&gt; NewNotation)
+-&gt; AssocList Name Name -&gt; [NewNotation]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Name, Name) -&gt; NewNotation
+</span><a href="#local-6989586621681963923"><span class="hs-identifier hs-var">localOp</span></a></span><span> </span><span class="annot"><span class="annottext">AssocList Name Name
+</span><a href="#local-6989586621681963904"><span class="hs-identifier hs-var">locals</span></a></span><span>
+</span><span id="line-213"></span><span>      </span><span id="local-6989586621681963924"><span class="annot"><span class="annottext">notLocal :: NewNotation -&gt; Bool
+</span><a href="#local-6989586621681963924"><span class="hs-identifier hs-var hs-var">notLocal</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (NewNotation -&gt; Bool) -&gt; NewNotation -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[QName] -&gt; QName -&gt; Bool
+forall a. Ord a =&gt; [a] -&gt; a -&gt; Bool
+</span><a href="Agda.Utils.List.html#hasElem"><span class="hs-identifier hs-var">hasElem</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(NewNotation -&gt; QName) -&gt; [NewNotation] -&gt; [QName]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NewNotation -&gt; QName
+</span><a href="Agda.Syntax.Notation.html#notaName"><span class="hs-identifier hs-var">notaName</span></a></span><span> </span><span class="annot"><span class="annottext">[NewNotation]
+</span><a href="#local-6989586621681963922"><span class="hs-identifier hs-var">localNots</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; (NewNotation -&gt; QName) -&gt; NewNotation -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NewNotation -&gt; QName
+</span><a href="Agda.Syntax.Notation.html#notaName"><span class="hs-identifier hs-var">notaName</span></a></span><span>
+</span><span id="line-214"></span><span>      </span><span id="local-6989586621681963927"><span class="annot"><span class="annottext">otherNots :: [NewNotation]
+</span><a href="#local-6989586621681963927"><span class="hs-identifier hs-var hs-var">otherNots</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(List1 NewNotation -&gt; [NewNotation])
+-&gt; [List1 NewNotation] -&gt; [NewNotation]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(NewNotation -&gt; Bool) -&gt; List1 NewNotation -&gt; [NewNotation]
+forall a. (a -&gt; Bool) -&gt; NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.filter</span></span><span> </span><span class="annot"><span class="annottext">NewNotation -&gt; Bool
+</span><a href="#local-6989586621681963924"><span class="hs-identifier hs-var">notLocal</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[List1 NewNotation]
+</span><a href="#local-6989586621681963919"><span class="hs-identifier hs-var">defs</span></a></span><span>
+</span><span id="line-215"></span><span>  </span><span class="annot"><span class="annottext">([QName], [NewNotation]) -&gt; ScopeM ([QName], [NewNotation])
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(([QName], [NewNotation]) -&gt; ScopeM ([QName], [NewNotation]))
+-&gt; ([QName], [NewNotation]) -&gt; ScopeM ([QName], [NewNotation])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">([NewNotation] -&gt; [NewNotation])
+-&gt; ([QName], [NewNotation]) -&gt; ([QName], [NewNotation])
+forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+forall (p :: * -&gt; * -&gt; *) b c a.
+Bifunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(NewNotation -&gt; NewNotation) -&gt; [NewNotation] -&gt; [NewNotation]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">NewNotation -&gt; NewNotation
+</span><a href="Agda.Syntax.Notation.html#useDefaultFixity"><span class="hs-identifier hs-var">useDefaultFixity</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(([QName], [NewNotation]) -&gt; ([QName], [NewNotation]))
+-&gt; ([QName], [NewNotation]) -&gt; ([QName], [NewNotation])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[NewNotation] -&gt; ([QName], [NewNotation])
+</span><a href="#local-6989586621681963931"><span class="hs-identifier hs-var">split</span></a></span><span> </span><span class="annot"><span class="annottext">([NewNotation] -&gt; ([QName], [NewNotation]))
+-&gt; [NewNotation] -&gt; ([QName], [NewNotation])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[NewNotation]
+</span><a href="#local-6989586621681963922"><span class="hs-identifier hs-var">localNots</span></a></span><span> </span><span class="annot"><span class="annottext">[NewNotation] -&gt; [NewNotation] -&gt; [NewNotation]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[NewNotation]
+</span><a href="#local-6989586621681963927"><span class="hs-identifier hs-var">otherNots</span></a></span><span>
+</span><span id="line-216"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-217"></span><span>    </span><span id="local-6989586621681963923"><span class="annot"><span class="annottext">localOp :: (Name, Name) -&gt; NewNotation
+</span><a href="#local-6989586621681963923"><span class="hs-identifier hs-var hs-var">localOp</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681963932"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963932"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681963933"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963933"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Name -&gt; NewNotation
+</span><a href="Agda.Syntax.Notation.html#namesToNotation"><span class="hs-identifier hs-var">namesToNotation</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; QName
+</span><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-var">QName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963932"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681963933"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-218"></span><span>    </span><span id="local-6989586621681963931"><span class="annot"><span class="annottext">split :: [NewNotation] -&gt; ([QName], [NewNotation])
+</span><a href="#local-6989586621681963931"><span class="hs-identifier hs-var hs-var">split</span></a></span></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either QName NewNotation] -&gt; ([QName], [NewNotation])
+forall a b. [Either a b] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">partitionEithers</span></span><span> </span><span class="annot"><span class="annottext">([Either QName NewNotation] -&gt; ([QName], [NewNotation]))
+-&gt; ([NewNotation] -&gt; [Either QName NewNotation])
+-&gt; [NewNotation]
+-&gt; ([QName], [NewNotation])
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NewNotation -&gt; [Either QName NewNotation])
+-&gt; [NewNotation] -&gt; [Either QName NewNotation]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">NewNotation -&gt; [Either QName NewNotation]
+</span><a href="#local-6989586621681963935"><span class="hs-identifier hs-var">opOrNot</span></a></span><span>
+</span><span id="line-219"></span><span>    </span><span id="local-6989586621681963935"><span class="annot"><span class="annottext">opOrNot :: NewNotation -&gt; [Either QName NewNotation]
+</span><a href="#local-6989586621681963935"><span class="hs-identifier hs-var hs-var">opOrNot</span></a></span></span><span> </span><span id="local-6989586621681963937"><span class="annot"><span class="annottext">NewNotation
+</span><a href="#local-6989586621681963937"><span class="hs-identifier hs-var">n</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Either QName NewNotation
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NewNotation -&gt; QName
+</span><a href="Agda.Syntax.Notation.html#notaName"><span class="hs-identifier hs-var">notaName</span></a></span><span> </span><span class="annot"><span class="annottext">NewNotation
+</span><a href="#local-6989586621681963937"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Either QName NewNotation
+-&gt; [Either QName NewNotation] -&gt; [Either QName NewNotation]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span>
+</span><span id="line-220"></span><span>                     </span><span class="hs-special">[</span><span class="annot"><span class="annottext">NewNotation -&gt; Either QName NewNotation
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">NewNotation
+</span><a href="#local-6989586621681963937"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Notation -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NewNotation -&gt; Notation
+</span><a href="Agda.Syntax.Notation.html#notation"><span class="hs-identifier hs-var">notation</span></a></span><span> </span><span class="annot"><span class="annottext">NewNotation
+</span><a href="#local-6989586621681963937"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-221"></span></pre></body></html>

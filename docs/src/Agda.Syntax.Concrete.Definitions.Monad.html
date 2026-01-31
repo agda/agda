@@ -1,0 +1,843 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-binds #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html"><span class="hs-identifier">Agda.Syntax.Concrete.Definitions.Monad</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">null</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>        </span><span class="hs-special">(</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadError</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ExceptT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runExceptT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadReader</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ReaderT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runReaderT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadState</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">modify</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">State</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">StateT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runState</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">second</span></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">catMaybes</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#TerminationCheck"><span class="hs-identifier">TerminationCheck</span></a></span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#WhereClause_"><span class="hs-identifier">WhereClause_</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html"><span class="hs-identifier">Agda.Syntax.Concrete.Name</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html"><span class="hs-identifier">Agda.Syntax.Concrete.Definitions.Types</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html"><span class="hs-identifier">Agda.Syntax.Concrete.Definitions.Errors</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.html"><span class="hs-identifier">Agda.Utils.CallStack</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">CallStack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">HasCallStack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.Base.html#withCallerCallStack"><span class="hs-identifier">withCallerCallStack</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier">Null</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Nicifier monad.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   Preserve the state when throwing an exception.</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">newtype</span><span> </span><span id="Nice"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-var">Nice</span></a></span></span><span> </span><span id="local-6989586621681829107"><span class="annot"><a href="#local-6989586621681829107"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Nice"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-var">Nice</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unNice"><span class="annot"><span class="annottext">forall a.
+Nice a
+-&gt; ReaderT
+     NiceEnv (ExceptT DeclarationException (State NiceState)) a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#unNice"><span class="hs-identifier hs-var hs-var">unNice</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceEnv"><span class="hs-identifier hs-type">NiceEnv</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationException"><span class="hs-identifier hs-type">DeclarationException</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">State</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681829107"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span> </span><span id="local-6989586621681829433"><span id="local-6989586621681829439"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Nice a -&gt; Nice b)
+-&gt; (forall a b. a -&gt; Nice b -&gt; Nice a) -&gt; Functor Nice
+forall a b. a -&gt; Nice b -&gt; Nice a
+forall a b. (a -&gt; b) -&gt; Nice a -&gt; Nice b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; Nice a -&gt; Nice b
+fmap :: forall a b. (a -&gt; b) -&gt; Nice a -&gt; Nice b
+$c&lt;$ :: forall a b. a -&gt; Nice b -&gt; Nice a
+&lt;$ :: forall a b. a -&gt; Nice b -&gt; Nice a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681829455"><span id="local-6989586621681829461"><span id="local-6989586621681829466"><span id="local-6989586621681829471"><span id="local-6989586621681829476"><span class="annot"><span class="annottext">Functor Nice
+Functor Nice =&gt;
+(forall a. a -&gt; Nice a)
+-&gt; (forall a b. Nice (a -&gt; b) -&gt; Nice a -&gt; Nice b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; Nice a -&gt; Nice b -&gt; Nice c)
+-&gt; (forall a b. Nice a -&gt; Nice b -&gt; Nice b)
+-&gt; (forall a b. Nice a -&gt; Nice b -&gt; Nice a)
+-&gt; Applicative Nice
+forall a. a -&gt; Nice a
+forall a b. Nice a -&gt; Nice b -&gt; Nice a
+forall a b. Nice a -&gt; Nice b -&gt; Nice b
+forall a b. Nice (a -&gt; b) -&gt; Nice a -&gt; Nice b
+forall a b c. (a -&gt; b -&gt; c) -&gt; Nice a -&gt; Nice b -&gt; Nice c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall a. a -&gt; Nice a
+pure :: forall a. a -&gt; Nice a
+$c&lt;*&gt; :: forall a b. Nice (a -&gt; b) -&gt; Nice a -&gt; Nice b
+&lt;*&gt; :: forall a b. Nice (a -&gt; b) -&gt; Nice a -&gt; Nice b
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; Nice a -&gt; Nice b -&gt; Nice c
+liftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; Nice a -&gt; Nice b -&gt; Nice c
+$c*&gt; :: forall a b. Nice a -&gt; Nice b -&gt; Nice b
+*&gt; :: forall a b. Nice a -&gt; Nice b -&gt; Nice b
+$c&lt;* :: forall a b. Nice a -&gt; Nice b -&gt; Nice a
+&lt;* :: forall a b. Nice a -&gt; Nice b -&gt; Nice a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681829509"><span id="local-6989586621681829515"><span id="local-6989586621681829520"><span class="annot"><span class="annottext">Applicative Nice
+Applicative Nice =&gt;
+(forall a b. Nice a -&gt; (a -&gt; Nice b) -&gt; Nice b)
+-&gt; (forall a b. Nice a -&gt; Nice b -&gt; Nice b)
+-&gt; (forall a. a -&gt; Nice a)
+-&gt; Monad Nice
+forall a. a -&gt; Nice a
+forall a b. Nice a -&gt; Nice b -&gt; Nice b
+forall a b. Nice a -&gt; (a -&gt; Nice b) -&gt; Nice b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall a b. Nice a -&gt; (a -&gt; Nice b) -&gt; Nice b
+&gt;&gt;= :: forall a b. Nice a -&gt; (a -&gt; Nice b) -&gt; Nice b
+$c&gt;&gt; :: forall a b. Nice a -&gt; Nice b -&gt; Nice b
+&gt;&gt; :: forall a b. Nice a -&gt; Nice b -&gt; Nice b
+$creturn :: forall a. a -&gt; Nice a
+return :: forall a. a -&gt; Nice a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span>
+</span><span id="line-38"></span><span>           </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681829535"><span id="local-6989586621681829541"><span id="local-6989586621681829546"><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceEnv"><span class="hs-identifier hs-type">NiceEnv</span></a></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681829564"><span id="local-6989586621681829570"><span id="local-6989586621681829575"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681829594"><span id="local-6989586621681829600"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationException"><span class="hs-identifier hs-type">DeclarationException</span></a></span></span></span><span>
+</span><span id="line-39"></span><span>           </span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><span class="hs-comment">-- | Extension of the nicifier monad with state to process interleaved mutual blocks.</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">type</span><span> </span><span id="INice"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#INice"><span class="hs-identifier hs-var">INice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#InterleavedState"><span class="hs-identifier hs-type">InterleavedState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | Run a Nicifier computation, return result and warnings</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   (in chronological order).</span><span>
+</span><span id="line-46"></span><span id="local-6989586621681829209"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#runNice"><span class="hs-identifier hs-type">runNice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceEnv"><span class="hs-identifier hs-type">NiceEnv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829209"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationException"><span class="hs-identifier hs-type">DeclarationException</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829209"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceWarnings"><span class="hs-identifier hs-type">NiceWarnings</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-47"></span><span id="runNice"><span class="annot"><span class="annottext">runNice :: forall a.
+NiceEnv -&gt; Nice a -&gt; (Either DeclarationException a, NiceWarnings)
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#runNice"><span class="hs-identifier hs-var hs-var">runNice</span></a></span></span><span> </span><span id="local-6989586621681829618"><span class="annot"><span class="annottext">NiceEnv
+</span><a href="#local-6989586621681829618"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621681829619"><span class="annot"><span class="annottext">Nice a
+</span><a href="#local-6989586621681829619"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NiceState -&gt; NiceWarnings)
+-&gt; (Either DeclarationException a, NiceState)
+-&gt; (Either DeclarationException a, NiceWarnings)
+forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+forall (p :: * -&gt; * -&gt; *) b c a.
+Bifunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceWarnings -&gt; NiceWarnings
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">(NiceWarnings -&gt; NiceWarnings)
+-&gt; (NiceState -&gt; NiceWarnings) -&gt; NiceState -&gt; NiceWarnings
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NiceState -&gt; NiceWarnings
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarn"><span class="hs-identifier hs-var">niceWarn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Either DeclarationException a, NiceState)
+ -&gt; (Either DeclarationException a, NiceWarnings))
+-&gt; (Either DeclarationException a, NiceState)
+-&gt; (Either DeclarationException a, NiceWarnings)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><span class="annottext">ExceptT DeclarationException (State NiceState) a
+-&gt; StateT NiceState Identity (Either DeclarationException a)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Nice a
+-&gt; ReaderT
+     NiceEnv (ExceptT DeclarationException (State NiceState)) a
+forall a.
+Nice a
+-&gt; ReaderT
+     NiceEnv (ExceptT DeclarationException (State NiceState)) a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#unNice"><span class="hs-identifier hs-var">unNice</span></a></span><span> </span><span class="annot"><span class="annottext">Nice a
+</span><a href="#local-6989586621681829619"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT NiceEnv (ExceptT DeclarationException (State NiceState)) a
+-&gt; NiceEnv -&gt; ExceptT DeclarationException (State NiceState) a
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-operator hs-var">`runReaderT`</span></span><span> </span><span class="annot"><span class="annottext">NiceEnv
+</span><a href="#local-6989586621681829618"><span class="hs-identifier hs-var">env</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">StateT NiceState Identity (Either DeclarationException a)
+-&gt; NiceState -&gt; (Either DeclarationException a, NiceState)
+forall s a. State s a -&gt; s -&gt; (a, s)
+</span><span class="hs-operator hs-var">`runState`</span></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#initNiceState"><span class="hs-identifier hs-var">initNiceState</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681829235"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829235"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829235"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-51"></span><span>  </span><span id="local-6989586621681829631"><span class="annot"><span class="annottext">empty :: Nice a
+</span><a href="#local-6989586621681829631"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Nice a
+forall a. a -&gt; Nice a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">a
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681829635"><span class="annot"><span class="annottext">null :: Nice a -&gt; Bool
+</span><a href="#local-6989586621681829635"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="annot"><span class="annottext">Nice a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="annot"><span class="hs-comment">-- | Nicifier parameters.</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">data</span><span> </span><span id="NiceEnv"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceEnv"><span class="hs-identifier hs-var">NiceEnv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="NiceEnv"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceEnv"><span class="hs-identifier hs-var">NiceEnv</span></a></span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="safeButNotBuiltin"><span class="annot"><span class="annottext">NiceEnv -&gt; Bool
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#safeButNotBuiltin"><span class="hs-identifier hs-var hs-var">safeButNotBuiltin</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-58"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ We are in a module declared @--safe@ which is not a builtin module.</span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="checkingWhere"><span class="annot"><span class="annottext">NiceEnv -&gt; WhereClause_
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#checkingWhere"><span class="hs-identifier hs-var hs-var">checkingWhere</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#WhereClause_"><span class="hs-identifier hs-type">WhereClause_</span></a></span><span>
+</span><span id="line-60"></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ Are we checking a @where@ module?</span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="annot"><span class="hs-comment">-- | Nicifier state.</span></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-keyword">data</span><span> </span><span id="NiceState"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-var">NiceState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="NiceState"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-var">NiceState</span></a></span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="_loneSigs"><span class="annot"><span class="annottext">NiceState -&gt; LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_loneSigs"><span class="hs-identifier hs-var hs-var">_loneSigs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSigs"><span class="hs-identifier hs-type">LoneSigs</span></a></span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Lone type signatures that wait for their definition.</span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_termChk"><span class="annot"><span class="annottext">NiceState -&gt; TerminationCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_termChk"><span class="hs-identifier hs-var hs-var">_termChk</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#TerminationCheck"><span class="hs-identifier hs-type">TerminationCheck</span></a></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Termination checking pragma waiting for a definition.</span></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_posChk"><span class="annot"><span class="annottext">NiceState -&gt; PositivityCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_posChk"><span class="hs-identifier hs-var hs-var">_posChk</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#PositivityCheck"><span class="hs-identifier hs-type">PositivityCheck</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Positivity checking pragma waiting for a definition.</span></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_uniChk"><span class="annot"><span class="annottext">NiceState -&gt; UniverseCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_uniChk"><span class="hs-identifier hs-var hs-var">_uniChk</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#UniverseCheck"><span class="hs-identifier hs-type">UniverseCheck</span></a></span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Universe checking pragma waiting for a data/rec signature or definition.</span></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_catchall"><span class="annot"><span class="annottext">NiceState -&gt; Catchall
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_catchall"><span class="hs-identifier hs-var hs-var">_catchall</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Catchall"><span class="hs-identifier hs-type">Catchall</span></a></span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Catchall pragma waiting for a function clause.</span></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_covChk"><span class="annot"><span class="annottext">NiceState -&gt; CoverageCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_covChk"><span class="hs-identifier hs-var hs-var">_covChk</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#CoverageCheck"><span class="hs-identifier hs-type">CoverageCheck</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Coverage pragma waiting for a definition.</span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="niceWarn"><span class="annot"><span class="annottext">NiceState -&gt; NiceWarnings
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarn"><span class="hs-identifier hs-var hs-var">niceWarn</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceWarnings"><span class="hs-identifier hs-type">NiceWarnings</span></a></span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Stack of warnings. Head is last warning.</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_nameId"><span class="annot"><span class="annottext">NiceState -&gt; NameId
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_nameId"><span class="hs-identifier hs-var hs-var">_nameId</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NameId"><span class="hs-identifier hs-type">NameId</span></a></span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ We distinguish different 'NoName's (anonymous definitions) by a unique 'NameId'.</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">data</span><span> </span><span id="LoneSig"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSig"><span class="hs-identifier hs-var">LoneSig</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LoneSig"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSig"><span class="hs-identifier hs-var">LoneSig</span></a></span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="loneSigRange"><span class="annot"><span class="annottext">LoneSig -&gt; Range
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigRange"><span class="hs-identifier hs-var hs-var">loneSigRange</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="loneSigName"><span class="annot"><span class="annottext">LoneSig -&gt; Name
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigName"><span class="hs-identifier hs-var hs-var">loneSigName</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-87"></span><span>      </span><span class="hs-comment">-- ^ If 'isNoName', this name can have a different 'NameId'</span><span>
+</span><span id="line-88"></span><span>      </span><span class="hs-comment">--   than the key of 'LoneSigs' pointing to it.</span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="loneSigKind"><span class="annot"><span class="annottext">LoneSig -&gt; DataRecOrFun
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigKind"><span class="hs-identifier hs-var hs-var">loneSigKind</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#DataRecOrFun"><span class="hs-identifier hs-type">DataRecOrFun</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681829657"><span id="local-6989586621681829668"><span id="local-6989586621681829672"><span class="annot"><span class="annottext">Int -&gt; LoneSig -&gt; ShowS
+[LoneSig] -&gt; ShowS
+LoneSig -&gt; String
+(Int -&gt; LoneSig -&gt; ShowS)
+-&gt; (LoneSig -&gt; String) -&gt; ([LoneSig] -&gt; ShowS) -&gt; Show LoneSig
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; LoneSig -&gt; ShowS
+showsPrec :: Int -&gt; LoneSig -&gt; ShowS
+$cshow :: LoneSig -&gt; String
+show :: LoneSig -&gt; String
+$cshowList :: [LoneSig] -&gt; ShowS
+showList :: [LoneSig] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-keyword">type</span><span> </span><span id="LoneSigs"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSigs"><span class="hs-identifier hs-var">LoneSigs</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSig"><span class="hs-identifier hs-type">LoneSig</span></a></span><span>
+</span><span id="line-94"></span><span>     </span><span class="hs-comment">-- ^ We retain the 'Name' also in the codomain since</span><span>
+</span><span id="line-95"></span><span>     </span><span class="hs-comment">--   'Name' as a key is up to @Eq Name@ which ignores the range.</span><span>
+</span><span id="line-96"></span><span>     </span><span class="hs-comment">--   However, without range names are not unique in case the</span><span>
+</span><span id="line-97"></span><span>     </span><span class="hs-comment">--   user gives a second definition of the same name.</span><span>
+</span><span id="line-98"></span><span>     </span><span class="hs-comment">--   This causes then problems in 'replaceSigs' which might</span><span>
+</span><span id="line-99"></span><span>     </span><span class="hs-comment">--   replace the wrong signature.</span><span>
+</span><span id="line-100"></span><span>     </span><span class="hs-comment">--</span><span>
+</span><span id="line-101"></span><span>     </span><span class="hs-comment">--   Another reason is that we want to distinguish different</span><span>
+</span><span id="line-102"></span><span>     </span><span class="hs-comment">--   occurrences of 'NoName' in a mutual block (issue #4157).</span><span>
+</span><span id="line-103"></span><span>     </span><span class="hs-comment">--   The 'NoName' in the codomain will have a unique 'NameId'.</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">type</span><span> </span><span id="NiceWarnings"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceWarnings"><span class="hs-identifier hs-var">NiceWarnings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationWarning"><span class="hs-identifier hs-type">DeclarationWarning</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-106"></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ Stack of warnings. Head is last warning.</span></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="annot"><span class="hs-comment">-- | Initial nicifier state.</span></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#initNiceState"><span class="hs-identifier hs-type">initNiceState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span>
+</span><span id="line-111"></span><span id="initNiceState"><span class="annot"><span class="annottext">initNiceState :: NiceState
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#initNiceState"><span class="hs-identifier hs-var hs-var">initNiceState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_loneSigs :: LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_loneSigs"><span class="hs-identifier hs-var">_loneSigs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LoneSigs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_termChk :: TerminationCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_termChk"><span class="hs-identifier hs-var">_termChk</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TerminationCheck
+forall m. TerminationCheck m
+</span><a href="Agda.Syntax.Common.html#TerminationCheck"><span class="hs-identifier hs-var">TerminationCheck</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_posChk :: PositivityCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_posChk"><span class="hs-identifier hs-var">_posChk</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositivityCheck
+</span><a href="Agda.Syntax.Common.html#YesPositivityCheck"><span class="hs-identifier hs-var">YesPositivityCheck</span></a></span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_uniChk :: UniverseCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_uniChk"><span class="hs-identifier hs-var">_uniChk</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UniverseCheck
+</span><a href="Agda.Syntax.Common.html#YesUniverseCheck"><span class="hs-identifier hs-var">YesUniverseCheck</span></a></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_catchall :: Catchall
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_catchall"><span class="hs-identifier hs-var">_catchall</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Catchall
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_covChk :: CoverageCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_covChk"><span class="hs-identifier hs-var">_covChk</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CoverageCheck
+</span><a href="Agda.Syntax.Common.html#YesCoverageCheck"><span class="hs-identifier hs-var">YesCoverageCheck</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">niceWarn :: NiceWarnings
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarn"><span class="hs-identifier hs-var">niceWarn</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_nameId :: NameId
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_nameId"><span class="hs-identifier hs-var">_nameId</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; ModuleNameHash -&gt; NameId
+</span><a href="Agda.Syntax.Common.html#NameId"><span class="hs-identifier hs-var">NameId</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#noModuleNameHash"><span class="hs-identifier hs-var">noModuleNameHash</span></a></span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#lensNameId"><span class="hs-identifier hs-type">lensNameId</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NameId"><span class="hs-identifier hs-type">NameId</span></a></span><span>
+</span><span id="line-123"></span><span id="lensNameId"><span class="annot"><span class="annottext">lensNameId :: Lens' NiceState NameId
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#lensNameId"><span class="hs-identifier hs-var hs-var">lensNameId</span></a></span></span><span> </span><span id="local-6989586621681829689"><span class="annot"><span class="annottext">NameId -&gt; f NameId
+</span><a href="#local-6989586621681829689"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681829690"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829690"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NameId -&gt; f NameId
+</span><a href="#local-6989586621681829689"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceState -&gt; NameId
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_nameId"><span class="hs-identifier hs-var">_nameId</span></a></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829690"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f NameId -&gt; (NameId -&gt; NiceState) -&gt; f NiceState
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829692"><span class="annot"><span class="annottext">NameId
+</span><a href="#local-6989586621681829692"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829690"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_nameId"><span class="hs-identifier hs-var">_nameId</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829692"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#nextNameId"><span class="hs-identifier hs-type">nextNameId</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#NameId"><span class="hs-identifier hs-type">NameId</span></a></span><span>
+</span><span id="line-126"></span><span id="nextNameId"><span class="annot"><span class="annottext">nextNameId :: Nice NameId
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#nextNameId"><span class="hs-identifier hs-var hs-var">nextNameId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-127"></span><span>  </span><span id="local-6989586621681829694"><span class="annot"><a href="#local-6989586621681829694"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState NameId -&gt; Nice NameId
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(NameId -&gt; f NameId) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState NameId
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#lensNameId"><span class="hs-identifier hs-var">lensNameId</span></a></span><span>
+</span><span id="line-128"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#lensNameId"><span class="hs-identifier hs-type">lensNameId</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#%25%3D"><span class="hs-operator hs-type">%=</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">succ</span></span><span>
+</span><span id="line-129"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829694"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="annot"><span class="hs-comment">-- * Handling the lone signatures, stored to infer mutual blocks.</span></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><span class="hs-comment">-- | Lens for field '_loneSigs'.</span></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-type">loneSigs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSigs"><span class="hs-identifier hs-type">LoneSigs</span></a></span><span>
+</span><span id="line-136"></span><span id="loneSigs"><span class="annot"><span class="annottext">loneSigs :: Lens' NiceState LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-var hs-var">loneSigs</span></a></span></span><span> </span><span id="local-6989586621681829705"><span class="annot"><span class="annottext">LoneSigs -&gt; f LoneSigs
+</span><a href="#local-6989586621681829705"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681829706"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829706"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LoneSigs -&gt; f LoneSigs
+</span><a href="#local-6989586621681829705"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceState -&gt; LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_loneSigs"><span class="hs-identifier hs-var">_loneSigs</span></a></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829706"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f LoneSigs -&gt; (LoneSigs -&gt; NiceState) -&gt; f NiceState
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829707"><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829707"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829706"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_loneSigs"><span class="hs-identifier hs-var">_loneSigs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829707"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- | Adding a lone signature to the state.</span><span>
+</span><span id="line-139"></span><span class="hs-comment">--   Return the name (which is made unique if 'isNoName').</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#addLoneSig"><span class="hs-identifier hs-type">addLoneSig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#DataRecOrFun"><span class="hs-identifier hs-type">DataRecOrFun</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-142"></span><span id="addLoneSig"><span class="annot"><span class="annottext">addLoneSig :: Range -&gt; Name -&gt; DataRecOrFun -&gt; Nice Name
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#addLoneSig"><span class="hs-identifier hs-var hs-var">addLoneSig</span></a></span></span><span> </span><span id="local-6989586621681829709"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681829709"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681829710"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829710"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681829711"><span class="annot"><span class="annottext">DataRecOrFun
+</span><a href="#local-6989586621681829711"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-comment">-- Andreas, 2020-05-19, issue #4157, make '_' unique.</span><span>
+</span><span id="line-144"></span><span>  </span><span id="local-6989586621681829712"><span class="annot"><a href="#local-6989586621681829712"><span class="hs-identifier hs-var">x'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829710"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-145"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Nice Name
+forall a. a -&gt; Nice a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829710"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-146"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#NoName"><span class="hs-identifier hs-type">NoName</span></a></span><span> </span><span id="local-6989586621681829713"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681829713"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="annot"><span class="annottext">NameId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Range -&gt; NameId -&gt; Name
+</span><a href="Agda.Syntax.Concrete.Name.html#NoName"><span class="hs-identifier hs-var">NoName</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681829713"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">(NameId -&gt; Name) -&gt; Nice NameId -&gt; Nice Name
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Nice NameId
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#nextNameId"><span class="hs-identifier hs-var">nextNameId</span></a></span><span>
+</span><span id="line-147"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-type">loneSigs</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#%25%3D%3D"><span class="hs-operator hs-type">%==</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829718"><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829718"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-148"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681829719"><span class="annot"><span class="annottext">Maybe LoneSig
+</span><a href="#local-6989586621681829719"><span class="hs-identifier hs-var">mr</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681829720"><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829720"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; LoneSig -&gt; LoneSig -&gt; LoneSig)
+-&gt; Name -&gt; LoneSig -&gt; LoneSigs -&gt; (Maybe LoneSig, LoneSigs)
+forall k a.
+Ord k =&gt;
+(k -&gt; a -&gt; a -&gt; a) -&gt; k -&gt; a -&gt; Map k a -&gt; (Maybe a, Map k a)
+</span><span class="hs-identifier hs-var">Map.insertLookupWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829722"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829722"><span class="hs-identifier hs-var">_k</span></a></span></span><span> </span><span id="local-6989586621681829723"><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829723"><span class="hs-identifier hs-var">new</span></a></span></span><span> </span><span id="local-6989586621681829724"><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829724"><span class="hs-identifier hs-var">_old</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829723"><span class="hs-identifier hs-var">new</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829710"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; Name -&gt; DataRecOrFun -&gt; LoneSig
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSig"><span class="hs-identifier hs-var">LoneSig</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681829709"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829712"><span class="hs-identifier hs-var">x'</span></a></span><span> </span><span class="annot"><span class="annottext">DataRecOrFun
+</span><a href="#local-6989586621681829711"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829718"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-149"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe LoneSig
+</span><a href="#local-6989586621681829719"><span class="hs-identifier hs-var">mr</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-150"></span><span>      </span><span class="annot"><span class="annottext">Maybe LoneSig
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LoneSigs -&gt; Nice LoneSigs
+forall a. a -&gt; Nice a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829720"><span class="hs-identifier hs-var">s'</span></a></span><span>
+</span><span id="line-151"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681829725"><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829725"><span class="hs-identifier hs-var">y</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclarationException' -&gt; Nice LoneSigs
+forall a. HasCallStack =&gt; DeclarationException' -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationException"><span class="hs-identifier hs-var">declarationException</span></a></span><span> </span><span class="annot"><span class="annottext">(DeclarationException' -&gt; Nice LoneSigs)
+-&gt; DeclarationException' -&gt; Nice LoneSigs
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-152"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; Bool -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Bool
+forall a. IsNoName a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Concrete.Name.html#isNoName"><span class="hs-identifier hs-var">isNoName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829710"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Range -&gt; DeclarationException'
+</span><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DuplicateDefinition"><span class="hs-identifier hs-var">DuplicateDefinition</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829710"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LoneSig -&gt; Range
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigRange"><span class="hs-identifier hs-var">loneSigRange</span></a></span><span> </span><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829725"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Range -&gt; DeclarationException'
+</span><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DuplicateAnonDeclaration"><span class="hs-identifier hs-var">DuplicateAnonDeclaration</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681829709"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LoneSig -&gt; Range
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigRange"><span class="hs-identifier hs-var">loneSigRange</span></a></span><span> </span><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829725"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-153"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829712"><span class="hs-identifier hs-type">x'</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="annot"><span class="hs-comment">-- | Remove a lone signature from the state.</span></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#removeLoneSig"><span class="hs-identifier hs-type">removeLoneSig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-158"></span><span id="removeLoneSig"><span class="annot"><span class="annottext">removeLoneSig :: Name -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#removeLoneSig"><span class="hs-identifier hs-var hs-var">removeLoneSig</span></a></span></span><span> </span><span id="local-6989586621681829731"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829731"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(LoneSigs -&gt; f LoneSigs) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-var">loneSigs</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' NiceState LoneSigs -&gt; (LoneSigs -&gt; LoneSigs) -&gt; Nice ()
+forall o (m :: * -&gt; *) i.
+MonadState o m =&gt;
+Lens' o i -&gt; (i -&gt; i) -&gt; m ()
+</span><a href="Agda.Utils.Lens.html#%25%3D"><span class="hs-operator hs-var">%=</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; LoneSigs -&gt; LoneSigs
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.delete</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829731"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="annot"><span class="hs-comment">-- | Search for forward type signature.</span></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#getSig"><span class="hs-identifier hs-type">getSig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#DataRecOrFun"><span class="hs-identifier hs-type">DataRecOrFun</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-163"></span><span id="getSig"><span class="annot"><span class="annottext">getSig :: Name -&gt; Nice (Maybe DataRecOrFun)
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#getSig"><span class="hs-identifier hs-var hs-var">getSig</span></a></span></span><span> </span><span id="local-6989586621681829736"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829736"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(LoneSig -&gt; DataRecOrFun) -&gt; Maybe LoneSig -&gt; Maybe DataRecOrFun
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">LoneSig -&gt; DataRecOrFun
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigKind"><span class="hs-identifier hs-var">loneSigKind</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe LoneSig -&gt; Maybe DataRecOrFun)
+-&gt; (LoneSigs -&gt; Maybe LoneSig) -&gt; LoneSigs -&gt; Maybe DataRecOrFun
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; LoneSigs -&gt; Maybe LoneSig
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829736"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(LoneSigs -&gt; Maybe DataRecOrFun)
+-&gt; Nice LoneSigs -&gt; Nice (Maybe DataRecOrFun)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' NiceState LoneSigs -&gt; Nice LoneSigs
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(LoneSigs -&gt; f LoneSigs) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-var">loneSigs</span></a></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="annot"><span class="hs-comment">-- | Check that no lone signatures are left in the state.</span></span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#noLoneSigs"><span class="hs-identifier hs-type">noLoneSigs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-168"></span><span id="noLoneSigs"><span class="annot"><span class="annottext">noLoneSigs :: Nice Bool
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#noLoneSigs"><span class="hs-identifier hs-var hs-var">noLoneSigs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LoneSigs -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">(LoneSigs -&gt; Bool) -&gt; Nice LoneSigs -&gt; Nice Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' NiceState LoneSigs -&gt; Nice LoneSigs
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(LoneSigs -&gt; f LoneSigs) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-var">loneSigs</span></a></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#forgetLoneSigs"><span class="hs-identifier hs-type">forgetLoneSigs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-171"></span><span id="forgetLoneSigs"><span class="annot"><span class="annottext">forgetLoneSigs :: Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#forgetLoneSigs"><span class="hs-identifier hs-var hs-var">forgetLoneSigs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(LoneSigs -&gt; f LoneSigs) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-var">loneSigs</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' NiceState LoneSigs -&gt; LoneSigs -&gt; Nice ()
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; i -&gt; m ()
+</span><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-var">.=</span></a></span><span> </span><span class="annot"><span class="annottext">LoneSigs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="annot"><span class="hs-comment">-- | Ensure that all forward declarations have been given a definition.</span></span><span>
+</span><span id="line-174"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#checkLoneSigs"><span class="hs-identifier hs-type">checkLoneSigs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSigs"><span class="hs-identifier hs-type">LoneSigs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-175"></span><span id="checkLoneSigs"><span class="annot"><span class="annottext">checkLoneSigs :: LoneSigs -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#checkLoneSigs"><span class="hs-identifier hs-var hs-var">checkLoneSigs</span></a></span></span><span> </span><span id="local-6989586621681829748"><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829748"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-176"></span><span>  </span><span class="annot"><span class="annottext">Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#forgetLoneSigs"><span class="hs-identifier hs-var">forgetLoneSigs</span></a></span><span>
+</span><span id="line-177"></span><span>  </span><span class="annot"><span class="annottext">[LoneSig] -&gt; (List1 LoneSig -&gt; Nice ()) -&gt; Nice ()
+forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+[a] -&gt; (List1 a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-var">List1.unlessNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LoneSigs -&gt; [LoneSig]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829748"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829751"><span class="annot"><span class="annottext">List1 LoneSig
+</span><a href="#local-6989586621681829751"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">HasCallStack =&gt; DeclarationWarning' -&gt; Nice ()
+DeclarationWarning' -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationWarning"><span class="hs-identifier hs-var">declarationWarning</span></a></span><span> </span><span class="annot"><span class="annottext">(DeclarationWarning' -&gt; Nice ()) -&gt; DeclarationWarning' -&gt; Nice ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">List1 (Name, Range) -&gt; DeclarationWarning'
+</span><a href="Agda.Syntax.Concrete.Definitions.Errors.html#MissingDefinitions"><span class="hs-identifier hs-var">MissingDefinitions</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 (Name, Range) -&gt; DeclarationWarning')
+-&gt; List1 (Name, Range) -&gt; DeclarationWarning'
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-178"></span><span>    </span><span class="annot"><span class="annottext">(LoneSig -&gt; (Name, Range)) -&gt; List1 LoneSig -&gt; List1 (Name, Range)
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681829754"><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829754"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LoneSig -&gt; Name
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigName"><span class="hs-identifier hs-var">loneSigName</span></a></span><span> </span><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829754"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">LoneSig -&gt; Range
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigRange"><span class="hs-identifier hs-var">loneSigRange</span></a></span><span> </span><span class="annot"><span class="annottext">LoneSig
+</span><a href="#local-6989586621681829754"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">List1 LoneSig
+</span><a href="#local-6989586621681829751"><span class="hs-identifier hs-var">ss</span></a></span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- | Ensure that all forward declarations have been given a definition,</span><span>
+</span><span id="line-181"></span><span class="hs-comment">-- raising an error indicating *why* they would have had to have been</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- defined.</span><span>
+</span><span id="line-183"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#breakImplicitMutualBlock"><span class="hs-identifier hs-type">breakImplicitMutualBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-184"></span><span id="breakImplicitMutualBlock"><span class="annot"><span class="annottext">breakImplicitMutualBlock :: KwRange -&gt; String -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#breakImplicitMutualBlock"><span class="hs-identifier hs-var hs-var">breakImplicitMutualBlock</span></a></span></span><span> </span><span id="local-6989586621681829756"><span class="annot"><span class="annottext">KwRange
+</span><a href="#local-6989586621681829756"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681829757"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681829757"><span class="hs-identifier hs-var">why</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-185"></span><span>  </span><span id="local-6989586621681829758"><span class="annot"><a href="#local-6989586621681829758"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState LoneSigs -&gt; Nice LoneSigs
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(LoneSigs -&gt; f LoneSigs) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigs"><span class="hs-identifier hs-var">loneSigs</span></a></span><span>
+</span><span id="line-186"></span><span>  </span><span class="annot"><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-type">List1.unlessNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.elems</span></span><span> </span><span class="annot"><a href="#local-6989586621681829758"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829761"><span class="annot"><span class="annottext">List1 LoneSig
+</span><a href="#local-6989586621681829761"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-187"></span><span>    </span><span class="annot"><span class="annottext">DeclarationException' -&gt; Nice ()
+forall a. HasCallStack =&gt; DeclarationException' -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationException"><span class="hs-identifier hs-var">declarationException</span></a></span><span> </span><span class="annot"><span class="annottext">(DeclarationException' -&gt; Nice ())
+-&gt; DeclarationException' -&gt; Nice ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">KwRange -&gt; String -&gt; List1 Name -&gt; DeclarationException'
+</span><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DisallowedInterleavedMutual"><span class="hs-identifier hs-var">DisallowedInterleavedMutual</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><a href="#local-6989586621681829756"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681829757"><span class="hs-identifier hs-var">why</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 Name -&gt; DeclarationException')
+-&gt; List1 Name -&gt; DeclarationException'
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-188"></span><span>      </span><span class="hs-comment">-- Andreas, 2023-09-07: We discard the 'loneSigRange's because the 'Name' already has a range.</span><span>
+</span><span id="line-189"></span><span>      </span><span class="annot"><span class="annottext">(LoneSig -&gt; Name) -&gt; List1 LoneSig -&gt; List1 Name
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">LoneSig -&gt; Name
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigName"><span class="hs-identifier hs-var">loneSigName</span></a></span><span> </span><span class="annot"><span class="annottext">List1 LoneSig
+</span><a href="#local-6989586621681829761"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-190"></span><span>
+</span><span id="line-191"></span><span class="annot"><span class="hs-comment">-- | Get names of lone function signatures, plus their unique names.</span></span><span>
+</span><span id="line-192"></span><span>
+</span><span id="line-193"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneFuns"><span class="hs-identifier hs-type">loneFuns</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSigs"><span class="hs-identifier hs-type">LoneSigs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-194"></span><span id="loneFuns"><span class="annot"><span class="annottext">loneFuns :: LoneSigs -&gt; [(Name, Arg Name)]
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneFuns"><span class="hs-identifier hs-var hs-var">loneFuns</span></a></span></span><span> </span><span id="local-6989586621681829764"><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829764"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Maybe (Name, Arg Name)] -&gt; [(Name, Arg Name)]
+forall a. [Maybe a] -&gt; [a]
+</span><span class="hs-identifier hs-var">catMaybes</span></span><span> </span><span class="annot"><span class="annottext">([Maybe (Name, Arg Name)] -&gt; [(Name, Arg Name)])
+-&gt; [Maybe (Name, Arg Name)] -&gt; [(Name, Arg Name)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-195"></span><span>   </span><span class="annot"><span class="annottext">LoneSigs -&gt; [(Name, LoneSig)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">LoneSigs
+</span><a href="#local-6989586621681829764"><span class="hs-identifier hs-var">ls</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, LoneSig)]
+-&gt; ((Name, LoneSig) -&gt; Maybe (Name, Arg Name))
+-&gt; [Maybe (Name, Arg Name)]
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-196"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681829766"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829766"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSig"><span class="hs-identifier hs-type">LoneSig</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681829767"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829767"><span class="hs-identifier hs-var">x'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#FunName"><span class="hs-identifier hs-type">FunName</span></a></span><span> </span><span id="local-6989586621681829769"><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681829769"><span class="hs-identifier hs-var">ai</span></a></span></span><span> </span><span class="annot"><span class="annottext">TerminationCheck
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">CoverageCheck
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Name, Arg Name) -&gt; Maybe (Name, Arg Name)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829766"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ArgInfo -&gt; Name -&gt; Arg Name
+forall e. ArgInfo -&gt; e -&gt; Arg e
+</span><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-var">Arg</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681829769"><span class="hs-identifier hs-var">ai</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829767"><span class="hs-identifier hs-var">x'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-197"></span><span>    </span><span class="annot"><span class="annottext">(Name, LoneSig)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (Name, Arg Name)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span class="annot"><span class="hs-comment">-- | Create a 'LoneSigs' map from an association list.</span></span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigsFromLoneNames"><span class="hs-identifier hs-type">loneSigsFromLoneNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#DataRecOrFun"><span class="hs-identifier hs-type">DataRecOrFun</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSigs"><span class="hs-identifier hs-type">LoneSigs</span></a></span><span>
+</span><span id="line-202"></span><span id="loneSigsFromLoneNames"><span class="annot"><span class="annottext">loneSigsFromLoneNames :: [(Range, Name, DataRecOrFun)] -&gt; LoneSigs
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#loneSigsFromLoneNames"><span class="hs-identifier hs-var hs-var">loneSigsFromLoneNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(LoneSig -&gt; LoneSig -&gt; LoneSig) -&gt; [(Name, LoneSig)] -&gt; LoneSigs
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">LoneSig -&gt; LoneSig -&gt; LoneSig
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">([(Name, LoneSig)] -&gt; LoneSigs)
+-&gt; ([(Range, Name, DataRecOrFun)] -&gt; [(Name, LoneSig)])
+-&gt; [(Range, Name, DataRecOrFun)]
+-&gt; LoneSigs
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((Range, Name, DataRecOrFun) -&gt; (Name, LoneSig))
+-&gt; [(Range, Name, DataRecOrFun)] -&gt; [(Name, LoneSig)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621681829773"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681829773"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681829774"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829774"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681829775"><span class="annot"><span class="annottext">DataRecOrFun
+</span><a href="#local-6989586621681829775"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829774"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Name -&gt; DataRecOrFun -&gt; LoneSig
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#LoneSig"><span class="hs-identifier hs-var">LoneSig</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681829773"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829774"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">DataRecOrFun
+</span><a href="#local-6989586621681829775"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-203"></span><span>
+</span><span id="line-204"></span><span class="annot"><span class="hs-comment">-- | Lens for field '_termChk'.</span></span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#terminationCheckPragma"><span class="hs-identifier hs-type">terminationCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#TerminationCheck"><span class="hs-identifier hs-type">TerminationCheck</span></a></span><span>
+</span><span id="line-207"></span><span id="terminationCheckPragma"><span class="annot"><span class="annottext">terminationCheckPragma :: Lens' NiceState TerminationCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#terminationCheckPragma"><span class="hs-identifier hs-var hs-var">terminationCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829779"><span class="annot"><span class="annottext">TerminationCheck -&gt; f TerminationCheck
+</span><a href="#local-6989586621681829779"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681829780"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829780"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TerminationCheck -&gt; f TerminationCheck
+</span><a href="#local-6989586621681829779"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceState -&gt; TerminationCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_termChk"><span class="hs-identifier hs-var">_termChk</span></a></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829780"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f TerminationCheck
+-&gt; (TerminationCheck -&gt; NiceState) -&gt; f NiceState
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829781"><span class="annot"><span class="annottext">TerminationCheck
+</span><a href="#local-6989586621681829781"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829780"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_termChk"><span class="hs-identifier hs-var">_termChk</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829781"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span id="local-6989586621681829315"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withTerminationCheckPragma"><span class="hs-identifier hs-type">withTerminationCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Types.html#TerminationCheck"><span class="hs-identifier hs-type">TerminationCheck</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829315"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829315"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-210"></span><span id="withTerminationCheckPragma"><span class="annot"><span class="annottext">withTerminationCheckPragma :: forall a. TerminationCheck -&gt; Nice a -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withTerminationCheckPragma"><span class="hs-identifier hs-var hs-var">withTerminationCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829791"><span class="annot"><span class="annottext">TerminationCheck
+</span><a href="#local-6989586621681829791"><span class="hs-identifier hs-var">tc</span></a></span></span><span> </span><span id="local-6989586621681829792"><span class="annot"><span class="annottext">Nice a
+</span><a href="#local-6989586621681829792"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-211"></span><span>  </span><span id="local-6989586621681829793"><span class="annot"><a href="#local-6989586621681829793"><span class="hs-identifier hs-var">tc_old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState TerminationCheck -&gt; Nice TerminationCheck
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(TerminationCheck -&gt; f TerminationCheck)
+-&gt; NiceState -&gt; f NiceState
+Lens' NiceState TerminationCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#terminationCheckPragma"><span class="hs-identifier hs-var">terminationCheckPragma</span></a></span><span>
+</span><span id="line-212"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#terminationCheckPragma"><span class="hs-identifier hs-type">terminationCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829791"><span class="hs-identifier hs-type">tc</span></a></span><span>
+</span><span id="line-213"></span><span>  </span><span id="local-6989586621681829798"><span class="annot"><a href="#local-6989586621681829798"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681829792"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-214"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#terminationCheckPragma"><span class="hs-identifier hs-type">terminationCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829793"><span class="hs-identifier hs-type">tc_old</span></a></span><span>
+</span><span id="line-215"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829798"><span class="hs-identifier hs-type">result</span></a></span><span>
+</span><span id="line-216"></span><span>
+</span><span id="line-217"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#coverageCheckPragma"><span class="hs-identifier hs-type">coverageCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#CoverageCheck"><span class="hs-identifier hs-type">CoverageCheck</span></a></span><span>
+</span><span id="line-218"></span><span id="coverageCheckPragma"><span class="annot"><span class="annottext">coverageCheckPragma :: Lens' NiceState CoverageCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#coverageCheckPragma"><span class="hs-identifier hs-var hs-var">coverageCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829804"><span class="annot"><span class="annottext">CoverageCheck -&gt; f CoverageCheck
+</span><a href="#local-6989586621681829804"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681829805"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829805"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CoverageCheck -&gt; f CoverageCheck
+</span><a href="#local-6989586621681829804"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceState -&gt; CoverageCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_covChk"><span class="hs-identifier hs-var">_covChk</span></a></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829805"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f CoverageCheck -&gt; (CoverageCheck -&gt; NiceState) -&gt; f NiceState
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829806"><span class="annot"><span class="annottext">CoverageCheck
+</span><a href="#local-6989586621681829806"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829805"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_covChk"><span class="hs-identifier hs-var">_covChk</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829806"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-219"></span><span>
+</span><span id="line-220"></span><span id="local-6989586621681829321"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withCoverageCheckPragma"><span class="hs-identifier hs-type">withCoverageCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#CoverageCheck"><span class="hs-identifier hs-type">CoverageCheck</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829321"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829321"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-221"></span><span id="withCoverageCheckPragma"><span class="annot"><span class="annottext">withCoverageCheckPragma :: forall a. CoverageCheck -&gt; Nice a -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withCoverageCheckPragma"><span class="hs-identifier hs-var hs-var">withCoverageCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829816"><span class="annot"><span class="annottext">CoverageCheck
+</span><a href="#local-6989586621681829816"><span class="hs-identifier hs-var">tc</span></a></span></span><span> </span><span id="local-6989586621681829817"><span class="annot"><span class="annottext">Nice a
+</span><a href="#local-6989586621681829817"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-222"></span><span>  </span><span id="local-6989586621681829818"><span class="annot"><a href="#local-6989586621681829818"><span class="hs-identifier hs-var">tc_old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState CoverageCheck -&gt; Nice CoverageCheck
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(CoverageCheck -&gt; f CoverageCheck) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState CoverageCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#coverageCheckPragma"><span class="hs-identifier hs-var">coverageCheckPragma</span></a></span><span>
+</span><span id="line-223"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#coverageCheckPragma"><span class="hs-identifier hs-type">coverageCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829816"><span class="hs-identifier hs-type">tc</span></a></span><span>
+</span><span id="line-224"></span><span>  </span><span id="local-6989586621681829823"><span class="annot"><a href="#local-6989586621681829823"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681829817"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-225"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#coverageCheckPragma"><span class="hs-identifier hs-type">coverageCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829818"><span class="hs-identifier hs-type">tc_old</span></a></span><span>
+</span><span id="line-226"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829823"><span class="hs-identifier hs-type">result</span></a></span><span>
+</span><span id="line-227"></span><span>
+</span><span id="line-228"></span><span class="annot"><span class="hs-comment">-- | Lens for field '_posChk'.</span></span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#positivityCheckPragma"><span class="hs-identifier hs-type">positivityCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#PositivityCheck"><span class="hs-identifier hs-type">PositivityCheck</span></a></span><span>
+</span><span id="line-231"></span><span id="positivityCheckPragma"><span class="annot"><span class="annottext">positivityCheckPragma :: Lens' NiceState PositivityCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#positivityCheckPragma"><span class="hs-identifier hs-var hs-var">positivityCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829829"><span class="annot"><span class="annottext">PositivityCheck -&gt; f PositivityCheck
+</span><a href="#local-6989586621681829829"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681829830"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829830"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositivityCheck -&gt; f PositivityCheck
+</span><a href="#local-6989586621681829829"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceState -&gt; PositivityCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_posChk"><span class="hs-identifier hs-var">_posChk</span></a></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829830"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f PositivityCheck -&gt; (PositivityCheck -&gt; NiceState) -&gt; f NiceState
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829831"><span class="annot"><span class="annottext">PositivityCheck
+</span><a href="#local-6989586621681829831"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829830"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_posChk"><span class="hs-identifier hs-var">_posChk</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829831"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span id="local-6989586621681829327"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withPositivityCheckPragma"><span class="hs-identifier hs-type">withPositivityCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#PositivityCheck"><span class="hs-identifier hs-type">PositivityCheck</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829327"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829327"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-234"></span><span id="withPositivityCheckPragma"><span class="annot"><span class="annottext">withPositivityCheckPragma :: forall a. PositivityCheck -&gt; Nice a -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withPositivityCheckPragma"><span class="hs-identifier hs-var hs-var">withPositivityCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829841"><span class="annot"><span class="annottext">PositivityCheck
+</span><a href="#local-6989586621681829841"><span class="hs-identifier hs-var">pc</span></a></span></span><span> </span><span id="local-6989586621681829842"><span class="annot"><span class="annottext">Nice a
+</span><a href="#local-6989586621681829842"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-235"></span><span>  </span><span id="local-6989586621681829843"><span class="annot"><a href="#local-6989586621681829843"><span class="hs-identifier hs-var">pc_old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState PositivityCheck -&gt; Nice PositivityCheck
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(PositivityCheck -&gt; f PositivityCheck) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState PositivityCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#positivityCheckPragma"><span class="hs-identifier hs-var">positivityCheckPragma</span></a></span><span>
+</span><span id="line-236"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#positivityCheckPragma"><span class="hs-identifier hs-type">positivityCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829841"><span class="hs-identifier hs-type">pc</span></a></span><span>
+</span><span id="line-237"></span><span>  </span><span id="local-6989586621681829848"><span class="annot"><a href="#local-6989586621681829848"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681829842"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-238"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#positivityCheckPragma"><span class="hs-identifier hs-type">positivityCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829843"><span class="hs-identifier hs-type">pc_old</span></a></span><span>
+</span><span id="line-239"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829848"><span class="hs-identifier hs-type">result</span></a></span><span>
+</span><span id="line-240"></span><span>
+</span><span id="line-241"></span><span class="annot"><span class="hs-comment">-- | Lens for field '_uniChk'.</span></span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#universeCheckPragma"><span class="hs-identifier hs-type">universeCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#UniverseCheck"><span class="hs-identifier hs-type">UniverseCheck</span></a></span><span>
+</span><span id="line-244"></span><span id="universeCheckPragma"><span class="annot"><span class="annottext">universeCheckPragma :: Lens' NiceState UniverseCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#universeCheckPragma"><span class="hs-identifier hs-var hs-var">universeCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829854"><span class="annot"><span class="annottext">UniverseCheck -&gt; f UniverseCheck
+</span><a href="#local-6989586621681829854"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681829855"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829855"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UniverseCheck -&gt; f UniverseCheck
+</span><a href="#local-6989586621681829854"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceState -&gt; UniverseCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_uniChk"><span class="hs-identifier hs-var">_uniChk</span></a></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829855"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f UniverseCheck -&gt; (UniverseCheck -&gt; NiceState) -&gt; f NiceState
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829856"><span class="annot"><span class="annottext">UniverseCheck
+</span><a href="#local-6989586621681829856"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829855"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_uniChk"><span class="hs-identifier hs-var">_uniChk</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829856"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-245"></span><span>
+</span><span id="line-246"></span><span id="local-6989586621681829333"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withUniverseCheckPragma"><span class="hs-identifier hs-type">withUniverseCheckPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#UniverseCheck"><span class="hs-identifier hs-type">UniverseCheck</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829333"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829333"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-247"></span><span id="withUniverseCheckPragma"><span class="annot"><span class="annottext">withUniverseCheckPragma :: forall a. UniverseCheck -&gt; Nice a -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withUniverseCheckPragma"><span class="hs-identifier hs-var hs-var">withUniverseCheckPragma</span></a></span></span><span> </span><span id="local-6989586621681829866"><span class="annot"><span class="annottext">UniverseCheck
+</span><a href="#local-6989586621681829866"><span class="hs-identifier hs-var">uc</span></a></span></span><span> </span><span id="local-6989586621681829867"><span class="annot"><span class="annottext">Nice a
+</span><a href="#local-6989586621681829867"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-248"></span><span>  </span><span id="local-6989586621681829868"><span class="annot"><a href="#local-6989586621681829868"><span class="hs-identifier hs-var">uc_old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState UniverseCheck -&gt; Nice UniverseCheck
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(UniverseCheck -&gt; f UniverseCheck) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState UniverseCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#universeCheckPragma"><span class="hs-identifier hs-var">universeCheckPragma</span></a></span><span>
+</span><span id="line-249"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#universeCheckPragma"><span class="hs-identifier hs-type">universeCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829866"><span class="hs-identifier hs-type">uc</span></a></span><span>
+</span><span id="line-250"></span><span>  </span><span id="local-6989586621681829873"><span class="annot"><a href="#local-6989586621681829873"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681829867"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-251"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#universeCheckPragma"><span class="hs-identifier hs-type">universeCheckPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829868"><span class="hs-identifier hs-type">uc_old</span></a></span><span>
+</span><span id="line-252"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829873"><span class="hs-identifier hs-type">result</span></a></span><span>
+</span><span id="line-253"></span><span>
+</span><span id="line-254"></span><span class="hs-comment">-- | Get universe check pragma from a data/rec signature.</span><span>
+</span><span id="line-255"></span><span class="hs-comment">--   Defaults to 'YesUniverseCheck'.</span><span>
+</span><span id="line-256"></span><span>
+</span><span id="line-257"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#getUniverseCheckFromSig"><span class="hs-identifier hs-type">getUniverseCheckFromSig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#UniverseCheck"><span class="hs-identifier hs-type">UniverseCheck</span></a></span><span>
+</span><span id="line-258"></span><span id="getUniverseCheckFromSig"><span class="annot"><span class="annottext">getUniverseCheckFromSig :: Name -&gt; Nice UniverseCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#getUniverseCheckFromSig"><span class="hs-identifier hs-var hs-var">getUniverseCheckFromSig</span></a></span></span><span> </span><span id="local-6989586621681829877"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829877"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UniverseCheck
+-&gt; (DataRecOrFun -&gt; UniverseCheck)
+-&gt; Maybe DataRecOrFun
+-&gt; UniverseCheck
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">UniverseCheck
+</span><a href="Agda.Syntax.Common.html#YesUniverseCheck"><span class="hs-identifier hs-var">YesUniverseCheck</span></a></span><span> </span><span class="annot"><span class="annottext">DataRecOrFun -&gt; UniverseCheck
+</span><a href="Agda.Syntax.Concrete.Definitions.Types.html#universeCheck"><span class="hs-identifier hs-var">universeCheck</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe DataRecOrFun -&gt; UniverseCheck)
+-&gt; Nice (Maybe DataRecOrFun) -&gt; Nice UniverseCheck
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Nice (Maybe DataRecOrFun)
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#getSig"><span class="hs-identifier hs-var">getSig</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681829877"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-259"></span><span>
+</span><span id="line-260"></span><span class="annot"><span class="hs-comment">-- | Lens for field '_catchall'.</span></span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#catchallPragma"><span class="hs-identifier hs-type">catchallPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#NiceState"><span class="hs-identifier hs-type">NiceState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Catchall"><span class="hs-identifier hs-type">Catchall</span></a></span><span>
+</span><span id="line-263"></span><span id="catchallPragma"><span class="annot"><span class="annottext">catchallPragma :: Lens' NiceState Catchall
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#catchallPragma"><span class="hs-identifier hs-var hs-var">catchallPragma</span></a></span></span><span> </span><span id="local-6989586621681829883"><span class="annot"><span class="annottext">Catchall -&gt; f Catchall
+</span><a href="#local-6989586621681829883"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681829884"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829884"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Catchall -&gt; f Catchall
+</span><a href="#local-6989586621681829883"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NiceState -&gt; Catchall
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_catchall"><span class="hs-identifier hs-var">_catchall</span></a></span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829884"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f Catchall -&gt; (Catchall -&gt; NiceState) -&gt; f NiceState
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829885"><span class="annot"><span class="annottext">Catchall
+</span><a href="#local-6989586621681829885"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829884"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#_catchall"><span class="hs-identifier hs-var">_catchall</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829885"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span class="annot"><span class="hs-comment">-- | Get current catchall pragma, and reset it for the next clause.</span></span><span>
+</span><span id="line-266"></span><span>
+</span><span id="line-267"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#popCatchallPragma"><span class="hs-identifier hs-type">popCatchallPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Catchall"><span class="hs-identifier hs-type">Catchall</span></a></span><span>
+</span><span id="line-268"></span><span id="popCatchallPragma"><span class="annot"><span class="annottext">popCatchallPragma :: Nice Catchall
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#popCatchallPragma"><span class="hs-identifier hs-var hs-var">popCatchallPragma</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-269"></span><span>  </span><span id="local-6989586621681829887"><span class="annot"><a href="#local-6989586621681829887"><span class="hs-identifier hs-var">ca</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState Catchall -&gt; Nice Catchall
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(Catchall -&gt; f Catchall) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState Catchall
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#catchallPragma"><span class="hs-identifier hs-var">catchallPragma</span></a></span><span>
+</span><span id="line-270"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#catchallPragma"><span class="hs-identifier hs-type">catchallPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-type">empty</span></a></span><span>
+</span><span id="line-271"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829887"><span class="hs-identifier hs-type">ca</span></a></span><span>
+</span><span id="line-272"></span><span>
+</span><span id="line-273"></span><span id="local-6989586621681829343"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withCatchallPragma"><span class="hs-identifier hs-type">withCatchallPragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Catchall"><span class="hs-identifier hs-type">Catchall</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829343"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829343"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-274"></span><span id="withCatchallPragma"><span class="annot"><span class="annottext">withCatchallPragma :: forall a. Catchall -&gt; Nice a -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#withCatchallPragma"><span class="hs-identifier hs-var hs-var">withCatchallPragma</span></a></span></span><span> </span><span id="local-6989586621681829901"><span class="annot"><span class="annottext">Catchall
+</span><a href="#local-6989586621681829901"><span class="hs-identifier hs-var">ca</span></a></span></span><span> </span><span id="local-6989586621681829902"><span class="annot"><span class="annottext">Nice a
+</span><a href="#local-6989586621681829902"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-275"></span><span>  </span><span id="local-6989586621681829903"><span class="annot"><a href="#local-6989586621681829903"><span class="hs-identifier hs-var">ca_old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' NiceState Catchall -&gt; Nice Catchall
+forall o (m :: * -&gt; *) i. MonadState o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#use"><span class="hs-identifier hs-var">use</span></a></span><span> </span><span class="annot"><span class="annottext">(Catchall -&gt; f Catchall) -&gt; NiceState -&gt; f NiceState
+Lens' NiceState Catchall
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#catchallPragma"><span class="hs-identifier hs-var">catchallPragma</span></a></span><span>
+</span><span id="line-276"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#catchallPragma"><span class="hs-identifier hs-type">catchallPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829901"><span class="hs-identifier hs-type">ca</span></a></span><span>
+</span><span id="line-277"></span><span>  </span><span id="local-6989586621681829908"><span class="annot"><a href="#local-6989586621681829908"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681829902"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-278"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#catchallPragma"><span class="hs-identifier hs-type">catchallPragma</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829903"><span class="hs-identifier hs-type">ca_old</span></a></span><span>
+</span><span id="line-279"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681829908"><span class="hs-identifier hs-type">result</span></a></span><span>
+</span><span id="line-280"></span><span>
+</span><span id="line-281"></span><span class="annot"><span class="hs-comment">-- | Add a new warning.</span></span><span>
+</span><span id="line-282"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarning"><span class="hs-identifier hs-type">niceWarning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationWarning"><span class="hs-identifier hs-type">DeclarationWarning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-283"></span><span id="niceWarning"><span class="annot"><span class="annottext">niceWarning :: DeclarationWarning -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarning"><span class="hs-identifier hs-var hs-var">niceWarning</span></a></span></span><span> </span><span id="local-6989586621681829912"><span class="annot"><span class="annottext">DeclarationWarning
+</span><a href="#local-6989586621681829912"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NiceState -&gt; NiceState) -&gt; Nice ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">((NiceState -&gt; NiceState) -&gt; Nice ())
+-&gt; (NiceState -&gt; NiceState) -&gt; Nice ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681829913"><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829913"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NiceState
+</span><a href="#local-6989586621681829913"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarn"><span class="hs-identifier hs-var">niceWarn</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681829912"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarn"><span class="hs-identifier hs-var">niceWarn</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829913"><span class="hs-identifier hs-type">st</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-284"></span><span>
+</span><span id="line-285"></span><span id="local-6989586621681829283"><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationException"><span class="hs-identifier hs-type">declarationException</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationException%27"><span class="hs-identifier hs-type">DeclarationException'</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681829283"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-286"></span><span id="declarationException"><span class="annot"><span class="annottext">declarationException :: forall a. HasCallStack =&gt; DeclarationException' -&gt; Nice a
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationException"><span class="hs-identifier hs-var hs-var">declarationException</span></a></span></span><span> </span><span id="local-6989586621681829918"><span class="annot"><span class="annottext">DeclarationException'
+</span><a href="#local-6989586621681829918"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; Nice a) -&gt; Nice a
+forall b. HasCallStack =&gt; (CallStack -&gt; b) -&gt; b
+</span><a href="Agda.Utils.CallStack.Base.html#withCallerCallStack"><span class="hs-identifier hs-var">withCallerCallStack</span></a></span><span> </span><span class="annot"><span class="annottext">((CallStack -&gt; Nice a) -&gt; Nice a)
+-&gt; (CallStack -&gt; Nice a) -&gt; Nice a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">DeclarationException -&gt; Nice a
+forall a. DeclarationException -&gt; Nice a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(DeclarationException -&gt; Nice a)
+-&gt; (CallStack -&gt; DeclarationException) -&gt; CallStack -&gt; Nice a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; DeclarationException' -&gt; DeclarationException)
+-&gt; DeclarationException' -&gt; CallStack -&gt; DeclarationException
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; DeclarationException' -&gt; DeclarationException
+</span><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationException"><span class="hs-identifier hs-var">DeclarationException</span></a></span><span> </span><span class="annot"><span class="annottext">DeclarationException'
+</span><a href="#local-6989586621681829918"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-287"></span><span>
+</span><span id="line-288"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationWarning%27"><span class="hs-identifier hs-type">declarationWarning'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationWarning%27"><span class="hs-identifier hs-type">DeclarationWarning'</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CallStack</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-289"></span><span id="declarationWarning%27"><span class="annot"><span class="annottext">declarationWarning' :: DeclarationWarning' -&gt; CallStack -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationWarning%27"><span class="hs-identifier hs-var hs-var">declarationWarning'</span></a></span></span><span> </span><span id="local-6989586621681829922"><span class="annot"><span class="annottext">DeclarationWarning'
+</span><a href="#local-6989586621681829922"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621681829923"><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681829923"><span class="hs-identifier hs-var">loc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DeclarationWarning -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#niceWarning"><span class="hs-identifier hs-var">niceWarning</span></a></span><span> </span><span class="annot"><span class="annottext">(DeclarationWarning -&gt; Nice ()) -&gt; DeclarationWarning -&gt; Nice ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; DeclarationWarning' -&gt; DeclarationWarning
+</span><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationWarning"><span class="hs-identifier hs-var">DeclarationWarning</span></a></span><span> </span><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681829923"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">DeclarationWarning'
+</span><a href="#local-6989586621681829922"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-290"></span><span>
+</span><span id="line-291"></span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationWarning"><span class="hs-identifier hs-type">declarationWarning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Errors.html#DeclarationWarning%27"><span class="hs-identifier hs-type">DeclarationWarning'</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Definitions.Monad.html#Nice"><span class="hs-identifier hs-type">Nice</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-292"></span><span id="declarationWarning"><span class="annot"><span class="annottext">declarationWarning :: HasCallStack =&gt; DeclarationWarning' -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationWarning"><span class="hs-identifier hs-var hs-var">declarationWarning</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; Nice ()) -&gt; Nice ()
+forall b. HasCallStack =&gt; (CallStack -&gt; b) -&gt; b
+</span><a href="Agda.Utils.CallStack.Base.html#withCallerCallStack"><span class="hs-identifier hs-var">withCallerCallStack</span></a></span><span> </span><span class="annot"><span class="annottext">((CallStack -&gt; Nice ()) -&gt; Nice ())
+-&gt; (DeclarationWarning' -&gt; CallStack -&gt; Nice ())
+-&gt; DeclarationWarning'
+-&gt; Nice ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">DeclarationWarning' -&gt; CallStack -&gt; Nice ()
+</span><a href="Agda.Syntax.Concrete.Definitions.Monad.html#declarationWarning%27"><span class="hs-identifier hs-var">declarationWarning'</span></a></span><span>
+</span><span id="line-293"></span></pre></body></html>

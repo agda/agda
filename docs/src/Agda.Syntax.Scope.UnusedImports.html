@@ -1,0 +1,865 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Warn about unused imports.</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- For each @open@ statement, we want to issue a warning about concrete names</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- brought into scope by this statement which are not referenced subsequently.</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- To this end, whenever we lookup a concrete name during scope checking,</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- we mark it as used by calling 'lookedupName' with the results of the lookup,</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- which is an 'AbstractName' or several 'AbstractName's in case the name</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- is ambiguous (e.g. an ambiguous constructor or projection).</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- We also record for each opened module the set of 'AbstractName's it brought</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- into scope.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- When checking the file is done, we can traverse the each opened module</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- and report all the 'AbstractName's that we not used.</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html"><span class="hs-identifier">Agda.Syntax.Scope.UnusedImports</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#lookedupName"><span class="hs-identifier">lookedupName</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#registerModuleOpening"><span class="hs-identifier">registerModuleOpening</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#warnUnusedImports"><span class="hs-identifier">warnUnusedImports</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(||)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap.Strict</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">partition</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Base.html#lensOptWarningMode"><span class="hs-identifier">lensOptWarningMode</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#optQualifiedInstances"><span class="hs-identifier">optQualifiedInstances</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html"><span class="hs-identifier">Agda.Interaction.Options.Warnings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#lensSingleWarning"><span class="hs-identifier">lensSingleWarning</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#WarningName"><span class="hs-identifier">WarningName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#UnusedImports_"><span class="hs-identifier">UnusedImports_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#UnusedImportsAll_"><span class="hs-identifier">UnusedImportsAll_</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#warningSet"><span class="hs-identifier">warningSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#unusedImportsWarnings"><span class="hs-identifier">unusedImportsWarnings</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsInstanceDef"><span class="hs-identifier">IsInstanceDef</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#isInstanceDef"><span class="hs-identifier">isInstanceDef</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsInstance"><span class="hs-identifier">IsInstance</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier">KwRange</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ImportDirective%27"><span class="hs-identifier">ImportDirective'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#using"><span class="hs-identifier">using</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#impRenaming"><span class="hs-identifier">impRenaming</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#publicOpen"><span class="hs-identifier">publicOpen</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier">prettyShow</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier">Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier">pretty</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier">HasRange</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier">getRange</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#SetRange"><span class="hs-identifier">SetRange</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier">setRange</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier">Range</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html"><span class="hs-identifier">Agda.Syntax.Scope.Base</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.State.html"><span class="hs-identifier">Agda.Syntax.Scope.State</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.State.html#ScopeM"><span class="hs-identifier">ScopeM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.State.html#withCurrentModule"><span class="hs-identifier">withCurrentModule</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- importing Agda.Syntax.Scope.Monad creates import cycles</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier">reportSLn</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#__IMPOSSIBLE_VERBOSE__"><span class="hs-identifier">__IMPOSSIBLE_VERBOSE__</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Trace.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Trace</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Trace.html#setCurrentRange"><span class="hs-identifier">setCurrentRange</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html"><span class="hs-identifier">Agda.TypeChecking.Warnings</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier">warning</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Boolean.html"><span class="hs-identifier">Agda.Utils.Boolean</span></a></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator">(||)</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html"><span class="hs-identifier">Agda.Utils.Function</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html#applyUnless"><span class="hs-identifier">applyUnless</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier">Lens'</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#partitionMaybe"><span class="hs-identifier">partitionMaybe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#hasElem"><span class="hs-identifier">hasElem</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>    </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html"><span class="hs-identifier">Agda.Utils.List2</span></a></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier">List2</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html"><span class="hs-identifier">Agda.Utils.List2</span></a></span><span>    </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List2</span></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Map.html"><span class="hs-identifier">Agda.Utils.Map</span></a></span><span>      </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isJust</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html#whenNothing"><span class="hs-identifier">whenNothing</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">forM_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html#when"><span class="hs-identifier">when</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html#unless"><span class="hs-identifier">unless</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier">Null</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Null.html#null"><span class="hs-identifier">null</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="annot"><span class="hs-comment">-- | Call these whenever a concrete name was translated to an abstract one.</span></span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#lookedupName"><span class="hs-identifier hs-type">lookedupName</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-68"></span><span>     </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">C.QName</span></a></span><span>       </span><span class="annot"><span class="hs-comment">-- ^ The concrete name resolved by the scope checker.</span></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#ResolvedName"><span class="hs-identifier hs-type">ResolvedName</span></a></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ The resolution of the name.</span></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.State.html#ScopeM"><span class="hs-identifier hs-type">ScopeM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span id="lookedupName"><span class="annot"><span class="annottext">lookedupName :: QName -&gt; ResolvedName -&gt; ScopeM ()
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#lookedupName"><span class="hs-identifier hs-var hs-var">lookedupName</span></a></span></span><span> </span><span id="local-6989586621681937678"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937678"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#DefinedName"><span class="hs-identifier hs-type">DefinedName</span></a></span><span> </span><span id="local-6989586621681937680"><span class="annot"><span class="annottext">Access
+</span><a href="#local-6989586621681937680"><span class="hs-identifier hs-var">_access</span></a></span></span><span> </span><span id="local-6989586621681937681"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937681"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681937682"><span class="annot"><span class="annottext">Suffix
+</span><a href="#local-6989586621681937682"><span class="hs-identifier hs-var">_suffix</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937683"><span class="hs-identifier hs-var">unamb</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937681"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#FieldName"><span class="hs-identifier hs-type">FieldName</span></a></span><span> </span><span id="local-6989586621681937685"><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681937685"><span class="hs-identifier hs-var">ys</span></a></span></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">List1 AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937686"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681937685"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#ConstructorName"><span class="hs-identifier hs-type">ConstructorName</span></a></span><span> </span><span id="local-6989586621681937688"><span class="annot"><span class="annottext">Set1 Induction
+</span><a href="#local-6989586621681937688"><span class="hs-identifier hs-var">_ind</span></a></span></span><span> </span><span id="local-6989586621681937689"><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681937689"><span class="hs-identifier hs-var">ys</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">List1 AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937686"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681937689"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#PatternSynResName"><span class="hs-identifier hs-type">PatternSynResName</span></a></span><span> </span><span id="local-6989586621681937691"><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681937691"><span class="hs-identifier hs-var">ys</span></a></span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">List1 AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937686"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="annot"><span class="annottext">List1 AbstractName
+</span><a href="#local-6989586621681937691"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#VarName"><span class="hs-identifier hs-type">VarName</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; ScopeM ()
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#UnknownName"><span class="hs-identifier hs-type">UnknownName</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; ScopeM ()
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-79"></span><span>    </span><span id="local-6989586621681937686"><span class="annot"><span class="annottext">add :: List1 AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937686"><span class="hs-identifier hs-var hs-var">add</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-80"></span><span>      </span><span id="local-6989586621681937694"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937694"><span class="hs-identifier hs-var">y</span></a></span></span><span>  </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937683"><span class="hs-identifier hs-var">unamb</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937694"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-81"></span><span>      </span><span id="local-6989586621681937695"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937695"><span class="hs-identifier hs-var">y1</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621681937696"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937696"><span class="hs-identifier hs-var">y2</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681937697"><span class="annot"><span class="annottext">[AbstractName]
+</span><a href="#local-6989586621681937697"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">List2 AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937698"><span class="hs-identifier hs-var">amb</span></a></span><span> </span><span class="annot"><span class="annottext">(List2 AbstractName -&gt; ScopeM ())
+-&gt; List2 AbstractName -&gt; ScopeM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AbstractName
+-&gt; AbstractName -&gt; [AbstractName] -&gt; List2 AbstractName
+forall a. a -&gt; a -&gt; [a] -&gt; List2 a
+</span><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-var">List2</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937695"><span class="hs-identifier hs-var">y1</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937696"><span class="hs-identifier hs-var">y2</span></a></span><span> </span><span class="annot"><span class="annottext">[AbstractName]
+</span><a href="#local-6989586621681937697"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-82"></span><span>    </span><span id="local-6989586621681937683"><span class="annot"><span class="annottext">unamb :: AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937683"><span class="hs-identifier hs-var hs-var">unamb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState [AbstractName]
+-&gt; ([AbstractName] -&gt; [AbstractName]) -&gt; ScopeM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-identifier hs-var">modifyTCLens</span></a></span><span> </span><span class="annot"><span class="annottext">([AbstractName] -&gt; f [AbstractName]) -&gt; TCState -&gt; f TCState
+Lens' TCState [AbstractName]
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#stUnambiguousLookups"><span class="hs-identifier hs-var">stUnambiguousLookups</span></a></span><span> </span><span class="annot"><span class="annottext">(([AbstractName] -&gt; [AbstractName]) -&gt; ScopeM ())
+-&gt; (AbstractName -&gt; [AbstractName] -&gt; [AbstractName])
+-&gt; AbstractName
+-&gt; ScopeM ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">:</span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>    </span><span id="local-6989586621681937698"><span class="annot"><span class="annottext">amb :: List2 AbstractName -&gt; ScopeM ()
+</span><a href="#local-6989586621681937698"><span class="hs-identifier hs-var hs-var">amb</span></a></span></span><span> </span><span id="local-6989586621681937709"><span class="annot"><span class="annottext">List2 AbstractName
+</span><a href="#local-6989586621681937709"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Maybe Int
+forall a. HasRange a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#rangeToPosPos"><span class="hs-identifier hs-var">rangeToPosPos</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937678"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-84"></span><span>      </span><span class="hs-comment">-- Andreas, 2025-11-30</span><span>
+</span><span id="line-85"></span><span>      </span><span class="hs-comment">-- It can happen that a concrete identifier has no range,</span><span>
+</span><span id="line-86"></span><span>      </span><span class="hs-comment">-- e.g. when it comes from an expanded ellipsis.</span><span>
+</span><span id="line-87"></span><span>      </span><span class="hs-comment">-- In this case, we do not record the lookup,</span><span>
+</span><span id="line-88"></span><span>      </span><span class="hs-comment">-- since it should have been looked up already</span><span>
+</span><span id="line-89"></span><span>      </span><span class="hs-comment">-- when processing the pattern from the original lhs</span><span>
+</span><span id="line-90"></span><span>      </span><span class="hs-comment">-- (that was duplicated by ellipsis expansion).</span><span>
+</span><span id="line-91"></span><span>      </span><span class="hs-comment">-- See test/interaction/ExpandEllipsis.</span><span>
+</span><span id="line-92"></span><span>      </span><span class="annot"><span class="annottext">Maybe Int
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; ScopeM ()
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681937711"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937711"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Lens' TCState (IntMap (List2 AbstractName))
+-&gt; (IntMap (List2 AbstractName) -&gt; IntMap (List2 AbstractName))
+-&gt; ScopeM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-identifier hs-var">modifyTCLens</span></a></span><span> </span><span class="annot"><span class="annottext">(IntMap (List2 AbstractName) -&gt; f (IntMap (List2 AbstractName)))
+-&gt; TCState -&gt; f TCState
+Lens' TCState (IntMap (List2 AbstractName))
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#stAmbiguousLookups"><span class="hs-identifier hs-var">stAmbiguousLookups</span></a></span><span> </span><span class="annot"><span class="annottext">((IntMap (List2 AbstractName) -&gt; IntMap (List2 AbstractName))
+ -&gt; ScopeM ())
+-&gt; (IntMap (List2 AbstractName) -&gt; IntMap (List2 AbstractName))
+-&gt; ScopeM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int
+-&gt; List2 AbstractName
+-&gt; IntMap (List2 AbstractName)
+-&gt; IntMap (List2 AbstractName)
+forall a. Int -&gt; a -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.insert</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937711"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">List2 AbstractName
+</span><a href="#local-6989586621681937709"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span id="local-6989586621681937338"><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#rangeToPosPos"><span class="hs-identifier hs-type">rangeToPosPos</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier hs-type">HasRange</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937338"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681937338"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-96"></span><span id="rangeToPosPos"><span class="annot"><span class="annottext">rangeToPosPos :: forall a. HasRange a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#rangeToPosPos"><span class="hs-identifier hs-var hs-var">rangeToPosPos</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Position' () -&gt; Int) -&gt; Maybe (Position' ()) -&gt; Maybe Int
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word32 -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; Int) -&gt; (Position' () -&gt; Word32) -&gt; Position' () -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Position' () -&gt; Word32
+forall a. Position' a -&gt; Word32
+</span><a href="Agda.Syntax.Position.html#posPos"><span class="hs-identifier hs-var">P.posPos</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (Position' ()) -&gt; Maybe Int)
+-&gt; (a -&gt; Maybe (Position' ())) -&gt; a -&gt; Maybe Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Maybe (Position' ())
+forall a. Range' a -&gt; Maybe (Position' ())
+</span><a href="Agda.Syntax.Position.html#rStart%27"><span class="hs-identifier hs-var">P.rStart'</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; Maybe (Position' ()))
+-&gt; (a -&gt; Range) -&gt; a -&gt; Maybe (Position' ())
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- | Call this when opening a module with all the names it brings into scope.</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--   When the 'UnusedImports' warning is enabled, we will store this information</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--   to later issue a warning connected to this 'open' statement</span><span>
+</span><span id="line-101"></span><span class="hs-comment">--   for the names that were not used.</span><span>
+</span><span id="line-102"></span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#registerModuleOpening"><span class="hs-identifier hs-type">registerModuleOpening</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-103"></span><span>     </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span><span>             </span><span class="annot"><span class="hs-comment">-- ^ Range of the @open@ keyword.</span></span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">A.ModuleName</span></a></span><span>        </span><span class="annot"><span class="hs-comment">-- ^ Parent module: module into which we pour the opened module.</span></span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">C.QName</span></a></span><span>             </span><span class="annot"><span class="hs-comment">-- ^ Opened module.</span></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#ImportDirective"><span class="hs-identifier hs-type">C.ImportDirective</span></a></span><span>   </span><span class="annot"><span class="hs-comment">-- ^ Directive restricting the scope of the opened module.</span></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Scope"><span class="hs-identifier hs-type">Scope</span></a></span><span>               </span><span class="annot"><span class="hs-comment">-- ^ The scope resulting from applying the import directive.</span></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.State.html#ScopeM"><span class="hs-identifier hs-type">ScopeM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span id="registerModuleOpening"><span class="annot"><span class="annottext">registerModuleOpening :: KwRange
+-&gt; ModuleName -&gt; QName -&gt; ImportDirective -&gt; Scope -&gt; ScopeM ()
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#registerModuleOpening"><span class="hs-identifier hs-var hs-var">registerModuleOpening</span></a></span></span><span> </span><span id="local-6989586621681937726"><span class="annot"><span class="annottext">KwRange
+</span><a href="#local-6989586621681937726"><span class="hs-identifier hs-var">kwr</span></a></span></span><span> </span><span id="local-6989586621681937727"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937727"><span class="hs-identifier hs-var">currentModule</span></a></span></span><span> </span><span id="local-6989586621681937728"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937728"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681937729"><span class="annot"><span class="annottext">ImportDirective
+</span><a href="#local-6989586621681937729"><span class="hs-identifier hs-var">dir</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Scope"><span class="hs-identifier hs-type">Scope</span></a></span><span> </span><span id="local-6989586621681937731"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937731"><span class="hs-identifier hs-var">m0</span></a></span></span><span> </span><span id="local-6989586621681937732"><span class="annot"><span class="annottext">[ModuleName]
+</span><a href="#local-6989586621681937732"><span class="hs-identifier hs-var">_parents</span></a></span></span><span> </span><span id="local-6989586621681937733"><span class="annot"><span class="annottext">ScopeNameSpaces
+</span><a href="#local-6989586621681937733"><span class="hs-identifier hs-var">ns</span></a></span></span><span> </span><span id="local-6989586621681937734"><span class="annot"><span class="annottext">Map QName ModuleName
+</span><a href="#local-6989586621681937734"><span class="hs-identifier hs-var">imports</span></a></span></span><span> </span><span id="local-6989586621681937735"><span class="annot"><span class="annottext">Maybe DataOrRecordModule
+</span><a href="#local-6989586621681937735"><span class="hs-identifier hs-var">_dataOrRec</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-comment">-- @imports@ have been removed by 'restrictPrivate'.</span><span>
+</span><span id="line-111"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; ScopeM () -&gt; ScopeM ()
+forall b (m :: * -&gt; *). (IsBool b, Monad m) =&gt; b -&gt; m () -&gt; m ()
+</span><a href="Agda.Utils.Monad.html#unless"><span class="hs-identifier hs-var">unless</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map QName ModuleName -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName ModuleName
+</span><a href="#local-6989586621681937734"><span class="hs-identifier hs-var">imports</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ScopeM ()
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-comment">-- When the UnusedImports warning is off, do not collect information about @open@.</span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-comment">-- E.g. we do not want to see warnings for the automatically inserted</span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-comment">-- @open import Agda.Primitive using (Set)@.</span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-comment">-- It is sufficient to check for 'UnusedImports_' since it is implied by 'UnusedImportsAll_'.</span><span>
+</span><span id="line-117"></span><span>  </span><span id="local-6989586621681937737"><span class="annot"><a href="#local-6989586621681937737"><span class="hs-identifier hs-var">doWarn</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#UnusedImports_"><span class="hs-identifier hs-var">UnusedImports_</span></a></span><span> </span><span class="annot"><span class="annottext">WarningName -&gt; Set WarningName -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Set WarningName -&gt; Bool)
+-&gt; TCMT IO (Set WarningName) -&gt; TCMT IO Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState (Set WarningName) -&gt; TCMT IO (Set WarningName)
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Set WarningName -&gt; f (Set WarningName)) -&gt; TCState -&gt; f TCState
+Lens' TCState (Set WarningName)
+</span><a href="Agda.TypeChecking.Monad.Base.html#stWarningSet"><span class="hs-identifier hs-var">stWarningSet</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-type">reportSLn</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;warning.unusedImports&quot;</span></span><span> </span><span class="annot"><span class="hs-number">20</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">unlines</span></span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;openedModule: &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937737"><span class="hs-identifier hs-type">doWarn</span></a></span><span>
+</span><span id="line-120"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x = &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937728"><span class="hs-identifier hs-type">x</span></a></span><span>
+</span><span id="line-121"></span><span>    </span><span class="hs-comment">-- , &quot;currentModule: &quot; &lt;&gt; prettyShow curM</span><span>
+</span><span id="line-122"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-123"></span><span>  </span><span class="annot"><a href="Agda.Utils.Monad.html#when"><span class="hs-identifier hs-type">when</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937737"><span class="hs-identifier hs-type">doWarn</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html#whenNothing"><span class="hs-identifier hs-type">whenNothing</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#publicOpen"><span class="hs-identifier hs-var">publicOpen</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937729"><span class="hs-identifier hs-type">dir</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-124"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-125"></span><span>      </span><span id="local-6989586621681937745"><span class="annot"><a href="#local-6989586621681937745"><span class="hs-identifier hs-var hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; ModuleName -&gt; ModuleName
+forall a. SetRange a =&gt; Range -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var">setRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937728"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937731"><span class="hs-identifier hs-var">m0</span></a></span><span>
+</span><span id="line-126"></span><span>      </span><span class="annot"><a href="#local-6989586621681937746"><span class="hs-identifier hs-type">broughtIntoScope</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#NamesInScope"><span class="hs-identifier hs-type">NamesInScope</span></a></span><span> </span><span class="hs-comment">-- [Map C.Name (List1 AbstractName)]</span><span>
+</span><span id="line-127"></span><span>      </span><span id="local-6989586621681937746"><span class="annot"><a href="#local-6989586621681937746"><span class="hs-identifier hs-var hs-var">broughtIntoScope</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[NamesInScope] -&gt; NamesInScope
+forall a. Eq a =&gt; [ThingsInScope a] -&gt; ThingsInScope a
+</span><a href="Agda.Syntax.Scope.Base.html#mergeNamesMany"><span class="hs-identifier hs-var">mergeNamesMany</span></a></span><span> </span><span class="annot"><span class="annottext">([NamesInScope] -&gt; NamesInScope) -&gt; [NamesInScope] -&gt; NamesInScope
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((NameSpaceId, NameSpace) -&gt; NamesInScope)
+-&gt; ScopeNameSpaces -&gt; [NamesInScope]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NameSpace -&gt; NamesInScope
+</span><a href="Agda.Syntax.Scope.Base.html#nsNames"><span class="hs-identifier hs-var">nsNames</span></a></span><span> </span><span class="annot"><span class="annottext">(NameSpace -&gt; NamesInScope)
+-&gt; ((NameSpaceId, NameSpace) -&gt; NameSpace)
+-&gt; (NameSpaceId, NameSpace)
+-&gt; NamesInScope
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(NameSpaceId, NameSpace) -&gt; NameSpace
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ScopeNameSpaces
+</span><a href="#local-6989586621681937733"><span class="hs-identifier hs-var">ns</span></a></span><span>
+</span><span id="line-128"></span><span>      </span><span class="hs-glyph">!</span><span id="local-6989586621681937750"><span class="annot"><a href="#local-6989586621681937750"><span class="hs-identifier hs-var hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Maybe Int -&gt; Int
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">Int
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Int -&gt; Int) -&gt; Maybe Int -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Maybe Int
+forall a. HasRange a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#rangeToPosPos"><span class="hs-identifier hs-var">rangeToPosPos</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937728"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-129"></span><span>      </span><span id="local-6989586621681937751"><span class="annot"><a href="#local-6989586621681937751"><span class="hs-identifier hs-var hs-var">hasDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Using' Name Name -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ImportDirective -&gt; Using' Name Name
+forall n m. ImportDirective' n m -&gt; Using' n m
+</span><a href="Agda.Syntax.Common.html#using"><span class="hs-identifier hs-var">using</span></a></span><span> </span><span class="annot"><span class="annottext">ImportDirective
+</span><a href="#local-6989586621681937729"><span class="hs-identifier hs-var">dir</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+forall a. Boolean a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator hs-var">||</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RenamingDirective' Name Name -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ImportDirective -&gt; RenamingDirective' Name Name
+forall n m. ImportDirective' n m -&gt; RenamingDirective' n m
+</span><a href="Agda.Syntax.Common.html#impRenaming"><span class="hs-identifier hs-var">impRenaming</span></a></span><span> </span><span class="annot"><span class="annottext">ImportDirective
+</span><a href="#local-6989586621681937729"><span class="hs-identifier hs-var">dir</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-identifier hs-type">modifyTCLens</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#stOpenedModules"><span class="hs-identifier hs-type">stOpenedModules</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-131"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">IntMap.insert</span></span><span> </span><span class="annot"><a href="#local-6989586621681937750"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OpenedModule"><span class="hs-identifier hs-type">OpenedModule</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937726"><span class="hs-identifier hs-type">kwr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937745"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937727"><span class="hs-identifier hs-type">currentModule</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937751"><span class="hs-identifier hs-type">hasDir</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937746"><span class="hs-identifier hs-type">broughtIntoScope</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- | Call this when a file has been checked to generate the unused-imports warnings for each opened module.</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--   Assumes that all names have been looked up via 'lookedupName'.</span><span>
+</span><span id="line-135"></span><span class="hs-comment">--   Needs the disambiguation information from the type checker to correctly report ununsed overloaded names.</span><span>
+</span><span id="line-136"></span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#warnUnusedImports"><span class="hs-identifier hs-type">warnUnusedImports</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span id="warnUnusedImports"><span class="annot"><span class="annottext">warnUnusedImports :: ScopeM ()
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#warnUnusedImports"><span class="hs-identifier hs-var hs-var">warnUnusedImports</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-138"></span><span>    </span><span id="local-6989586621681937758"><span class="annot"><a href="#local-6989586621681937758"><span class="hs-identifier hs-var">warnAll</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#UnusedImportsAll_"><span class="hs-identifier hs-var">UnusedImportsAll_</span></a></span><span> </span><span class="annot"><span class="annottext">WarningName -&gt; Set WarningName -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Set WarningName -&gt; Bool)
+-&gt; TCMT IO (Set WarningName) -&gt; TCMT IO Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCState (Set WarningName) -&gt; TCMT IO (Set WarningName)
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Set WarningName -&gt; f (Set WarningName)) -&gt; TCState -&gt; f TCState
+Lens' TCState (Set WarningName)
+</span><a href="Agda.TypeChecking.Monad.Base.html#stWarningSet"><span class="hs-identifier hs-var">stWarningSet</span></a></span><span>
+</span><span id="line-139"></span><span>    </span><span id="local-6989586621681937761"><span class="annot"><a href="#local-6989586621681937761"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stUnusedImportsState"><span class="hs-identifier hs-type">stUnusedImportsState</span></a></span><span>
+</span><span id="line-140"></span><span>    </span><span id="local-6989586621681937765"><span class="annot"><a href="#local-6989586621681937765"><span class="hs-identifier hs-var">disambiguatedNames</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stDisambiguatedNames"><span class="hs-identifier hs-type">stDisambiguatedNames</span></a></span><span>
+</span><span id="line-141"></span><span>    </span><span class="hs-comment">-- If instances can be used qualified, they do not need to be imported,</span><span>
+</span><span id="line-142"></span><span>    </span><span class="hs-comment">-- so we should warn about them.</span><span>
+</span><span id="line-143"></span><span>    </span><span id="local-6989586621681937769"><span class="annot"><a href="#local-6989586621681937769"><span class="hs-identifier hs-var">qualifiedInstances</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#optQualifiedInstances"><span class="hs-identifier hs-type">optQualifiedInstances</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-type">pragmaOptions</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-type">reportSLn</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;warning.unusedImports&quot;</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;unambiguousLookups: &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#unambiguousLookups"><span class="hs-identifier hs-var">unambiguousLookups</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937761"><span class="hs-identifier hs-type">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-148"></span><span>      </span><span class="hs-comment">-- Disambiguate overloaded lookups.</span><span>
+</span><span id="line-149"></span><span>      </span><span id="local-6989586621681937772"><span class="annot"><a href="#local-6989586621681937772"><span class="hs-identifier hs-var hs-var">addAmbLookup</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937773"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937773"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937774"><span class="annot"><span class="annottext">List2 AbstractName
+</span><a href="#local-6989586621681937774"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-150"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IntMap DisambiguatedName -&gt; Maybe DisambiguatedName
+forall a. Int -&gt; IntMap a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">IntMap.lookup</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937773"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap DisambiguatedName
+</span><a href="#local-6989586621681937765"><span class="hs-identifier hs-var">disambiguatedNames</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-151"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#DisambiguatedName"><span class="hs-identifier hs-type">DisambiguatedName</span></a></span><span> </span><span id="local-6989586621681937777"><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681937777"><span class="hs-identifier hs-var">_k</span></a></span></span><span> </span><span id="local-6989586621681937778"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937778"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(AbstractName -&gt; Bool) -&gt; [AbstractName] -&gt; [AbstractName]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937778"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; QName -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Bool) -&gt; (AbstractName -&gt; QName) -&gt; AbstractName -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; QName
+</span><a href="Agda.Syntax.Scope.Base.html#anameName"><span class="hs-identifier hs-var">anameName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List2 AbstractName -&gt; [Item (List2 AbstractName)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List2.toList</span></span><span> </span><span class="annot"><span class="annottext">List2 AbstractName
+</span><a href="#local-6989586621681937774"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[AbstractName] -&gt; [AbstractName] -&gt; [AbstractName]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>          </span><span class="annot"><span class="annottext">Maybe DisambiguatedName
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List2 AbstractName -&gt; [Item (List2 AbstractName)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List2.toList</span></span><span> </span><span class="annot"><span class="annottext">List2 AbstractName
+</span><a href="#local-6989586621681937774"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">[AbstractName] -&gt; [AbstractName] -&gt; [AbstractName]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- __IMPOSSIBLE__</span><span>
+</span><span id="line-153"></span><span>      </span><span class="annot"><a href="#local-6989586621681937780"><span class="hs-identifier hs-type">allLookups</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-154"></span><span>      </span><span id="local-6989586621681937780"><span class="annot"><a href="#local-6989586621681937780"><span class="hs-identifier hs-var hs-var">allLookups</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Int -&gt; List2 AbstractName -&gt; [AbstractName] -&gt; [AbstractName])
+-&gt; [AbstractName] -&gt; IntMap (List2 AbstractName) -&gt; [AbstractName]
+forall a b. (Int -&gt; a -&gt; b -&gt; b) -&gt; b -&gt; IntMap a -&gt; b
+</span><span class="hs-identifier hs-var">IntMap.foldrWithKey</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; List2 AbstractName -&gt; [AbstractName] -&gt; [AbstractName]
+</span><a href="#local-6989586621681937772"><span class="hs-identifier hs-var">addAmbLookup</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">UnusedImportsState -&gt; [AbstractName]
+</span><a href="Agda.Syntax.Scope.Base.html#unambiguousLookups"><span class="hs-identifier hs-var">unambiguousLookups</span></a></span><span> </span><span class="annot"><span class="annottext">UnusedImportsState
+</span><a href="#local-6989586621681937761"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">UnusedImportsState -&gt; IntMap (List2 AbstractName)
+</span><a href="Agda.Syntax.Scope.Base.html#ambiguousLookups"><span class="hs-identifier hs-var">ambiguousLookups</span></a></span><span> </span><span class="annot"><span class="annottext">UnusedImportsState
+</span><a href="#local-6989586621681937761"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-155"></span><span>
+</span><span id="line-156"></span><span>      </span><span class="hs-comment">-- To make a set of the list of looked-up 'AbstractName's,</span><span>
+</span><span id="line-157"></span><span>      </span><span class="hs-comment">-- we need to convert them to 'ImportedName's lest we</span><span>
+</span><span id="line-158"></span><span>      </span><span class="hs-comment">-- conflate names from different openings.</span><span>
+</span><span id="line-159"></span><span>      </span><span class="annot"><a href="#local-6989586621681937783"><span class="hs-identifier hs-type">lookups</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-160"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681937784"><span class="annot"><a href="#local-6989586621681937784"><span class="hs-identifier hs-var">unknowns</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681937783"><span class="annot"><a href="#local-6989586621681937783"><span class="hs-identifier hs-var">lookups</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.List.html#partitionMaybe"><span class="hs-identifier hs-type">partitionMaybe</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#toImportedName"><span class="hs-identifier hs-type">toImportedName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937780"><span class="hs-identifier hs-type">allLookups</span></a></span><span>
+</span><span id="line-161"></span><span>      </span><span class="annot"><a href="#local-6989586621681937786"><span class="hs-identifier hs-type">isLookedUp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681937787"><span class="hs-identifier hs-type">isInst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681937788"><span class="hs-identifier hs-type">isUsed</span></a></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-162"></span><span>      </span><span id="local-6989586621681937786"><span class="annot"><a href="#local-6989586621681937786"><span class="hs-identifier hs-var hs-var">isLookedUp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[ImportedName] -&gt; ImportedName -&gt; Bool
+forall a. Ord a =&gt; [a] -&gt; a -&gt; Bool
+</span><a href="Agda.Utils.List.html#hasElem"><span class="hs-identifier hs-var">hasElem</span></a></span><span> </span><span class="annot"><span class="annottext">[ImportedName]
+</span><a href="#local-6989586621681937783"><span class="hs-identifier hs-var">lookups</span></a></span><span>
+</span><span id="line-163"></span><span>      </span><span id="local-6989586621681937787"><span class="annot"><a href="#local-6989586621681937787"><span class="hs-identifier hs-var hs-var">isInst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe KwRange -&gt; Bool
+forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isJust</span></span><span> </span><span class="annot"><span class="annottext">(Maybe KwRange -&gt; Bool)
+-&gt; (ImportedName -&gt; Maybe KwRange) -&gt; ImportedName -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ImportedName -&gt; Maybe KwRange
+forall a. IsInstanceDef a =&gt; a -&gt; Maybe KwRange
+</span><a href="Agda.Syntax.Common.html#isInstanceDef"><span class="hs-identifier hs-var">isInstanceDef</span></a></span><span>
+</span><span id="line-164"></span><span>      </span><span id="local-6989586621681937788"><span class="annot"><a href="#local-6989586621681937788"><span class="hs-identifier hs-var hs-var">isUsed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+-&gt; ((ImportedName -&gt; Bool) -&gt; ImportedName -&gt; Bool)
+-&gt; (ImportedName -&gt; Bool)
+-&gt; ImportedName
+-&gt; Bool
+forall b a. IsBool b =&gt; b -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Agda.Utils.Function.html#applyUnless"><span class="hs-identifier hs-var">applyUnless</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681937769"><span class="hs-identifier hs-var">qualifiedInstances</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ImportedName -&gt; Bool
+</span><a href="#local-6989586621681937787"><span class="hs-identifier hs-var">isInst</span></a></span><span> </span><span class="annot"><span class="annottext">(ImportedName -&gt; Bool)
+-&gt; (ImportedName -&gt; Bool) -&gt; ImportedName -&gt; Bool
+forall a. Boolean a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Boolean.html#%7C%7C"><span class="hs-operator hs-var">||</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ImportedName -&gt; Bool
+</span><a href="#local-6989586621681937786"><span class="hs-identifier hs-var">isLookedUp</span></a></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-type">reportSLn</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;warning.unusedImports&quot;</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;allLookups: &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937780"><span class="hs-identifier hs-type">allLookups</span></a></span><span>
+</span><span id="line-167"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-type">reportSLn</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;warning.unusedImports&quot;</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;lookups: &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937783"><span class="hs-identifier hs-type">lookups</span></a></span><span>
+</span><span id="line-168"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-type">reportSLn</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;warning.unusedImports&quot;</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;unknowns: &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937784"><span class="hs-identifier hs-type">unknowns</span></a></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span>    </span><span class="hs-comment">-- Iterate through the @open@ statements and issue warnings.</span><span>
+</span><span id="line-171"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">forM_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#openedModules"><span class="hs-identifier hs-var">openedModules</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681937761"><span class="hs-identifier hs-type">st</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OpenedModule"><span class="hs-identifier hs-type">OpenedModule</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937790"><span class="annot"><span class="annottext">KwRange
+</span><a href="#local-6989586621681937790"><span class="hs-identifier hs-var">kwr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.KeywordRange.html#KwRange"><span class="hs-identifier hs-type">KwRange</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937791"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937791"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">A.ModuleName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937792"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937792"><span class="hs-identifier hs-var">parent</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#ModuleName"><span class="hs-identifier hs-type">A.ModuleName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937793"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681937793"><span class="hs-identifier hs-var">hasDir</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937794"><span class="annot"><span class="annottext">NamesInScope
+</span><a href="#local-6989586621681937794"><span class="hs-identifier hs-var">sc</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#NamesInScope"><span class="hs-identifier hs-type">NamesInScope</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-172"></span><span>      </span><span class="hs-keyword">let</span><span>
+</span><span id="line-173"></span><span>        </span><span class="hs-comment">-- Partition the names brought into scope by the open statement</span><span>
+</span><span id="line-174"></span><span>        </span><span class="hs-comment">-- into used and unused ones.</span><span>
+</span><span id="line-175"></span><span>        </span><span class="annot"><a href="#local-6989586621681937795"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-176"></span><span>        </span><span id="local-6989586621681937795"><span class="annot"><span class="annottext">f :: (Name, List1 AbstractName) -&gt; Maybe (Name, List1 ImportedName)
+</span><a href="#local-6989586621681937795"><span class="hs-identifier hs-var hs-var hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(List1 AbstractName -&gt; Maybe (List1 ImportedName))
+-&gt; (Name, List1 AbstractName) -&gt; Maybe (Name, List1 ImportedName)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; (Name, a) -&gt; f (Name, b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">((List1 AbstractName -&gt; Maybe (List1 ImportedName))
+ -&gt; (Name, List1 AbstractName) -&gt; Maybe (Name, List1 ImportedName))
+-&gt; (List1 AbstractName -&gt; Maybe (List1 ImportedName))
+-&gt; (Name, List1 AbstractName)
+-&gt; Maybe (Name, List1 ImportedName)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; Maybe ImportedName)
+-&gt; List1 AbstractName -&gt; Maybe (List1 ImportedName)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; NonEmpty a -&gt; f (NonEmpty b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; Maybe ImportedName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#toImportedName"><span class="hs-identifier hs-var">toImportedName</span></a></span><span>
+</span><span id="line-177"></span><span>        </span><span class="hs-comment">-- f (x, ys) = (x ,) &lt;$&gt; traverse toImportedName ys</span><span>
+</span><span id="line-178"></span><span>        </span><span class="annot"><a href="#local-6989586621681937797"><span class="hs-identifier hs-type">imps</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681937798"><span class="hs-identifier hs-type">imps'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681937799"><span class="hs-identifier hs-type">used</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681937800"><span class="hs-identifier hs-type">unused</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-179"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621681937801"><span class="annot"><span class="annottext">[(Name, List1 AbstractName)]
+</span><a href="#local-6989586621681937801"><span class="hs-identifier hs-var hs-var">other</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681937797"><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937797"><span class="hs-identifier hs-var hs-var">imps</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Name, List1 AbstractName) -&gt; Maybe (Name, List1 ImportedName))
+-&gt; [(Name, List1 AbstractName)]
+-&gt; ([(Name, List1 AbstractName)], [(Name, List1 ImportedName)])
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; ([a], [b])
+</span><a href="Agda.Utils.List.html#partitionMaybe"><span class="hs-identifier hs-var">partitionMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">(Name, List1 AbstractName) -&gt; Maybe (Name, List1 ImportedName)
+</span><a href="#local-6989586621681937795"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">([(Name, List1 AbstractName)]
+ -&gt; ([(Name, List1 AbstractName)], [(Name, List1 ImportedName)]))
+-&gt; [(Name, List1 AbstractName)]
+-&gt; ([(Name, List1 AbstractName)], [(Name, List1 ImportedName)])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">NamesInScope -&gt; [(Name, List1 AbstractName)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">NamesInScope
+</span><a href="#local-6989586621681937794"><span class="hs-identifier hs-var">sc</span></a></span><span>
+</span><span id="line-180"></span><span>        </span><span id="local-6989586621681937798"><span class="annot"><span class="annottext">imps' :: [(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937798"><span class="hs-identifier hs-var hs-var hs-var">imps'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Name, List1 ImportedName) -&gt; (Name, List1 ImportedName))
+-&gt; [(Name, List1 ImportedName)] -&gt; [(Name, List1 ImportedName)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937803"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681937803"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681937804"><span class="annot"><span class="annottext">List1 ImportedName
+</span><a href="#local-6989586621681937804"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681937803"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Range -&gt; ImportedName -&gt; ImportedName
+forall a. SetRange a =&gt; Range -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var">setRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681937803"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ImportedName -&gt; ImportedName)
+-&gt; List1 ImportedName -&gt; List1 ImportedName
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">List1 ImportedName
+</span><a href="#local-6989586621681937804"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937797"><span class="hs-identifier hs-var">imps</span></a></span><span>
+</span><span id="line-181"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621681937799"><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937799"><span class="hs-identifier hs-var hs-var">used</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681937800"><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937800"><span class="hs-identifier hs-var hs-var">unused</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Name, List1 ImportedName) -&gt; Bool)
+-&gt; [(Name, List1 ImportedName)]
+-&gt; ([(Name, List1 ImportedName)], [(Name, List1 ImportedName)])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">partition</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ImportedName -&gt; Bool) -&gt; List1 ImportedName -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="annot"><span class="annottext">ImportedName -&gt; Bool
+</span><a href="#local-6989586621681937788"><span class="hs-identifier hs-var">isUsed</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 ImportedName -&gt; Bool)
+-&gt; ((Name, List1 ImportedName) -&gt; List1 ImportedName)
+-&gt; (Name, List1 ImportedName)
+-&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Name, List1 ImportedName) -&gt; List1 ImportedName
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937798"><span class="hs-identifier hs-var">imps'</span></a></span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; String -&gt; ScopeM ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+String -&gt; Int -&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-var">reportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;warning.unusedImports&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; ScopeM ()) -&gt; String -&gt; ScopeM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;used: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)] -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937799"><span class="hs-identifier hs-var">used</span></a></span><span>
+</span><span id="line-184"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; String -&gt; ScopeM ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+String -&gt; Int -&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-var">reportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;warning.unusedImports&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">60</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; ScopeM ()) -&gt; String -&gt; ScopeM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;unused: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)] -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937800"><span class="hs-identifier hs-var">unused</span></a></span><span>
+</span><span id="line-185"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; ScopeM () -&gt; ScopeM ()
+forall b (m :: * -&gt; *). (IsBool b, Monad m) =&gt; b -&gt; m () -&gt; m ()
+</span><a href="Agda.Utils.Monad.html#unless"><span class="hs-identifier hs-var">unless</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(Name, List1 AbstractName)] -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 AbstractName)]
+</span><a href="#local-6989586621681937801"><span class="hs-identifier hs-var">other</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ScopeM () -&gt; ScopeM ()) -&gt; ScopeM () -&gt; ScopeM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ScopeM ()
+forall (m :: * -&gt; *) a.
+(HasCallStack, MonadDebug m) =&gt;
+String -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Debug.html#__IMPOSSIBLE_VERBOSE__"><span class="hs-identifier hs-var">__IMPOSSIBLE_VERBOSE__</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(Name, List1 AbstractName)] -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 AbstractName)]
+</span><a href="#local-6989586621681937801"><span class="hs-identifier hs-var">other</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span>      </span><span class="hs-keyword">let</span><span>
+</span><span id="line-188"></span><span>        </span><span class="hs-comment">-- Commands to issue the warnings:</span><span>
+</span><span id="line-189"></span><span>        </span><span id="local-6989586621681937809"><span class="annot"><span class="annottext">warn :: Maybe (List1 AbstractName) -&gt; ScopeM ()
+</span><a href="#local-6989586621681937809"><span class="hs-identifier hs-var hs-var">warn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; ScopeM () -&gt; ScopeM ()
+forall (m :: * -&gt; *) x a.
+(MonadTrace m, HasRange x) =&gt;
+x -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Trace.html#setCurrentRange"><span class="hs-identifier hs-var">setCurrentRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(KwRange, ModuleName) -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">KwRange
+</span><a href="#local-6989586621681937790"><span class="hs-identifier hs-var">kwr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937791"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ScopeM () -&gt; ScopeM ())
+-&gt; (Maybe (List1 AbstractName) -&gt; ScopeM ())
+-&gt; Maybe (List1 AbstractName)
+-&gt; ScopeM ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; ScopeM () -&gt; ScopeM ()
+forall (m :: * -&gt; *) a.
+(ReadTCState m, MonadTCState m) =&gt;
+ModuleName -&gt; m a -&gt; m a
+</span><a href="Agda.Syntax.Scope.State.html#withCurrentModule"><span class="hs-identifier hs-var">withCurrentModule</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937792"><span class="hs-identifier hs-var">parent</span></a></span><span> </span><span class="annot"><span class="annottext">(ScopeM () -&gt; ScopeM ())
+-&gt; (Maybe (List1 AbstractName) -&gt; ScopeM ())
+-&gt; Maybe (List1 AbstractName)
+-&gt; ScopeM ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Warning -&gt; ScopeM ()
+forall (m :: * -&gt; *).
+(HasCallStack, MonadWarning m) =&gt;
+Warning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier hs-var">warning</span></a></span><span> </span><span class="annot"><span class="annottext">(Warning -&gt; ScopeM ())
+-&gt; (Maybe (List1 AbstractName) -&gt; Warning)
+-&gt; Maybe (List1 AbstractName)
+-&gt; ScopeM ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; Maybe (List1 AbstractName) -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#UnusedImports"><span class="hs-identifier hs-var">UnusedImports</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681937791"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-190"></span><span>        </span><span id="local-6989586621681937810"><span class="annot"><span class="annottext">warnModule :: ScopeM ()
+</span><a href="#local-6989586621681937810"><span class="hs-identifier hs-var hs-var">warnModule</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (List1 AbstractName) -&gt; ScopeM ()
+</span><a href="#local-6989586621681937809"><span class="hs-identifier hs-var">warn</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (List1 AbstractName)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-191"></span><span>        </span><span id="local-6989586621681937811"><span class="annot"><span class="annottext">warnEach :: ScopeM ()
+</span><a href="#local-6989586621681937811"><span class="hs-identifier hs-var hs-var">warnEach</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-192"></span><span>          </span><span class="annot"><span class="annottext">[List1 ImportedName]
+-&gt; (List1 (List1 ImportedName) -&gt; ScopeM ()) -&gt; ScopeM ()
+forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+[a] -&gt; (List1 a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-var">List1.unlessNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">((Name, List1 ImportedName) -&gt; List1 ImportedName)
+-&gt; [(Name, List1 ImportedName)] -&gt; [List1 ImportedName]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Name, List1 ImportedName) -&gt; List1 ImportedName
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937800"><span class="hs-identifier hs-var">unused</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681937813"><span class="annot"><span class="annottext">List1 (List1 ImportedName)
+</span><a href="#local-6989586621681937813"><span class="hs-identifier hs-var">unused1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-193"></span><span>            </span><span class="annot"><span class="annottext">Maybe (List1 AbstractName) -&gt; ScopeM ()
+</span><a href="#local-6989586621681937809"><span class="hs-identifier hs-var">warn</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (List1 AbstractName) -&gt; ScopeM ())
+-&gt; Maybe (List1 AbstractName) -&gt; ScopeM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">List1 AbstractName -&gt; Maybe (List1 AbstractName)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(List1 AbstractName -&gt; Maybe (List1 AbstractName))
+-&gt; List1 AbstractName -&gt; Maybe (List1 AbstractName)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(List1 ImportedName -&gt; AbstractName)
+-&gt; List1 (List1 ImportedName) -&gt; List1 AbstractName
+forall a b. (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ImportedName -&gt; AbstractName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#iName"><span class="hs-identifier hs-var">iName</span></a></span><span> </span><span class="annot"><span class="annottext">(ImportedName -&gt; AbstractName)
+-&gt; (List1 ImportedName -&gt; ImportedName)
+-&gt; List1 ImportedName
+-&gt; AbstractName
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">List1 ImportedName -&gt; ImportedName
+forall a. NonEmpty a -&gt; a
+</span><span class="hs-identifier hs-var">List1.head</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">List1 (List1 ImportedName)
+</span><a href="#local-6989586621681937813"><span class="hs-identifier hs-var">unused1</span></a></span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span>      </span><span class="hs-comment">-- Issue warning.</span><span>
+</span><span id="line-196"></span><span>      </span><span class="hs-comment">-- If nothing was used, we warn about the whole import.</span><span>
+</span><span id="line-197"></span><span>      </span><span class="hs-comment">-- If the open statement has a 'using' or 'renaming' directive,</span><span>
+</span><span id="line-198"></span><span>      </span><span class="hs-comment">-- or if the 'UnusedImportsAll_' warning is enabled,</span><span>
+</span><span id="line-199"></span><span>      </span><span class="hs-comment">-- we warn about each unused name individually.</span><span>
+</span><span id="line-200"></span><span>      </span><span class="hs-comment">-- Otherwise, we just warn once about the whole import.</span><span>
+</span><span id="line-201"></span><span>      </span><span class="hs-keyword">if</span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681937793"><span class="hs-identifier hs-var">hasDir</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ScopeM ()
+</span><a href="#local-6989586621681937811"><span class="hs-identifier hs-var">warnEach</span></a></span><span>
+</span><span id="line-202"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)] -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, List1 ImportedName)]
+</span><a href="#local-6989586621681937799"><span class="hs-identifier hs-var">used</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ScopeM ()
+</span><a href="#local-6989586621681937810"><span class="hs-identifier hs-var">warnModule</span></a></span><span>
+</span><span id="line-203"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681937758"><span class="hs-identifier hs-var">warnAll</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ScopeM ()
+</span><a href="#local-6989586621681937811"><span class="hs-identifier hs-var">warnEach</span></a></span><span>
+</span><span id="line-204"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; ScopeM ()
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-207"></span><span class="annot"><span class="hs-comment">-- * Auxiliary definitions</span></span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span class="hs-comment">-- | A wrapper around 'AbstractName' to make the position of the 'Opened' in the lineage available.</span><span>
+</span><span id="line-210"></span><span class="hs-comment">--   This wrapper is needed when 'AbstractName's are stored in sets</span><span>
+</span><span id="line-211"></span><span class="hs-comment">--   so that we do not conflate different 'AbstractName's with the same underlying 'A.QName'</span><span>
+</span><span id="line-212"></span><span class="hs-comment">--   that were brought into scope by different 'open' statements.</span><span>
+</span><span id="line-213"></span><span class="hs-keyword">data</span><span> </span><span id="ImportedName"><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-var">ImportedName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ImportedName"><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-var">ImportedName</span></a></span></span><span>
+</span><span id="line-214"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="iWhere"><span class="annot"><span class="annottext">ImportedName -&gt; Int
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#iWhere"><span class="hs-identifier hs-var hs-var">iWhere</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-comment">-- Position of 'Opened' extracted from the 'AbstractName'.</span><span>
+</span><span id="line-215"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="iName"><span class="annot"><span class="annottext">ImportedName -&gt; AbstractName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#iName"><span class="hs-identifier hs-var hs-var">iName</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span>
+</span><span id="line-216"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681937821"><span id="local-6989586621681937826"><span class="annot"><span class="annottext">ImportedName -&gt; ImportedName -&gt; Bool
+(ImportedName -&gt; ImportedName -&gt; Bool)
+-&gt; (ImportedName -&gt; ImportedName -&gt; Bool) -&gt; Eq ImportedName
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ImportedName -&gt; ImportedName -&gt; Bool
+== :: ImportedName -&gt; ImportedName -&gt; Bool
+$c/= :: ImportedName -&gt; ImportedName -&gt; Bool
+/= :: ImportedName -&gt; ImportedName -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681937833"><span id="local-6989586621681937839"><span id="local-6989586621681937843"><span id="local-6989586621681937846"><span id="local-6989586621681937849"><span id="local-6989586621681937852"><span id="local-6989586621681937855"><span class="annot"><span class="annottext">Eq ImportedName
+Eq ImportedName =&gt;
+(ImportedName -&gt; ImportedName -&gt; Ordering)
+-&gt; (ImportedName -&gt; ImportedName -&gt; Bool)
+-&gt; (ImportedName -&gt; ImportedName -&gt; Bool)
+-&gt; (ImportedName -&gt; ImportedName -&gt; Bool)
+-&gt; (ImportedName -&gt; ImportedName -&gt; Bool)
+-&gt; (ImportedName -&gt; ImportedName -&gt; ImportedName)
+-&gt; (ImportedName -&gt; ImportedName -&gt; ImportedName)
+-&gt; Ord ImportedName
+ImportedName -&gt; ImportedName -&gt; Bool
+ImportedName -&gt; ImportedName -&gt; Ordering
+ImportedName -&gt; ImportedName -&gt; ImportedName
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: ImportedName -&gt; ImportedName -&gt; Ordering
+compare :: ImportedName -&gt; ImportedName -&gt; Ordering
+$c&lt; :: ImportedName -&gt; ImportedName -&gt; Bool
+&lt; :: ImportedName -&gt; ImportedName -&gt; Bool
+$c&lt;= :: ImportedName -&gt; ImportedName -&gt; Bool
+&lt;= :: ImportedName -&gt; ImportedName -&gt; Bool
+$c&gt; :: ImportedName -&gt; ImportedName -&gt; Bool
+&gt; :: ImportedName -&gt; ImportedName -&gt; Bool
+$c&gt;= :: ImportedName -&gt; ImportedName -&gt; Bool
+&gt;= :: ImportedName -&gt; ImportedName -&gt; Bool
+$cmax :: ImportedName -&gt; ImportedName -&gt; ImportedName
+max :: ImportedName -&gt; ImportedName -&gt; ImportedName
+$cmin :: ImportedName -&gt; ImportedName -&gt; ImportedName
+min :: ImportedName -&gt; ImportedName -&gt; ImportedName
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681937863"><span id="local-6989586621681937869"><span id="local-6989586621681937873"><span class="annot"><span class="annottext">Int -&gt; ImportedName -&gt; String -&gt; String
+[ImportedName] -&gt; String -&gt; String
+ImportedName -&gt; String
+(Int -&gt; ImportedName -&gt; String -&gt; String)
+-&gt; (ImportedName -&gt; String)
+-&gt; ([ImportedName] -&gt; String -&gt; String)
+-&gt; Show ImportedName
+forall a.
+(Int -&gt; a -&gt; String -&gt; String)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; String -&gt; String) -&gt; Show a
+$cshowsPrec :: Int -&gt; ImportedName -&gt; String -&gt; String
+showsPrec :: Int -&gt; ImportedName -&gt; String -&gt; String
+$cshow :: ImportedName -&gt; String
+show :: ImportedName -&gt; String
+$cshowList :: [ImportedName] -&gt; String -&gt; String
+showList :: [ImportedName] -&gt; String -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-217"></span><span>
+</span><span id="line-218"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#HasRange"><span class="hs-identifier hs-type">HasRange</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-219"></span><span>  </span><span id="local-6989586621681937882"><span class="annot"><span class="annottext">getRange :: ImportedName -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var hs-var hs-var">getRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; Range)
+-&gt; (ImportedName -&gt; AbstractName) -&gt; ImportedName -&gt; Range
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ImportedName -&gt; AbstractName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#iName"><span class="hs-identifier hs-var">iName</span></a></span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#SetRange"><span class="hs-identifier hs-type">SetRange</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-222"></span><span>  </span><span id="local-6989586621681937889"><span class="annot"><span class="annottext">setRange :: Range -&gt; ImportedName -&gt; ImportedName
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var hs-var hs-var">setRange</span></a></span></span><span> </span><span id="local-6989586621681937890"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681937890"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span> </span><span id="local-6989586621681937891"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937891"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681937892"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937892"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; AbstractName -&gt; ImportedName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-var">ImportedName</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937891"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; AbstractName -&gt; AbstractName
+forall a. SetRange a =&gt; Range -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var">setRange</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681937890"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937892"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-223"></span><span>
+</span><span id="line-224"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681937895"><span id="local-6989586621681937898"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-225"></span><span>  </span><span id="local-6989586621681937911"><span class="annot"><span class="annottext">pretty :: ImportedName -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span> </span><span id="local-6989586621681937912"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937912"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681937913"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937913"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937913"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot; (at position &quot;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681937912"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsInstanceDef"><span class="hs-identifier hs-type">IsInstanceDef</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-228"></span><span>  </span><span id="local-6989586621681937918"><span class="annot"><span class="annottext">isInstanceDef :: ImportedName -&gt; Maybe KwRange
+</span><a href="Agda.Syntax.Common.html#isInstanceDef"><span class="hs-identifier hs-var hs-var hs-var">isInstanceDef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; Maybe KwRange
+forall a. IsInstanceDef a =&gt; a -&gt; Maybe KwRange
+</span><a href="Agda.Syntax.Common.html#isInstanceDef"><span class="hs-identifier hs-var">isInstanceDef</span></a></span><span> </span><span class="annot"><span class="annottext">(AbstractName -&gt; Maybe KwRange)
+-&gt; (ImportedName -&gt; AbstractName) -&gt; ImportedName -&gt; Maybe KwRange
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ImportedName -&gt; AbstractName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#iName"><span class="hs-identifier hs-var">iName</span></a></span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span class="annot"><span class="hs-comment">-- | Convert an 'AbstractName' to an 'ImportedName' if it was brought into scope by an 'open' statement.</span></span><span>
+</span><span id="line-231"></span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#toImportedName"><span class="hs-identifier hs-type">toImportedName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-identifier hs-type">ImportedName</span></a></span><span>
+</span><span id="line-232"></span><span id="toImportedName"><span class="annot"><span class="annottext">toImportedName :: AbstractName -&gt; Maybe ImportedName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#toImportedName"><span class="hs-identifier hs-var hs-var">toImportedName</span></a></span></span><span> </span><span id="local-6989586621681937919"><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937919"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">AbstractName -&gt; WhyInScope
+</span><a href="Agda.Syntax.Scope.Base.html#anameLineage"><span class="hs-identifier hs-var">anameLineage</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937919"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-233"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Opened"><span class="hs-identifier hs-type">Opened</span></a></span><span> </span><span id="local-6989586621681937921"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937921"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="annot"><span class="annottext">WhyInScope
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Maybe Int
+forall a. HasRange a =&gt; a -&gt; Maybe Int
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#rangeToPosPos"><span class="hs-identifier hs-var">rangeToPosPos</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681937921"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Int -&gt; (Int -&gt; ImportedName) -&gt; Maybe ImportedName
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; AbstractName -&gt; ImportedName
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#ImportedName"><span class="hs-operator hs-var">`ImportedName`</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractName
+</span><a href="#local-6989586621681937919"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-234"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Applied"><span class="hs-identifier hs-type">Applied</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe ImportedName
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-235"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#Defined"><span class="hs-identifier hs-type">Defined</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe ImportedName
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-236"></span><span>
+</span><span id="line-237"></span><span class="hs-comment">-- Lenses for the components of the UnusedImportsState in the TCState.</span><span>
+</span><span id="line-238"></span><span>
+</span><span id="line-239"></span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#stUnambiguousLookups"><span class="hs-identifier hs-type">stUnambiguousLookups</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-240"></span><span id="stUnambiguousLookups"><span class="annot"><span class="annottext">stUnambiguousLookups :: Lens' TCState [AbstractName]
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#stUnambiguousLookups"><span class="hs-identifier hs-var hs-var">stUnambiguousLookups</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(UnusedImportsState -&gt; f UnusedImportsState)
+-&gt; TCState -&gt; f TCState
+Lens' TCState UnusedImportsState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stUnusedImportsState"><span class="hs-identifier hs-var">stUnusedImportsState</span></a></span><span> </span><span class="annot"><span class="annottext">((UnusedImportsState -&gt; f UnusedImportsState)
+ -&gt; TCState -&gt; f TCState)
+-&gt; (([AbstractName] -&gt; f [AbstractName])
+    -&gt; UnusedImportsState -&gt; f UnusedImportsState)
+-&gt; ([AbstractName] -&gt; f [AbstractName])
+-&gt; TCState
+-&gt; f TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([AbstractName] -&gt; f [AbstractName])
+-&gt; UnusedImportsState -&gt; f UnusedImportsState
+Lens' UnusedImportsState [AbstractName]
+</span><a href="Agda.Syntax.Scope.Base.html#lensUnambiguousLookups"><span class="hs-identifier hs-var">lensUnambiguousLookups</span></a></span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#stAmbiguousLookups"><span class="hs-identifier hs-type">stAmbiguousLookups</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List2.html#List2"><span class="hs-identifier hs-type">List2</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#AbstractName"><span class="hs-identifier hs-type">AbstractName</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-243"></span><span id="stAmbiguousLookups"><span class="annot"><span class="annottext">stAmbiguousLookups :: Lens' TCState (IntMap (List2 AbstractName))
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#stAmbiguousLookups"><span class="hs-identifier hs-var hs-var">stAmbiguousLookups</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(UnusedImportsState -&gt; f UnusedImportsState)
+-&gt; TCState -&gt; f TCState
+Lens' TCState UnusedImportsState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stUnusedImportsState"><span class="hs-identifier hs-var">stUnusedImportsState</span></a></span><span> </span><span class="annot"><span class="annottext">((UnusedImportsState -&gt; f UnusedImportsState)
+ -&gt; TCState -&gt; f TCState)
+-&gt; ((IntMap (List2 AbstractName)
+     -&gt; f (IntMap (List2 AbstractName)))
+    -&gt; UnusedImportsState -&gt; f UnusedImportsState)
+-&gt; (IntMap (List2 AbstractName) -&gt; f (IntMap (List2 AbstractName)))
+-&gt; TCState
+-&gt; f TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(IntMap (List2 AbstractName) -&gt; f (IntMap (List2 AbstractName)))
+-&gt; UnusedImportsState -&gt; f UnusedImportsState
+Lens' UnusedImportsState (IntMap (List2 AbstractName))
+</span><a href="Agda.Syntax.Scope.Base.html#lensAmbiguousLookups"><span class="hs-identifier hs-var">lensAmbiguousLookups</span></a></span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span class="annot"><a href="Agda.Syntax.Scope.UnusedImports.html#stOpenedModules"><span class="hs-identifier hs-type">stOpenedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Scope.Base.html#OpenedModule"><span class="hs-identifier hs-type">OpenedModule</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-246"></span><span id="stOpenedModules"><span class="annot"><span class="annottext">stOpenedModules :: Lens' TCState (IntMap OpenedModule)
+</span><a href="Agda.Syntax.Scope.UnusedImports.html#stOpenedModules"><span class="hs-identifier hs-var hs-var">stOpenedModules</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(UnusedImportsState -&gt; f UnusedImportsState)
+-&gt; TCState -&gt; f TCState
+Lens' TCState UnusedImportsState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stUnusedImportsState"><span class="hs-identifier hs-var">stUnusedImportsState</span></a></span><span> </span><span class="annot"><span class="annottext">((UnusedImportsState -&gt; f UnusedImportsState)
+ -&gt; TCState -&gt; f TCState)
+-&gt; ((IntMap OpenedModule -&gt; f (IntMap OpenedModule))
+    -&gt; UnusedImportsState -&gt; f UnusedImportsState)
+-&gt; (IntMap OpenedModule -&gt; f (IntMap OpenedModule))
+-&gt; TCState
+-&gt; f TCState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(IntMap OpenedModule -&gt; f (IntMap OpenedModule))
+-&gt; UnusedImportsState -&gt; f UnusedImportsState
+Lens' UnusedImportsState (IntMap OpenedModule)
+</span><a href="Agda.Syntax.Scope.Base.html#lensOpenedModules"><span class="hs-identifier hs-var">lensOpenedModules</span></a></span><span>
+</span><span id="line-247"></span></pre></body></html>

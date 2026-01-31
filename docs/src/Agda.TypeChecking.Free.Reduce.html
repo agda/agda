@@ -1,0 +1,872 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Free variable check that reduces the subject to make certain variables not</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--   free. Used when pruning metavariables in Agda.TypeChecking.MetaVars.Occurs.</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Free.Reduce</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier">ForceNotFree</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree"><span class="hs-identifier">forceNotFree</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#reallyFree"><span class="hs-identifier">reallyFree</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier">IsFree</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#nonFreeVars"><span class="hs-identifier">nonFreeVars</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Reduce</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.html"><span class="hs-identifier">Agda.TypeChecking.Free</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html"><span class="hs-identifier">Agda.TypeChecking.Free.Precompute</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">VarSet</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier">VarSet</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | A variable can either not occur (`NotFree`) or it does occur</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--   (`MaybeFree`).  In the latter case, the occurrence may disappear</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--   depending on the instantiation of some set of metas.</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">data</span><span> </span><span id="IsFree"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-var">IsFree</span></a></span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="MaybeFree"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MaybeFree"><span class="hs-identifier hs-var">MaybeFree</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#MetaSet"><span class="hs-identifier hs-type">MetaSet</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="NotFree"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#NotFree"><span class="hs-identifier hs-var">NotFree</span></a></span></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621682010809"><span id="local-6989586621682010816"><span class="annot"><span class="annottext">IsFree -&gt; IsFree -&gt; Bool
+(IsFree -&gt; IsFree -&gt; Bool)
+-&gt; (IsFree -&gt; IsFree -&gt; Bool) -&gt; Eq IsFree
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: IsFree -&gt; IsFree -&gt; Bool
+== :: IsFree -&gt; IsFree -&gt; Bool
+$c/= :: IsFree -&gt; IsFree -&gt; Bool
+/= :: IsFree -&gt; IsFree -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682010821"><span id="local-6989586621682010827"><span id="local-6989586621682010831"><span class="annot"><span class="annottext">Int -&gt; IsFree -&gt; ShowS
+[IsFree] -&gt; ShowS
+IsFree -&gt; String
+(Int -&gt; IsFree -&gt; ShowS)
+-&gt; (IsFree -&gt; String) -&gt; ([IsFree] -&gt; ShowS) -&gt; Show IsFree
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; IsFree -&gt; ShowS
+showsPrec :: Int -&gt; IsFree -&gt; ShowS
+$cshow :: IsFree -&gt; String
+show :: IsFree -&gt; String
+$cshowList :: [IsFree] -&gt; ShowS
+showList :: [IsFree] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | Try to enforce a set of variables not occurring in a given</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   type. Returns a possibly reduced version of the type and for each</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   of the given variables whether it is either not free, or</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   maybe free depending on some metavariables.</span><span>
+</span><span id="line-47"></span><span id="local-6989586621682010617"><span id="local-6989586621682010620"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree"><span class="hs-identifier hs-type">forceNotFree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010617"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010617"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadReduce"><span class="hs-identifier hs-type">MonadReduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010620"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>             </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010617"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010620"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-type">IsFree</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682010617"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-49"></span><span id="forceNotFree"><span class="annot"><span class="annottext">forceNotFree :: forall a (m :: * -&gt; *).
+(ForceNotFree a, Reduce a, MonadReduce m) =&gt;
+VarSet -&gt; a -&gt; m (IntMap IsFree, a)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree"><span class="hs-identifier hs-var hs-var">forceNotFree</span></a></span></span><span> </span><span id="local-6989586621682010866"><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682010866"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621682010867"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682010867"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-comment">-- Initially, all variables are marked as `NotFree`. This is changed</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-comment">-- to `MaybeFree` when we find an occurrence.</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682010868"><span class="annot"><span class="annottext">mxs :: IntMap IsFree
+</span><a href="#local-6989586621682010868"><span class="hs-identifier hs-var hs-var hs-var">mxs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(Int, IsFree)] -&gt; IntMap IsFree
+forall a. [(Int, a)] -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.fromDistinctAscList</span></span><span> </span><span class="annot"><span class="annottext">([(Int, IsFree)] -&gt; IntMap IsFree)
+-&gt; [(Int, IsFree)] -&gt; IntMap IsFree
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; (Int, IsFree)) -&gt; [Int] -&gt; [(Int, IsFree)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="Agda.TypeChecking.Free.Reduce.html#NotFree"><span class="hs-identifier hs-var">NotFree</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Int] -&gt; [(Int, IsFree)]) -&gt; [Int] -&gt; [(Int, IsFree)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; [Int]
+</span><a href="Agda.Utils.VarSet.html#toAscList"><span class="hs-identifier hs-var">VarSet.toAscList</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682010866"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621682010871"><span class="annot"><a href="#local-6989586621682010871"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682010872"><span class="annot"><a href="#local-6989586621682010872"><span class="hs-identifier hs-var">mxs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">StateT (IntMap IsFree) m a -&gt; IntMap IsFree -&gt; m (a, IntMap IsFree)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ReaderT MetaSet (StateT (IntMap IsFree) m) a
+-&gt; MetaSet -&gt; StateT (IntMap IsFree) m a
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; ReaderT MetaSet (StateT (IntMap IsFree) m) a
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var">forceNotFreeR</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; ReaderT MetaSet (StateT (IntMap IsFree) m) a)
+-&gt; a -&gt; ReaderT MetaSet (StateT (IntMap IsFree) m) a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars_"><span class="hs-identifier hs-var">precomputeFreeVars_</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682010867"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">MetaSet
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IntMap IsFree
+</span><a href="#local-6989586621682010868"><span class="hs-identifier hs-var">mxs</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621682010872"><span class="hs-identifier hs-type">mxs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682010871"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | Checks if the given term contains any free variables that are in</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   the given set of variables, possibly reducing the term in the</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   process.  Returns `Right Nothing` if there are such variables,</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--   `Right (Just v')` if there are none (where v' is the possibly</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--   reduced version of the given term) or `Left b` if the problem is</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--   blocked on a meta.</span><span>
+</span><span id="line-62"></span><span id="local-6989586621682010672"><span id="local-6989586621682010673"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#reallyFree"><span class="hs-identifier hs-type">reallyFree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadReduce"><span class="hs-identifier hs-type">MonadReduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010672"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010673"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010673"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>           </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010673"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010672"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Blocked_"><span class="hs-identifier hs-type">Blocked_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621682010673"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-64"></span><span id="reallyFree"><span class="annot"><span class="annottext">reallyFree :: forall (m :: * -&gt; *) a.
+(MonadReduce m, Reduce a, ForceNotFree a) =&gt;
+VarSet -&gt; a -&gt; m (Either Blocked_ (Maybe a))
+</span><a href="Agda.TypeChecking.Free.Reduce.html#reallyFree"><span class="hs-identifier hs-var hs-var">reallyFree</span></a></span></span><span> </span><span id="local-6989586621682010893"><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682010893"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621682010894"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682010894"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621682010895"><span class="annot"><a href="#local-6989586621682010895"><span class="hs-identifier hs-var">mxs</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span id="local-6989586621682010896"><span class="annot"><a href="#local-6989586621682010896"><span class="hs-identifier hs-var">v'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; a -&gt; m (IntMap IsFree, a)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, Reduce a, MonadReduce m) =&gt;
+VarSet -&gt; a -&gt; m (IntMap IsFree, a)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree"><span class="hs-identifier hs-var">forceNotFree</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682010893"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682010894"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap.foldr</span></span><span> </span><span class="annot"><a href="#local-6989586621682010898"><span class="hs-identifier hs-type">pickFree</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#NotFree"><span class="hs-identifier hs-type">NotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010895"><span class="hs-identifier hs-type">mxs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MaybeFree"><span class="hs-identifier hs-type">MaybeFree</span></a></span><span> </span><span id="local-6989586621682010899"><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010899"><span class="hs-identifier hs-var">ms</span></a></span></span><span>
+</span><span id="line-68"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">MetaSet -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010899"><span class="hs-identifier hs-var">ms</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a)))
+-&gt; Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Either Blocked_ (Maybe a)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-69"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a)))
+-&gt; Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Blocked_ -&gt; Either Blocked_ (Maybe a)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(Blocked_ -&gt; Either Blocked_ (Maybe a))
+-&gt; Blocked_ -&gt; Either Blocked_ (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Blocker -&gt; () -&gt; Blocked_
+forall t a. Blocker -&gt; a -&gt; Blocked' t a
+</span><a href="Agda.Syntax.Internal.Blockers.html#Blocked"><span class="hs-identifier hs-var">Blocked</span></a></span><span> </span><span class="annot"><span class="annottext">Blocker
+</span><a href="#local-6989586621682010902"><span class="hs-identifier hs-var">blocker</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>      </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621682010902"><span class="annot"><span class="annottext">blocker :: Blocker
+</span><a href="#local-6989586621682010902"><span class="hs-identifier hs-var hs-var">blocker</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MetaSet -&gt; Blocker
+</span><a href="Agda.TypeChecking.Free.Lazy.html#metaSetToBlocker"><span class="hs-identifier hs-var">metaSetToBlocker</span></a></span><span> </span><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010899"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="annottext">IsFree
+</span><a href="Agda.TypeChecking.Free.Reduce.html#NotFree"><span class="hs-identifier hs-var">NotFree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a)))
+-&gt; Either Blocked_ (Maybe a) -&gt; m (Either Blocked_ (Maybe a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Either Blocked_ (Maybe a)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682010896"><span class="hs-identifier hs-var">v'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-74"></span><span>    </span><span class="hs-comment">-- Check if any of the variables occur freely.</span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-comment">-- Prefer occurrences that do not depend on any metas.</span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><a href="#local-6989586621682010898"><span class="hs-identifier hs-type">pickFree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-type">IsFree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-type">IsFree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-type">IsFree</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span id="local-6989586621682010898"><span class="annot"><span class="annottext">pickFree :: IsFree -&gt; IsFree -&gt; IsFree
+</span><a href="#local-6989586621682010898"><span class="hs-identifier hs-var hs-var">pickFree</span></a></span></span><span> </span><span id="local-6989586621682010904"><span class="annot"><span class="annottext">f1 :: IsFree
+</span><a href="#local-6989586621682010904"><span class="hs-identifier hs-var">f1</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MaybeFree"><span class="hs-identifier hs-type">MaybeFree</span></a></span><span> </span><span id="local-6989586621682010905"><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010905"><span class="hs-identifier hs-var">ms1</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621682010906"><span class="annot"><span class="annottext">IsFree
+</span><a href="#local-6989586621682010906"><span class="hs-identifier hs-var">f2</span></a></span></span><span>
+</span><span id="line-78"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">MetaSet -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010905"><span class="hs-identifier hs-var">ms1</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="#local-6989586621682010904"><span class="hs-identifier hs-var">f1</span></a></span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><a href="#local-6989586621682010898"><span class="hs-identifier hs-var">pickFree</span></a></span><span> </span><span id="local-6989586621682010907"><span class="annot"><span class="annottext">f1 :: IsFree
+</span><a href="#local-6989586621682010907"><span class="hs-identifier hs-var">f1</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MaybeFree"><span class="hs-identifier hs-type">MaybeFree</span></a></span><span> </span><span id="local-6989586621682010908"><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010908"><span class="hs-identifier hs-var">ms1</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621682010909"><span class="annot"><span class="annottext">f2 :: IsFree
+</span><a href="#local-6989586621682010909"><span class="hs-identifier hs-var">f2</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MaybeFree"><span class="hs-identifier hs-type">MaybeFree</span></a></span><span> </span><span id="local-6989586621682010910"><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010910"><span class="hs-identifier hs-var">ms2</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">MetaSet -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010910"><span class="hs-identifier hs-var">ms2</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="#local-6989586621682010909"><span class="hs-identifier hs-var">f2</span></a></span><span>
+</span><span id="line-81"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="#local-6989586621682010907"><span class="hs-identifier hs-var">f1</span></a></span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><a href="#local-6989586621682010898"><span class="hs-identifier hs-var">pickFree</span></a></span><span> </span><span id="local-6989586621682010911"><span class="annot"><span class="annottext">f1 :: IsFree
+</span><a href="#local-6989586621682010911"><span class="hs-identifier hs-var">f1</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MaybeFree"><span class="hs-identifier hs-type">MaybeFree</span></a></span><span> </span><span id="local-6989586621682010912"><span class="annot"><span class="annottext">MetaSet
+</span><a href="#local-6989586621682010912"><span class="hs-identifier hs-var">ms1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="Agda.TypeChecking.Free.Reduce.html#NotFree"><span class="hs-identifier hs-var">NotFree</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="#local-6989586621682010911"><span class="hs-identifier hs-var">f1</span></a></span><span>
+</span><span id="line-83"></span><span>    </span><span class="annot"><a href="#local-6989586621682010898"><span class="hs-identifier hs-var">pickFree</span></a></span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="Agda.TypeChecking.Free.Reduce.html#NotFree"><span class="hs-identifier hs-var">NotFree</span></a></span><span> </span><span id="local-6989586621682010913"><span class="annot"><span class="annottext">IsFree
+</span><a href="#local-6989586621682010913"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="#local-6989586621682010913"><span class="hs-identifier hs-var">f2</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">type</span><span> </span><span id="MonadFreeRed"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MonadFreeRed"><span class="hs-identifier hs-var">MonadFreeRed</span></a></span></span><span> </span><span id="local-6989586621682010914"><span class="annot"><a href="#local-6989586621682010914"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Lazy.html#MetaSet"><span class="hs-identifier hs-type">MetaSet</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010914"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-type">IsFree</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682010914"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadReduce"><span class="hs-identifier hs-type">MonadReduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010914"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010651"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#Subst"><span class="hs-identifier hs-type">Subst</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010651"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="ForceNotFree"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-var">ForceNotFree</span></a></span></span><span> </span><span id="local-6989586621682010651"><span class="annot"><a href="#local-6989586621682010651"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-comment">-- Reduce the argument if necessary, to make as many as possible of</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-comment">-- the variables in the state not free. Updates the state, marking</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-comment">-- the variables that couldn't be make not free as `MaybeFree`. By</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-comment">-- updating the state as soon as a variable can not be reduced away,</span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-comment">-- we avoid trying to get rid of it in other places.</span><span>
+</span><span id="line-97"></span><span>  </span><span id="forceNotFree%27"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-type">forceNotFree'</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621682010713"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MonadFreeRed"><span class="hs-identifier hs-type">MonadFreeRed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010713"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010651"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010713"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010651"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="annot"><span class="hs-comment">-- | Get the set of 'NotFree' variables from a variable map.</span></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#nonFreeVars"><span class="hs-identifier hs-type">nonFreeVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-type">IsFree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span>
+</span><span id="line-101"></span><span id="nonFreeVars"><span class="annot"><span class="annottext">nonFreeVars :: IntMap IsFree -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.Reduce.html#nonFreeVars"><span class="hs-identifier hs-var hs-var">nonFreeVars</span></a></span></span><span> </span><span id="local-6989586621682010917"><span class="annot"><span class="annottext">IntMap IsFree
+</span><a href="#local-6989586621682010917"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#fromList"><span class="hs-identifier hs-var">VarSet.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">([Int] -&gt; VarSet) -&gt; [Int] -&gt; VarSet
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((Int, IsFree) -&gt; Maybe Int) -&gt; [(Int, IsFree)] -&gt; [Int]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="annot"><span class="annottext">(Int, IsFree) -&gt; Maybe Int
+</span><a href="#local-6989586621682010920"><span class="hs-identifier hs-var">takeNotFree</span></a></span><span> </span><span class="annot"><span class="annottext">([(Int, IsFree)] -&gt; [Int]) -&gt; [(Int, IsFree)] -&gt; [Int]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IntMap IsFree -&gt; [(Int, IsFree)]
+forall a. IntMap a -&gt; [(Int, a)]
+</span><span class="hs-identifier hs-var">IntMap.toAscList</span></span><span> </span><span class="annot"><span class="annottext">IntMap IsFree
+</span><a href="#local-6989586621682010917"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>    </span><span class="annot"><a href="#local-6989586621682010920"><span class="hs-identifier hs-type">takeNotFree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#IsFree"><span class="hs-identifier hs-type">IsFree</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-104"></span><span>    </span><span id="local-6989586621682010920"><span class="annot"><span class="annottext">takeNotFree :: (Int, IsFree) -&gt; Maybe Int
+</span><a href="#local-6989586621682010920"><span class="hs-identifier hs-var hs-var">takeNotFree</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">!</span><span id="local-6989586621682010922"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682010922"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">IsFree
+</span><a href="Agda.TypeChecking.Free.Reduce.html#NotFree"><span class="hs-identifier hs-var">NotFree</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682010922"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span class="annot"><a href="#local-6989586621682010920"><span class="hs-identifier hs-var">takeNotFree</span></a></span><span> </span><span class="annot"><span class="annottext">(Int, IsFree)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- Return the set of variables for which there is still hope that they</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- may not occur.</span><span>
+</span><span id="line-109"></span><span id="local-6989586621682010691"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#varsToForceNotFree"><span class="hs-identifier hs-type">varsToForceNotFree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MonadFreeRed"><span class="hs-identifier hs-type">MonadFreeRed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010691"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010691"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span></span><span>
+</span><span id="line-110"></span><span id="varsToForceNotFree"><span class="annot"><span class="annottext">varsToForceNotFree :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; m VarSet
+</span><a href="Agda.TypeChecking.Free.Reduce.html#varsToForceNotFree"><span class="hs-identifier hs-var hs-var">varsToForceNotFree</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(IntMap IsFree -&gt; VarSet) -&gt; m VarSet
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">IntMap IsFree -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.Reduce.html#nonFreeVars"><span class="hs-identifier hs-var">nonFreeVars</span></a></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- Reduce the argument if there are offending free variables. Doesn't call the</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- continuation when no reduction is required.</span><span>
+</span><span id="line-114"></span><span id="local-6989586621682010696"><span id="local-6989586621682010697"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#reduceIfFreeVars"><span class="hs-identifier hs-type">reduceIfFreeVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010696"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010696"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MonadFreeRed"><span class="hs-identifier hs-type">MonadFreeRed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010697"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-115"></span><span>                 </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621682010696"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010697"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010696"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010696"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010697"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010696"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-116"></span><span id="reduceIfFreeVars"><span class="annot"><span class="annottext">reduceIfFreeVars :: forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+(a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#reduceIfFreeVars"><span class="hs-identifier hs-var hs-var">reduceIfFreeVars</span></a></span></span><span> </span><span id="local-6989586621682010945"><span class="annot"><span class="annottext">a -&gt; m a
+</span><a href="#local-6989586621682010945"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621682010946"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682010946"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-117"></span><span>  </span><span id="local-6989586621682010947"><span class="annot"><a href="#local-6989586621682010947"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m VarSet
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; m VarSet
+</span><a href="Agda.TypeChecking.Free.Reduce.html#varsToForceNotFree"><span class="hs-identifier hs-var">varsToForceNotFree</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682010948"><span class="annot"><a href="#local-6989586621682010948"><span class="hs-identifier hs-var hs-var">fvs</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; VarSet
+forall a. PrecomputeFreeVars a =&gt; a -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputedFreeVars"><span class="hs-identifier hs-var">precomputedFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682010946"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-119"></span><span>      </span><span id="local-6989586621682010950"><span class="annot"><a href="#local-6989586621682010950"><span class="hs-identifier hs-var hs-var">notfree</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; VarSet -&gt; Bool
+</span><a href="Agda.Utils.VarSet.html#disjoint"><span class="hs-identifier hs-var">VarSet.disjoint</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682010947"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621682010948"><span class="hs-identifier hs-var">fvs</span></a></span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621682010950"><span class="hs-identifier hs-type">notfree</span></a></span><span>
+</span><span id="line-121"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682010946"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-122"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><a href="#local-6989586621682010945"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars_"><span class="hs-identifier hs-type">precomputeFreeVars_</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">=&lt;&lt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#reduce"><span class="hs-identifier hs-type">reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010946"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- Careful not to define forceNotFree' = forceNotFreeR since that would loop.</span><span>
+</span><span id="line-125"></span><span id="local-6989586621682010666"><span id="local-6989586621682010667"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-type">forceNotFreeR</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010666"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010666"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MonadFreeRed"><span class="hs-identifier hs-type">MonadFreeRed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010667"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>              </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010666"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682010667"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010666"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-127"></span><span id="forceNotFreeR"><span class="annot"><span class="annottext">forceNotFreeR :: forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var hs-var">forceNotFreeR</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; a -&gt; m a
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+(a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#reduceIfFreeVars"><span class="hs-identifier hs-var">reduceIfFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682010718"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010718"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010718"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010718"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-comment">-- Precomputed free variables are stored in the Arg so reduceIf outside the</span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-comment">-- traverse.</span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621682010989"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; Arg a -&gt; m (Arg a)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Arg a -&gt; m (Arg a)) -&gt; Arg a -&gt; m (Arg a)
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+(a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#reduceIfFreeVars"><span class="hs-identifier hs-var">reduceIfFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; Arg a -&gt; m (Arg a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Arg a -&gt; f (Arg b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682010735"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010735"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010735"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#TermSubst"><span class="hs-identifier hs-type">TermSubst</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010735"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010735"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621682011019"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; Dom a -&gt; m (Dom a)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; Dom a -&gt; m (Dom a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Dom' Term a -&gt; f (Dom' Term b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var">forceNotFreeR</span></a></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682010742"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010742"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010742"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010742"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-138"></span><span>  </span><span class="hs-comment">-- Reduction stops at abstractions (lambda/pi) so do reduceIf/forceNotFreeR here.</span><span>
+</span><span id="line-139"></span><span>  </span><span id="local-6989586621682011058"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; Abs a -&gt; m (Abs a)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span id="local-6989586621682011059"><span class="annot"><span class="annottext">a :: Abs a
+</span><a href="#local-6989586621682011059"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.html#NoAbs"><span class="hs-identifier hs-type">NoAbs</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; Abs a -&gt; m (Abs a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Abs a -&gt; f (Abs b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var">forceNotFreeR</span></a></span><span> </span><span class="annot"><span class="annottext">Abs a
+</span><a href="#local-6989586621682011059"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span id="local-6989586621682011061"><span class="annot"><span class="annottext">a :: Abs a
+</span><a href="#local-6989586621682011061"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-141"></span><span>    </span><span class="hs-comment">-- Shift variables up when going under the abstraction and back down when</span><span>
+</span><span id="line-142"></span><span>    </span><span class="hs-comment">-- coming out of it. Since we never add new indices to the state</span><span>
+</span><span id="line-143"></span><span>    </span><span class="hs-comment">-- there's no danger of getting negative indices.</span><span>
+</span><span id="line-144"></span><span>    </span><span class="annot"><span class="annottext">(Abs a -&gt; m (Abs a)) -&gt; Abs a -&gt; m (Abs a)
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+(a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#reduceIfFreeVars"><span class="hs-identifier hs-var">reduceIfFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m () -&gt; (() -&gt; m ()) -&gt; m (Abs a) -&gt; m (Abs a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m a -&gt; (a -&gt; m ()) -&gt; m b -&gt; m b
+</span><a href="Agda.Utils.Monad.html#bracket_"><span class="hs-identifier hs-var">bracket_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(IntMap IsFree -&gt; IntMap IsFree) -&gt; m ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">((IntMap IsFree -&gt; IntMap IsFree) -&gt; m ())
+-&gt; (IntMap IsFree -&gt; IntMap IsFree) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int) -&gt; IntMap IsFree -&gt; IntMap IsFree
+forall a. (Int -&gt; Int) -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.mapKeys</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int
+forall a. Enum a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">succ</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(IntMap IsFree -&gt; IntMap IsFree) -&gt; m ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">((IntMap IsFree -&gt; IntMap IsFree) -&gt; m ())
+-&gt; (IntMap IsFree -&gt; IntMap IsFree) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int) -&gt; IntMap IsFree -&gt; IntMap IsFree
+forall a. (Int -&gt; Int) -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.mapKeys</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int
+forall a. Enum a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">pred</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m (Abs a) -&gt; m (Abs a))
+-&gt; (Abs a -&gt; m (Abs a)) -&gt; Abs a -&gt; m (Abs a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-145"></span><span>                      </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; Abs a -&gt; m (Abs a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Abs a -&gt; f (Abs b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Abs a
+</span><a href="#local-6989586621682011061"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682010755"><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010755"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621682010755"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-148"></span><span>  </span><span id="local-6989586621682011087"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; [a] -&gt; m [a]
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; [a] -&gt; m [a]
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; [a] -&gt; f [b]
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682010761"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Reduce.html#Reduce"><span class="hs-identifier hs-type">Reduce</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010761"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010761"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682010761"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-151"></span><span>  </span><span class="hs-comment">-- There's an Arg inside Elim' which stores precomputed free vars, so let's</span><span>
+</span><span id="line-152"></span><span>  </span><span class="hs-comment">-- not skip over that.</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621682011123"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; Elim' a -&gt; m (Elim' a)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621682011125"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621682011125"><span class="hs-identifier hs-var">arg</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Elim' a
+forall a. Arg a -&gt; Elim' a
+</span><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-var">Apply</span></a></span><span> </span><span class="annot"><span class="annottext">(Arg a -&gt; Elim' a) -&gt; m (Arg a) -&gt; m (Elim' a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; m (Arg a)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Arg a -&gt; m (Arg a)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621682011125"><span class="hs-identifier hs-var">arg</span></a></span><span>
+</span><span id="line-154"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span id="local-6989586621682011127"><span class="annot"><span class="annottext">e :: Elim' a
+</span><a href="#local-6989586621682011127"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Elim' a -&gt; m (Elim' a)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621682011127"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span> </span><span id="local-6989586621682011130"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682011130"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621682011131"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682011131"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621682011132"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682011132"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a -&gt; Elim' a
+forall a. a -&gt; a -&gt; a -&gt; Elim' a
+</span><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-var">IApply</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; a -&gt; Elim' a) -&gt; m a -&gt; m (a -&gt; a -&gt; Elim' a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var">forceNotFreeR</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682011130"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">m (a -&gt; a -&gt; Elim' a) -&gt; m a -&gt; m (a -&gt; Elim' a)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var">forceNotFreeR</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682011131"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">m (a -&gt; Elim' a) -&gt; m a -&gt; m (Elim' a)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var">forceNotFreeR</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682011132"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621682011158"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; Type -&gt; m Type
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#El"><span class="hs-identifier hs-type">El</span></a></span><span> </span><span id="local-6989586621682011160"><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011160"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621682011161"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011161"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; Term -&gt; Type
+forall t a. Sort' t -&gt; a -&gt; Type'' t a
+</span><a href="Agda.Syntax.Internal.html#El"><span class="hs-identifier hs-var">El</span></a></span><span> </span><span class="annot"><span class="annottext">(Sort' Term -&gt; Term -&gt; Type) -&gt; m (Sort' Term) -&gt; m (Term -&gt; Type)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Sort' Term -&gt; m (Sort' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011160"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">m (Term -&gt; Type) -&gt; m Term -&gt; m Type
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Term
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Term -&gt; m Term
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011161"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-161"></span><span>  </span><span id="local-6989586621682011230"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; Term -&gt; m Term
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-162"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621682011232"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621682011232"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621682011233"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011233"><span class="hs-identifier hs-var">es</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-163"></span><span>      </span><span id="local-6989586621682011234"><span class="annot"><a href="#local-6989586621682011234"><span class="hs-identifier hs-var">metas</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m MetaSet
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-164"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">modify</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap.adjust</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">const</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#MaybeFree"><span class="hs-identifier hs-type">MaybeFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682011234"><span class="hs-identifier hs-type">metas</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682011232"><span class="hs-identifier hs-type">x</span></a></span><span>
+</span><span id="line-165"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682011232"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-type">forceNotFree'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682011233"><span class="hs-identifier hs-type">es</span></a></span><span>
+</span><span id="line-166"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-type">Def</span></a></span><span> </span><span id="local-6989586621682011239"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682011239"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621682011240"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011240"><span class="hs-identifier hs-var">es</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Elims -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-var">Def</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682011239"><span class="hs-identifier hs-var">f</span></a></span><span>    </span><span class="annot"><span class="annottext">(Elims -&gt; Term) -&gt; m Elims -&gt; m Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m Elims
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Elims -&gt; m Elims
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011240"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-167"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span> </span><span id="local-6989586621682011242"><span class="annot"><span class="annottext">ConHead
+</span><a href="#local-6989586621682011242"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621682011243"><span class="annot"><span class="annottext">ConInfo
+</span><a href="#local-6989586621682011243"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621682011244"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011244"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ConHead -&gt; ConInfo -&gt; Elims -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Con"><span class="hs-identifier hs-var">Con</span></a></span><span> </span><span class="annot"><span class="annottext">ConHead
+</span><a href="#local-6989586621682011242"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">ConInfo
+</span><a href="#local-6989586621682011243"><span class="hs-identifier hs-var">h</span></a></span><span>  </span><span class="annot"><span class="annottext">(Elims -&gt; Term) -&gt; m Elims -&gt; m Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m Elims
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Elims -&gt; m Elims
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011244"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-168"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaV"><span class="hs-identifier hs-type">MetaV</span></a></span><span> </span><span id="local-6989586621682011246"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682011246"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621682011247"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011247"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(MetaSet -&gt; MetaSet) -&gt; m Term -&gt; m Term
+forall a. (MetaSet -&gt; MetaSet) -&gt; m a -&gt; m a
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MetaId -&gt; MetaSet -&gt; MetaSet
+</span><a href="Agda.TypeChecking.Free.Lazy.html#insertMetaSet"><span class="hs-identifier hs-var">insertMetaSet</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682011246"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m Term -&gt; m Term) -&gt; m Term -&gt; m Term
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-169"></span><span>                  </span><span class="annot"><span class="annottext">MetaId -&gt; Elims -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#MetaV"><span class="hs-identifier hs-var">MetaV</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682011246"><span class="hs-identifier hs-var">x</span></a></span><span>  </span><span class="annot"><span class="annottext">(Elims -&gt; Term) -&gt; m Elims -&gt; m Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m Elims
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Elims -&gt; m Elims
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011247"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-170"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span id="local-6989586621682011251"><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621682011251"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621682011252"><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621682011252"><span class="hs-identifier hs-var">b</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ArgInfo -&gt; Abs Term -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-var">Lam</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621682011251"><span class="hs-identifier hs-var">h</span></a></span><span>    </span><span class="annot"><span class="annottext">(Abs Term -&gt; Term) -&gt; m (Abs Term) -&gt; m Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Abs Term -&gt; m (Abs Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Abs Term -&gt; m (Abs Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621682011252"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-171"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Pi"><span class="hs-identifier hs-type">Pi</span></a></span><span> </span><span id="local-6989586621682011254"><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621682011254"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682011255"><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621682011255"><span class="hs-identifier hs-var">b</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Dom Type -&gt; Abs Type -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Pi"><span class="hs-identifier hs-var">Pi</span></a></span><span>       </span><span class="annot"><span class="annottext">(Dom Type -&gt; Abs Type -&gt; Term)
+-&gt; m (Dom Type) -&gt; m (Abs Type -&gt; Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Dom Type -&gt; m (Dom Type)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Dom Type -&gt; m (Dom Type)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621682011254"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m (Abs Type -&gt; Term) -&gt; m (Abs Type) -&gt; m Term
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Abs Type -&gt; m (Abs Type)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Abs Type -&gt; m (Abs Type)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621682011255"><span class="hs-identifier hs-var">b</span></a></span><span>  </span><span class="hs-comment">-- Dom and Abs do reduceIf so not needed here</span><span>
+</span><span id="line-172"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span id="local-6989586621682011257"><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011257"><span class="hs-identifier hs-var">s</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-var">Sort</span></a></span><span>     </span><span class="annot"><span class="annottext">(Sort' Term -&gt; Term) -&gt; m (Sort' Term) -&gt; m Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Sort' Term -&gt; m (Sort' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011257"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-173"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span id="local-6989586621682011259"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621682011259"><span class="hs-identifier hs-var">l</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Level -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-var">Level</span></a></span><span>    </span><span class="annot"><span class="annottext">(Level -&gt; Term) -&gt; m Level -&gt; m Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Level -&gt; m Level
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Level -&gt; m Level
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621682011259"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-174"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DontCare"><span class="hs-identifier hs-type">DontCare</span></a></span><span> </span><span id="local-6989586621682011261"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011261"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#DontCare"><span class="hs-identifier hs-var">DontCare</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term) -&gt; m Term -&gt; m Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Term
+forall a (m :: * -&gt; *).
+(Reduce a, ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFreeR"><span class="hs-identifier hs-var">forceNotFreeR</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011261"><span class="hs-identifier hs-var">t</span></a></span><span>  </span><span class="hs-comment">-- Reduction stops at DontCare so reduceIf</span><span>
+</span><span id="line-175"></span><span>    </span><span id="local-6989586621682011262"><span class="annot"><span class="annottext">t :: Term
+</span><a href="#local-6989586621682011262"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Term
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011262"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-176"></span><span>    </span><span id="local-6989586621682011264"><span class="annot"><span class="annottext">t :: Term
+</span><a href="#local-6989586621682011264"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dummy"><span class="hs-identifier hs-type">Dummy</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Term
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011264"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-179"></span><span>  </span><span id="local-6989586621682011283"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *). MonadFreeRed m =&gt; Level -&gt; m Level
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-type">Max</span></a></span><span> </span><span id="local-6989586621682011285"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621682011285"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621682011286"><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621682011286"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; [PlusLevel' Term] -&gt; Level
+forall t. Integer -&gt; [PlusLevel' t] -&gt; Level' t
+</span><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-var">Max</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621682011285"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">([PlusLevel' Term] -&gt; Level) -&gt; m [PlusLevel' Term] -&gt; m Level
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[PlusLevel' Term] -&gt; m [PlusLevel' Term]
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+[PlusLevel' Term] -&gt; m [PlusLevel' Term]
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621682011286"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#PlusLevel"><span class="hs-identifier hs-type">PlusLevel</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-182"></span><span>  </span><span id="local-6989586621682011303"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+PlusLevel' Term -&gt; m (PlusLevel' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-type">Plus</span></a></span><span> </span><span id="local-6989586621682011305"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621682011305"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621682011306"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011306"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term -&gt; PlusLevel' Term
+forall t. Integer -&gt; t -&gt; PlusLevel' t
+</span><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-var">Plus</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621682011305"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; PlusLevel' Term) -&gt; m Term -&gt; m (PlusLevel' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Term
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Term -&gt; m Term
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682011306"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Reduce.html#ForceNotFree"><span class="hs-identifier hs-type">ForceNotFree</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-comment">-- Reduce for sorts already goes under all sort constructors, so we can get</span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-comment">-- away without forceNotFreeR here.</span><span>
+</span><span id="line-187"></span><span>  </span><span id="local-6989586621682011365"><span class="annot"><span class="annottext">forceNotFree' :: forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Sort' Term -&gt; m (Sort' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var hs-var hs-var">forceNotFree'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-188"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span id="local-6989586621682011367"><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621682011367"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span id="local-6989586621682011368"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621682011368"><span class="hs-identifier hs-var">l</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ -&gt; Level -&gt; Sort' Term
+forall t. Univ -&gt; Level' t -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#Univ"><span class="hs-identifier hs-var">Univ</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621682011367"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">(Level -&gt; Sort' Term) -&gt; m Level -&gt; m (Sort' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Level -&gt; m Level
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Level -&gt; m Level
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621682011368"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-189"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#PiSort"><span class="hs-identifier hs-type">PiSort</span></a></span><span> </span><span id="local-6989586621682011370"><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621682011370"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682011371"><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011371"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621682011372"><span class="annot"><span class="annottext">Abs (Sort' Term)
+</span><a href="#local-6989586621682011372"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Dom' Term Term -&gt; Sort' Term -&gt; Abs (Sort' Term) -&gt; Sort' Term
+forall t. Dom' t t -&gt; Sort' t -&gt; Abs (Sort' t) -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#PiSort"><span class="hs-identifier hs-var">PiSort</span></a></span><span> </span><span class="annot"><span class="annottext">(Dom' Term Term -&gt; Sort' Term -&gt; Abs (Sort' Term) -&gt; Sort' Term)
+-&gt; m (Dom' Term Term)
+-&gt; m (Sort' Term -&gt; Abs (Sort' Term) -&gt; Sort' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Dom' Term Term -&gt; m (Dom' Term Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Dom' Term Term -&gt; m (Dom' Term Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621682011370"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m (Sort' Term -&gt; Abs (Sort' Term) -&gt; Sort' Term)
+-&gt; m (Sort' Term) -&gt; m (Abs (Sort' Term) -&gt; Sort' Term)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Sort' Term -&gt; m (Sort' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011371"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">m (Abs (Sort' Term) -&gt; Sort' Term)
+-&gt; m (Abs (Sort' Term)) -&gt; m (Sort' Term)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Abs (Sort' Term) -&gt; m (Abs (Sort' Term))
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Abs (Sort' Term) -&gt; m (Abs (Sort' Term))
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Abs (Sort' Term)
+</span><a href="#local-6989586621682011372"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-190"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#FunSort"><span class="hs-identifier hs-type">FunSort</span></a></span><span> </span><span id="local-6989586621682011374"><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011374"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621682011375"><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011375"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; Sort' Term -&gt; Sort' Term
+forall t. Sort' t -&gt; Sort' t -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#FunSort"><span class="hs-identifier hs-var">FunSort</span></a></span><span> </span><span class="annot"><span class="annottext">(Sort' Term -&gt; Sort' Term -&gt; Sort' Term)
+-&gt; m (Sort' Term) -&gt; m (Sort' Term -&gt; Sort' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Sort' Term -&gt; m (Sort' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011374"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m (Sort' Term -&gt; Sort' Term) -&gt; m (Sort' Term) -&gt; m (Sort' Term)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Sort' Term -&gt; m (Sort' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011375"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-191"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#UnivSort"><span class="hs-identifier hs-type">UnivSort</span></a></span><span> </span><span id="local-6989586621682011377"><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011377"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; Sort' Term
+forall t. Sort' t -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#UnivSort"><span class="hs-identifier hs-var">UnivSort</span></a></span><span> </span><span class="annot"><span class="annottext">(Sort' Term -&gt; Sort' Term) -&gt; m (Sort' Term) -&gt; m (Sort' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *).
+MonadFreeRed m =&gt;
+Sort' Term -&gt; m (Sort' Term)
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011377"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-192"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaS"><span class="hs-identifier hs-type">MetaS</span></a></span><span> </span><span id="local-6989586621682011379"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682011379"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621682011380"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011380"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Elims -&gt; Sort' Term
+forall t. MetaId -&gt; [Elim' t] -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#MetaS"><span class="hs-identifier hs-var">MetaS</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621682011379"><span class="hs-identifier hs-var">x</span></a></span><span>  </span><span class="annot"><span class="annottext">(Elims -&gt; Sort' Term) -&gt; m Elims -&gt; m (Sort' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m Elims
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Elims -&gt; m Elims
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011380"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-193"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DefS"><span class="hs-identifier hs-type">DefS</span></a></span><span> </span><span id="local-6989586621682011382"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682011382"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621682011383"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011383"><span class="hs-identifier hs-var">es</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Elims -&gt; Sort' Term
+forall t. QName -&gt; [Elim' t] -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#DefS"><span class="hs-identifier hs-var">DefS</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682011382"><span class="hs-identifier hs-var">d</span></a></span><span>   </span><span class="annot"><span class="annottext">(Elims -&gt; Sort' Term) -&gt; m Elims -&gt; m (Sort' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; m Elims
+forall a (m :: * -&gt; *).
+(ForceNotFree a, MonadFreeRed m) =&gt;
+a -&gt; m a
+forall (m :: * -&gt; *). MonadFreeRed m =&gt; Elims -&gt; m Elims
+</span><a href="Agda.TypeChecking.Free.Reduce.html#forceNotFree%27"><span class="hs-identifier hs-var">forceNotFree'</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682011383"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-194"></span><span>    </span><span id="local-6989586621682011384"><span class="annot"><span class="annottext">s :: Sort' Term
+</span><a href="#local-6989586621682011384"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Inf"><span class="hs-identifier hs-type">Inf</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011384"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-195"></span><span>    </span><span id="local-6989586621682011386"><span class="annot"><span class="annottext">s :: Sort' Term
+</span><a href="#local-6989586621682011386"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="Agda.Syntax.Internal.html#SizeUniv"><span class="hs-identifier hs-var">SizeUniv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011386"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-196"></span><span>    </span><span id="local-6989586621682011388"><span class="annot"><span class="annottext">s :: Sort' Term
+</span><a href="#local-6989586621682011388"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="Agda.Syntax.Internal.html#LockUniv"><span class="hs-identifier hs-var">LockUniv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011388"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-197"></span><span>    </span><span id="local-6989586621682011390"><span class="annot"><span class="annottext">s :: Sort' Term
+</span><a href="#local-6989586621682011390"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="Agda.Syntax.Internal.html#LevelUniv"><span class="hs-identifier hs-var">LevelUniv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011390"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-198"></span><span>    </span><span id="local-6989586621682011392"><span class="annot"><span class="annottext">s :: Sort' Term
+</span><a href="#local-6989586621682011392"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="Agda.Syntax.Internal.html#IntervalUniv"><span class="hs-identifier hs-var">IntervalUniv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011392"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-199"></span><span>    </span><span id="local-6989586621682011394"><span class="annot"><span class="annottext">s :: Sort' Term
+</span><a href="#local-6989586621682011394"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Internal.html#DummyS"><span class="hs-identifier hs-type">DummyS</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort' Term -&gt; m (Sort' Term)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Sort' Term
+</span><a href="#local-6989586621682011394"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-200"></span></pre></body></html>

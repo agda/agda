@@ -1,0 +1,415 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE MagicHash #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE UnboxedTuples #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="annot"><span class="hs-comment">-- | Utilities for working with 'ByteArray' and 'ByteArray#'.</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html"><span class="hs-identifier">Agda.Utils.ByteArray</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-8"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Constructing byte arrays</span></span><span>
+</span><span id="line-9"></span><span>    </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayOnes%23"><span class="hs-identifier">byteArrayOnes#</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Queries</span></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayIsSubsetOf%23"><span class="hs-identifier">byteArrayIsSubsetOf#</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayDisjoint%23"><span class="hs-identifier">byteArrayDisjoint#</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Folds</span></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-15"></span><span>  </span><span class="annot"><span class="hs-comment">-- $byteArrayFolds</span></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldrBits%23"><span class="hs-identifier">byteArrayFoldrBits#</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldlBits%23"><span class="hs-identifier">byteArrayFoldlBits#</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Strict folds</span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldrBitsStrict%23"><span class="hs-identifier">byteArrayFoldrBitsStrict#</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldlBitsStrict%23"><span class="hs-identifier">byteArrayFoldlBitsStrict#</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- We need the machines word size for some bitwise operations.</span><span class="hs-cpp">
+#include &quot;MachDeps.h&quot;
+</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Base</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Num.WordArray</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Word.html"><span class="hs-identifier">Agda.Utils.Word</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- Constructing byte arrays</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><span class="hs-comment">-- | Construct a 'ByteArray#' consisting of @n@ 1 bits.</span></span><span>
+</span><span id="line-35"></span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayOnes%23"><span class="hs-identifier hs-type">byteArrayOnes#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span>
+</span><span id="line-36"></span><span id="byteArrayOnes%23"><span class="annot"><span class="annottext">byteArrayOnes# :: Int# -&gt; ByteArray#
+</span><a href="Agda.Utils.ByteArray.html#byteArrayOnes%23"><span class="hs-identifier hs-var hs-var">byteArrayOnes#</span></a></span></span><span> </span><span id="local-6989586621681707263"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707263"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(#</span><span> </span><span id="local-6989586621681707264"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707264"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681707265"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707265"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; (# Int#, Int# #)
+</span><span class="hs-identifier hs-var">quotRemInt#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707263"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-identifier">WORD_SIZE_IN_BITS#</span><span> </span><span class="hs-keyword">in</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707265"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">==#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><span class="annottext">Int#
+-&gt; (MutableWordArray# RealWorld
+    -&gt; State# RealWorld -&gt; State# RealWorld)
+-&gt; ByteArray#
+</span><span class="hs-identifier hs-var">withNewWordArray#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707264"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681707268"><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+</span><a href="#local-6989586621681707268"><span class="hs-identifier hs-var">mwa</span></a></span></span><span> </span><span id="local-6989586621681707269"><span class="annot"><span class="annottext">State# RealWorld
+</span><a href="#local-6989586621681707269"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-40"></span><span>      </span><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+-&gt; Int# -&gt; Int# -&gt; State# RealWorld -&gt; State# RealWorld
+forall s.
+MutableByteArray# s -&gt; Int# -&gt; Int# -&gt; State# s -&gt; State# s
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFillOnes%23"><span class="hs-identifier hs-var">byteArrayFillOnes#</span></a></span><span> </span><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+</span><a href="#local-6989586621681707268"><span class="hs-identifier hs-var">mwa</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707264"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">State# RealWorld
+</span><a href="#local-6989586621681707269"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-keyword">else</span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><span class="annottext">Int#
+-&gt; (MutableWordArray# RealWorld
+    -&gt; State# RealWorld -&gt; State# RealWorld)
+-&gt; ByteArray#
+</span><span class="hs-identifier hs-var">withNewWordArray#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707264"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">+#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681707271"><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+</span><a href="#local-6989586621681707271"><span class="hs-identifier hs-var">mwa</span></a></span></span><span> </span><span id="local-6989586621681707272"><span class="annot"><span class="annottext">State# RealWorld
+</span><a href="#local-6989586621681707272"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-43"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681707273"><span class="annot"><span class="annottext">st' :: State# RealWorld
+</span><a href="#local-6989586621681707273"><span class="hs-identifier hs-var hs-var">st'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+-&gt; Int# -&gt; Int# -&gt; State# RealWorld -&gt; State# RealWorld
+forall s.
+MutableByteArray# s -&gt; Int# -&gt; Int# -&gt; State# s -&gt; State# s
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFillOnes%23"><span class="hs-identifier hs-var">byteArrayFillOnes#</span></a></span><span> </span><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+</span><a href="#local-6989586621681707271"><span class="hs-identifier hs-var">mwa</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707264"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">State# RealWorld
+</span><a href="#local-6989586621681707272"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-44"></span><span>      </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+-&gt; Int# -&gt; Word# -&gt; State# RealWorld -&gt; State# RealWorld
+forall s.
+MutableWordArray# s -&gt; Int# -&gt; Word# -&gt; State# s -&gt; State# s
+</span><span class="hs-identifier hs-var">mwaWrite#</span></span><span> </span><span class="annot"><span class="annottext">MutableWordArray# RealWorld
+</span><a href="#local-6989586621681707271"><span class="hs-identifier hs-var">mwa</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707264"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int# -&gt; Word#
+</span><a href="Agda.Utils.Word.html#uncheckedWordOnes%23"><span class="hs-identifier hs-var">uncheckedWordOnes#</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707265"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State# RealWorld
+</span><a href="#local-6989586621681707273"><span class="hs-identifier hs-var">st'</span></a></span><span>
+</span><span id="line-45"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayOnes%23"><span class="hs-pragma hs-type">byteArrayOnes#</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | @byteArrayFillOnes# mwa start end st@ will fill a 'MutableByteArray#' with</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- ones from @start@ to @end - 1@.</span><span>
+</span><span id="line-49"></span><span id="local-6989586621681707245"><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFillOnes%23"><span class="hs-identifier hs-type">byteArrayFillOnes#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MutableByteArray#</span></span><span> </span><span class="annot"><a href="#local-6989586621681707245"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">State#</span></span><span> </span><span class="annot"><a href="#local-6989586621681707245"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">State#</span></span><span> </span><span class="annot"><a href="#local-6989586621681707245"><span class="hs-identifier hs-type">s</span></a></span></span><span>
+</span><span id="line-50"></span><span id="byteArrayFillOnes%23"><span class="annot"><span class="annottext">byteArrayFillOnes# :: forall s.
+MutableByteArray# s -&gt; Int# -&gt; Int# -&gt; State# s -&gt; State# s
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFillOnes%23"><span class="hs-identifier hs-var hs-var">byteArrayFillOnes#</span></a></span></span><span> </span><span id="local-6989586621681707276"><span class="annot"><span class="annottext">MutableByteArray# s
+</span><a href="#local-6989586621681707276"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621681707277"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707277"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681707278"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707278"><span class="hs-identifier hs-var">len</span></a></span></span><span> </span><span id="local-6989586621681707279"><span class="annot"><span class="annottext">State# s
+</span><a href="#local-6989586621681707279"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707277"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&lt;#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707278"><span class="hs-identifier hs-var">len</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681707280"><span class="annot"><span class="annottext">st' :: State# s
+</span><a href="#local-6989586621681707280"><span class="hs-identifier hs-var hs-var">st'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MutableByteArray# s -&gt; Int# -&gt; Word# -&gt; State# s -&gt; State# s
+forall s.
+MutableWordArray# s -&gt; Int# -&gt; Word# -&gt; State# s -&gt; State# s
+</span><span class="hs-identifier hs-var">mwaWrite#</span></span><span> </span><span class="annot"><span class="annottext">MutableByteArray# s
+</span><a href="#local-6989586621681707276"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707277"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word# -&gt; Word#
+</span><span class="hs-identifier hs-var">not#</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><span class="hs-number">0##</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State# s
+</span><a href="#local-6989586621681707279"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">MutableByteArray# s -&gt; Int# -&gt; Int# -&gt; State# s -&gt; State# s
+forall s.
+MutableByteArray# s -&gt; Int# -&gt; Int# -&gt; State# s -&gt; State# s
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFillOnes%23"><span class="hs-identifier hs-var">byteArrayFillOnes#</span></a></span><span> </span><span class="annot"><span class="annottext">MutableByteArray# s
+</span><a href="#local-6989586621681707276"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707277"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">+#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707278"><span class="hs-identifier hs-var">len</span></a></span><span> </span><span class="annot"><span class="annottext">State# s
+</span><a href="#local-6989586621681707280"><span class="hs-identifier hs-var">st'</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-keyword">else</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><span class="annottext">State# s
+</span><a href="#local-6989586621681707279"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- Queries</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Check that if the set bits of a 'ByteArray#' are a subset</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- of another 'ByteArray#'.</span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayIsSubsetOf%23"><span class="hs-identifier hs-type">byteArrayIsSubsetOf#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span>
+</span><span id="line-63"></span><span id="byteArrayIsSubsetOf%23"><span class="annot"><span class="annottext">byteArrayIsSubsetOf# :: ByteArray# -&gt; ByteArray# -&gt; Int#
+</span><a href="Agda.Utils.ByteArray.html#byteArrayIsSubsetOf%23"><span class="hs-identifier hs-var hs-var">byteArrayIsSubsetOf#</span></a></span></span><span> </span><span id="local-6989586621681707281"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707281"><span class="hs-identifier hs-var">bs1</span></a></span></span><span> </span><span id="local-6989586621681707282"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707282"><span class="hs-identifier hs-var">bs2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707283"><span class="hs-identifier hs-var">len1</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&lt;=#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707284"><span class="hs-identifier hs-var">len2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-65"></span><span>    </span><span class="annot"><span class="annottext">Int# -&gt; Int#
+</span><a href="#local-6989586621681707285"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">else</span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>    </span><span id="local-6989586621681707283"><span class="annot"><span class="annottext">len1 :: Int#
+</span><a href="#local-6989586621681707283"><span class="hs-identifier hs-var hs-var">len1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707281"><span class="hs-identifier hs-var">bs1</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span id="local-6989586621681707284"><span class="annot"><span class="annottext">len2 :: Int#
+</span><a href="#local-6989586621681707284"><span class="hs-identifier hs-var hs-var">len2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707282"><span class="hs-identifier hs-var">bs2</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><a href="#local-6989586621681707285"><span class="hs-identifier hs-type">loop</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span>
+</span><span id="line-73"></span><span>    </span><span id="local-6989586621681707285"><span class="annot"><span class="annottext">loop :: Int# -&gt; Int#
+</span><a href="#local-6989586621681707285"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681707287"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707287"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-74"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707287"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&lt;#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707283"><span class="hs-identifier hs-var">len1</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-75"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681707288"><span class="annot"><span class="annottext">w1 :: Word#
+</span><a href="#local-6989586621681707288"><span class="hs-identifier hs-var hs-var">w1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int# -&gt; Word#
+</span><span class="hs-identifier hs-var">indexWordArray#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707281"><span class="hs-identifier hs-var">bs1</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707287"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-76"></span><span>            </span><span id="local-6989586621681707289"><span class="annot"><span class="annottext">w2 :: Word#
+</span><a href="#local-6989586621681707289"><span class="hs-identifier hs-var hs-var">w2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int# -&gt; Word#
+</span><span class="hs-identifier hs-var">indexWordArray#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707282"><span class="hs-identifier hs-var">bs2</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707287"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-77"></span><span>        </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681707288"><span class="hs-identifier hs-var">w1</span></a></span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; Word#
+</span><span class="hs-operator hs-var">`and#`</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681707289"><span class="hs-identifier hs-var">w2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; Int#
+</span><span class="hs-operator hs-var">`eqWord#`</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681707288"><span class="hs-identifier hs-var">w1</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-78"></span><span>          </span><span class="annot"><span class="annottext">Int# -&gt; Int#
+</span><a href="#local-6989586621681707285"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707287"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">+#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>        </span><span class="hs-keyword">else</span><span>
+</span><span id="line-80"></span><span>          </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span>
+</span><span id="line-81"></span><span>      </span><span class="hs-keyword">else</span><span>
+</span><span id="line-82"></span><span>        </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span>
+</span><span id="line-83"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayIsSubsetOf%23"><span class="hs-pragma hs-type">byteArrayIsSubsetOf#</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><span class="hs-comment">-- | Check if two 'ByteArray#'s are bitwise disjoint.</span></span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayDisjoint%23"><span class="hs-identifier hs-type">byteArrayDisjoint#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span>
+</span><span id="line-87"></span><span id="byteArrayDisjoint%23"><span class="annot"><span class="annottext">byteArrayDisjoint# :: ByteArray# -&gt; ByteArray# -&gt; Int#
+</span><a href="Agda.Utils.ByteArray.html#byteArrayDisjoint%23"><span class="hs-identifier hs-var hs-var">byteArrayDisjoint#</span></a></span></span><span> </span><span id="local-6989586621681707290"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707290"><span class="hs-identifier hs-var">bs1</span></a></span></span><span> </span><span id="local-6989586621681707291"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707291"><span class="hs-identifier hs-var">bs2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681707292"><span class="annot"><span class="annottext">len1 :: Int#
+</span><a href="#local-6989586621681707292"><span class="hs-identifier hs-var hs-var">len1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707290"><span class="hs-identifier hs-var">bs1</span></a></span><span>
+</span><span id="line-89"></span><span>      </span><span id="local-6989586621681707293"><span class="annot"><span class="annottext">len2 :: Int#
+</span><a href="#local-6989586621681707293"><span class="hs-identifier hs-var hs-var">len2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707291"><span class="hs-identifier hs-var">bs2</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707292"><span class="hs-identifier hs-var">len1</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&lt;=#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707293"><span class="hs-identifier hs-var">len2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><a href="#local-6989586621681707294"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707292"><span class="hs-identifier hs-var">len1</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-keyword">else</span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><a href="#local-6989586621681707294"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707293"><span class="hs-identifier hs-var">len2</span></a></span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><a href="#local-6989586621681707294"><span class="hs-identifier hs-type">loop</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int#</span></span><span>
+</span><span id="line-96"></span><span>    </span><span id="local-6989586621681707294"><span class="annot"><span class="annottext">loop :: Int# -&gt; Int# -&gt; Int#
+</span><a href="#local-6989586621681707294"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681707295"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707295"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681707296"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707296"><span class="hs-identifier hs-var">len</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-97"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707295"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&lt;#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707296"><span class="hs-identifier hs-var">len</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-98"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681707297"><span class="annot"><span class="annottext">w1 :: Word#
+</span><a href="#local-6989586621681707297"><span class="hs-identifier hs-var hs-var">w1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int# -&gt; Word#
+</span><span class="hs-identifier hs-var">indexWordArray#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707290"><span class="hs-identifier hs-var">bs1</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707295"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-99"></span><span>            </span><span id="local-6989586621681707298"><span class="annot"><span class="annottext">w2 :: Word#
+</span><a href="#local-6989586621681707298"><span class="hs-identifier hs-var hs-var">w2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int# -&gt; Word#
+</span><span class="hs-identifier hs-var">indexWordArray#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707291"><span class="hs-identifier hs-var">bs2</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707295"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-100"></span><span>        </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; Int#
+</span><a href="Agda.Utils.Word.html#disjointWord%23"><span class="hs-identifier hs-var">disjointWord#</span></a></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681707297"><span class="hs-identifier hs-var">w1</span></a></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621681707298"><span class="hs-identifier hs-var">w2</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-101"></span><span>          </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><a href="#local-6989586621681707294"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707295"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">+#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707296"><span class="hs-identifier hs-var">len</span></a></span><span>
+</span><span id="line-102"></span><span>        </span><span class="hs-keyword">else</span><span>
+</span><span id="line-103"></span><span>          </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span>
+</span><span id="line-104"></span><span>      </span><span class="hs-keyword">else</span><span>
+</span><span id="line-105"></span><span>        </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span>
+</span><span id="line-106"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayDisjoint%23"><span class="hs-pragma hs-type">byteArrayDisjoint#</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- Folds</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- $byteArrayFolds</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- As usual, there is an ambiguity in left/right folds for folding over the bits of a</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- 'ByteArray#'. We opt to use the convention where we treat the 0th bit as the &quot;head&quot; of</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- the 'ByteArray#', so a right fold like @byteArrayFoldrBits# f x 0b1011@ would give @f 0 (f 1 (f 3 x))@.</span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="annot"><span class="hs-comment">-- | Perform a lazy right fold over the bit indicies of a 'ByteArray#'.</span></span><span>
+</span><span id="line-117"></span><span id="local-6989586621681707248"><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldrBits%23"><span class="hs-identifier hs-type">byteArrayFoldrBits#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707248"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707248"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707248"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707248"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-118"></span><span id="byteArrayFoldrBits%23"><span class="annot"><span class="annottext">byteArrayFoldrBits# :: forall a. (Int -&gt; a -&gt; a) -&gt; a -&gt; ByteArray# -&gt; a
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFoldrBits%23"><span class="hs-identifier hs-var hs-var">byteArrayFoldrBits#</span></a></span></span><span> </span><span id="local-6989586621681707300"><span class="annot"><span class="annottext">Int -&gt; a -&gt; a
+</span><a href="#local-6989586621681707300"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681707301"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707301"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681707302"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707302"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; a
+</span><a href="#local-6989586621681707303"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-120"></span><span>    </span><span id="local-6989586621681707304"><span class="annot"><span class="annottext">len :: Int#
+</span><a href="#local-6989586621681707304"><span class="hs-identifier hs-var hs-var">len</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707302"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span>    </span><span class="hs-comment">-- Not tail recursive.</span><span>
+</span><span id="line-123"></span><span>    </span><span id="local-6989586621681707303"><span class="annot"><span class="annottext">loop :: Int# -&gt; a
+</span><a href="#local-6989586621681707303"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681707305"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707305"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-124"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707305"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&lt;#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707304"><span class="hs-identifier hs-var">len</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-125"></span><span>        </span><span class="annot"><span class="annottext">Int# -&gt; (Int -&gt; a -&gt; a) -&gt; a -&gt; Word# -&gt; a
+forall a. Int# -&gt; (Int -&gt; a -&gt; a) -&gt; a -&gt; Word# -&gt; a
+</span><a href="Agda.Utils.Word.html#wordFoldrBitsOffset%23"><span class="hs-identifier hs-var">wordFoldrBitsOffset#</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-identifier">WORD_SIZE_IN_BITS#</span><span> </span><span class="hs-operator">*#</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">loop</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">i</span><span> </span><span class="hs-operator">+#</span><span> </span><span class="hs-number">1#</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">indexWordArray#</span><span> </span><span class="hs-identifier">bs</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>      </span><span class="hs-keyword">else</span><span>
+</span><span id="line-127"></span><span>        </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707301"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="annot"><span class="hs-comment">-- | Perform a lazy left fold over the bit indicies of a 'ByteArray#'.</span></span><span>
+</span><span id="line-130"></span><span id="local-6989586621681707251"><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldlBits%23"><span class="hs-identifier hs-type">byteArrayFoldlBits#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681707251"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707251"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707251"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707251"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-131"></span><span id="byteArrayFoldlBits%23"><span class="annot"><span class="annottext">byteArrayFoldlBits# :: forall a. (a -&gt; Int -&gt; a) -&gt; a -&gt; ByteArray# -&gt; a
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFoldlBits%23"><span class="hs-identifier hs-var hs-var">byteArrayFoldlBits#</span></a></span></span><span> </span><span id="local-6989586621681707307"><span class="annot"><span class="annottext">a -&gt; Int -&gt; a
+</span><a href="#local-6989586621681707307"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681707308"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707308"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681707309"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707309"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; a
+</span><a href="#local-6989586621681707310"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707309"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">-#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-133"></span><span>    </span><span class="hs-comment">-- Not tail recursive.</span><span>
+</span><span id="line-134"></span><span>    </span><span id="local-6989586621681707310"><span class="annot"><span class="annottext">loop :: Int# -&gt; a
+</span><a href="#local-6989586621681707310"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681707311"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707311"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-135"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707311"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&gt;=#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-136"></span><span>        </span><span class="annot"><span class="annottext">Int# -&gt; (a -&gt; Int -&gt; a) -&gt; a -&gt; Word# -&gt; a
+forall a. Int# -&gt; (a -&gt; Int -&gt; a) -&gt; a -&gt; Word# -&gt; a
+</span><a href="Agda.Utils.Word.html#wordFoldlBitsOffset%23"><span class="hs-identifier hs-var">wordFoldlBitsOffset#</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-identifier">WORD_SIZE_IN_BITS#</span><span> </span><span class="hs-operator">*#</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">loop</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">i</span><span> </span><span class="hs-operator">-#</span><span> </span><span class="hs-number">1#</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">indexWordArray#</span><span> </span><span class="hs-identifier">bs</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span>      </span><span class="hs-keyword">else</span><span>
+</span><span id="line-138"></span><span>        </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707308"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="annot"><span class="hs-comment">-- | Perform a strict right fold over the bit indicies of a 'ByteArray#'.</span></span><span>
+</span><span id="line-141"></span><span id="local-6989586621681707313"><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldrBitsStrict%23"><span class="hs-identifier hs-type">byteArrayFoldrBitsStrict#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707313"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707313"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707313"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707313"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-142"></span><span id="byteArrayFoldrBitsStrict%23"><span class="annot"><span class="annottext">byteArrayFoldrBitsStrict# :: forall a. (Int -&gt; a -&gt; a) -&gt; a -&gt; ByteArray# -&gt; a
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFoldrBitsStrict%23"><span class="hs-identifier hs-var hs-var">byteArrayFoldrBitsStrict#</span></a></span></span><span> </span><span id="local-6989586621681707314"><span class="annot"><span class="annottext">Int -&gt; a -&gt; a
+</span><a href="#local-6989586621681707314"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681707315"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707315"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681707316"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707316"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; a -&gt; a
+</span><a href="#local-6989586621681707317"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707316"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">-#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707315"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-144"></span><span>    </span><span class="hs-comment">-- Tail recursive.</span><span>
+</span><span id="line-145"></span><span>    </span><span id="local-6989586621681707317"><span class="annot"><span class="annottext">loop :: Int# -&gt; a -&gt; a
+</span><a href="#local-6989586621681707317"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681707318"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707318"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681707319"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707319"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-146"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707318"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&gt;=#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-147"></span><span>        </span><span class="annot"><span class="annottext">Int# -&gt; a -&gt; a
+</span><a href="#local-6989586621681707317"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707318"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">-#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int# -&gt; (Int -&gt; a -&gt; a) -&gt; a -&gt; Word# -&gt; a
+forall a. Int# -&gt; (Int -&gt; a -&gt; a) -&gt; a -&gt; Word# -&gt; a
+</span><a href="Agda.Utils.Word.html#wordFoldrBitsOffsetStrict%23"><span class="hs-identifier hs-var">wordFoldrBitsOffsetStrict#</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-identifier">WORD_SIZE_IN_BITS#</span><span> </span><span class="hs-operator">*#</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-identifier">acc</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">indexWordArray#</span><span> </span><span class="hs-identifier">bs</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>      </span><span class="hs-keyword">else</span><span>
+</span><span id="line-149"></span><span>        </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707319"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><span class="hs-comment">-- | Perform a strict left fold over the bit indicies of a 'ByteArray#'.</span></span><span>
+</span><span id="line-152"></span><span id="local-6989586621681707321"><span class="annot"><a href="Agda.Utils.ByteArray.html#byteArrayFoldlBitsStrict%23"><span class="hs-identifier hs-type">byteArrayFoldlBitsStrict#</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681707321"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707321"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707321"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteArray#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681707321"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-153"></span><span id="byteArrayFoldlBitsStrict%23"><span class="annot"><span class="annottext">byteArrayFoldlBitsStrict# :: forall a. (a -&gt; Int -&gt; a) -&gt; a -&gt; ByteArray# -&gt; a
+</span><a href="Agda.Utils.ByteArray.html#byteArrayFoldlBitsStrict%23"><span class="hs-identifier hs-var hs-var">byteArrayFoldlBitsStrict#</span></a></span></span><span> </span><span id="local-6989586621681707322"><span class="annot"><span class="annottext">a -&gt; Int -&gt; a
+</span><a href="#local-6989586621681707322"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681707323"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707323"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681707324"><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707324"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; a -&gt; a
+</span><a href="#local-6989586621681707325"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">0#</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707323"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-155"></span><span>    </span><span id="local-6989586621681707326"><span class="annot"><span class="annottext">len :: Int#
+</span><a href="#local-6989586621681707326"><span class="hs-identifier hs-var hs-var">len</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteArray# -&gt; Int#
+</span><span class="hs-identifier hs-var">wordArraySize#</span></span><span> </span><span class="annot"><span class="annottext">ByteArray#
+</span><a href="#local-6989586621681707324"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span>    </span><span class="hs-comment">-- Tail recursive.</span><span>
+</span><span id="line-158"></span><span>    </span><span id="local-6989586621681707325"><span class="annot"><span class="annottext">loop :: Int# -&gt; a -&gt; a
+</span><a href="#local-6989586621681707325"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621681707327"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707327"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681707328"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707328"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-159"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Bool
+</span><span class="hs-identifier hs-var">isTrue#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707327"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">&lt;#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707326"><span class="hs-identifier hs-var">len</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span>
+</span><span id="line-160"></span><span>        </span><span class="annot"><span class="annottext">Int# -&gt; a -&gt; a
+</span><a href="#local-6989586621681707325"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621681707327"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">+#</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><span class="hs-number">1#</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int# -&gt; (a -&gt; Int -&gt; a) -&gt; a -&gt; Word# -&gt; a
+forall a. Int# -&gt; (a -&gt; Int -&gt; a) -&gt; a -&gt; Word# -&gt; a
+</span><a href="Agda.Utils.Word.html#wordFoldlBitsOffsetStrict%23"><span class="hs-identifier hs-var">wordFoldlBitsOffsetStrict#</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-identifier">WORD_SIZE_IN_BITS#</span><span> </span><span class="hs-operator">*#</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-identifier">acc</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">indexWordArray#</span><span> </span><span class="hs-identifier">bs</span><span> </span><span class="hs-identifier">i</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span>      </span><span class="hs-keyword">else</span><span>
+</span><span id="line-162"></span><span>        </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681707328"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-163"></span></pre></body></html>

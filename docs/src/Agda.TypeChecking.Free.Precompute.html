@@ -1,0 +1,515 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Precompute free variables in a term (and store in 'ArgInfo').</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html"><span class="hs-identifier">Agda.TypeChecking.Free.Precompute</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier">PrecomputeFreeVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier">precomputeFreeVars</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputedFreeVars"><span class="hs-identifier">precomputedFreeVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars_"><span class="hs-identifier">precomputeFreeVars_</span></a></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html"><span class="hs-identifier">Agda.Utils.StrictWriter</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier">Writer</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#runWriter"><span class="hs-identifier">runWriter</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#censor"><span class="hs-identifier">censor</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#listen"><span class="hs-identifier">listen</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#tell"><span class="hs-identifier">tell</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier">VarSet</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html"><span class="hs-identifier">Agda.Utils.VarSet</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">VarSet</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">type</span><span> </span><span id="FV"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#FV"><span class="hs-identifier hs-var">FV</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.StrictWriter.html#Writer"><span class="hs-identifier hs-type">Writer</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span id="local-6989586621681777023"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars_"><span class="hs-identifier hs-type">precomputeFreeVars_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681777023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681777023"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-20"></span><span id="precomputeFreeVars_"><span class="annot"><span class="annottext">precomputeFreeVars_ :: forall a. PrecomputeFreeVars a =&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars_"><span class="hs-identifier hs-var hs-var">precomputeFreeVars_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, VarSet) -&gt; a
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">((a, VarSet) -&gt; a) -&gt; (a -&gt; (a, VarSet)) -&gt; a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Writer VarSet a -&gt; (a, VarSet)
+forall w a. Monoid w =&gt; Writer w a -&gt; (a, w)
+</span><a href="Agda.Utils.StrictWriter.html#runWriter"><span class="hs-identifier hs-var">runWriter</span></a></span><span> </span><span class="annot"><span class="annottext">(Writer VarSet a -&gt; (a, VarSet))
+-&gt; (a -&gt; Writer VarSet a) -&gt; a -&gt; (a, VarSet)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span id="local-6989586621681777037"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputedFreeVars"><span class="hs-identifier hs-type">precomputedFreeVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777037"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681777037"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.VarSet.html#VarSet"><span class="hs-identifier hs-type">VarSet</span></a></span></span><span>
+</span><span id="line-23"></span><span id="precomputedFreeVars"><span class="annot"><span class="annottext">precomputedFreeVars :: forall a. PrecomputeFreeVars a =&gt; a -&gt; VarSet
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputedFreeVars"><span class="hs-identifier hs-var hs-var">precomputedFreeVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, VarSet) -&gt; VarSet
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">((a, VarSet) -&gt; VarSet) -&gt; (a -&gt; (a, VarSet)) -&gt; a -&gt; VarSet
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Writer VarSet a -&gt; (a, VarSet)
+forall w a. Monoid w =&gt; Writer w a -&gt; (a, w)
+</span><a href="Agda.Utils.StrictWriter.html#runWriter"><span class="hs-identifier hs-var">runWriter</span></a></span><span> </span><span class="annot"><span class="annottext">(Writer VarSet a -&gt; (a, VarSet))
+-&gt; (a -&gt; Writer VarSet a) -&gt; a -&gt; (a, VarSet)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">class</span><span> </span><span id="PrecomputeFreeVars"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-var">PrecomputeFreeVars</span></a></span></span><span> </span><span id="local-6989586621681777035"><span class="annot"><a href="#local-6989586621681777035"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>  </span><span id="precomputeFreeVars"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-type">precomputeFreeVars</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681777035"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#FV"><span class="hs-identifier hs-type">FV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777035"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="precomputeFreeVars"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-type">precomputeFreeVars</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681777041"><span id="local-6989586621681777042"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Traversable</span></span><span> </span><span class="annot"><a href="#local-6989586621681777041"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777042"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681777035"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681777041"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777042"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681777035"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#FV"><span class="hs-identifier hs-type">FV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777035"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-29"></span><span>  </span><span id="local-6989586621681777152"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var">precomputeFreeVars</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(x -&gt; Writer VarSet x) -&gt; c x -&gt; Writer VarSet (c x)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; c a -&gt; f (c b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">x -&gt; Writer VarSet x
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- The instances where things actually happen: Arg, Abs and Term.</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span id="local-6989586621681777053"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#maybePrecomputed"><span class="hs-identifier hs-type">maybePrecomputed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777053"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ArgInfo"><span class="hs-identifier hs-type">ArgInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681777053"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#FV"><span class="hs-identifier hs-type">FV</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#ArgInfo"><span class="hs-identifier hs-type">ArgInfo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681777053"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-34"></span><span id="maybePrecomputed"><span class="annot"><span class="annottext">maybePrecomputed :: forall a. PrecomputeFreeVars a =&gt; ArgInfo -&gt; a -&gt; FV (ArgInfo, a)
+</span><a href="Agda.TypeChecking.Free.Precompute.html#maybePrecomputed"><span class="hs-identifier hs-var hs-var">maybePrecomputed</span></a></span></span><span> </span><span id="local-6989586621681777175"><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681777175"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681777176"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777176"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ArgInfo -&gt; FreeVariables
+forall a. LensFreeVariables a =&gt; a -&gt; FreeVariables
+</span><a href="Agda.Syntax.Common.html#getFreeVariables"><span class="hs-identifier hs-var">getFreeVariables</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681777175"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Common.html#KnownFVs"><span class="hs-identifier hs-type">KnownFVs</span></a></span><span> </span><span id="local-6989586621681777179"><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621681777179"><span class="hs-identifier hs-var">fv</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681777175"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777176"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ArgInfo, a) -&gt; Writer VarSet () -&gt; FV (ArgInfo, a)
+forall a b. a -&gt; Writer VarSet b -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">VarSet -&gt; Writer VarSet ()
+forall w. Monoid w =&gt; w -&gt; Writer w ()
+</span><a href="Agda.Utils.StrictWriter.html#tell"><span class="hs-identifier hs-var">tell</span></a></span><span> </span><span class="annot"><span class="annottext">VarSet
+</span><a href="#local-6989586621681777179"><span class="hs-identifier hs-var">fv</span></a></span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><span class="annottext">FreeVariables
+</span><a href="Agda.Syntax.Common.html#UnknownFVs"><span class="hs-identifier hs-var">UnknownFVs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-38"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621681777182"><span class="annot"><a href="#local-6989586621681777182"><span class="hs-identifier hs-var">x'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681777183"><span class="annot"><a href="#local-6989586621681777183"><span class="hs-identifier hs-var">fv</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Writer VarSet a -&gt; Writer VarSet (a, VarSet)
+forall w a. Monoid w =&gt; Writer w a -&gt; Writer w (a, w)
+</span><a href="Agda.Utils.StrictWriter.html#listen"><span class="hs-identifier hs-var">listen</span></a></span><span> </span><span class="annot"><span class="annottext">(Writer VarSet a -&gt; Writer VarSet (a, VarSet))
+-&gt; Writer VarSet a -&gt; Writer VarSet (a, VarSet)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777176"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-39"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#setFreeVariables"><span class="hs-identifier hs-type">setFreeVariables</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#KnownFVs"><span class="hs-identifier hs-type">KnownFVs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777183"><span class="hs-identifier hs-type">fv</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681777175"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681777182"><span class="hs-identifier hs-type">x'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681777075"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777075"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777075"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621681777191"><span class="annot"><span class="annottext">precomputeFreeVars :: Arg a -&gt; FV (Arg a)
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span id="local-6989586621681777192"><span class="annot"><span class="annottext">arg :: Arg a
+</span><a href="#local-6989586621681777192"><span class="hs-identifier hs-var">arg</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span id="local-6989586621681777194"><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681777194"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681777195"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777195"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ArgInfo -&gt; a -&gt; Arg a) -&gt; (ArgInfo, a) -&gt; Arg a
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">ArgInfo -&gt; a -&gt; Arg a
+forall e. ArgInfo -&gt; e -&gt; Arg e
+</span><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-var">Arg</span></a></span><span> </span><span class="annot"><span class="annottext">((ArgInfo, a) -&gt; Arg a) -&gt; Writer VarSet (ArgInfo, a) -&gt; FV (Arg a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">ArgInfo -&gt; a -&gt; Writer VarSet (ArgInfo, a)
+forall a. PrecomputeFreeVars a =&gt; ArgInfo -&gt; a -&gt; FV (ArgInfo, a)
+</span><a href="Agda.TypeChecking.Free.Precompute.html#maybePrecomputed"><span class="hs-identifier hs-var">maybePrecomputed</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681777194"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777195"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- Note that we don't store free variables in the Dom. The reason is that the</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- ArgInfo in the Dom tends to get reused during type checking for the argument</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- of that domain type, and it would be tedious and error prone to ensure that</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- we don't accidentally inherit also the free variables. Moreover we don't</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- really need the free variables of the Dom.</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681777088"><span id="local-6989586621681777200"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777088"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777088"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681777091"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777091"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777091"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681777215"><span class="annot"><span class="annottext">precomputeFreeVars :: Abs a -&gt; FV (Abs a)
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#NoAbs"><span class="hs-identifier hs-type">NoAbs</span></a></span><span> </span><span id="local-6989586621681777217"><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681777217"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681777218"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777218"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ArgName -&gt; a -&gt; Abs a
+forall a. ArgName -&gt; a -&gt; Abs a
+</span><a href="Agda.Syntax.Internal.html#NoAbs"><span class="hs-identifier hs-var">NoAbs</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681777217"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Abs a) -&gt; Writer VarSet a -&gt; FV (Abs a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777218"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span id="local-6989586621681777220"><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681777220"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681777221"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777221"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><span class="annottext">(VarSet -&gt; VarSet) -&gt; FV (Abs a) -&gt; FV (Abs a)
+forall w a. Monoid w =&gt; (w -&gt; w) -&gt; Writer w a -&gt; Writer w a
+</span><a href="Agda.Utils.StrictWriter.html#censor"><span class="hs-identifier hs-var">censor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; VarSet -&gt; VarSet
+</span><a href="Agda.Utils.VarSet.html#strengthen"><span class="hs-identifier hs-var">VarSet.strengthen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(FV (Abs a) -&gt; FV (Abs a)) -&gt; FV (Abs a) -&gt; FV (Abs a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-55"></span><span>      </span><span class="annot"><span class="annottext">ArgName -&gt; a -&gt; Abs a
+forall a. ArgName -&gt; a -&gt; Abs a
+</span><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-var">Abs</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><a href="#local-6989586621681777220"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Abs a) -&gt; Writer VarSet a -&gt; FV (Abs a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777221"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>  </span><span id="local-6989586621681777260"><span class="annot"><span class="annottext">precomputeFreeVars :: Term -&gt; FV Term
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span id="local-6989586621681777261"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777261"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777261"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-60"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621681777263"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681777263"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681777264"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777264"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>        </span><span class="annot"><span class="annottext">VarSet -&gt; Writer VarSet ()
+forall w. Monoid w =&gt; w -&gt; Writer w ()
+</span><a href="Agda.Utils.StrictWriter.html#tell"><span class="hs-identifier hs-var">tell</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; VarSet
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681777263"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>        </span><span class="annot"><span class="annottext">Int -&gt; Elims -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681777263"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(Elims -&gt; Term) -&gt; Writer VarSet Elims -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; Writer VarSet Elims
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777264"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-63"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span id="local-6989586621681777267"><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681777267"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681777268"><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681777268"><span class="hs-identifier hs-var">b</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ArgInfo -&gt; Abs Term -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-var">Lam</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681777267"><span class="hs-identifier hs-var">i</span></a></span><span>      </span><span class="annot"><span class="annottext">(Abs Term -&gt; Term) -&gt; Writer VarSet (Abs Term) -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Abs Term -&gt; Writer VarSet (Abs Term)
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681777268"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-64"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; FV Term
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777261"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-65"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-type">Def</span></a></span><span> </span><span id="local-6989586621681777271"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681777271"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681777272"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777272"><span class="hs-identifier hs-var">es</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Elims -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-var">Def</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681777271"><span class="hs-identifier hs-var">f</span></a></span><span>      </span><span class="annot"><span class="annottext">(Elims -&gt; Term) -&gt; Writer VarSet Elims -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; Writer VarSet Elims
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777272"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-66"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span> </span><span id="local-6989586621681777274"><span class="annot"><span class="annottext">ConHead
+</span><a href="#local-6989586621681777274"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681777275"><span class="annot"><span class="annottext">ConInfo
+</span><a href="#local-6989586621681777275"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681777276"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777276"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ConHead -&gt; ConInfo -&gt; Elims -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Con"><span class="hs-identifier hs-var">Con</span></a></span><span> </span><span class="annot"><span class="annottext">ConHead
+</span><a href="#local-6989586621681777274"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">ConInfo
+</span><a href="#local-6989586621681777275"><span class="hs-identifier hs-var">i</span></a></span><span>    </span><span class="annot"><span class="annottext">(Elims -&gt; Term) -&gt; Writer VarSet Elims -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; Writer VarSet Elims
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777276"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-67"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Pi"><span class="hs-identifier hs-type">Pi</span></a></span><span> </span><span id="local-6989586621681777278"><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621681777278"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681777279"><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621681777279"><span class="hs-identifier hs-var">b</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Dom Type -&gt; Abs Type -&gt; Term) -&gt; (Dom Type, Abs Type) -&gt; Term
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">Dom Type -&gt; Abs Type -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Pi"><span class="hs-identifier hs-var">Pi</span></a></span><span> </span><span class="annot"><span class="annottext">((Dom Type, Abs Type) -&gt; Term)
+-&gt; Writer VarSet (Dom Type, Abs Type) -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Dom Type, Abs Type) -&gt; Writer VarSet (Dom Type, Abs Type)
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621681777278"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621681777279"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span id="local-6989586621681777281"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777281"><span class="hs-identifier hs-var">s</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-var">Sort</span></a></span><span>       </span><span class="annot"><span class="annottext">(Sort -&gt; Term) -&gt; Writer VarSet Sort -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777281"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-69"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span id="local-6989586621681777283"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681777283"><span class="hs-identifier hs-var">l</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Level -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-var">Level</span></a></span><span>      </span><span class="annot"><span class="annottext">(Level -&gt; Term) -&gt; Writer VarSet Level -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Level -&gt; Writer VarSet Level
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681777283"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-70"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaV"><span class="hs-identifier hs-type">MetaV</span></a></span><span> </span><span id="local-6989586621681777285"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681777285"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681777286"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777286"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Elims -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#MetaV"><span class="hs-identifier hs-var">MetaV</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681777285"><span class="hs-identifier hs-var">x</span></a></span><span>    </span><span class="annot"><span class="annottext">(Elims -&gt; Term) -&gt; Writer VarSet Elims -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; Writer VarSet Elims
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777286"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-71"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#DontCare"><span class="hs-identifier hs-type">DontCare</span></a></span><span> </span><span id="local-6989586621681777288"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777288"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><a href="Agda.Syntax.Internal.html#DontCare"><span class="hs-identifier hs-var">DontCare</span></a></span><span>   </span><span class="annot"><span class="annottext">(Term -&gt; Term) -&gt; FV Term -&gt; FV Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; FV Term
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777288"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-72"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Dummy"><span class="hs-identifier hs-type">Dummy</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; FV Term
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777261"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- The other instances are boilerplate.</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621681777315"><span class="annot"><span class="annottext">precomputeFreeVars :: Sort -&gt; Writer VarSet Sort
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span id="local-6989586621681777316"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-79"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span id="local-6989586621681777318"><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681777318"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span id="local-6989586621681777319"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681777319"><span class="hs-identifier hs-var">a</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Univ -&gt; Level -&gt; Sort
+forall t. Univ -&gt; Level' t -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#Univ"><span class="hs-identifier hs-var">Univ</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><a href="#local-6989586621681777318"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">(Level -&gt; Sort) -&gt; Writer VarSet Level -&gt; Writer VarSet Sort
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Level -&gt; Writer VarSet Level
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681777319"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-80"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#Inf"><span class="hs-identifier hs-type">Inf</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-81"></span><span>      </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#SizeUniv"><span class="hs-identifier hs-var">SizeUniv</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-82"></span><span>      </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#LockUniv"><span class="hs-identifier hs-var">LockUniv</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-83"></span><span>      </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#LevelUniv"><span class="hs-identifier hs-var">LevelUniv</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-84"></span><span>      </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#IntervalUniv"><span class="hs-identifier hs-var">IntervalUniv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-85"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#PiSort"><span class="hs-identifier hs-type">PiSort</span></a></span><span> </span><span id="local-6989586621681777326"><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621681777326"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681777327"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777327"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621681777328"><span class="annot"><span class="annottext">Abs Sort
+</span><a href="#local-6989586621681777328"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Dom' Term Term -&gt; Sort -&gt; Abs Sort -&gt; Sort
+forall t. Dom' t t -&gt; Sort' t -&gt; Abs (Sort' t) -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#PiSort"><span class="hs-identifier hs-var">PiSort</span></a></span><span> </span><span class="annot"><span class="annottext">(Dom' Term Term -&gt; Sort -&gt; Abs Sort -&gt; Sort)
+-&gt; Writer VarSet (Dom' Term Term)
+-&gt; Writer VarSet (Sort -&gt; Abs Sort -&gt; Sort)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Dom' Term Term -&gt; Writer VarSet (Dom' Term Term)
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621681777326"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Writer VarSet (Sort -&gt; Abs Sort -&gt; Sort)
+-&gt; Writer VarSet Sort -&gt; Writer VarSet (Abs Sort -&gt; Sort)
+forall a b.
+Writer VarSet (a -&gt; b) -&gt; Writer VarSet a -&gt; Writer VarSet b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777327"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="annot"><span class="annottext">Writer VarSet (Abs Sort -&gt; Sort)
+-&gt; Writer VarSet (Abs Sort) -&gt; Writer VarSet Sort
+forall a b.
+Writer VarSet (a -&gt; b) -&gt; Writer VarSet a -&gt; Writer VarSet b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Abs Sort -&gt; Writer VarSet (Abs Sort)
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Sort
+</span><a href="#local-6989586621681777328"><span class="hs-identifier hs-var">s2</span></a></span><span>
+</span><span id="line-86"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#FunSort"><span class="hs-identifier hs-type">FunSort</span></a></span><span> </span><span id="local-6989586621681777330"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777330"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621681777331"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777331"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Sort -&gt; Sort -&gt; Sort) -&gt; (Sort, Sort) -&gt; Sort
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Sort -&gt; Sort
+forall t. Sort' t -&gt; Sort' t -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#FunSort"><span class="hs-identifier hs-var">FunSort</span></a></span><span> </span><span class="annot"><span class="annottext">((Sort, Sort) -&gt; Sort)
+-&gt; Writer VarSet (Sort, Sort) -&gt; Writer VarSet Sort
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Sort, Sort) -&gt; Writer VarSet (Sort, Sort)
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777330"><span class="hs-identifier hs-var">s1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777331"><span class="hs-identifier hs-var">s2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#UnivSort"><span class="hs-identifier hs-type">UnivSort</span></a></span><span> </span><span id="local-6989586621681777333"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777333"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Sort
+forall t. Sort' t -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#UnivSort"><span class="hs-identifier hs-var">UnivSort</span></a></span><span> </span><span class="annot"><span class="annottext">(Sort -&gt; Sort) -&gt; Writer VarSet Sort -&gt; Writer VarSet Sort
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777333"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-88"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaS"><span class="hs-identifier hs-type">MetaS</span></a></span><span> </span><span id="local-6989586621681777335"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681777335"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681777336"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777336"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Elims -&gt; Sort
+forall t. MetaId -&gt; [Elim' t] -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#MetaS"><span class="hs-identifier hs-var">MetaS</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681777335"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(Elims -&gt; Sort) -&gt; Writer VarSet Elims -&gt; Writer VarSet Sort
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; Writer VarSet Elims
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777336"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-89"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#DefS"><span class="hs-identifier hs-type">DefS</span></a></span><span> </span><span id="local-6989586621681777338"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681777338"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681777339"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777339"><span class="hs-identifier hs-var">es</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Elims -&gt; Sort
+forall t. QName -&gt; [Elim' t] -&gt; Sort' t
+</span><a href="Agda.Syntax.Internal.html#DefS"><span class="hs-identifier hs-var">DefS</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681777338"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">(Elims -&gt; Sort) -&gt; Writer VarSet Elims -&gt; Writer VarSet Sort
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Elims -&gt; Writer VarSet Elims
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681777339"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-90"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.html#DummyS"><span class="hs-identifier hs-type">DummyS</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Writer VarSet Sort
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777316"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>  </span><span id="local-6989586621681777346"><span class="annot"><span class="annottext">precomputeFreeVars :: Level -&gt; Writer VarSet Level
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-type">Max</span></a></span><span> </span><span id="local-6989586621681777348"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681777348"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681777349"><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621681777349"><span class="hs-identifier hs-var">ls</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; [PlusLevel' Term] -&gt; Level
+forall t. Integer -&gt; [PlusLevel' t] -&gt; Level' t
+</span><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-var">Max</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681777348"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">([PlusLevel' Term] -&gt; Level)
+-&gt; Writer VarSet [PlusLevel' Term] -&gt; Writer VarSet Level
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[PlusLevel' Term] -&gt; Writer VarSet [PlusLevel' Term]
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621681777349"><span class="hs-identifier hs-var">ls</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#PlusLevel"><span class="hs-identifier hs-type">PlusLevel</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621681777354"><span class="annot"><span class="annottext">precomputeFreeVars :: PlusLevel' Term -&gt; FV (PlusLevel' Term)
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-type">Plus</span></a></span><span> </span><span id="local-6989586621681777356"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681777356"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681777357"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777357"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term -&gt; PlusLevel' Term
+forall t. Integer -&gt; t -&gt; PlusLevel' t
+</span><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-var">Plus</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681777356"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; PlusLevel' Term) -&gt; FV Term -&gt; FV (PlusLevel' Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; FV Term
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777357"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621681777363"><span class="annot"><span class="annottext">precomputeFreeVars :: Type -&gt; FV Type
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#El"><span class="hs-identifier hs-type">El</span></a></span><span> </span><span id="local-6989586621681777365"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777365"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681777366"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777366"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Sort -&gt; Term -&gt; Type) -&gt; (Sort, Term) -&gt; Type
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">Sort -&gt; Term -&gt; Type
+forall t a. Sort' t -&gt; a -&gt; Type'' t a
+</span><a href="Agda.Syntax.Internal.html#El"><span class="hs-identifier hs-var">El</span></a></span><span> </span><span class="annot"><span class="annottext">((Sort, Term) -&gt; Type) -&gt; Writer VarSet (Sort, Term) -&gt; FV Type
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Sort, Term) -&gt; Writer VarSet (Sort, Term)
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681777365"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681777366"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- Note: don't use default instance, since that bypasses the 'Arg' in 'Apply'.</span><span>
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681777105"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777105"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777105"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span id="local-6989586621681777378"><span class="annot"><span class="annottext">precomputeFreeVars :: Elim' a -&gt; FV (Elim' a)
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span id="local-6989586621681777379"><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621681777379"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-104"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621681777379"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-105"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681777381"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681777381"><span class="hs-identifier hs-var">x</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Elim' a
+forall a. Arg a -&gt; Elim' a
+</span><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-var">Apply</span></a></span><span> </span><span class="annot"><span class="annottext">(Arg a -&gt; Elim' a) -&gt; Writer VarSet (Arg a) -&gt; FV (Elim' a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Writer VarSet (Arg a)
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681777381"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-106"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span> </span><span id="local-6989586621681777383"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777383"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681777384"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777384"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681777385"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777385"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a -&gt; Elim' a
+forall a. a -&gt; a -&gt; a -&gt; Elim' a
+</span><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-var">IApply</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; a -&gt; Elim' a)
+-&gt; Writer VarSet a -&gt; Writer VarSet (a -&gt; a -&gt; Elim' a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777383"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Writer VarSet (a -&gt; a -&gt; Elim' a)
+-&gt; Writer VarSet a -&gt; Writer VarSet (a -&gt; Elim' a)
+forall a b.
+Writer VarSet (a -&gt; b) -&gt; Writer VarSet a -&gt; Writer VarSet b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777384"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Writer VarSet (a -&gt; Elim' a) -&gt; Writer VarSet a -&gt; FV (Elim' a)
+forall a b.
+Writer VarSet (a -&gt; b) -&gt; Writer VarSet a -&gt; Writer VarSet b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777385"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-107"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Elim' a -&gt; FV (Elim' a)
+forall a. a -&gt; Writer VarSet a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621681777379"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- The very boilerplate instances</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681777104"><span id="local-6989586621681777389"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777104"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681777104"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-112"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681777130"><span id="local-6989586621681777397"><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777130"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681777130"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681777102"><span id="local-6989586621681777103"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777102"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681777103"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Free.Precompute.html#PrecomputeFreeVars"><span class="hs-identifier hs-type">PrecomputeFreeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681777102"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681777103"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-115"></span><span>  </span><span id="local-6989586621681777411"><span class="annot"><span class="annottext">precomputeFreeVars :: (a, b) -&gt; FV (a, b)
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var hs-var hs-var">precomputeFreeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681777412"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777412"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681777413"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681777413"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; (a, b))
+-&gt; Writer VarSet a -&gt; Writer VarSet (b -&gt; (a, b))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Writer VarSet a
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681777412"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Writer VarSet (b -&gt; (a, b)) -&gt; Writer VarSet b -&gt; FV (a, b)
+forall a b.
+Writer VarSet (a -&gt; b) -&gt; Writer VarSet a -&gt; Writer VarSet b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Writer VarSet b
+forall a. PrecomputeFreeVars a =&gt; a -&gt; FV a
+</span><a href="Agda.TypeChecking.Free.Precompute.html#precomputeFreeVars"><span class="hs-identifier hs-var">precomputeFreeVars</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681777413"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-116"></span></pre></body></html>

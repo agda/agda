@@ -1,0 +1,85 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-binds #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="annot"><span class="hs-comment">-- | Converting generic ranges to Agda's ranges.</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Range.html"><span class="hs-identifier">Agda.Interaction.Highlighting.Range</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html"><span class="hs-identifier">Agda.Utils.Range</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Range.html#rToR"><span class="hs-identifier">rToR</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Range.html#rangeToRange"><span class="hs-identifier">rangeToRange</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html"><span class="hs-identifier">Agda.Utils.Range</span></a></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="annot"><span class="hs-comment">-- | Converts a 'P.Range' to a 'Ranges'.</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Range.html#rToR"><span class="hs-identifier hs-type">rToR</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">P.Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-type">Ranges</span></a></span><span>
+</span><span id="line-19"></span><span id="rToR"><span class="annot"><span class="annottext">rToR :: Range -&gt; Ranges
+</span><a href="Agda.Interaction.Highlighting.Range.html#rToR"><span class="hs-identifier hs-var hs-var">rToR</span></a></span></span><span> </span><span id="local-6989586621681812705"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812705"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Range] -&gt; Ranges
+</span><a href="Agda.Utils.Range.html#Ranges"><span class="hs-identifier hs-var">Ranges</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Interval' () -&gt; Range) -&gt; [Interval' ()] -&gt; [Range]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Interval' () -&gt; Range
+</span><a href="#local-6989586621681812706"><span class="hs-identifier hs-var">iToR</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; [Interval' ()]
+forall a. Range' a -&gt; [Interval' ()]
+</span><a href="Agda.Syntax.Position.html#rangeIntervals"><span class="hs-identifier hs-var">P.rangeIntervals</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812705"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>  </span><span id="local-6989586621681812706"><span class="annot"><span class="annottext">iToR :: Interval' () -&gt; Range
+</span><a href="#local-6989586621681812706"><span class="hs-identifier hs-var hs-var">iToR</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#Interval"><span class="hs-identifier hs-type">P.Interval</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Pn%27"><span class="hs-identifier hs-type">P.Pn'</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">posPos :: forall a. Position' a -&gt; Word32
+</span><a href="Agda.Syntax.Position.html#posPos"><span class="hs-identifier hs-var">P.posPos</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681812715"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681812715"><span class="hs-identifier hs-var">pos1</span></a></span></span><span> </span><span class="hs-special">}</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Pn%27"><span class="hs-identifier hs-type">P.Pn'</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">posPos :: forall a. Position' a -&gt; Word32
+</span><a href="Agda.Syntax.Position.html#posPos"><span class="hs-identifier hs-var">P.posPos</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621681812716"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681812716"><span class="hs-identifier hs-var">pos2</span></a></span></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-22"></span><span>    </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">from :: Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681812715"><span class="hs-identifier hs-var">pos1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">to :: Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621681812716"><span class="hs-identifier hs-var">pos2</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="annot"><span class="hs-comment">-- | Converts a 'P.Range', seen as a continuous range, to a 'Range'.</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Agda.Interaction.Highlighting.Range.html#rangeToRange"><span class="hs-identifier hs-type">rangeToRange</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">P.Range</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span>
+</span><span id="line-27"></span><span id="rangeToRange"><span class="annot"><span class="annottext">rangeToRange :: Range -&gt; Range
+</span><a href="Agda.Interaction.Highlighting.Range.html#rangeToRange"><span class="hs-identifier hs-var hs-var">rangeToRange</span></a></span></span><span> </span><span id="local-6989586621681812720"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812720"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Maybe (Interval' ())
+forall a. Range' a -&gt; Maybe (Interval' ())
+</span><a href="Agda.Syntax.Position.html#rangeToInterval"><span class="hs-identifier hs-var">P.rangeToInterval</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681812720"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="annottext">Maybe (Interval' ())
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">from :: Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">to :: Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#Interval"><span class="hs-identifier hs-type">P.Interval</span></a></span><span> </span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681812722"><span class="annot"><span class="annottext">Position' ()
+</span><a href="#local-6989586621681812722"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681812723"><span class="annot"><span class="annottext">Position' ()
+</span><a href="#local-6989586621681812723"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Range.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span>
+</span><span id="line-31"></span><span>      </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">from :: Int
+</span><a href="Agda.Utils.Range.html#from"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; Int) -&gt; Word32 -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Position' () -&gt; Word32
+forall a. Position' a -&gt; Word32
+</span><a href="Agda.Syntax.Position.html#posPos"><span class="hs-identifier hs-var">P.posPos</span></a></span><span> </span><span class="annot"><span class="annottext">Position' ()
+</span><a href="#local-6989586621681812722"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-32"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">to :: Int
+</span><a href="Agda.Utils.Range.html#to"><span class="hs-identifier hs-var">to</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; Int) -&gt; Word32 -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Position' () -&gt; Word32
+forall a. Position' a -&gt; Word32
+</span><a href="Agda.Syntax.Position.html#posPos"><span class="hs-identifier hs-var">P.posPos</span></a></span><span> </span><span class="annot"><span class="annottext">Position' ()
+</span><a href="#local-6989586621681812723"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-33"></span><span>      </span><span class="hs-special">}</span><span>
+</span><span id="line-34"></span></pre></body></html>

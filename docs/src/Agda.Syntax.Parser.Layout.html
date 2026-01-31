@@ -1,0 +1,465 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">{-| This module contains the lex actions that handle the layout rules. The way
+    it works is that the 'Parser' monad keeps track of a stack of
+    'LayoutContext's specifying the indentation of the layout blocks in scope.
+    For instance, consider the following incomplete (Haskell) program:
+
+    &gt; f x = x'
+    &gt;   where
+    &gt;     x' = do y &lt;- foo x; bar ...
+
+    At the @...@ the layout context would be
+
+    &gt; [Layout 12, Layout 4, Layout 0]
+
+    The closest layout block is the one following @do@ which is
+    started by token @y@ at column 12.  The second closest block is the
+    @where@ clause started by the @x'@ token which has indentation 4.
+    Finally, there is a top-level layout block with indentation 0.
+
+    In April 2021 we changed layout handling in the lexer to allow
+    stacking of layout keywords on the same line, e.g.:
+
+    &gt; private module M where
+    &gt;    postulate A : Set
+    &gt;              private
+    &gt;                B : Set
+
+    The layout columns in the layout context (stack of layout blocks) can
+    have 'LayoutStatus' either 'Tentative' or 'Confirmed'. New layout
+    columns following a layout keyword are tentative until we see a new
+    line. E.g.
+
+      - The first @private@ block (column 8) is 'Tentative' when we
+        encounter the layout keyword @where@.
+
+      - The @postulate@ block (column 12) is 'Tentative' until the newline
+        after @A : Set@.
+
+    In contrast,
+
+      - The @module@ block (column 2) is 'Confirmed' from the beginning
+        since the first token (@postulate@) after the layout keyword @where@
+        is on a new line.
+
+      - The second @private@ block (column 14) is also 'Confirmed' from the
+        beginning (for the same reason).
+
+    A new layout column has to be strictly above the last __confirmed__
+    column only. E.g., when encountering @postulate@ at column 2 after
+    @where@, the confirmed column is still 0, so this is a valid start of
+    the block following @where@.
+
+    The column 8 of the @private@ block never enters the 'Confirmed' status
+    but remains 'Tentative'. Also, this block can never get more than the
+    one declaration it has (@module...@), because when the @module@ block
+    closes due to a column \&lt; 2, it closes as well. One could say that
+    tentative blocks buried under confirmed blocks are passive, the only
+    wait for their closing.
+
+    To implement the process of block confirmation (function
+    'confirmLayout'), the lexer has to act on newline characters (except for
+    those in a block comment).
+
+      - In ordinary mode, when encountering a newline, we confirm the top
+        unconfirmed blocks. Example: The newline after @A : Set@ confirms
+        the column 12 after @postulate@. Function: 'confirmLayoutAtNewLine',
+        state @bol@.
+
+      - In the @layout@ state following a layout keyword, a newline does not
+        confirm any block, but announces that the next block should be
+        confirmed from the start. Function: 'confirmedLayoutComing'.
+
+    In order to implement 'confirmedLayoutComing' we have a 'LayoutStatus'
+    flag in the parse state (field 'stateLayStatus'). By default, for a new
+    layout block, the status is 'Tentative' (unless we saw a newline).
+
+    New layout blocks are created as follows. When a layout keyword is
+    encountered, we enter lexer state 'layout' via function 'withLayout'.
+    When we exit the 'layout' state via 'newLayoutBlock' with a token that
+    marks the new layout column, we push a new 'LayoutBlock' onto the
+    'LayoutContext' using the given column and the current 'parseLayStatus'
+    which is then reset to 'Tentative'.
+
+    The new block is actually only pushed if the column is above the last
+    confirmed layout column ('confirmedLayoutColumn'). If this check fails,
+    we instead enter the 'empty_layout' state. This state produces the
+    closing brace and is immediately left for 'bol' (beginning of line).
+
+    (Remark: In 'bol' we might confirm some tentative top blocks, but this
+    is irrelevant, since they will be closed immediately, given that the
+    current token is left of the confirmed column, and tentative columns
+    above it must be to the right of this column.)
+
+    The 'offsideRule' (state 'bol') is unchanged. It checks how the first
+    token on a new line relates to the top layout column, be it tentative or
+    confirmed. (Since we are on a new line, 'Tentative' can only happen when
+    we popped some 'Confirmed' columns and continue popping the top
+    'Tentative' columns here.) While the token is to the left of the layout
+    column, we keep closing blocks.
+
+-}</span></span><span>
+</span><span id="line-103"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html"><span class="hs-identifier">Agda.Syntax.Parser.Layout</span></a></span><span>
+</span><span id="line-104"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LexActions.html#withLayout"><span class="hs-identifier">withLayout</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#offsideRule"><span class="hs-identifier">offsideRule</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#newLayoutBlock"><span class="hs-identifier">newLayoutBlock</span></a></span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#emptyLayout"><span class="hs-identifier">emptyLayout</span></a></span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#confirmLayout"><span class="hs-identifier">confirmLayout</span></a></span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>        </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">when</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">gets</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">modify</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Lexer.html"><span class="hs-identifier">Agda.Syntax.Parser.Lexer</span></a></span><span>
+</span><span id="line-115"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html"><span class="hs-identifier">Agda.Syntax.Parser.Alex</span></a></span><span>
+</span><span id="line-116"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html"><span class="hs-identifier">Agda.Syntax.Parser.Monad</span></a></span><span>
+</span><span id="line-117"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html"><span class="hs-identifier">Agda.Syntax.Parser.Tokens</span></a></span><span>
+</span><span id="line-118"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.LexActions.html"><span class="hs-identifier">Agda.Syntax.Parser.LexActions</span></a></span><span>
+</span><span id="line-119"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="annot"><span class="hs-comment">{-| Executed for the first token in each line (see 'Agda.Syntax.Parser.Lexer.bol'),
+    except when the last token was a layout keyword.
+
+    Checks the position of the token relative to the current layout context.
+    If the token is
+
+    - /to the left/ :
+        Exit the current block and a return virtual close brace (stay in the
+        'Agda.Syntax.Parser.Lexer.bol' state).
+
+    - /same column/ :
+        Exit the 'Agda.Syntax.Parser.Lexer.bol' state and return a virtual semi
+        colon.
+
+    - /to the right/ :
+        Exit the 'Agda.Syntax.Parser.Lexer.bol' state and continue lexing.
+
+-}</span></span><span>
+</span><span id="line-141"></span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#offsideRule"><span class="hs-identifier hs-type">offsideRule</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-type">LexAction</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span>
+</span><span id="line-142"></span><span id="offsideRule"><span class="annot"><span class="annottext">offsideRule :: LexAction Token
+</span><a href="Agda.Syntax.Parser.Layout.html#offsideRule"><span class="hs-identifier hs-var hs-var">offsideRule</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+-&gt; LexAction Token
+forall r.
+(PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser r)
+-&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+ -&gt; LexAction Token)
+-&gt; (PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+-&gt; LexAction Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681837982"><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837982"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LexState
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-143"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681837983"><span class="annot"><span class="annottext">p :: PositionWithoutFile
+</span><a href="#local-6989586621681837983"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PreviousInput -&gt; PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var">lexPos</span></a></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837982"><span class="hs-identifier hs-var">inp</span></a></span><span>
+</span><span id="line-144"></span><span>        </span><span id="local-6989586621681837985"><span class="annot"><span class="annottext">i :: Interval' SrcFile
+</span><a href="#local-6989586621681837985"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SrcFile
+-&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' SrcFile
+forall a.
+a -&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' a
+</span><a href="Agda.Syntax.Position.html#posToInterval"><span class="hs-identifier hs-var">posToInterval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PreviousInput -&gt; SrcFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var">lexSrcFile</span></a></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837982"><span class="hs-identifier hs-var">inp</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681837983"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681837983"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-145"></span><span>    </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; Parser Ordering
+forall a. Position' a -&gt; Parser Ordering
+</span><a href="Agda.Syntax.Parser.Layout.html#getOffside"><span class="hs-identifier hs-var">getOffside</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681837983"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Ordering -&gt; (Ordering -&gt; Parser Token) -&gt; Parser Token
+forall a b. Parser a -&gt; (a -&gt; Parser b) -&gt; Parser b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-146"></span><span>        </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>   </span><span class="annot"><span class="annottext">Parser ()
+</span><a href="Agda.Syntax.Parser.Monad.html#popBlock"><span class="hs-identifier hs-var">popBlock</span></a></span><span>
+</span><span id="line-147"></span><span>                    </span><span class="annot"><span class="annottext">Token -&gt; Parser Token
+forall a. a -&gt; Parser a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Symbol -&gt; Interval' SrcFile -&gt; Token
+</span><a href="Agda.Syntax.Parser.Tokens.html#TokSymbol"><span class="hs-identifier hs-var">TokSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Symbol
+</span><a href="Agda.Syntax.Parser.Tokens.html#SymCloseVirtualBrace"><span class="hs-identifier hs-var">SymCloseVirtualBrace</span></a></span><span> </span><span class="annot"><span class="annottext">Interval' SrcFile
+</span><a href="#local-6989586621681837985"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>        </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>   </span><span class="annot"><span class="annottext">Parser ()
+</span><a href="Agda.Syntax.Parser.Monad.html#popLexState"><span class="hs-identifier hs-var">popLexState</span></a></span><span>
+</span><span id="line-149"></span><span>                    </span><span class="annot"><span class="annottext">Token -&gt; Parser Token
+forall a. a -&gt; Parser a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Symbol -&gt; Interval' SrcFile -&gt; Token
+</span><a href="Agda.Syntax.Parser.Tokens.html#TokSymbol"><span class="hs-identifier hs-var">TokSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Symbol
+</span><a href="Agda.Syntax.Parser.Tokens.html#SymVirtualSemi"><span class="hs-identifier hs-var">SymVirtualSemi</span></a></span><span> </span><span class="annot"><span class="annottext">Interval' SrcFile
+</span><a href="#local-6989586621681837985"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>        </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>   </span><span class="annot"><span class="annottext">Parser ()
+</span><a href="Agda.Syntax.Parser.Monad.html#popLexState"><span class="hs-identifier hs-var">popLexState</span></a></span><span>
+</span><span id="line-151"></span><span>                    </span><span class="annot"><span class="annottext">Parser Token
+</span><a href="Agda.Syntax.Parser.LexActions.html#lexToken"><span class="hs-identifier hs-var">lexToken</span></a></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="annot"><span class="hs-comment">{-| This action is only executed from the 'Agda.Syntax.Parser.Lexer.empty_layout'
+    state. It will exit this state, enter the 'Agda.Syntax.Parser.Lexer.bol' state,
+    and return a virtual close brace (closing the empty layout block started
+    by 'newLayoutBlock').
+-}</span></span><span>
+</span><span id="line-159"></span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#emptyLayout"><span class="hs-identifier hs-type">emptyLayout</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-type">LexAction</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span>
+</span><span id="line-160"></span><span id="emptyLayout"><span class="annot"><span class="annottext">emptyLayout :: LexAction Token
+</span><a href="Agda.Syntax.Parser.Layout.html#emptyLayout"><span class="hs-identifier hs-var hs-var">emptyLayout</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+-&gt; LexAction Token
+forall r.
+(PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser r)
+-&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+ -&gt; LexAction Token)
+-&gt; (PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+-&gt; LexAction Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681837995"><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837995"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LexState
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681837996"><span class="annot"><span class="annottext">p :: PositionWithoutFile
+</span><a href="#local-6989586621681837996"><span class="hs-identifier hs-var hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PreviousInput -&gt; PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var">lexPos</span></a></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837995"><span class="hs-identifier hs-var">inp</span></a></span><span>
+</span><span id="line-162"></span><span>        </span><span id="local-6989586621681837997"><span class="annot"><span class="annottext">i :: Interval' SrcFile
+</span><a href="#local-6989586621681837997"><span class="hs-identifier hs-var hs-var hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SrcFile
+-&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' SrcFile
+forall a.
+a -&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' a
+</span><a href="Agda.Syntax.Position.html#posToInterval"><span class="hs-identifier hs-var">posToInterval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PreviousInput -&gt; SrcFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var">lexSrcFile</span></a></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837995"><span class="hs-identifier hs-var">inp</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681837996"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681837996"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-163"></span><span>    </span><span class="annot"><span class="annottext">Parser ()
+</span><a href="Agda.Syntax.Parser.Monad.html#popLexState"><span class="hs-identifier hs-var">popLexState</span></a></span><span>
+</span><span id="line-164"></span><span>    </span><span class="annot"><span class="annottext">LexState -&gt; Parser ()
+</span><a href="Agda.Syntax.Parser.Monad.html#pushLexState"><span class="hs-identifier hs-var">pushLexState</span></a></span><span> </span><span class="annot"><span class="annottext">LexState
+</span><a href="Agda.Syntax.Parser.Lexer.html#bol"><span class="hs-identifier hs-var">bol</span></a></span><span>
+</span><span id="line-165"></span><span>    </span><span class="annot"><span class="annottext">Token -&gt; Parser Token
+forall a. a -&gt; Parser a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Symbol -&gt; Interval' SrcFile -&gt; Token
+</span><a href="Agda.Syntax.Parser.Tokens.html#TokSymbol"><span class="hs-identifier hs-var">TokSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Symbol
+</span><a href="Agda.Syntax.Parser.Tokens.html#SymCloseVirtualBrace"><span class="hs-identifier hs-var">SymCloseVirtualBrace</span></a></span><span> </span><span class="annot"><span class="annottext">Interval' SrcFile
+</span><a href="#local-6989586621681837997"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="annot"><span class="hs-comment">{-| Start a new layout block. This is how to get out of the
+    'Agda.Syntax.Parser.Lexer.layout' state. There are
+    two possibilities:
+
+    - The current token is to the right of the confirmed layout column.
+
+    - The current token is to the left of or in the same column as the confirmed
+      layout column.
+
+    In the first case everything is fine and we enter a new layout block at
+    the column of the current token. In the second case we have an empty layout
+    block so we enter the 'Agda.Syntax.Parser.Lexer.empty_layout' state. In both
+    cases we return a virtual open brace without consuming any input.
+
+    Entering a new state when we know we want to generate a virtual @{}@ may
+    seem a bit roundabout. The thing is that we can only generate one token at
+    a time, so the way to generate two tokens is to generate the first one and
+    then enter a state in which the only thing you can do is generate the
+    second one.
+-}</span></span><span>
+</span><span id="line-188"></span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#newLayoutBlock"><span class="hs-identifier hs-type">newLayoutBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-type">LexAction</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span>
+</span><span id="line-189"></span><span id="newLayoutBlock"><span class="annot"><span class="annottext">newLayoutBlock :: LexAction Token
+</span><a href="Agda.Syntax.Parser.Layout.html#newLayoutBlock"><span class="hs-identifier hs-var hs-var">newLayoutBlock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+-&gt; LexAction Token
+forall r.
+(PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser r)
+-&gt; LexAction r
+</span><a href="Agda.Syntax.Parser.Alex.html#LexAction"><span class="hs-identifier hs-var">LexAction</span></a></span><span> </span><span class="annot"><span class="annottext">((PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+ -&gt; LexAction Token)
+-&gt; (PreviousInput -&gt; PreviousInput -&gt; LexState -&gt; Parser Token)
+-&gt; LexAction Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681837999"><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837999"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LexState
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-190"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681838000"><span class="annot"><span class="annottext">p :: PositionWithoutFile
+</span><a href="#local-6989586621681838000"><span class="hs-identifier hs-var hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PreviousInput -&gt; PositionWithoutFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexPos"><span class="hs-identifier hs-var">lexPos</span></a></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837999"><span class="hs-identifier hs-var">inp</span></a></span><span>
+</span><span id="line-191"></span><span>        </span><span id="local-6989586621681838001"><span class="annot"><span class="annottext">i :: Interval' SrcFile
+</span><a href="#local-6989586621681838001"><span class="hs-identifier hs-var hs-var hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SrcFile
+-&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' SrcFile
+forall a.
+a -&gt; PositionWithoutFile -&gt; PositionWithoutFile -&gt; Interval' a
+</span><a href="Agda.Syntax.Position.html#posToInterval"><span class="hs-identifier hs-var">posToInterval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PreviousInput -&gt; SrcFile
+</span><a href="Agda.Syntax.Parser.Alex.html#lexSrcFile"><span class="hs-identifier hs-var">lexSrcFile</span></a></span><span> </span><span class="annot"><span class="annottext">PreviousInput
+</span><a href="#local-6989586621681837999"><span class="hs-identifier hs-var">inp</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681838000"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681838000"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-192"></span><span>        </span><span id="local-6989586621681838002"><span class="annot"><span class="annottext">offset :: Column
+</span><a href="#local-6989586621681838002"><span class="hs-identifier hs-var hs-var hs-var">offset</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile -&gt; Column
+forall a. Position' a -&gt; Column
+</span><a href="Agda.Syntax.Position.html#posCol"><span class="hs-identifier hs-var">posCol</span></a></span><span> </span><span class="annot"><span class="annottext">PositionWithoutFile
+</span><a href="#local-6989586621681838000"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-193"></span><span>    </span><span id="local-6989586621681838004"><span class="annot"><a href="#local-6989586621681838004"><span class="hs-identifier hs-var">status</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser LayoutStatus
+</span><a href="#local-6989586621681838005"><span class="hs-identifier hs-var">popPendingLayout</span></a></span><span>
+</span><span id="line-194"></span><span>    </span><span id="local-6989586621681838006"><span class="annot"><a href="#local-6989586621681838006"><span class="hs-identifier hs-var">kw</span></a></span></span><span>       </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">gets</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseLayKw"><span class="hs-identifier hs-var">parseLayKw</span></a></span><span>
+</span><span id="line-195"></span><span>    </span><span id="local-6989586621681838008"><span class="annot"><a href="#local-6989586621681838008"><span class="hs-identifier hs-var">prevOffs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681838009"><span class="hs-identifier hs-type">confirmedLayoutColumn</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#getContext"><span class="hs-identifier hs-type">getContext</span></a></span><span>
+</span><span id="line-196"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><a href="#local-6989586621681838008"><span class="hs-identifier hs-type">prevOffs</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&gt;=</span></span><span> </span><span class="annot"><a href="#local-6989586621681838002"><span class="hs-identifier hs-type">offset</span></a></span><span>
+</span><span id="line-197"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#pushLexState"><span class="hs-identifier hs-type">pushLexState</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Lexer.html#empty_layout"><span class="hs-identifier hs-type">empty_layout</span></a></span><span>
+</span><span id="line-198"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-199"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681838004"><span class="hs-identifier hs-type">status</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">==</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Confirmed"><span class="hs-identifier hs-type">Confirmed</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-200"></span><span>              </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#modifyContext"><span class="hs-identifier hs-type">modifyContext</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#confirmTentativeBlocks"><span class="hs-identifier hs-type">confirmTentativeBlocks</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><a href="#local-6989586621681838002"><span class="hs-identifier hs-type">offset</span></a></span><span>
+</span><span id="line-201"></span><span>            </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#pushBlock"><span class="hs-identifier hs-type">pushBlock</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Layout"><span class="hs-identifier hs-type">Layout</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681838006"><span class="hs-identifier hs-type">kw</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681838004"><span class="hs-identifier hs-type">status</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681838002"><span class="hs-identifier hs-type">offset</span></a></span><span>
+</span><span id="line-202"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html#TokSymbol"><span class="hs-identifier hs-type">TokSymbol</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Tokens.html#SymOpenVirtualBrace"><span class="hs-identifier hs-type">SymOpenVirtualBrace</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681838001"><span class="hs-identifier hs-type">i</span></a></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span>    </span><span class="hs-comment">-- Get and reset the status of the coming layout block.</span><span>
+</span><span id="line-206"></span><span>    </span><span class="annot"><a href="#local-6989586621681838005"><span class="hs-identifier hs-type">popPendingLayout</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LayoutStatus"><span class="hs-identifier hs-type">LayoutStatus</span></a></span><span>
+</span><span id="line-207"></span><span>    </span><span id="local-6989586621681838005"><span class="annot"><span class="annottext">popPendingLayout :: Parser LayoutStatus
+</span><a href="#local-6989586621681838005"><span class="hs-identifier hs-var hs-var">popPendingLayout</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-208"></span><span>        </span><span id="local-6989586621681838017"><span class="annot"><a href="#local-6989586621681838017"><span class="hs-identifier hs-var">status</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(ParseState -&gt; LayoutStatus) -&gt; Parser LayoutStatus
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">ParseState -&gt; LayoutStatus
+</span><a href="Agda.Syntax.Parser.Monad.html#parseLayStatus"><span class="hs-identifier hs-var">parseLayStatus</span></a></span><span>
+</span><span id="line-209"></span><span>        </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#resetLayoutStatus"><span class="hs-identifier hs-type">resetLayoutStatus</span></a></span><span>
+</span><span id="line-210"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621681838017"><span class="hs-identifier hs-type">status</span></a></span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span>    </span><span class="hs-comment">-- The confirmed layout column, or 0 if there is none.</span><span>
+</span><span id="line-213"></span><span>    </span><span class="annot"><a href="#local-6989586621681838009"><span class="hs-identifier hs-type">confirmedLayoutColumn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LayoutContext"><span class="hs-identifier hs-type">LayoutContext</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Column"><span class="hs-identifier hs-type">Column</span></a></span><span>
+</span><span id="line-214"></span><span>    </span><span id="local-6989586621681838009"><span class="annot"><span class="annottext">confirmedLayoutColumn :: LayoutContext -&gt; Column
+</span><a href="#local-6989586621681838009"><span class="hs-identifier hs-var hs-var">confirmedLayoutColumn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-215"></span><span>       </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Layout"><span class="hs-identifier hs-type">Layout</span></a></span><span> </span><span class="annot"><span class="annottext">Keyword
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LayoutStatus
+</span><a href="Agda.Syntax.Parser.Monad.html#Confirmed"><span class="hs-identifier hs-var">Confirmed</span></a></span><span> </span><span id="local-6989586621681838019"><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838019"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">LayoutContext
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838019"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-216"></span><span>       </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Layout"><span class="hs-identifier hs-type">Layout</span></a></span><span> </span><span class="annot"><span class="annottext">Keyword
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LayoutStatus
+</span><a href="Agda.Syntax.Parser.Monad.html#Tentative"><span class="hs-identifier hs-var">Tentative</span></a></span><span> </span><span class="annot"><span class="annottext">Column
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681838020"><span class="annot"><span class="annottext">LayoutContext
+</span><a href="#local-6989586621681838020"><span class="hs-identifier hs-var">cxt</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LayoutContext -&gt; Column
+</span><a href="#local-6989586621681838009"><span class="hs-identifier hs-var">confirmedLayoutColumn</span></a></span><span> </span><span class="annot"><span class="annottext">LayoutContext
+</span><a href="#local-6989586621681838020"><span class="hs-identifier hs-var">cxt</span></a></span><span>
+</span><span id="line-217"></span><span>       </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Column
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-comment">-- should only happen when looking at the first token (top-level layout)</span><span>
+</span><span id="line-218"></span><span>
+</span><span id="line-219"></span><span class="hs-comment">-- | Compute the relative position of a location to the</span><span>
+</span><span id="line-220"></span><span class="hs-comment">--   current layout context.</span><span>
+</span><span id="line-221"></span><span id="local-6989586621681837897"><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#getOffside"><span class="hs-identifier hs-type">getOffside</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Position%27"><span class="hs-identifier hs-type">Position'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681837897"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span><span>
+</span><span id="line-222"></span><span id="getOffside"><span class="annot"><span class="annottext">getOffside :: forall a. Position' a -&gt; Parser Ordering
+</span><a href="Agda.Syntax.Parser.Layout.html#getOffside"><span class="hs-identifier hs-var hs-var">getOffside</span></a></span></span><span> </span><span id="local-6989586621681838024"><span class="annot"><span class="annottext">Position' a
+</span><a href="#local-6989586621681838024"><span class="hs-identifier hs-var">loc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-223"></span><span>    </span><span class="annot"><span class="annottext">Parser LayoutContext
+forall (m :: * -&gt; *). MonadState ParseState m =&gt; m LayoutContext
+</span><a href="Agda.Syntax.Parser.Monad.html#getContext"><span class="hs-identifier hs-var">getContext</span></a></span><span> </span><span class="annot"><span class="annottext">Parser LayoutContext
+-&gt; (LayoutContext -&gt; Ordering) -&gt; Parser Ordering
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-224"></span><span>        </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Layout"><span class="hs-identifier hs-type">Layout</span></a></span><span> </span><span class="annot"><span class="annottext">Keyword
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LayoutStatus
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681838025"><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838025"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">LayoutContext
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Column -&gt; Column -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Position' a -&gt; Column
+forall a. Position' a -&gt; Column
+</span><a href="Agda.Syntax.Position.html#posCol"><span class="hs-identifier hs-var">posCol</span></a></span><span> </span><span class="annot"><span class="annottext">Position' a
+</span><a href="#local-6989586621681838024"><span class="hs-identifier hs-var">loc</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838025"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-225"></span><span>        </span><span class="annot"><span class="annottext">LayoutContext
+</span><span class="hs-identifier">_</span></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- | At a new line, we confirm either existing tentative layout</span><span>
+</span><span id="line-228"></span><span class="hs-comment">--   columns, or, if the last token was a layout keyword, the expected</span><span>
+</span><span id="line-229"></span><span class="hs-comment">--   new layout column.</span><span>
+</span><span id="line-230"></span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#confirmLayout"><span class="hs-identifier hs-type">confirmLayout</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-231"></span><span id="confirmLayout"><span class="annot"><span class="annottext">confirmLayout :: Parser ()
+</span><a href="Agda.Syntax.Parser.Layout.html#confirmLayout"><span class="hs-identifier hs-var hs-var">confirmLayout</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser [LexState]
+</span><a href="Agda.Syntax.Parser.Monad.html#getLexState"><span class="hs-identifier hs-var">getLexState</span></a></span><span> </span><span class="annot"><span class="annottext">Parser [LexState] -&gt; ([LexState] -&gt; Parser ()) -&gt; Parser ()
+forall a b. Parser a -&gt; (a -&gt; Parser b) -&gt; Parser b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-glyph">case</span><span>
+</span><span id="line-232"></span><span>  </span><span id="local-6989586621681838028"><span class="annot"><span class="annottext">LexState
+</span><a href="#local-6989586621681838028"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[LexState]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">LexState
+</span><a href="#local-6989586621681838028"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">LexState -&gt; LexState -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">LexState
+</span><a href="Agda.Syntax.Parser.Lexer.html#layout"><span class="hs-identifier hs-var">layout</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Parser ()
+</span><a href="#local-6989586621681838029"><span class="hs-identifier hs-var">confirmedLayoutComing</span></a></span><span>
+</span><span id="line-233"></span><span>  </span><span class="annot"><span class="annottext">[LexState]
+</span><span class="hs-identifier">_</span></span><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Parser ()
+</span><a href="#local-6989586621681838030"><span class="hs-identifier hs-var">confirmLayoutAtNewLine</span></a></span><span>
+</span><span id="line-234"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-235"></span><span>
+</span><span id="line-236"></span><span>  </span><span class="hs-comment">-- Mark the pending layout block as 'Confirmed'.</span><span>
+</span><span id="line-237"></span><span>  </span><span class="annot"><a href="#local-6989586621681838029"><span class="hs-identifier hs-type">confirmedLayoutComing</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-238"></span><span>  </span><span id="local-6989586621681838029"><span class="annot"><span class="annottext">confirmedLayoutComing :: Parser ()
+</span><a href="#local-6989586621681838029"><span class="hs-identifier hs-var hs-var">confirmedLayoutComing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ParseState -&gt; ParseState) -&gt; Parser ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">((ParseState -&gt; ParseState) -&gt; Parser ())
+-&gt; (ParseState -&gt; ParseState) -&gt; Parser ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681838031"><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681838031"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ParseState
+</span><a href="#local-6989586621681838031"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#parseLayStatus"><span class="hs-identifier hs-var">parseLayStatus</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Confirmed"><span class="hs-identifier hs-type">Confirmed</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-239"></span><span>
+</span><span id="line-240"></span><span>  </span><span class="hs-comment">-- Encountering a newline outside of a 'layout' state we confirm top</span><span>
+</span><span id="line-241"></span><span>  </span><span class="hs-comment">-- tentative layout columns.</span><span>
+</span><span id="line-242"></span><span>  </span><span class="annot"><a href="#local-6989586621681838030"><span class="hs-identifier hs-type">confirmLayoutAtNewLine</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-243"></span><span>  </span><span id="local-6989586621681838030"><span class="annot"><span class="annottext">confirmLayoutAtNewLine :: Parser ()
+</span><a href="#local-6989586621681838030"><span class="hs-identifier hs-var hs-var">confirmLayoutAtNewLine</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(LayoutContext -&gt; LayoutContext) -&gt; Parser ()
+</span><a href="Agda.Syntax.Parser.Monad.html#modifyContext"><span class="hs-identifier hs-var">modifyContext</span></a></span><span> </span><span class="annot"><span class="annottext">((LayoutContext -&gt; LayoutContext) -&gt; Parser ())
+-&gt; (LayoutContext -&gt; LayoutContext) -&gt; Parser ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe Column -&gt; LayoutContext -&gt; LayoutContext
+</span><a href="Agda.Syntax.Parser.Layout.html#confirmTentativeBlocks"><span class="hs-identifier hs-var">confirmTentativeBlocks</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Column
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span class="hs-comment">-- | Confirm all top 'Tentative' layout columns.</span><span>
+</span><span id="line-246"></span><span class="hs-comment">-- If a column is given, only those below the given column.</span><span>
+</span><span id="line-247"></span><span class="hs-comment">--</span><span>
+</span><span id="line-248"></span><span class="hs-comment">-- The code ensures that the newly created 'Definitive' columns</span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- are strictly decreasing.</span><span>
+</span><span id="line-250"></span><span class="hs-comment">--</span><span>
+</span><span id="line-251"></span><span class="annot"><a href="Agda.Syntax.Parser.Layout.html#confirmTentativeBlocks"><span class="hs-identifier hs-type">confirmTentativeBlocks</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Column"><span class="hs-identifier hs-type">Column</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LayoutContext"><span class="hs-identifier hs-type">LayoutContext</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#LayoutContext"><span class="hs-identifier hs-type">LayoutContext</span></a></span><span>
+</span><span id="line-252"></span><span id="confirmTentativeBlocks"><span class="annot"><span class="annottext">confirmTentativeBlocks :: Maybe Column -&gt; LayoutContext -&gt; LayoutContext
+</span><a href="Agda.Syntax.Parser.Layout.html#confirmTentativeBlocks"><span class="hs-identifier hs-var hs-var">confirmTentativeBlocks</span></a></span></span><span> </span><span id="local-6989586621681838032"><span class="annot"><span class="annottext">Maybe Column
+</span><a href="#local-6989586621681838032"><span class="hs-identifier hs-var">mcol</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-253"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Parser.Monad.html#Layout"><span class="hs-identifier hs-type">Layout</span></a></span><span> </span><span id="local-6989586621681838033"><span class="annot"><span class="annottext">Keyword
+</span><a href="#local-6989586621681838033"><span class="hs-identifier hs-var">kw</span></a></span></span><span> </span><span class="annot"><span class="annottext">LayoutStatus
+</span><a href="Agda.Syntax.Parser.Monad.html#Tentative"><span class="hs-identifier hs-var">Tentative</span></a></span><span> </span><span id="local-6989586621681838034"><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838034"><span class="hs-identifier hs-var">col</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681838035"><span class="annot"><span class="annottext">LayoutContext
+</span><a href="#local-6989586621681838035"><span class="hs-identifier hs-var">cxt</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; (Column -&gt; Bool) -&gt; Maybe Column -&gt; Bool
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838034"><span class="hs-identifier hs-var">col</span></a></span><span> </span><span class="annot"><span class="annottext">Column -&gt; Column -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe Column
+</span><a href="#local-6989586621681838032"><span class="hs-identifier hs-var">mcol</span></a></span><span>
+</span><span id="line-254"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Keyword -&gt; LayoutStatus -&gt; Column -&gt; LayoutBlock
+</span><a href="Agda.Syntax.Parser.Monad.html#Layout"><span class="hs-identifier hs-var">Layout</span></a></span><span> </span><span class="annot"><span class="annottext">Keyword
+</span><a href="#local-6989586621681838033"><span class="hs-identifier hs-var">kw</span></a></span><span> </span><span class="annot"><span class="annottext">LayoutStatus
+</span><a href="Agda.Syntax.Parser.Monad.html#Confirmed"><span class="hs-identifier hs-var">Confirmed</span></a></span><span> </span><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838034"><span class="hs-identifier hs-var">col</span></a></span><span> </span><span class="annot"><span class="annottext">LayoutBlock -&gt; LayoutContext -&gt; LayoutContext
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Maybe Column -&gt; LayoutContext -&gt; LayoutContext
+</span><a href="Agda.Syntax.Parser.Layout.html#confirmTentativeBlocks"><span class="hs-identifier hs-var">confirmTentativeBlocks</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Column -&gt; Maybe Column
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Column
+</span><a href="#local-6989586621681838034"><span class="hs-identifier hs-var">col</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">LayoutContext
+</span><a href="#local-6989586621681838035"><span class="hs-identifier hs-var">cxt</span></a></span><span>
+</span><span id="line-255"></span><span>    </span><span id="local-6989586621681838038"><span class="annot"><span class="annottext">LayoutContext
+</span><a href="#local-6989586621681838038"><span class="hs-identifier hs-var">cxt</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LayoutContext
+</span><a href="#local-6989586621681838038"><span class="hs-identifier hs-var">cxt</span></a></span><span>
+</span><span id="line-256"></span></pre></body></html>

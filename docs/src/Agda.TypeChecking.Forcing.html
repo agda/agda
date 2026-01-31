@@ -1,0 +1,891 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="annot"><span class="hs-comment">{-| A constructor argument is forced if it appears as pattern variable
+in an index of the target.
+
+For instance @x@ is forced in @sing@ and @n@ is forced in @zero@ and @suc@:
+
+@
+  data Sing {a}{A : Set a} : A -&gt; Set where
+    sing : (x : A) -&gt; Sing x
+
+  data Fin : Nat -&gt; Set where
+    zero : (n : Nat) -&gt; Fin (suc n)
+    suc  : (n : Nat) (i : Fin n) -&gt; Fin (suc n)
+@
+
+At runtime, forced constructor arguments may be erased as they can be
+recovered from dot patterns.  For instance,
+@
+  unsing : {A : Set} (x : A) -&gt; Sing x -&gt; A
+  unsing .x (sing x) = x
+@
+can become
+@
+  unsing x sing = x
+@
+and
+@
+  proj : (n : Nat) (i : Fin n) -&gt; Nat
+  proj .(suc n) (zero n) = n
+  proj .(suc n) (suc n i) = n
+@
+becomes
+@
+  proj (suc n) zero    = n
+  proj (suc n) (suc i) = n
+@
+
+This module implements the analysis of which constructor arguments are forced. The process of moving
+the binding site of forced arguments is implemented in the unifier (see the Solution step of
+Agda.TypeChecking.Rules.LHS.Unify.unifyStep).
+
+Forcing is a concept from pattern matching and thus builds on the
+concept of equality (I) used there (closed terms, extensional) which is
+different from the equality (II) used in conversion checking and the
+constraint solver (open terms, intensional).
+
+Up to issue 1441 (Feb 2015), the forcing analysis here relied on the
+wrong equality (II), considering type constructors as injective.  This is
+unsound for program extraction, but ok if forcing is only used to decide which
+arguments to skip during conversion checking.
+
+From now on, forcing uses equality (I) and does not search for forced
+variables under type constructors.  This may lose some savings during
+conversion checking.  If this turns out to be a problem, the old
+forcing could be brought back, using a new modality @Skip@ to indicate
+that this is a relevant argument but still can be skipped during
+conversion checking as it is forced by equality (II).
+
+-}</span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html"><span class="hs-identifier">Agda.TypeChecking.Forcing</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#computeForcingAnnotations"><span class="hs-identifier">computeForcingAnnotations</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#isForced"><span class="hs-identifier">isForced</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-64"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#nextIsForced"><span class="hs-identifier">nextIsForced</span></a></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadReader</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ask</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">local</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ReaderT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runReaderT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadState</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">modify</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">StateT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">execStateT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&amp;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntSet</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntSet</span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntSet</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntSet</span></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-comment">-- for (&lt;&gt;) in GHC 8.0.2</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Datatypes.html"><span class="hs-identifier">Agda.TypeChecking.Datatypes</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Datatypes.html#consOfHIT"><span class="hs-identifier">consOfHIT</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Reduce</span></a></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Telescope.html"><span class="hs-identifier">Agda.TypeChecking.Telescope</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Boolean.html"><span class="hs-identifier">Agda.Utils.Boolean</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Boolean.html#implies"><span class="hs-identifier">implies</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.IArray.html"><span class="hs-identifier">Agda.Utils.IArray</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Array</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">listArray</span></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.IArray.html"><span class="hs-identifier">Agda.Utils.IArray</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Array</span></span><span>
+</span><span id="line-89"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-90"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-91"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier">prettyShow</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Size.html"><span class="hs-identifier">Agda.Utils.Size</span></a></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- | Given the type of a constructor (excluding the parameters),</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--   decide which arguments are forced.</span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#computeForcingAnnotations"><span class="hs-identifier hs-type">computeForcingAnnotations</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#IsForced"><span class="hs-identifier hs-type">IsForced</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-101"></span><span id="computeForcingAnnotations"><span class="annot"><span class="annottext">computeForcingAnnotations :: QName -&gt; Type -&gt; TCM [IsForced]
+</span><a href="Agda.TypeChecking.Forcing.html#computeForcingAnnotations"><span class="hs-identifier hs-var hs-var">computeForcingAnnotations</span></a></span></span><span> </span><span id="local-6989586621682069852"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682069852"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621682069853"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682069853"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-102"></span><span>  </span><span class="annot"><span class="annottext">TCMT IO Bool -&gt; TCM [IsForced] -&gt; TCM [IsForced] -&gt; TCM [IsForced]
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifNotM"><span class="hs-identifier hs-var">ifNotM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PragmaOptions -&gt; Bool
+</span><a href="Agda.Interaction.Options.Base.html#optForcing"><span class="hs-identifier hs-var">optForcing</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; Bool) -&gt; TCMT IO PragmaOptions -&gt; TCMT IO Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span> </span><span class="hs-comment">{-then-}</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[IsForced] -&gt; TCM [IsForced]
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCM [IsForced] -&gt; TCM [IsForced])
+-&gt; TCM [IsForced] -&gt; TCM [IsForced]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-comment">{-else-}</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-103"></span><span>    </span><span class="hs-comment">-- Andreas, 2015-03-10  Normalization prevents Issue 1454.</span><span>
+</span><span id="line-104"></span><span>    </span><span class="hs-comment">-- t &lt;- normalise t</span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-comment">-- Andreas, 2015-03-28  Issue 1469: Normalization too costly.</span><span>
+</span><span id="line-106"></span><span>    </span><span class="hs-comment">-- Instantiation also fixes Issue 1454.</span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-comment">-- Note that normalization of s0 below does not help.</span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-comment">-- t &lt;- instantiateFull t</span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-comment">-- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to</span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-comment">-- get to the actual data type.</span><span>
+</span><span id="line-111"></span><span>    </span><span class="hs-comment">-- Also #2947: The type might reduce to a pi type.</span><span>
+</span><span id="line-112"></span><span>    </span><span class="hs-comment">-- Andreas, 2024-07-07, issue #6744, iteratively reduce.</span><span>
+</span><span id="line-113"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html#TelV"><span class="hs-identifier hs-type">TelV</span></a></span><span> </span><span id="local-6989586621682069859"><span class="annot"><a href="#local-6989586621682069859"><span class="hs-identifier hs-var">tel</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#El"><span class="hs-identifier hs-type">El</span></a></span><span> </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682069861"><span class="annot"><a href="#local-6989586621682069861"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Type -&gt; TCMT IO (TelV Type)
+forall (m :: * -&gt; *). PureTCM m =&gt; Type -&gt; m (TelV Type)
+</span><a href="Agda.TypeChecking.Telescope.html#telViewPath"><span class="hs-identifier hs-var">telViewPath</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621682069853"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-114"></span><span>    </span><span id="local-6989586621682069863"><span class="annot"><a href="#local-6989586621682069863"><span class="hs-identifier hs-var">erasureOn</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#optErasure"><span class="hs-identifier hs-type">optErasure</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-type">pragmaOptions</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span class="hs-comment">-- Modalities of constructor arguments:</span><span>
+</span><span id="line-116"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682069865"><span class="annot"><a href="#local-6989586621682069865"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Tele (Dom Type) -&gt; Nat
+forall a. Sized a =&gt; a -&gt; Nat
+</span><a href="Agda.Utils.Size.html#size"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">Tele (Dom Type)
+</span><a href="#local-6989586621682069859"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-117"></span><span>        </span><span class="hs-comment">-- Candidates for forced arguments, indexed by their de Bruijn index.</span><span>
+</span><span id="line-118"></span><span>        </span><span class="hs-comment">-- 'Nothing' means cannot possibly be forced.</span><span>
+</span><span id="line-119"></span><span>        </span><span class="annot"><a href="#local-6989586621682069867"><span class="hs-identifier hs-type">forcedArgCands</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCandidates"><span class="hs-identifier hs-type">ForcedVariableCandidates</span></a></span><span>
+</span><span id="line-120"></span><span>        </span><span id="local-6989586621682069867"><span class="annot"><a href="#local-6989586621682069867"><span class="hs-identifier hs-var hs-var">forcedArgCands</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Nat, Nat) -&gt; [Maybe Modality] -&gt; ForcedVariableCandidates
+forall (a :: * -&gt; * -&gt; *) e i.
+(IArray a e, Ix i) =&gt;
+(i, i) -&gt; [e] -&gt; a i e
+</span><span class="hs-identifier hs-var">listArray</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Nat
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682069865"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">Nat -&gt; Nat -&gt; Nat
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Nat
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>          </span><span class="hs-special">[</span><span> </span><span class="hs-comment">-- Jesper, 2023-09-20 (#6867): With --erasure, only arguments with @0 can be forced.</span><span>
+</span><span id="line-122"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621682069863"><span class="hs-identifier hs-var">erasureOn</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+forall a. Boolean a =&gt; a -&gt; a -&gt; a
+</span><a href="Agda.Utils.Boolean.html#implies"><span class="hs-operator hs-var">`implies`</span></a></span><span> </span><span class="annot"><span class="annottext">Modality -&gt; Bool
+forall a. LensQuantity a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Common.html#hasQuantity0"><span class="hs-identifier hs-var">hasQuantity0</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682069869"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-123"></span><span>            </span><span class="hs-comment">-- Also the argument shouldn't be irrelevant, since in that</span><span>
+</span><span id="line-124"></span><span>            </span><span class="hs-comment">-- case it isn't really forced.</span><span>
+</span><span id="line-125"></span><span>            </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; Bool -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Modality -&gt; Bool
+forall a. LensRelevance a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Common.html#isIrrelevant"><span class="hs-identifier hs-var">isIrrelevant</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682069869"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Modality -&gt; Maybe Modality
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682069869"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Maybe Modality
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-127"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621682069869"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682069869"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Dom (ArgName, Type) -&gt; Modality)
+-&gt; [Dom (ArgName, Type)] -&gt; [Modality]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Dom (ArgName, Type) -&gt; Modality
+forall a. LensModality a =&gt; a -&gt; Modality
+</span><a href="Agda.Syntax.Common.html#getModality"><span class="hs-identifier hs-var">getModality</span></a></span><span> </span><span class="annot"><span class="annottext">([Dom (ArgName, Type)] -&gt; [Modality])
+-&gt; [Dom (ArgName, Type)] -&gt; [Modality]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Dom (ArgName, Type)] -&gt; [Dom (ArgName, Type)]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">([Dom (ArgName, Type)] -&gt; [Dom (ArgName, Type)])
+-&gt; [Dom (ArgName, Type)] -&gt; [Dom (ArgName, Type)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Tele (Dom Type) -&gt; [Dom (ArgName, Type)]
+forall t. Tele (Dom t) -&gt; [Dom (ArgName, t)]
+</span><a href="Agda.Syntax.Internal.html#telToList"><span class="hs-identifier hs-var">telToList</span></a></span><span> </span><span class="annot"><span class="annottext">Tele (Dom Type)
+</span><a href="#local-6989586621682069859"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-128"></span><span>          </span><span class="hs-special">]</span><span>
+</span><span id="line-129"></span><span>    </span><span class="hs-comment">-- Computation of forced arguments:</span><span>
+</span><span id="line-130"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682069876"><span class="annot"><a href="#local-6989586621682069876"><span class="hs-identifier hs-var hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682069861"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-131"></span><span>          </span><span class="annot"><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-type">Def</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682069878"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682069878"><span class="hs-identifier hs-var">us</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682069878"><span class="hs-identifier hs-var">us</span></a></span><span>
+</span><span id="line-132"></span><span>          </span><span class="annot"><span class="annottext">Term
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Elims
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-133"></span><span>    </span><span id="local-6989586621682069880"><span class="annot"><a href="#local-6989586621682069880"><span class="hs-identifier hs-var">forcedVars</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-134"></span><span>          </span><span class="hs-comment">-- No candidates, no winners!</span><span>
+</span><span id="line-135"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="hs-identifier hs-type">all</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">isNothing</span></span><span> </span><span class="annot"><a href="#local-6989586621682069867"><span class="hs-identifier hs-type">forcedArgCands</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntSet.empty</span></span><span>
+</span><span id="line-136"></span><span>      </span><span class="hs-keyword">else</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#runReduceM"><span class="hs-identifier hs-type">runReduceM</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#execForcedVariableCollection"><span class="hs-identifier hs-type">execForcedVariableCollection</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069867"><span class="hs-identifier hs-type">forcedArgCands</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-type">forcedVariables</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069876"><span class="hs-identifier hs-type">vs</span></a></span><span>
+</span><span id="line-137"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682069887"><span class="annot"><a href="#local-6989586621682069887"><span class="hs-identifier hs-var hs-var">forcedArgs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-138"></span><span>          </span><span class="hs-special">[</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Nat -&gt; IntSet -&gt; Bool
+</span><span class="hs-identifier hs-var">IntSet.member</span></span><span> </span><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682069889"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621682069880"><span class="hs-identifier hs-var">forcedVars</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">IsForced
+</span><a href="Agda.TypeChecking.Monad.Base.html#Forced"><span class="hs-identifier hs-var">Forced</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">IsForced
+</span><a href="Agda.TypeChecking.Monad.Base.html#NotForced"><span class="hs-identifier hs-var">NotForced</span></a></span><span>
+</span><span id="line-139"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621682069889"><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682069889"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Nat -&gt; [Nat]
+forall a. Integral a =&gt; a -&gt; [a]
+</span><a href="Agda.Utils.List.html#downFrom"><span class="hs-identifier hs-var">downFrom</span></a></span><span> </span><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682069865"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-140"></span><span>          </span><span class="hs-special">]</span><span>
+</span><span id="line-141"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportS"><span class="hs-identifier hs-type">reportS</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.force&quot;</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span>
+</span><span id="line-142"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;Forcing analysis for &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-type">prettyShow</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069852"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-143"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;  forcedVars  = &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntSet.toList</span></span><span> </span><span class="annot"><a href="#local-6989586621682069880"><span class="hs-identifier hs-type">forcedVars</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;  forcedArgs  = &quot;</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">++</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">show</span></span><span> </span><span class="annot"><a href="#local-6989586621682069887"><span class="hs-identifier hs-type">forcedArgs</span></a></span><span>
+</span><span id="line-145"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-146"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><a href="#local-6989586621682069887"><span class="hs-identifier hs-type">forcedArgs</span></a></span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- | Candidates for forced constructor arguments (@Just m@) with their modality (@m@)</span><span>
+</span><span id="line-149"></span><span class="hs-comment">--   in the constructor telescope.</span><span>
+</span><span id="line-150"></span><span class="hs-comment">--</span><span>
+</span><span id="line-151"></span><span class="hs-keyword">type</span><span> </span><span id="ForcedVariableCandidates"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCandidates"><span class="hs-identifier hs-var">ForcedVariableCandidates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Array</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Modality"><span class="hs-identifier hs-type">Modality</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- | Environment for forced variable collection.</span><span>
+</span><span id="line-154"></span><span class="hs-comment">--</span><span>
+</span><span id="line-155"></span><span class="hs-keyword">data</span><span> </span><span id="ForcedVariableContext"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-var">ForcedVariableContext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ForcedVariableContext"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-var">ForcedVariableContext</span></a></span></span><span>
+</span><span id="line-156"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="fvcModality"><span class="annot"><span class="annottext">ForcedVariableContext -&gt; Modality
+</span><a href="Agda.TypeChecking.Forcing.html#fvcModality"><span class="hs-identifier hs-var hs-var">fvcModality</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Modality"><span class="hs-identifier hs-type">Modality</span></a></span><span>
+</span><span id="line-157"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Modality of current position.  (Accumulated from traversed 'Arg's.)</span></span><span>
+</span><span id="line-158"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="fvcCandidates"><span class="annot"><span class="annottext">ForcedVariableContext -&gt; ForcedVariableCandidates
+</span><a href="Agda.TypeChecking.Forcing.html#fvcCandidates"><span class="hs-identifier hs-var hs-var">fvcCandidates</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCandidates"><span class="hs-identifier hs-type">ForcedVariableCandidates</span></a></span><span>
+</span><span id="line-159"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Candidates for forced variables.  (Immutable.)</span></span><span>
+</span><span id="line-160"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- | Which candidates are actually forced?</span><span>
+</span><span id="line-163"></span><span class="hs-comment">--</span><span>
+</span><span id="line-164"></span><span class="hs-keyword">type</span><span> </span><span id="ForcedVariableState"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableState"><span class="hs-identifier hs-var">ForcedVariableState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntSet</span></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- | Monad for forced variable analysis.</span><span>
+</span><span id="line-167"></span><span class="hs-comment">--</span><span>
+</span><span id="line-168"></span><span class="hs-keyword">newtype</span><span> </span><span id="ForcedVariableCollection%27"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection%27"><span class="hs-identifier hs-var">ForcedVariableCollection'</span></a></span></span><span> </span><span id="local-6989586621682069579"><span class="annot"><a href="#local-6989586621682069579"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ForcedVariableCollection"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-var">ForcedVariableCollection</span></a></span></span><span>
+</span><span id="line-169"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="runForcedVariableCollection"><span class="annot"><span class="annottext">forall a.
+ForcedVariableCollection' a
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) a
+</span><a href="Agda.TypeChecking.Forcing.html#runForcedVariableCollection"><span class="hs-identifier hs-var hs-var">runForcedVariableCollection</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-type">ForcedVariableContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableState"><span class="hs-identifier hs-type">ForcedVariableState</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier hs-type">ReduceM</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682069579"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-170"></span><span>  </span><span class="hs-keyword">deriving</span><span>
+</span><span id="line-171"></span><span>    </span><span class="hs-special">(</span><span> </span><span id="local-6989586621682069904"><span id="local-6989586621682069910"><span class="annot"><span class="annottext">(forall a b.
+ (a -&gt; b)
+ -&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b)
+-&gt; (forall a b.
+    a -&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a)
+-&gt; Functor ForcedVariableCollection'
+forall a b.
+a -&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a
+forall a b.
+(a -&gt; b)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b.
+(a -&gt; b)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b
+fmap :: forall a b.
+(a -&gt; b)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b
+$c&lt;$ :: forall a b.
+a -&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a
+&lt;$ :: forall a b.
+a -&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682069924"><span id="local-6989586621682069930"><span id="local-6989586621682069935"><span id="local-6989586621682069940"><span id="local-6989586621682069945"><span class="annot"><span class="annottext">Functor ForcedVariableCollection'
+Functor ForcedVariableCollection' =&gt;
+(forall a. a -&gt; ForcedVariableCollection' a)
+-&gt; (forall a b.
+    ForcedVariableCollection' (a -&gt; b)
+    -&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c)
+    -&gt; ForcedVariableCollection' a
+    -&gt; ForcedVariableCollection' b
+    -&gt; ForcedVariableCollection' c)
+-&gt; (forall a b.
+    ForcedVariableCollection' a
+    -&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b)
+-&gt; (forall a b.
+    ForcedVariableCollection' a
+    -&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a)
+-&gt; Applicative ForcedVariableCollection'
+forall a. a -&gt; ForcedVariableCollection' a
+forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a
+forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b
+forall a b.
+ForcedVariableCollection' (a -&gt; b)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b
+forall a b c.
+(a -&gt; b -&gt; c)
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b
+-&gt; ForcedVariableCollection' c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall a. a -&gt; ForcedVariableCollection' a
+pure :: forall a. a -&gt; ForcedVariableCollection' a
+$c&lt;*&gt; :: forall a b.
+ForcedVariableCollection' (a -&gt; b)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b
+&lt;*&gt; :: forall a b.
+ForcedVariableCollection' (a -&gt; b)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' b
+$cliftA2 :: forall a b c.
+(a -&gt; b -&gt; c)
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b
+-&gt; ForcedVariableCollection' c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c)
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b
+-&gt; ForcedVariableCollection' c
+$c*&gt; :: forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b
+*&gt; :: forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b
+$c&lt;* :: forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a
+&lt;* :: forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682069962"><span id="local-6989586621682069968"><span id="local-6989586621682069973"><span class="annot"><span class="annottext">Applicative ForcedVariableCollection'
+Applicative ForcedVariableCollection' =&gt;
+(forall a b.
+ ForcedVariableCollection' a
+ -&gt; (a -&gt; ForcedVariableCollection' b)
+ -&gt; ForcedVariableCollection' b)
+-&gt; (forall a b.
+    ForcedVariableCollection' a
+    -&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b)
+-&gt; (forall a. a -&gt; ForcedVariableCollection' a)
+-&gt; Monad ForcedVariableCollection'
+forall a. a -&gt; ForcedVariableCollection' a
+forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b
+forall a b.
+ForcedVariableCollection' a
+-&gt; (a -&gt; ForcedVariableCollection' b)
+-&gt; ForcedVariableCollection' b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall a b.
+ForcedVariableCollection' a
+-&gt; (a -&gt; ForcedVariableCollection' b)
+-&gt; ForcedVariableCollection' b
+&gt;&gt;= :: forall a b.
+ForcedVariableCollection' a
+-&gt; (a -&gt; ForcedVariableCollection' b)
+-&gt; ForcedVariableCollection' b
+$c&gt;&gt; :: forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b
+&gt;&gt; :: forall a b.
+ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' b -&gt; ForcedVariableCollection' b
+$creturn :: forall a. a -&gt; ForcedVariableCollection' a
+return :: forall a. a -&gt; ForcedVariableCollection' a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span>
+</span><span id="line-172"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621682069983"><span id="local-6989586621682069989"><span id="local-6989586621682069994"><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-type">ForcedVariableContext</span></a></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070003"><span id="local-6989586621682070009"><span id="local-6989586621682070014"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableState"><span class="hs-identifier hs-type">ForcedVariableState</span></a></span></span></span></span><span>
+</span><span id="line-173"></span><span>    </span><span class="hs-comment">-- Needed for HasConstInfo:</span><span>
+</span><span id="line-174"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070031"><span id="local-6989586621682070037"><span id="local-6989586621682070042"><span id="local-6989586621682070047"><span id="local-6989586621682070052"><span id="local-6989586621682070057"><span id="local-6989586621682070062"><span class="annot"><span class="annottext">Monad ForcedVariableCollection'
+Functor ForcedVariableCollection'
+Applicative ForcedVariableCollection'
+ForcedVariableCollection' Bool
+ForcedVariableCollection' Verbosity
+ForcedVariableCollection' ProfileOptions
+(Functor ForcedVariableCollection',
+ Applicative ForcedVariableCollection',
+ Monad ForcedVariableCollection') =&gt;
+(ArgName -&gt; Nat -&gt; TCM Doc -&gt; ForcedVariableCollection' Doc)
+-&gt; (forall a.
+    ArgName
+    -&gt; Nat
+    -&gt; Doc
+    -&gt; ForcedVariableCollection' a
+    -&gt; ForcedVariableCollection' a)
+-&gt; (forall a.
+    ArgName
+    -&gt; Nat
+    -&gt; ArgName
+    -&gt; ForcedVariableCollection' a
+    -&gt; ForcedVariableCollection' a)
+-&gt; ForcedVariableCollection' Verbosity
+-&gt; ForcedVariableCollection' ProfileOptions
+-&gt; ForcedVariableCollection' Bool
+-&gt; (forall a.
+    ForcedVariableCollection' a -&gt; ForcedVariableCollection' a)
+-&gt; MonadDebug ForcedVariableCollection'
+ArgName -&gt; Nat -&gt; TCM Doc -&gt; ForcedVariableCollection' Doc
+forall a.
+ArgName
+-&gt; Nat
+-&gt; ArgName
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' a
+forall a.
+ArgName
+-&gt; Nat
+-&gt; Doc
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' a
+forall a.
+ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+forall (m :: * -&gt; *).
+(Functor m, Applicative m, Monad m) =&gt;
+(ArgName -&gt; Nat -&gt; TCM Doc -&gt; m Doc)
+-&gt; (forall a. ArgName -&gt; Nat -&gt; Doc -&gt; m a -&gt; m a)
+-&gt; (forall a. ArgName -&gt; Nat -&gt; ArgName -&gt; m a -&gt; m a)
+-&gt; m Verbosity
+-&gt; m ProfileOptions
+-&gt; m Bool
+-&gt; (forall a. m a -&gt; m a)
+-&gt; MonadDebug m
+$cformatDebugMessage :: ArgName -&gt; Nat -&gt; TCM Doc -&gt; ForcedVariableCollection' Doc
+formatDebugMessage :: ArgName -&gt; Nat -&gt; TCM Doc -&gt; ForcedVariableCollection' Doc
+$ctraceDebugMessage :: forall a.
+ArgName
+-&gt; Nat
+-&gt; Doc
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' a
+traceDebugMessage :: forall a.
+ArgName
+-&gt; Nat
+-&gt; Doc
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' a
+$cverboseBracket :: forall a.
+ArgName
+-&gt; Nat
+-&gt; ArgName
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' a
+verboseBracket :: forall a.
+ArgName
+-&gt; Nat
+-&gt; ArgName
+-&gt; ForcedVariableCollection' a
+-&gt; ForcedVariableCollection' a
+$cgetVerbosity :: ForcedVariableCollection' Verbosity
+getVerbosity :: ForcedVariableCollection' Verbosity
+$cgetProfileOptions :: ForcedVariableCollection' ProfileOptions
+getProfileOptions :: ForcedVariableCollection' ProfileOptions
+$cisDebugPrinting :: ForcedVariableCollection' Bool
+isDebugPrinting :: ForcedVariableCollection' Bool
+$cnowDebugPrinting :: forall a.
+ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+nowDebugPrinting :: forall a.
+ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+</span><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">MonadDebug</span></a></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070087"><span id="local-6989586621682070093"><span class="annot"><span class="annottext">Monad ForcedVariableCollection'
+ForcedVariableCollection' TCEnv
+Monad ForcedVariableCollection' =&gt;
+ForcedVariableCollection' TCEnv
+-&gt; (forall a.
+    (TCEnv -&gt; TCEnv)
+    -&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a)
+-&gt; MonadTCEnv ForcedVariableCollection'
+forall a.
+(TCEnv -&gt; TCEnv)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+m TCEnv
+-&gt; (forall a. (TCEnv -&gt; TCEnv) -&gt; m a -&gt; m a) -&gt; MonadTCEnv m
+$caskTC :: ForcedVariableCollection' TCEnv
+askTC :: ForcedVariableCollection' TCEnv
+$clocalTC :: forall a.
+(TCEnv -&gt; TCEnv)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+localTC :: forall a.
+(TCEnv -&gt; TCEnv)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+</span><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var">MonadTCEnv</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070112"><span id="local-6989586621682070118"><span class="annot"><span class="annottext">Monad ForcedVariableCollection'
+Functor ForcedVariableCollection'
+Applicative ForcedVariableCollection'
+ForcedVariableCollection' PragmaOptions
+ForcedVariableCollection' CommandLineOptions
+(Functor ForcedVariableCollection',
+ Applicative ForcedVariableCollection',
+ Monad ForcedVariableCollection') =&gt;
+ForcedVariableCollection' PragmaOptions
+-&gt; ForcedVariableCollection' CommandLineOptions
+-&gt; HasOptions ForcedVariableCollection'
+forall (m :: * -&gt; *).
+(Functor m, Applicative m, Monad m) =&gt;
+m PragmaOptions -&gt; m CommandLineOptions -&gt; HasOptions m
+$cpragmaOptions :: ForcedVariableCollection' PragmaOptions
+pragmaOptions :: ForcedVariableCollection' PragmaOptions
+$ccommandLineOptions :: ForcedVariableCollection' CommandLineOptions
+commandLineOptions :: ForcedVariableCollection' CommandLineOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">HasOptions</span></a></span></span></span><span>
+</span><span id="line-175"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070140"><span id="local-6989586621682070149"><span id="local-6989586621682070157"><span class="annot"><span class="annottext">Functor ForcedVariableCollection'
+Applicative ForcedVariableCollection'
+HasOptions ForcedVariableCollection'
+MonadTCEnv ForcedVariableCollection'
+MonadDebug ForcedVariableCollection'
+(Functor ForcedVariableCollection',
+ Applicative ForcedVariableCollection',
+ HasOptions ForcedVariableCollection',
+ MonadDebug ForcedVariableCollection',
+ MonadTCEnv ForcedVariableCollection') =&gt;
+(HasCallStack =&gt; QName -&gt; ForcedVariableCollection' Definition)
+-&gt; (HasCallStack =&gt;
+    QName -&gt; ForcedVariableCollection' (Either SigError Definition))
+-&gt; (QName -&gt; ForcedVariableCollection' RewriteRules)
+-&gt; HasConstInfo ForcedVariableCollection'
+HasCallStack =&gt;
+QName -&gt; ForcedVariableCollection' (Either SigError Definition)
+HasCallStack =&gt; QName -&gt; ForcedVariableCollection' Definition
+QName -&gt; ForcedVariableCollection' RewriteRules
+forall (m :: * -&gt; *).
+(Functor m, Applicative m, HasOptions m, MonadDebug m,
+ MonadTCEnv m) =&gt;
+(HasCallStack =&gt; QName -&gt; m Definition)
+-&gt; (HasCallStack =&gt; QName -&gt; m (Either SigError Definition))
+-&gt; (QName -&gt; m RewriteRules)
+-&gt; HasConstInfo m
+$cgetConstInfo :: HasCallStack =&gt; QName -&gt; ForcedVariableCollection' Definition
+getConstInfo :: HasCallStack =&gt; QName -&gt; ForcedVariableCollection' Definition
+$cgetConstInfo' :: HasCallStack =&gt;
+QName -&gt; ForcedVariableCollection' (Either SigError Definition)
+getConstInfo' :: HasCallStack =&gt;
+QName -&gt; ForcedVariableCollection' (Either SigError Definition)
+$cgetRewriteRulesFor :: QName -&gt; ForcedVariableCollection' RewriteRules
+getRewriteRulesFor :: QName -&gt; ForcedVariableCollection' RewriteRules
+</span><a href="Agda.TypeChecking.Monad.Signature.html#HasConstInfo"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">HasConstInfo</span></a></span></span></span></span><span>
+</span><span id="line-176"></span><span>    </span><span class="hs-comment">-- Neded for MonadReduce:</span><span>
+</span><span id="line-177"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070174"><span id="local-6989586621682070180"><span id="local-6989586621682070185"><span class="annot"><span class="annottext">Monad ForcedVariableCollection'
+ForcedVariableCollection' TCState
+Monad ForcedVariableCollection' =&gt;
+ForcedVariableCollection' TCState
+-&gt; (forall a b.
+    Lens' TCState a
+    -&gt; (a -&gt; a)
+    -&gt; ForcedVariableCollection' b
+    -&gt; ForcedVariableCollection' b)
+-&gt; (forall a.
+    (TCState -&gt; TCState)
+    -&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a)
+-&gt; ReadTCState ForcedVariableCollection'
+forall a.
+(TCState -&gt; TCState)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+forall a b.
+Lens' TCState a
+-&gt; (a -&gt; a)
+-&gt; ForcedVariableCollection' b
+-&gt; ForcedVariableCollection' b
+forall (m :: * -&gt; *).
+Monad m =&gt;
+m TCState
+-&gt; (forall a b. Lens' TCState a -&gt; (a -&gt; a) -&gt; m b -&gt; m b)
+-&gt; (forall a. (TCState -&gt; TCState) -&gt; m a -&gt; m a)
+-&gt; ReadTCState m
+$cgetTCState :: ForcedVariableCollection' TCState
+getTCState :: ForcedVariableCollection' TCState
+$clocallyTCState :: forall a b.
+Lens' TCState a
+-&gt; (a -&gt; a)
+-&gt; ForcedVariableCollection' b
+-&gt; ForcedVariableCollection' b
+locallyTCState :: forall a b.
+Lens' TCState a
+-&gt; (a -&gt; a)
+-&gt; ForcedVariableCollection' b
+-&gt; ForcedVariableCollection' b
+$cwithTCState :: forall a.
+(TCState -&gt; TCState)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+withTCState :: forall a.
+(TCState -&gt; TCState)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+</span><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">ReadTCState</span></a></span></span></span></span><span>
+</span><span id="line-178"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070208"><span class="annot"><span class="annottext">Applicative ForcedVariableCollection'
+HasOptions ForcedVariableCollection'
+MonadTCEnv ForcedVariableCollection'
+ReadTCState ForcedVariableCollection'
+(Applicative ForcedVariableCollection',
+ MonadTCEnv ForcedVariableCollection',
+ ReadTCState ForcedVariableCollection',
+ HasOptions ForcedVariableCollection') =&gt;
+(forall a. ReduceM a -&gt; ForcedVariableCollection' a)
+-&gt; MonadReduce ForcedVariableCollection'
+forall a. ReduceM a -&gt; ForcedVariableCollection' a
+forall (m :: * -&gt; *).
+(Applicative m, MonadTCEnv m, ReadTCState m, HasOptions m) =&gt;
+(forall a. ReduceM a -&gt; m a) -&gt; MonadReduce m
+$cliftReduce :: forall a. ReduceM a -&gt; ForcedVariableCollection' a
+liftReduce :: forall a. ReduceM a -&gt; ForcedVariableCollection' a
+</span><a href="Agda.TypeChecking.Monad.Base.html#MonadReduce"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">MonadReduce</span></a></span></span><span>
+</span><span id="line-179"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span class="hs-keyword">type</span><span> </span><span id="ForcedVariableCollection"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-var">ForcedVariableCollection</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection%27"><span class="hs-identifier hs-type">ForcedVariableCollection'</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682070221"><span id="local-6989586621682070225"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-184"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span> </span><span id="local-6989586621682070232"><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+</span><a href="#local-6989586621682070232"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621682070233"><span class="annot"><span class="annottext">&lt;&gt; :: ForcedVariableCollection
+-&gt; ForcedVariableCollection -&gt; ForcedVariableCollection
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span> </span><span id="local-6989586621682070234"><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+</span><a href="#local-6989586621682070234"><span class="hs-identifier hs-var">m'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ForcedVariableCollection
+forall a.
+ReaderT ForcedVariableContext (StateT IntSet ReduceM) a
+-&gt; ForcedVariableCollection' a
+</span><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-var">ForcedVariableCollection</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+</span><a href="#local-6989586621682070232"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+forall a b.
+ReaderT ForcedVariableContext (StateT IntSet ReduceM) a
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) b
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+</span><a href="#local-6989586621682070234"><span class="hs-identifier hs-var">m'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-185"></span><span>
+</span><span id="line-186"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682070239"><span id="local-6989586621682070243"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-187"></span><span>  </span><span id="local-6989586621682070249"><span class="annot"><span class="annottext">mempty :: ForcedVariableCollection
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ForcedVariableCollection
+forall a.
+ReaderT ForcedVariableContext (StateT IntSet ReduceM) a
+-&gt; ForcedVariableCollection' a
+</span><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-var">ForcedVariableCollection</span></a></span><span> </span><span class="annot"><span class="annottext">(ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+ -&gt; ForcedVariableCollection)
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ForcedVariableCollection
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">() -&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+forall a.
+a -&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Modality"><span class="hs-identifier hs-type">Modality</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-190"></span><span>  </span><span id="local-6989586621682070266"><span class="annot"><span class="annottext">singleton :: (Nat, Modality) -&gt; ForcedVariableCollection
+</span><a href="#local-6989586621682070266"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682070268"><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682070268"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682070269"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070269"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ForcedVariableCollection
+forall a.
+ReaderT ForcedVariableContext (StateT IntSet ReduceM) a
+-&gt; ForcedVariableCollection' a
+</span><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-var">ForcedVariableCollection</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-191"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-type">ForcedVariableContext</span></a></span><span> </span><span id="local-6989586621682070270"><span class="annot"><a href="#local-6989586621682070270"><span class="hs-identifier hs-var">mc</span></a></span></span><span> </span><span id="local-6989586621682070271"><span class="annot"><a href="#local-6989586621682070271"><span class="hs-identifier hs-var">cands</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ReaderT
+  ForcedVariableContext (StateT IntSet ReduceM) ForcedVariableContext
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-192"></span><span>    </span><span class="annot"><a href="Agda.Utils.Maybe.html#whenJust"><span class="hs-identifier hs-type">whenJust</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">join</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621682070271"><span class="hs-identifier hs-type">cands</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">Array.!?</span></span><span> </span><span class="annot"><a href="#local-6989586621682070268"><span class="hs-identifier hs-type">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621682070274"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070274"><span class="hs-identifier hs-var">m0</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-193"></span><span>      </span><span class="hs-comment">-- #2819: We can only mark an argument as forced if it appears in the</span><span>
+</span><span id="line-194"></span><span>      </span><span class="hs-comment">-- type with a relevance below (i.e. more relevant) than the one of the</span><span>
+</span><span id="line-195"></span><span>      </span><span class="hs-comment">-- constructor argument. Otherwise we can't actually get the value from</span><span>
+</span><span id="line-196"></span><span>      </span><span class="hs-comment">-- the type.</span><span>
+</span><span id="line-197"></span><span>      </span><span class="annot"><span class="annottext">Bool
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+forall b (m :: * -&gt; *). (IsBool b, Monad m) =&gt; b -&gt; m () -&gt; m ()
+</span><a href="Agda.Utils.Monad.html#when"><span class="hs-identifier hs-var">when</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; Modality -&gt; Modality
+</span><a href="Agda.Syntax.Common.html#composeModality"><span class="hs-identifier hs-var">composeModality</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070270"><span class="hs-identifier hs-var">mc</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070269"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Modality -&gt; Modality -&gt; Bool
+</span><a href="Agda.Syntax.Common.html#moreUsableModality"><span class="hs-operator hs-var">`moreUsableModality`</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070274"><span class="hs-identifier hs-var">m0</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-198"></span><span>        </span><span class="annot"><span class="annottext">(IntSet -&gt; IntSet)
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">((IntSet -&gt; IntSet)
+ -&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ())
+-&gt; (IntSet -&gt; IntSet)
+-&gt; ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Nat -&gt; IntSet -&gt; IntSet
+</span><span class="hs-identifier hs-var">IntSet.insert</span></span><span> </span><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682070268"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-199"></span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- | Step into an argument labelled with the given modality.</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--</span><span>
+</span><span id="line-202"></span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#underModality"><span class="hs-identifier hs-type">underModality</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Modality"><span class="hs-identifier hs-type">Modality</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span>
+</span><span id="line-203"></span><span id="underModality"><span class="annot"><span class="annottext">underModality :: Modality -&gt; ForcedVariableCollection -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#underModality"><span class="hs-identifier hs-var hs-var">underModality</span></a></span></span><span> </span><span id="local-6989586621682070280"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070280"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ForcedVariableContext -&gt; ForcedVariableContext)
+-&gt; ForcedVariableCollection -&gt; ForcedVariableCollection
+forall a.
+(ForcedVariableContext -&gt; ForcedVariableContext)
+-&gt; ForcedVariableCollection' a -&gt; ForcedVariableCollection' a
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-type">ForcedVariableContext</span></a></span><span> </span><span id="local-6989586621682070281"><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070281"><span class="hs-identifier hs-var">mc</span></a></span></span><span> </span><span id="local-6989586621682070282"><span class="annot"><span class="annottext">ForcedVariableCandidates
+</span><a href="#local-6989586621682070282"><span class="hs-identifier hs-var">cands</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Modality -&gt; ForcedVariableCandidates -&gt; ForcedVariableContext
+</span><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-var">ForcedVariableContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Modality -&gt; Modality -&gt; Modality
+</span><a href="Agda.Syntax.Common.html#composeModality"><span class="hs-identifier hs-var">composeModality</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070281"><span class="hs-identifier hs-var">mc</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070280"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ForcedVariableCandidates
+</span><a href="#local-6989586621682070282"><span class="hs-identifier hs-var">cands</span></a></span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span class="annot"><span class="hs-comment">-- | Run the forced variable analysis monad.</span></span><span>
+</span><span id="line-206"></span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#execForcedVariableCollection"><span class="hs-identifier hs-type">execForcedVariableCollection</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCandidates"><span class="hs-identifier hs-type">ForcedVariableCandidates</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReduceM"><span class="hs-identifier hs-type">ReduceM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableState"><span class="hs-identifier hs-type">ForcedVariableState</span></a></span><span>
+</span><span id="line-207"></span><span id="execForcedVariableCollection"><span class="annot"><span class="annottext">execForcedVariableCollection :: ForcedVariableCandidates
+-&gt; ForcedVariableCollection -&gt; ReduceM IntSet
+</span><a href="Agda.TypeChecking.Forcing.html#execForcedVariableCollection"><span class="hs-identifier hs-var hs-var">execForcedVariableCollection</span></a></span></span><span> </span><span id="local-6989586621682070283"><span class="annot"><span class="annottext">ForcedVariableCandidates
+</span><a href="#local-6989586621682070283"><span class="hs-identifier hs-var">cands</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span> </span><span id="local-6989586621682070284"><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+</span><a href="#local-6989586621682070284"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-208"></span><span>  </span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+</span><a href="#local-6989586621682070284"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; (ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+    -&gt; StateT IntSet ReduceM ())
+-&gt; StateT IntSet ReduceM ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ReaderT ForcedVariableContext (StateT IntSet ReduceM) ()
+-&gt; ForcedVariableContext -&gt; StateT IntSet ReduceM ()
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-operator hs-var">`runReaderT`</span></span><span> </span><span class="annot"><span class="annottext">ForcedVariableContext
+</span><a href="#local-6989586621682070285"><span class="hs-identifier hs-var">cxt</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-209"></span><span>    </span><span class="annot"><span class="annottext">StateT IntSet ReduceM ()
+-&gt; (StateT IntSet ReduceM () -&gt; ReduceM IntSet) -&gt; ReduceM IntSet
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">StateT IntSet ReduceM () -&gt; IntSet -&gt; ReduceM IntSet
+forall (m :: * -&gt; *) s a. Monad m =&gt; StateT s m a -&gt; s -&gt; m s
+</span><span class="hs-operator hs-var">`execStateT`</span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><span class="hs-identifier hs-var">IntSet.empty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-210"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621682070285"><span class="annot"><span class="annottext">cxt :: ForcedVariableContext
+</span><a href="#local-6989586621682070285"><span class="hs-identifier hs-var hs-var">cxt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Modality -&gt; ForcedVariableCandidates -&gt; ForcedVariableContext
+</span><a href="Agda.TypeChecking.Forcing.html#ForcedVariableContext"><span class="hs-identifier hs-var">ForcedVariableContext</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="Agda.Syntax.Common.html#unitModality"><span class="hs-identifier hs-var">unitModality</span></a></span><span> </span><span class="annot"><span class="annottext">ForcedVariableCandidates
+</span><a href="#local-6989586621682070283"><span class="hs-identifier hs-var">cands</span></a></span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span class="annot"><span class="hs-comment">-- | Compute the pattern variables of a term or term-like thing.</span></span><span>
+</span><span id="line-213"></span><span class="hs-keyword">class</span><span> </span><span id="ForcedVariables"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-var">ForcedVariables</span></a></span></span><span> </span><span id="local-6989586621682069571"><span class="annot"><a href="#local-6989586621682069571"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-214"></span><span>  </span><span id="forcedVariables"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-type">forcedVariables</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621682069571"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="forcedVariables"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-type">forcedVariables</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-217"></span><span>    </span><span id="local-6989586621682069737"><span id="local-6989586621682069738"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069737"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621682069738"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682069571"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621682069738"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069737"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-218"></span><span>    </span><span class="annot"><a href="#local-6989586621682069571"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariableCollection"><span class="hs-identifier hs-type">ForcedVariableCollection</span></a></span></span></span><span>
+</span><span id="line-219"></span><span>  </span><span id="local-6989586621682070288"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var hs-var">forcedVariables</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; ForcedVariableCollection) -&gt; t b -&gt; ForcedVariableCollection
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; ForcedVariableCollection
+forall a. ForcedVariables a =&gt; a -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var">forcedVariables</span></a></span></span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682069530"><span id="local-6989586621682070299"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069530"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621682069530"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-222"></span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- Note that the 'a' does not include the 'Arg' in 'Apply'.</span><span>
+</span><span id="line-224"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682069529"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069529"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069529"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-225"></span><span>  </span><span id="local-6989586621682070312"><span class="annot"><span class="annottext">forcedVariables :: Elim' a -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var hs-var hs-var">forcedVariables</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621682070314"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621682070314"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; ForcedVariableCollection
+forall a. ForcedVariables a =&gt; a -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var">forcedVariables</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621682070314"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-226"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var">forcedVariables</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ForcedVariableCollection
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>  </span><span class="hs-comment">-- No forced variables in path applications</span><span>
+</span><span id="line-227"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var">forcedVariables</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ForcedVariableCollection
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-228"></span><span>
+</span><span id="line-229"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621682069747"><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069747"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682069747"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-230"></span><span>  </span><span id="local-6989586621682070322"><span class="annot"><span class="annottext">forcedVariables :: Arg a -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var hs-var hs-var">forcedVariables</span></a></span></span><span> </span><span id="local-6989586621682070323"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621682070323"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-231"></span><span>    </span><span class="annot"><span class="annottext">Modality -&gt; ForcedVariableCollection -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#underModality"><span class="hs-identifier hs-var">underModality</span></a></span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="#local-6989586621682070324"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">(ForcedVariableCollection -&gt; ForcedVariableCollection)
+-&gt; ForcedVariableCollection -&gt; ForcedVariableCollection
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ForcedVariableCollection
+forall a. ForcedVariables a =&gt; a -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var">forcedVariables</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; ForcedVariableCollection) -&gt; a -&gt; ForcedVariableCollection
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; a
+forall e. Arg e -&gt; e
+</span><a href="Agda.Syntax.Common.html#unArg"><span class="hs-identifier hs-var">unArg</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621682070323"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-232"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621682070324"><span class="annot"><span class="annottext">m :: Modality
+</span><a href="#local-6989586621682070324"><span class="hs-identifier hs-var hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a -&gt; Modality
+forall a. LensModality a =&gt; a -&gt; Modality
+</span><a href="Agda.Syntax.Common.html#getModality"><span class="hs-identifier hs-var">getModality</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621682070323"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-233"></span><span>
+</span><span id="line-234"></span><span class="annot"><span class="hs-comment">-- | Assumes that the term is in normal form.</span></span><span>
+</span><span id="line-235"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#ForcedVariables"><span class="hs-identifier hs-type">ForcedVariables</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-236"></span><span>  </span><span class="hs-comment">-- Andreas, 2024-07-07, issue #6744, add reduction.</span><span>
+</span><span id="line-237"></span><span>  </span><span id="local-6989586621682070339"><span class="annot"><span class="annottext">forcedVariables :: Term -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var hs-var hs-var">forcedVariables</span></a></span></span><span> </span><span id="local-6989586621682070340"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682070340"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; ForcedVariableCollection' Term
+forall a (m :: * -&gt; *). (Reduce a, MonadReduce m) =&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Reduce.html#reduce"><span class="hs-identifier hs-var">reduce</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621682070340"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">ForcedVariableCollection' Term
+-&gt; (Term -&gt; ForcedVariableCollection) -&gt; ForcedVariableCollection
+forall a b.
+ForcedVariableCollection' a
+-&gt; (a -&gt; ForcedVariableCollection' b)
+-&gt; ForcedVariableCollection' b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-238"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621682070343"><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682070343"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Nat, Modality) -&gt; ForcedVariableCollection
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Nat
+</span><a href="#local-6989586621682070343"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Modality
+</span><a href="Agda.Syntax.Common.html#unitModality"><span class="hs-identifier hs-var">unitModality</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-239"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span> </span><span id="local-6989586621682070345"><span class="annot"><span class="annottext">ConHead
+</span><a href="#local-6989586621682070345"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="annottext">ConInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682070346"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682070346"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ForcedVariableCollection' Bool
+-&gt; ForcedVariableCollection
+-&gt; ForcedVariableCollection
+-&gt; ForcedVariableCollection
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier hs-var">ifM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; ForcedVariableCollection' Bool
+forall (m :: * -&gt; *).
+(HasCallStack, HasConstInfo m) =&gt;
+QName -&gt; m Bool
+</span><a href="Agda.TypeChecking.Datatypes.html#consOfHIT"><span class="hs-identifier hs-var">consOfHIT</span></a></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; ForcedVariableCollection' Bool)
+-&gt; QName -&gt; ForcedVariableCollection' Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ConHead -&gt; QName
+</span><a href="Agda.Syntax.Internal.html#conName"><span class="hs-identifier hs-var">conName</span></a></span><span> </span><span class="annot"><span class="annottext">ConHead
+</span><a href="#local-6989586621682070345"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ForcedVariableCollection
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">(ForcedVariableCollection -&gt; ForcedVariableCollection)
+-&gt; ForcedVariableCollection -&gt; ForcedVariableCollection
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-comment">{-else-}</span><span> </span><span class="annot"><span class="annottext">Elims -&gt; ForcedVariableCollection
+forall a. ForcedVariables a =&gt; a -&gt; ForcedVariableCollection
+</span><a href="Agda.TypeChecking.Forcing.html#forcedVariables"><span class="hs-identifier hs-var">forcedVariables</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621682070346"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-240"></span><span>    </span><span class="annot"><span class="annottext">Term
+</span><span class="hs-identifier">_</span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ForcedVariableCollection
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#isForced"><span class="hs-identifier hs-type">isForced</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#IsForced"><span class="hs-identifier hs-type">IsForced</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-243"></span><span id="isForced"><span class="annot"><span class="annottext">isForced :: IsForced -&gt; Bool
+</span><a href="Agda.TypeChecking.Forcing.html#isForced"><span class="hs-identifier hs-var hs-var">isForced</span></a></span></span><span> </span><span class="annot"><span class="annottext">IsForced
+</span><a href="Agda.TypeChecking.Monad.Base.html#Forced"><span class="hs-identifier hs-var">Forced</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-244"></span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#isForced"><span class="hs-identifier hs-var">isForced</span></a></span><span> </span><span class="annot"><span class="annottext">IsForced
+</span><a href="Agda.TypeChecking.Monad.Base.html#NotForced"><span class="hs-identifier hs-var">NotForced</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-245"></span><span>
+</span><span id="line-246"></span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#nextIsForced"><span class="hs-identifier hs-type">nextIsForced</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#IsForced"><span class="hs-identifier hs-type">IsForced</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#IsForced"><span class="hs-identifier hs-type">IsForced</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#IsForced"><span class="hs-identifier hs-type">IsForced</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-247"></span><span id="nextIsForced"><span class="annot"><span class="annottext">nextIsForced :: [IsForced] -&gt; (IsForced, [IsForced])
+</span><a href="Agda.TypeChecking.Forcing.html#nextIsForced"><span class="hs-identifier hs-var hs-var">nextIsForced</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IsForced
+</span><a href="Agda.TypeChecking.Monad.Base.html#NotForced"><span class="hs-identifier hs-var">NotForced</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-248"></span><span class="annot"><a href="Agda.TypeChecking.Forcing.html#nextIsForced"><span class="hs-identifier hs-var">nextIsForced</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682070349"><span class="annot"><span class="annottext">IsForced
+</span><a href="#local-6989586621682070349"><span class="hs-identifier hs-var">f</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621682070350"><span class="annot"><span class="annottext">[IsForced]
+</span><a href="#local-6989586621682070350"><span class="hs-identifier hs-var">fs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IsForced
+</span><a href="#local-6989586621682070349"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[IsForced]
+</span><a href="#local-6989586621682070350"><span class="hs-identifier hs-var">fs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-249"></span></pre></body></html>

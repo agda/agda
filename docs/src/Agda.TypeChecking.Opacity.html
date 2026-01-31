@@ -1,0 +1,566 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE NondecreasingIndentation #-}</span><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Opacity.html"><span class="hs-identifier">Agda.TypeChecking.Opacity</span></a></span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Opacity.html#saturateOpaqueBlocks"><span class="hs-identifier">saturateOpaqueBlocks</span></a></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Opacity.html#isAccessibleDef"><span class="hs-identifier">isAccessibleDef</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Opacity.html#hasAccessibleDef"><span class="hs-identifier">hasAccessibleDef</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.HashMap.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">HashMap</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.HashSet</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">HashSet</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.HashMap.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">HashMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.HashSet</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">HashSet</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.html"><span class="hs-identifier">Agda.Syntax.Abstract</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html"><span class="hs-identifier">Agda.TypeChecking.Warnings</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html"><span class="hs-identifier">Agda.TypeChecking.Pretty</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Ensure that opaque blocks defined in the current module have</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- saturated unfolding sets.</span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Agda.TypeChecking.Opacity.html#saturateOpaqueBlocks"><span class="hs-identifier hs-type">saturateOpaqueBlocks</span></a></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621682029427"><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCState"><span class="hs-identifier hs-type">MonadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadFresh"><span class="hs-identifier hs-type">MonadFresh</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Trace.html#MonadTrace"><span class="hs-identifier hs-type">MonadTrace</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span id="saturateOpaqueBlocks"><span class="annot"><span class="annottext">saturateOpaqueBlocks :: forall (m :: * -&gt; *).
+(MonadTCState m, ReadTCState m, MonadFresh OpaqueId m,
+ MonadDebug m, MonadTrace m, MonadWarning m, MonadIO m) =&gt;
+m ()
+</span><a href="Agda.TypeChecking.Opacity.html#saturateOpaqueBlocks"><span class="hs-identifier hs-var hs-var">saturateOpaqueBlocks</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621682029764"><span class="hs-identifier hs-var">entry</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>  </span><span id="local-6989586621682029764"><span class="annot"><span class="annottext">entry :: m ()
+</span><a href="#local-6989586621682029764"><span class="hs-identifier hs-var hs-var">entry</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-45"></span><span>    </span><span id="local-6989586621682029765"><span class="annot"><a href="#local-6989586621682029765"><span class="hs-identifier hs-var">known</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCState (Map OpaqueId OpaqueBlock)
+-&gt; m (Map OpaqueId OpaqueBlock)
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Map OpaqueId OpaqueBlock -&gt; f (Map OpaqueId OpaqueBlock))
+-&gt; TCState -&gt; f TCState
+Lens' TCState (Map OpaqueId OpaqueBlock)
+</span><a href="Agda.TypeChecking.Monad.Base.html#stOpaqueBlocks"><span class="hs-identifier hs-var">stOpaqueBlocks</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span id="local-6989586621682029770"><span class="annot"><a href="#local-6989586621682029770"><span class="hs-identifier hs-var">inverse</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stOpaqueIds"><span class="hs-identifier hs-type">stOpaqueIds</span></a></span><span>
+</span><span id="line-47"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span> </span><span class="annot"><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682029775"><span class="annot"><a href="#local-6989586621682029775"><span class="hs-identifier hs-var">ourmod</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#fresh"><span class="hs-identifier hs-type">fresh</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>    </span><span id="local-6989586621682029777"><span class="annot"><a href="#local-6989586621682029777"><span class="hs-identifier hs-var">canonical</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stCopiedNames"><span class="hs-identifier hs-type">stCopiedNames</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span id="local-6989586621682029781"><span class="annot"><a href="#local-6989586621682029781"><span class="hs-identifier hs-var">backcopies</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-type">useTC</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stNameCopies"><span class="hs-identifier hs-type">stNameCopies</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.opaque.copy&quot;</span></span><span> </span><span class="annot"><span class="hs-number">45</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Canonical names of copied definitions:&quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%24%2B%24"><span class="hs-operator hs-type">$+$</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">HashMap.toList</span></span><span> </span><span class="annot"><a href="#local-6989586621682029777"><span class="hs-identifier hs-type">canonical</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.opaque.copy&quot;</span></span><span> </span><span class="annot"><span class="hs-number">45</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Backcopies:&quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%24%2B%24"><span class="hs-operator hs-type">$+$</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">HashMap.toList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">toList</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$&gt;</span></span><span> </span><span class="annot"><a href="#local-6989586621682029781"><span class="hs-identifier hs-type">backcopies</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-56"></span><span>      </span><span id="local-6989586621682029791"><span class="annot"><a href="#local-6989586621682029791"><span class="hs-identifier hs-var hs-var">isOurs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621682029792"><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621682029792"><span class="hs-identifier hs-var">mod</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621682029792"><span class="hs-identifier hs-var">mod</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621682029775"><span class="hs-identifier hs-var">ourmod</span></a></span><span>
+</span><span id="line-57"></span><span>      </span><span id="local-6989586621682029793"><span class="annot"><a href="#local-6989586621682029793"><span class="hs-identifier hs-var hs-var">canonise</span></a></span></span><span> </span><span id="local-6989586621682029794"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682029794"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Maybe QName -&gt; QName
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682029794"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; HashMap QName QName -&gt; Maybe QName
+forall k v. Hashable k =&gt; k -&gt; HashMap k v -&gt; Maybe v
+</span><span class="hs-identifier hs-var">HashMap.lookup</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682029794"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">HashMap QName QName
+</span><a href="#local-6989586621682029777"><span class="hs-identifier hs-var">canonical</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>      </span><span id="local-6989586621682029797"><span class="annot"><a href="#local-6989586621682029797"><span class="hs-identifier hs-var hs-var">ours</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(OpaqueId, OpaqueBlock) -&gt; OpaqueBlock
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">((OpaqueId, OpaqueBlock) -&gt; OpaqueBlock)
+-&gt; [(OpaqueId, OpaqueBlock)] -&gt; [OpaqueBlock]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">((OpaqueId, OpaqueBlock) -&gt; Bool)
+-&gt; [(OpaqueId, OpaqueBlock)] -&gt; [(OpaqueId, OpaqueBlock)]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="annot"><span class="annottext">(OpaqueId, OpaqueBlock) -&gt; Bool
+</span><a href="#local-6989586621682029791"><span class="hs-identifier hs-var">isOurs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock -&gt; [(OpaqueId, OpaqueBlock)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toAscList</span></span><span> </span><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock
+</span><a href="#local-6989586621682029765"><span class="hs-identifier hs-var">known</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">evaluate</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">rnf</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621682029777"><span class="hs-identifier hs-type">canonical</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682029781"><span class="hs-identifier hs-type">backcopies</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.opaque&quot;</span></span><span> </span><span class="annot"><span class="hs-number">30</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#vcat"><span class="hs-identifier hs-type">vcat</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-63"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;Opaque blocks defined in this module:&quot;</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="hs-identifier hs-type">map</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029797"><span class="hs-identifier hs-type">ours</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-comment">-- Only compute transitive closure for opaque blocks declared in</span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-comment">-- the current top-level module. Deserialised blocks are always</span><span>
+</span><span id="line-67"></span><span>    </span><span class="hs-comment">-- closed, so this work would be redundant.</span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621682029805"><span class="annot"><a href="#local-6989586621682029805"><span class="hs-identifier hs-var">blocks</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682029806"><span class="annot"><a href="#local-6989586621682029806"><span class="hs-identifier hs-var">names</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621682029807"><span class="hs-identifier hs-type">computeClosure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029793"><span class="hs-identifier hs-type">canonise</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029765"><span class="hs-identifier hs-type">known</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029770"><span class="hs-identifier hs-type">inverse</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029797"><span class="hs-identifier hs-type">ours</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-comment">-- Associate copies with the opaque blocks of their originals. Since</span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-comment">-- modules importing this one won't know how to canonicalise names</span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-comment">-- we have defined, we make the work easier for them by associating</span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-comment">-- copies with their original's opaque blocks.</span><span>
+</span><span id="line-74"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682029808"><span class="annot"><a href="#local-6989586621682029808"><span class="hs-identifier hs-var hs-var">names'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((QName, HashSet QName)
+ -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId)
+-&gt; Map QName OpaqueId
+-&gt; [(QName, HashSet QName)]
+-&gt; Map QName OpaqueId
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">(QName, HashSet QName) -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId
+</span><a href="#local-6989586621682029810"><span class="hs-identifier hs-var">addBackcopy</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682029806"><span class="hs-identifier hs-var">names</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HashMap QName (HashSet QName) -&gt; [(QName, HashSet QName)]
+forall k v. HashMap k v -&gt; [(k, v)]
+</span><span class="hs-identifier hs-var">HashMap.toList</span></span><span> </span><span class="annot"><span class="annottext">HashMap QName (HashSet QName)
+</span><a href="#local-6989586621682029781"><span class="hs-identifier hs-var">backcopies</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.opaque.sat&quot;</span></span><span> </span><span class="annot"><span class="hs-number">30</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#vcat"><span class="hs-identifier hs-type">vcat</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span>
+</span><span id="line-77"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;Saturated local opaque blocks&quot;</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="hs-special">[</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029811"><span class="hs-identifier hs-type">block</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621682029812"><span class="annot"><a href="#local-6989586621682029812"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span id="local-6989586621682029811"><span class="annot"><a href="#local-6989586621682029811"><span class="hs-identifier hs-var">block</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.toList</span></span><span> </span><span class="annot"><a href="#local-6989586621682029805"><span class="hs-identifier hs-type">blocks</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621682029791"><span class="hs-identifier hs-type">isOurs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029812"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-type">reportSDoc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;tc.opaque.sat.full&quot;</span></span><span> </span><span class="annot"><span class="hs-number">50</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-type">text</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;Saturated opaque blocks:&quot;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%24%2B%24"><span class="hs-operator hs-type">$+$</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029805"><span class="hs-identifier hs-type">blocks</span></a></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#modifyTC%27"><span class="hs-identifier hs-type">modifyTC'</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621682029815"><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621682029815"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621682029815"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPostScopeState"><span class="hs-identifier hs-var">stPostScopeState</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPostScopeState"><span class="hs-identifier hs-var">stPostScopeState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029815"><span class="hs-identifier hs-type">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>      </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPostOpaqueBlocks"><span class="hs-identifier hs-var">stPostOpaqueBlocks</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682029805"><span class="hs-identifier hs-type">blocks</span></a></span><span>
+</span><span id="line-83"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#stPostOpaqueIds"><span class="hs-identifier hs-var">stPostOpaqueIds</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682029808"><span class="hs-identifier hs-type">names'</span></a></span><span>
+</span><span id="line-84"></span><span>      </span><span class="hs-special">}</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-comment">-- Actually compute the closure.</span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><a href="#local-6989586621682029807"><span class="hs-identifier hs-type">computeClosure</span></a></span><span>
+</span><span id="line-88"></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpaqueBlock"><span class="hs-identifier hs-type">OpaqueBlock</span></a></span><span>
+</span><span id="line-90"></span><span>      </span><span class="hs-comment">-- Accumulates the satured opaque blocks; also contains the</span><span>
+</span><span id="line-91"></span><span>      </span><span class="hs-comment">-- opaque blocks of imported modules.</span><span>
+</span><span id="line-92"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span>
+</span><span id="line-93"></span><span>      </span><span class="hs-comment">-- Accumulates a mapping from names to opaque blocks; also</span><span>
+</span><span id="line-94"></span><span>      </span><span class="hs-comment">-- contains imported opaque names.</span><span>
+</span><span id="line-95"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpaqueBlock"><span class="hs-identifier hs-type">OpaqueBlock</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-96"></span><span>      </span><span class="hs-comment">-- List of our opaque blocks, in dependency order.</span><span>
+</span><span id="line-97"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682029427"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpaqueBlock"><span class="hs-identifier hs-type">OpaqueBlock</span></a></span><span>
+</span><span id="line-98"></span><span>         </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span>
+</span><span id="line-99"></span><span>         </span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>  </span><span id="local-6989586621682029807"><span class="annot"><span class="annottext">computeClosure :: (QName -&gt; QName)
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; [OpaqueBlock]
+-&gt; m (Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+</span><a href="#local-6989586621682029807"><span class="hs-identifier hs-var hs-var">computeClosure</span></a></span></span><span> </span><span id="local-6989586621682029819"><span class="annot"><span class="annottext">QName -&gt; QName
+</span><a href="#local-6989586621682029819"><span class="hs-identifier hs-var">canonise</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621682029820"><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock
+</span><a href="#local-6989586621682029820"><span class="hs-identifier hs-var">blocks</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621682029821"><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682029821"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+-&gt; m (Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock
+</span><a href="#local-6989586621682029820"><span class="hs-identifier hs-var">blocks</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682029821"><span class="hs-identifier hs-var">names</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>  </span><span class="annot"><a href="#local-6989586621682029807"><span class="hs-identifier hs-var">computeClosure</span></a></span><span> </span><span id="local-6989586621682029822"><span class="annot"><span class="annottext">QName -&gt; QName
+</span><a href="#local-6989586621682029822"><span class="hs-identifier hs-var">canonise</span></a></span></span><span> </span><span id="local-6989586621682029823"><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock
+</span><a href="#local-6989586621682029823"><span class="hs-identifier hs-var">blocks</span></a></span></span><span> </span><span id="local-6989586621682029824"><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682029824"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682029825"><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621682029826"><span class="annot"><span class="annottext">[OpaqueBlock]
+</span><a href="#local-6989586621682029826"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range
+-&gt; m (Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+-&gt; m (Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+forall (m :: * -&gt; *) x a.
+(MonadTrace m, HasRange x) =&gt;
+x -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Trace.html#setCurrentRange"><span class="hs-identifier hs-var">setCurrentRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OpaqueBlock -&gt; Range
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueRange"><span class="hs-identifier hs-var">opaqueRange</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m (Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+ -&gt; m (Map OpaqueId OpaqueBlock, Map QName OpaqueId))
+-&gt; m (Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+-&gt; m (Map OpaqueId OpaqueBlock, Map QName OpaqueId)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-102"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-103"></span><span>      </span><span id="local-6989586621682030001"><span class="annot"><span class="annottext">yell :: QName -&gt; a -&gt; m a
+</span><a href="#local-6989586621682030001"><span class="hs-identifier hs-var hs-var hs-var">yell</span></a></span></span><span> </span><span id="local-6989586621682030002"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030002"><span class="hs-identifier hs-var">nm</span></a></span></span><span> </span><span id="local-6989586621682030003"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682030003"><span class="hs-identifier hs-var">accum</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Range -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) x a.
+(MonadTrace m, HasRange x) =&gt;
+x -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Trace.html#setCurrentRange"><span class="hs-identifier hs-var">setCurrentRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030002"><span class="hs-identifier hs-var">nm</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; m a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-104"></span><span>        </span><span class="annot"><span class="annottext">Warning -&gt; m ()
+forall (m :: * -&gt; *).
+(HasCallStack, MonadWarning m) =&gt;
+Warning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier hs-var">warning</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#UnfoldTransparentName"><span class="hs-identifier hs-var">UnfoldTransparentName</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030002"><span class="hs-identifier hs-var">nm</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>        </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621682030003"><span class="hs-identifier hs-var">accum</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span>      </span><span class="hs-comment">-- Add the unfolding-set of the given name to the accumulator</span><span>
+</span><span id="line-108"></span><span>      </span><span class="hs-comment">-- value.</span><span>
+</span><span id="line-109"></span><span>      </span><span id="local-6989586621682030007"><span class="annot"><span class="annottext">transitive :: QName -&gt; HashSet QName -&gt; m (HashSet QName)
+</span><a href="#local-6989586621682030007"><span class="hs-identifier hs-var hs-var hs-var">transitive</span></a></span></span><span> </span><span id="local-6989586621682030008"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030008"><span class="hs-identifier hs-var">prenom</span></a></span></span><span> </span><span id="local-6989586621682030009"><span class="annot"><span class="annottext">HashSet QName
+</span><a href="#local-6989586621682030009"><span class="hs-identifier hs-var">accum</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (HashSet QName) -&gt; Maybe (m (HashSet QName)) -&gt; m (HashSet QName)
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; HashSet QName -&gt; m (HashSet QName)
+forall {m :: * -&gt; *} {a}.
+(MonadTrace m, MonadWarning m) =&gt;
+QName -&gt; a -&gt; m a
+</span><a href="#local-6989586621682030001"><span class="hs-identifier hs-var">yell</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030008"><span class="hs-identifier hs-var">prenom</span></a></span><span> </span><span class="annot"><span class="annottext">HashSet QName
+</span><a href="#local-6989586621682030009"><span class="hs-identifier hs-var">accum</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (m (HashSet QName)) -&gt; m (HashSet QName))
+-&gt; Maybe (m (HashSet QName)) -&gt; m (HashSet QName)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-110"></span><span>        </span><span class="hs-comment">-- NB: If the name is a local copy, we won't yet have added the</span><span>
+</span><span id="line-111"></span><span>        </span><span class="hs-comment">-- copy name to an opaque block, but we will have added the</span><span>
+</span><span id="line-112"></span><span>        </span><span class="hs-comment">-- reduced name (provided it is opaque)</span><span>
+</span><span id="line-113"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621682030010"><span class="annot"><span class="annottext">nm :: QName
+</span><a href="#local-6989586621682030010"><span class="hs-identifier hs-var hs-var hs-var">nm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; QName
+</span><a href="#local-6989586621682029822"><span class="hs-identifier hs-var">canonise</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030008"><span class="hs-identifier hs-var">prenom</span></a></span><span>
+</span><span id="line-114"></span><span>        </span><span id="local-6989586621682030011"><span class="annot"><a href="#local-6989586621682030011"><span class="hs-identifier hs-var">id</span></a></span></span><span>    </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Map QName OpaqueId -&gt; Maybe OpaqueId
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030010"><span class="hs-identifier hs-var">nm</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682029824"><span class="hs-identifier hs-var">names</span></a></span><span>
+</span><span id="line-115"></span><span>        </span><span id="local-6989586621682030013"><span class="annot"><a href="#local-6989586621682030013"><span class="hs-identifier hs-var">block</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.lookup</span></span><span> </span><span class="annot"><a href="#local-6989586621682030011"><span class="hs-identifier hs-type">id</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029823"><span class="hs-identifier hs-type">blocks</span></a></span><span>
+</span><span id="line-116"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">HashSet.union</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#opaqueUnfolding"><span class="hs-identifier hs-var">opaqueUnfolding</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682030013"><span class="hs-identifier hs-type">block</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682030009"><span class="hs-identifier hs-type">accum</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span>    </span><span class="annot"><span class="annottext">VerboseKey -&gt; VerboseLevel -&gt; TCMT IO Doc -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+VerboseKey -&gt; VerboseLevel -&gt; TCMT IO Doc -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-var">reportSDoc</span></a></span><span> </span><span class="annot"><span class="annottext">VerboseKey
+</span><span class="hs-string">&quot;tc.opaque.copy&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">45</span></span><span> </span><span class="annot"><span class="annottext">(TCMT IO Doc -&gt; m ()) -&gt; TCMT IO Doc -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-119"></span><span>      </span><span class="annot"><span class="annottext">[TCMT IO Doc] -&gt; TCMT IO Doc
+forall (m :: * -&gt; *) (t :: * -&gt; *).
+(Applicative m, Foldable t) =&gt;
+t (m Doc) -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#vcat"><span class="hs-identifier hs-var">vcat</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;Stated unfolding clause:  &quot;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-var">&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">[QName] -&gt; TCMT IO Doc
+forall (m :: * -&gt; *) a. (Applicative m, Pretty a) =&gt; a -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HashSet QName -&gt; [QName]
+forall a. HashSet a -&gt; [a]
+</span><span class="hs-identifier hs-var">HashSet.toList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OpaqueBlock -&gt; HashSet QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueUnfolding"><span class="hs-identifier hs-var">opaqueUnfolding</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>           </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;with (sub)canonical names:&quot;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-var">&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">[QName] -&gt; TCMT IO Doc
+forall (m :: * -&gt; *) a. (Applicative m, Pretty a) =&gt; a -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QName -&gt; QName
+</span><a href="#local-6989586621682029822"><span class="hs-identifier hs-var">canonise</span></a></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; QName) -&gt; [QName] -&gt; [QName]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">HashSet QName -&gt; [QName]
+forall a. HashSet a -&gt; [a]
+</span><span class="hs-identifier hs-var">HashSet.toList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OpaqueBlock -&gt; HashSet QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueUnfolding"><span class="hs-identifier hs-var">opaqueUnfolding</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>           </span><span class="hs-special">]</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span>    </span><span class="hs-comment">-- Compute the transitive closure: bring in names</span><span>
+</span><span id="line-124"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span>    </span><span class="hs-comment">--   ... that are defined as immediate children of the opaque block</span><span>
+</span><span id="line-126"></span><span>    </span><span class="hs-comment">--   ... that are unfolded by the parent opaque block</span><span>
+</span><span id="line-127"></span><span>    </span><span class="hs-comment">--   ... that are implied by each name in the unfolding clause.</span><span>
+</span><span id="line-128"></span><span>    </span><span id="local-6989586621682030019"><span class="annot"><a href="#local-6989586621682030019"><span class="hs-identifier hs-var">closed</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; HashSet QName -&gt; m (HashSet QName))
+-&gt; HashSet QName -&gt; HashSet QName -&gt; m (HashSet QName)
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; b -&gt; m b) -&gt; b -&gt; t a -&gt; m b
+</span><span class="hs-identifier hs-var">foldrM</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; HashSet QName -&gt; m (HashSet QName)
+</span><a href="#local-6989586621682030007"><span class="hs-identifier hs-var">transitive</span></a></span><span>
+</span><span id="line-129"></span><span>      </span><span class="hs-special">(</span><span>  </span><span class="annot"><span class="annottext">OpaqueBlock -&gt; HashSet QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueDecls"><span class="hs-identifier hs-var">opaqueDecls</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span>
+</span><span id="line-130"></span><span>      </span><span class="annot"><span class="annottext">HashSet QName -&gt; HashSet QName -&gt; HashSet QName
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(OpaqueBlock -&gt; HashSet QName)
+-&gt; Maybe OpaqueBlock -&gt; HashSet QName
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Maybe a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock -&gt; HashSet QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueUnfolding"><span class="hs-identifier hs-var">opaqueUnfolding</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OpaqueBlock -&gt; Maybe OpaqueId
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueParent"><span class="hs-identifier hs-var">opaqueParent</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe OpaqueId
+-&gt; (OpaqueId -&gt; Maybe OpaqueBlock) -&gt; Maybe OpaqueBlock
+forall a b. Maybe a -&gt; (a -&gt; Maybe b) -&gt; Maybe b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="annot"><span class="annottext">(OpaqueId -&gt; Map OpaqueId OpaqueBlock -&gt; Maybe OpaqueBlock)
+-&gt; Map OpaqueId OpaqueBlock -&gt; OpaqueId -&gt; Maybe OpaqueBlock
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">OpaqueId -&gt; Map OpaqueId OpaqueBlock -&gt; Maybe OpaqueBlock
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock
+</span><a href="#local-6989586621682029823"><span class="hs-identifier hs-var">blocks</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>      </span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OpaqueBlock -&gt; HashSet QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueUnfolding"><span class="hs-identifier hs-var">opaqueUnfolding</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-135"></span><span>      </span><span id="local-6989586621682030025"><span class="annot"><a href="#local-6989586621682030025"><span class="hs-identifier hs-var hs-var">block'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#opaqueUnfolding"><span class="hs-identifier hs-var">opaqueUnfolding</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621682030019"><span class="hs-identifier hs-type">closed</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span>      </span><span class="hs-comment">-- Update the mapping from names to blocks, so that future</span><span>
+</span><span id="line-138"></span><span>      </span><span class="hs-comment">-- references to names defined in our opaque block will know the</span><span>
+</span><span id="line-139"></span><span>      </span><span class="hs-comment">-- right unfolding set.</span><span>
+</span><span id="line-140"></span><span>      </span><span id="local-6989586621682030026"><span class="annot"><a href="#local-6989586621682030026"><span class="hs-identifier hs-var hs-var">names'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId)
+-&gt; Map QName OpaqueId -&gt; HashSet QName -&gt; Map QName OpaqueId
+forall b a. (b -&gt; a -&gt; a) -&gt; a -&gt; HashSet b -&gt; a
+</span><span class="hs-identifier hs-var">HashSet.foldr</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621682030028"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030028"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName -&gt; OpaqueId -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030028"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OpaqueBlock -&gt; OpaqueId
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueId"><span class="hs-identifier hs-var">opaqueId</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682029824"><span class="hs-identifier hs-var">names</span></a></span><span>
+</span><span id="line-141"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">OpaqueBlock -&gt; HashSet QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueDecls"><span class="hs-identifier hs-var">opaqueDecls</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682029825"><span class="hs-identifier hs-var">block</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span>    </span><span class="annot"><a href="#local-6989586621682029807"><span class="hs-identifier hs-type">computeClosure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029822"><span class="hs-identifier hs-type">canonise</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.insert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#opaqueId"><span class="hs-identifier hs-var">opaqueId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029825"><span class="hs-identifier hs-type">block</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682030025"><span class="hs-identifier hs-type">block'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029823"><span class="hs-identifier hs-type">blocks</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621682030026"><span class="hs-identifier hs-type">names'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029826"><span class="hs-identifier hs-type">xs</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>  </span><span class="annot"><a href="#local-6989586621682029810"><span class="hs-identifier hs-type">addBackcopy</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HashSet</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#OpaqueId"><span class="hs-identifier hs-type">OpaqueId</span></a></span><span>
+</span><span id="line-146"></span><span>  </span><span id="local-6989586621682029810"><span class="annot"><span class="annottext">addBackcopy :: (QName, HashSet QName) -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId
+</span><a href="#local-6989586621682029810"><span class="hs-identifier hs-var hs-var">addBackcopy</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621682030031"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030031"><span class="hs-identifier hs-var">from</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621682030032"><span class="annot"><span class="annottext">HashSet QName
+</span><a href="#local-6989586621682030032"><span class="hs-identifier hs-var">prop</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621682030033"><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682030033"><span class="hs-identifier hs-var">map</span></a></span></span><span>
+</span><span id="line-147"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682030034"><span class="annot"><span class="annottext">OpaqueId
+</span><a href="#local-6989586621682030034"><span class="hs-identifier hs-var">id</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Map QName OpaqueId -&gt; Maybe OpaqueId
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030031"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682030033"><span class="hs-identifier hs-var">map</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(QName -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId)
+-&gt; Map QName OpaqueId -&gt; HashSet QName -&gt; Map QName OpaqueId
+forall b a. (b -&gt; a -&gt; a) -&gt; a -&gt; HashSet b -&gt; a
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(QName -&gt; OpaqueId -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId)
+-&gt; OpaqueId -&gt; QName -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; OpaqueId -&gt; Map QName OpaqueId -&gt; Map QName OpaqueId
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">OpaqueId
+</span><a href="#local-6989586621682030034"><span class="hs-identifier hs-var">id</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682030033"><span class="hs-identifier hs-var">map</span></a></span><span> </span><span class="annot"><span class="annottext">HashSet QName
+</span><a href="#local-6989586621682030032"><span class="hs-identifier hs-var">prop</span></a></span><span>
+</span><span id="line-148"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621682030033"><span class="hs-identifier hs-var">map</span></a></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- | Decide whether or not a definition is reducible. Returns 'True' if</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- the definition /can/ step.</span><span>
+</span><span id="line-152"></span><span class="annot"><a href="Agda.TypeChecking.Opacity.html#isAccessibleDef"><span class="hs-identifier hs-type">isAccessibleDef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCEnv"><span class="hs-identifier hs-type">TCEnv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCState"><span class="hs-identifier hs-type">TCState</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier hs-type">Definition</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- IgnoreAbstractMode ignores both abstract and opaque. It is used for</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- getting the original definition (for inConcreteOrAbstractMode), and</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- for &quot;normalise ignoring abstract&quot; interactively.</span><span>
+</span><span id="line-157"></span><span id="isAccessibleDef"><span class="annot"><span class="annottext">isAccessibleDef :: TCEnv -&gt; TCState -&gt; Definition -&gt; Bool
+</span><a href="Agda.TypeChecking.Opacity.html#isAccessibleDef"><span class="hs-identifier hs-var hs-var">isAccessibleDef</span></a></span></span><span> </span><span id="local-6989586621682030035"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621682030035"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621682030036"><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621682030036"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span id="local-6989586621682030037"><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030037"><span class="hs-identifier hs-var">defn</span></a></span></span><span>
+</span><span id="line-158"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; AbstractMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#envAbstractMode"><span class="hs-identifier hs-var">envAbstractMode</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621682030035"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">AbstractMode -&gt; AbstractMode -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">AbstractMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#IgnoreAbstractMode"><span class="hs-identifier hs-var">IgnoreAbstractMode</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- Otherwise, actually apply the reducibility rules..</span><span>
+</span><span id="line-161"></span><span class="annot"><a href="Agda.TypeChecking.Opacity.html#isAccessibleDef"><span class="hs-identifier hs-var">isAccessibleDef</span></a></span><span> </span><span id="local-6989586621682030040"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621682030040"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621682030041"><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621682030041"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span id="local-6989586621682030042"><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030042"><span class="hs-identifier hs-var">defn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-163"></span><span>    </span><span class="hs-comment">-- Reducibility rules for abstract definitions:</span><span>
+</span><span id="line-164"></span><span>    </span><span id="local-6989586621682030043"><span class="annot"><span class="annottext">concretise :: IsAbstract -&gt; IsAbstract
+</span><a href="#local-6989586621682030043"><span class="hs-identifier hs-var hs-var">concretise</span></a></span></span><span> </span><span id="local-6989586621682030044"><span class="annot"><span class="annottext">IsAbstract
+</span><a href="#local-6989586621682030044"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; AbstractMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#envAbstractMode"><span class="hs-identifier hs-var">envAbstractMode</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621682030040"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-165"></span><span>      </span><span class="hs-comment">-- Being outside an abstract block has no effect on concreteness</span><span>
+</span><span id="line-166"></span><span>      </span><span class="annot"><span class="annottext">AbstractMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#ConcreteMode"><span class="hs-identifier hs-var">ConcreteMode</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsAbstract
+</span><a href="#local-6989586621682030044"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span>      </span><span class="hs-comment">-- This clause is redundant with the preceding guard but GHC can't</span><span>
+</span><span id="line-169"></span><span>      </span><span class="hs-comment">-- figure it out:</span><span>
+</span><span id="line-170"></span><span>      </span><span class="annot"><span class="annottext">AbstractMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#IgnoreAbstractMode"><span class="hs-identifier hs-var">IgnoreAbstractMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsAbstract
+</span><a href="Agda.Syntax.Common.html#ConcreteDef"><span class="hs-identifier hs-var">ConcreteDef</span></a></span><span>
+</span><span id="line-171"></span><span>
+</span><span id="line-172"></span><span>      </span><span class="annot"><span class="annottext">AbstractMode
+</span><a href="Agda.TypeChecking.Monad.Base.html#AbstractMode"><span class="hs-identifier hs-var">AbstractMode</span></a></span><span>
+</span><span id="line-173"></span><span>        </span><span class="hs-comment">-- Symbols from enclosing modules will be made concrete:</span><span>
+</span><span id="line-174"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621682030048"><span class="hs-identifier hs-var">current</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; ModuleName -&gt; Bool
+</span><a href="Agda.Syntax.Abstract.Name.html#isLeChildModuleOf"><span class="hs-operator hs-var">`isLeChildModuleOf`</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621682030050"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsAbstract
+</span><a href="Agda.Syntax.Common.html#ConcreteDef"><span class="hs-identifier hs-var">ConcreteDef</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span>        </span><span class="hs-comment">-- Symbols from child modules, or unrelated modules, will keep</span><span>
+</span><span id="line-177"></span><span>        </span><span class="hs-comment">-- the same concreteness:</span><span>
+</span><span id="line-178"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>                     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsAbstract
+</span><a href="#local-6989586621682030044"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-179"></span><span>      </span><span class="hs-keyword">where</span><span>
+</span><span id="line-180"></span><span>        </span><span id="local-6989586621682030048"><span class="annot"><span class="annottext">current :: ModuleName
+</span><a href="#local-6989586621682030048"><span class="hs-identifier hs-var hs-var">current</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; ModuleName
+</span><a href="#local-6989586621682030051"><span class="hs-identifier hs-var">dropAnon</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleName -&gt; ModuleName) -&gt; ModuleName -&gt; ModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; ModuleName
+</span><a href="Agda.TypeChecking.Monad.Base.html#envCurrentModule"><span class="hs-identifier hs-var">envCurrentModule</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621682030040"><span class="hs-identifier hs-var">env</span></a></span><span>
+</span><span id="line-181"></span><span>        </span><span id="local-6989586621682030050"><span class="annot"><span class="annottext">m :: ModuleName
+</span><a href="#local-6989586621682030050"><span class="hs-identifier hs-var hs-var">m</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleName -&gt; ModuleName
+</span><a href="#local-6989586621682030051"><span class="hs-identifier hs-var">dropAnon</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleName -&gt; ModuleName) -&gt; ModuleName -&gt; ModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; ModuleName
+</span><a href="Agda.Syntax.Abstract.Name.html#qnameModule"><span class="hs-identifier hs-var">qnameModule</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Definition -&gt; QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#defName"><span class="hs-identifier hs-var">defName</span></a></span><span> </span><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030042"><span class="hs-identifier hs-var">defn</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-182"></span><span>        </span><span id="local-6989586621682030051"><span class="annot"><span class="annottext">dropAnon :: ModuleName -&gt; ModuleName
+</span><a href="#local-6989586621682030051"><span class="hs-identifier hs-var hs-var">dropAnon</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#MName"><span class="hs-identifier hs-type">MName</span></a></span><span> </span><span id="local-6989586621682030058"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621682030058"><span class="hs-identifier hs-var">ms</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; ModuleName
+</span><a href="Agda.Syntax.Abstract.Name.html#MName"><span class="hs-identifier hs-var">MName</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; ModuleName) -&gt; [Name] -&gt; ModuleName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Bool) -&gt; [Name] -&gt; [Name]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.dropWhileEnd</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Bool
+forall a. IsNoName a =&gt; a -&gt; Bool
+</span><a href="Agda.Syntax.Concrete.Name.html#isNoName"><span class="hs-identifier hs-var">isNoName</span></a></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621682030058"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span>    </span><span class="hs-comment">-- Reducibility rule for opaque definitions: If we are operating</span><span>
+</span><span id="line-185"></span><span>    </span><span class="hs-comment">-- under an unfolding block,</span><span>
+</span><span id="line-186"></span><span>    </span><span id="local-6989586621682030061"><span class="annot"><span class="annottext">clarify :: IsOpaque -&gt; IsOpaque
+</span><a href="#local-6989586621682030061"><span class="hs-identifier hs-var hs-var">clarify</span></a></span></span><span> </span><span id="local-6989586621682030062"><span class="annot"><span class="annottext">IsOpaque
+</span><a href="#local-6989586621682030062"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; Maybe OpaqueId
+</span><a href="Agda.TypeChecking.Monad.Base.html#envCurrentOpaqueId"><span class="hs-identifier hs-var">envCurrentOpaqueId</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621682030040"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-187"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621682030064"><span class="annot"><span class="annottext">OpaqueId
+</span><a href="#local-6989586621682030064"><span class="hs-identifier hs-var">oid</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-188"></span><span>        </span><span class="hs-keyword">let</span><span>
+</span><span id="line-189"></span><span>          </span><span id="local-6989586621682030065"><span class="annot"><span class="annottext">block :: OpaqueBlock
+</span><a href="#local-6989586621682030065"><span class="hs-identifier hs-var hs-var">block</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OpaqueBlock -&gt; Maybe OpaqueBlock -&gt; OpaqueBlock
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe OpaqueBlock -&gt; OpaqueBlock)
+-&gt; Maybe OpaqueBlock -&gt; OpaqueBlock
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">OpaqueId -&gt; Map OpaqueId OpaqueBlock -&gt; Maybe OpaqueBlock
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">OpaqueId
+</span><a href="#local-6989586621682030064"><span class="hs-identifier hs-var">oid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Lens' TCState (Map OpaqueId OpaqueBlock)
+-&gt; TCState -&gt; Map OpaqueId OpaqueBlock
+forall o (m :: * -&gt; *) i. MonadReader o m =&gt; Lens' o i -&gt; m i
+</span><a href="Agda.Utils.Lens.html#view"><span class="hs-identifier hs-var">view</span></a></span><span> </span><span class="annot"><span class="annottext">(Map OpaqueId OpaqueBlock -&gt; f (Map OpaqueId OpaqueBlock))
+-&gt; TCState -&gt; f TCState
+Lens' TCState (Map OpaqueId OpaqueBlock)
+</span><a href="Agda.TypeChecking.Monad.Base.html#stOpaqueBlocks"><span class="hs-identifier hs-var">stOpaqueBlocks</span></a></span><span> </span><span class="annot"><span class="annottext">TCState
+</span><a href="#local-6989586621682030041"><span class="hs-identifier hs-var">state</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span>
+</span><span id="line-191"></span><span>          </span><span class="hs-comment">-- Then any name which is a member of the unfolding-set</span><span>
+</span><span id="line-192"></span><span>          </span><span class="hs-comment">-- associated to that block will be unfolded.</span><span>
+</span><span id="line-193"></span><span>          </span><span id="local-6989586621682030070"><span class="annot"><span class="annottext">okay :: Bool
+</span><a href="#local-6989586621682030070"><span class="hs-identifier hs-var hs-var">okay</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Definition -&gt; QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#defName"><span class="hs-identifier hs-var">defName</span></a></span><span> </span><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030042"><span class="hs-identifier hs-var">defn</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; HashSet QName -&gt; Bool
+forall a. Hashable a =&gt; a -&gt; HashSet a -&gt; Bool
+</span><span class="hs-operator hs-var">`HashSet.member`</span></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock -&gt; HashSet QName
+</span><a href="Agda.TypeChecking.Monad.Base.html#opaqueUnfolding"><span class="hs-identifier hs-var">opaqueUnfolding</span></a></span><span> </span><span class="annot"><span class="annottext">OpaqueBlock
+</span><a href="#local-6989586621682030065"><span class="hs-identifier hs-var">block</span></a></span><span>
+</span><span id="line-194"></span><span>        </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621682030070"><span class="hs-identifier hs-var">okay</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">IsOpaque
+</span><a href="Agda.Syntax.Common.html#TransparentDef"><span class="hs-identifier hs-var">TransparentDef</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">IsOpaque
+</span><a href="#local-6989586621682030062"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-195"></span><span>      </span><span class="annot"><span class="annottext">Maybe OpaqueId
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IsOpaque
+</span><a href="#local-6989586621682030062"><span class="hs-identifier hs-var">def</span></a></span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span>    </span><span class="hs-comment">-- Short-circuit the map lookup for vanilla definitions</span><span>
+</span><span id="line-198"></span><span>    </span><span id="local-6989586621682030073"><span class="annot"><span class="annottext">plainDef :: Bool
+</span><a href="#local-6989586621682030073"><span class="hs-identifier hs-var hs-var">plainDef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Definition -&gt; IsAbstract
+</span><a href="Agda.TypeChecking.Monad.Base.html#defAbstract"><span class="hs-identifier hs-var">defAbstract</span></a></span><span> </span><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030042"><span class="hs-identifier hs-var">defn</span></a></span><span> </span><span class="annot"><span class="annottext">IsAbstract -&gt; IsAbstract -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">IsAbstract
+</span><a href="Agda.Syntax.Common.html#ConcreteDef"><span class="hs-identifier hs-var">ConcreteDef</span></a></span><span>
+</span><span id="line-199"></span><span>            </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Definition -&gt; IsOpaque
+</span><a href="Agda.TypeChecking.Monad.Base.html#defOpaque"><span class="hs-identifier hs-var">defOpaque</span></a></span><span>   </span><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030042"><span class="hs-identifier hs-var">defn</span></a></span><span> </span><span class="annot"><span class="annottext">IsOpaque -&gt; IsOpaque -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">IsOpaque
+</span><a href="Agda.Syntax.Common.html#TransparentDef"><span class="hs-identifier hs-var">TransparentDef</span></a></span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621682030073"><span class="hs-identifier hs-var">plainDef</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">IsAbstract -&gt; IsAbstract
+</span><a href="#local-6989586621682030043"><span class="hs-identifier hs-var">concretise</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Definition -&gt; IsAbstract
+</span><a href="Agda.TypeChecking.Monad.Base.html#defAbstract"><span class="hs-identifier hs-var">defAbstract</span></a></span><span> </span><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030042"><span class="hs-identifier hs-var">defn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IsAbstract -&gt; IsAbstract -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">IsAbstract
+</span><a href="Agda.Syntax.Common.html#ConcreteDef"><span class="hs-identifier hs-var">ConcreteDef</span></a></span><span>
+</span><span id="line-203"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">IsOpaque -&gt; IsOpaque
+</span><a href="#local-6989586621682030061"><span class="hs-identifier hs-var">clarify</span></a></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Definition -&gt; IsOpaque
+</span><a href="Agda.TypeChecking.Monad.Base.html#defOpaque"><span class="hs-identifier hs-var">defOpaque</span></a></span><span> </span><span class="annot"><span class="annottext">Definition
+</span><a href="#local-6989586621682030042"><span class="hs-identifier hs-var">defn</span></a></span><span class="hs-special">)</span><span>   </span><span class="annot"><span class="annottext">IsOpaque -&gt; IsOpaque -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">IsOpaque
+</span><a href="Agda.Syntax.Common.html#TransparentDef"><span class="hs-identifier hs-var">TransparentDef</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- | Will the given 'QName' have a proper definition, or will it be</span><span>
+</span><span id="line-206"></span><span class="hs-comment">-- wrapped in an 'AbstractDefn'?</span><span>
+</span><span id="line-207"></span><span id="local-6989586621682029591"><span class="annot"><a href="Agda.TypeChecking.Opacity.html#hasAccessibleDef"><span class="hs-identifier hs-type">hasAccessibleDef</span></a></span><span>
+</span><span id="line-208"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029591"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029591"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#HasConstInfo"><span class="hs-identifier hs-type">HasConstInfo</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682029591"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621682029591"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-209"></span><span id="hasAccessibleDef"><span class="annot"><span class="annottext">hasAccessibleDef :: forall (m :: * -&gt; *).
+(ReadTCState m, MonadTCEnv m, HasConstInfo m) =&gt;
+QName -&gt; m Bool
+</span><a href="Agda.TypeChecking.Opacity.html#hasAccessibleDef"><span class="hs-identifier hs-var hs-var">hasAccessibleDef</span></a></span></span><span> </span><span id="local-6989586621682030097"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621682030097"><span class="hs-identifier hs-var">qn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-210"></span><span>  </span><span id="local-6989586621682030098"><span class="annot"><a href="#local-6989586621682030098"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m TCEnv
+forall (m :: * -&gt; *). MonadTCEnv m =&gt; m TCEnv
+</span><a href="Agda.TypeChecking.Monad.Base.html#askTC"><span class="hs-identifier hs-var">askTC</span></a></span><span>
+</span><span id="line-211"></span><span>  </span><span id="local-6989586621682030100"><span class="annot"><a href="#local-6989586621682030100"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#getTCState"><span class="hs-identifier hs-type">getTCState</span></a></span><span>
+</span><span id="line-212"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#ignoreAbstractMode"><span class="hs-identifier hs-type">ignoreAbstractMode</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-213"></span><span>    </span><span id="local-6989586621682030103"><span class="annot"><a href="#local-6989586621682030103"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Signature.html#getConstInfo"><span class="hs-identifier hs-type">getConstInfo</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682030097"><span class="hs-identifier hs-type">qn</span></a></span><span>
+</span><span id="line-214"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Opacity.html#isAccessibleDef"><span class="hs-identifier hs-type">isAccessibleDef</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682030098"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682030100"><span class="hs-identifier hs-type">st</span></a></span><span> </span><span class="annot"><a href="#local-6989586621682030103"><span class="hs-identifier hs-type">def</span></a></span><span>
+</span><span id="line-215"></span></pre></body></html>
