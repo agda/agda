@@ -520,6 +520,7 @@ warningHighlighting' b w = case tcWarning w of
                              -> deadcodeHighlighting w
   PragmaExpectsUnambiguousProjectionOrFunction{}
                              -> deadcodeHighlighting w
+  UnknownJSPrimitive{}       -> mempty
   NoMain{}                   -> mempty
   NotInScopeW{}              -> deadcodeHighlighting w
   UnsupportedIndexedMatch{}  -> mempty

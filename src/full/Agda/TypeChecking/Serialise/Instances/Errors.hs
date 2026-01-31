@@ -113,6 +113,7 @@ instance EmbPrj Warning where
     PragmaCompileList                           -> __IMPOSSIBLE__
     PragmaCompileMaybe                          -> __IMPOSSIBLE__
     NoMain _                                    -> __IMPOSSIBLE__
+    UnknownJSPrimitive _                        -> __IMPOSSIBLE__
     IllegalRewriteRule a b                      -> icodeN 53 IllegalRewriteRule a b
     MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
     ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b

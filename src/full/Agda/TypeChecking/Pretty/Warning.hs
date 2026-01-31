@@ -521,6 +521,12 @@ prettyWarning = \case
     DuplicateRecordDirective dir ->
       "Ignoring duplicate record directive: " <+> pretty dir
 
+    UnknownJSPrimitive p -> fsep $ concat
+      [ pwords "The primitive"
+      , [ text p ]
+      , pwords "is not known to the JS backend and will be compiled to undefined."
+      ]
+
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
       , [ prettyTCM bn
