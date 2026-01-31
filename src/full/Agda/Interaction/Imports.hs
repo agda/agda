@@ -343,6 +343,7 @@ mergeInterface i = do
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
+
     whenJustM (optConfluenceCheck <$> pragmaOptions) \ confChk -> do
       let rews = concat $ HMap.elems $ sig ^. sigRewriteRules
       verboseS "import.iface.confluence" 20 do
@@ -357,7 +358,16 @@ mergeInterface i = do
       -- according to the generality of their lhs
       when (confChk == GlobalConfluenceCheck) $
         forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
-      checkConfluenceOfRules confChk rews
+
+      -- #8273: We need to ensure the module we are importing is considered
+      -- imported when checking confluence.
+      --
+      -- Ideally we would probably add the imports earlier, but this seems very
+      -- fiddly to do correctly. Instead, we just locally add the imports
+      -- for the duration of checking confluence and revert the state
+      -- afterwards.
+      locallyAddImport (iTopLevelModuleName i) $
+        checkConfluenceOfRules confChk rews
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x

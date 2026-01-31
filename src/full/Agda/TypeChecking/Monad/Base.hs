@@ -844,6 +844,11 @@ stImportedModules = lensPreScopeState . lensImportedModules
 stImportedModulesTransitive :: Lens' TCState ImportedModules
 stImportedModulesTransitive = lensPreScopeState . lensImportedModulesTransitive
 
+stImportedModulesAndTransitive ::
+  Lens' TCState (ImportedModules, ImportedModules)
+stImportedModulesAndTransitive
+  = lensProduct stImportedModules stImportedModulesTransitive
+
 stModuleToSourceId :: Lens' TCState ModuleToSourceId
 stModuleToSourceId = lensPreScopeState . lensModuleToSourceId
 
