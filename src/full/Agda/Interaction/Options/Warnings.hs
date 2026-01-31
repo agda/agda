@@ -342,6 +342,7 @@ data WarningName
   | PragmaExpectsDefinedSymbol_
   | PragmaExpectsUnambiguousConstructorOrFunction_
   | PragmaExpectsUnambiguousProjectionOrFunction_
+  | UnknownJSPrimitive_
   | NoMain_
   | NotARewriteRule_
   | RewriteLHSNotDefinitionOrConstructor_
@@ -592,6 +593,7 @@ warningNameDescription = \case
   PragmaExpectsDefinedSymbol_      -> "Pragmas referring to identifiers that are not defined symbols."
   PragmaExpectsUnambiguousConstructorOrFunction_    -> "Pragmas referring to identifiers that are not unambiguous constructors or functions.'"
   PragmaExpectsUnambiguousProjectionOrFunction_     -> "Pragmas referring to identifiers that are not unambiguous projections or functions.'"
+  UnknownJSPrimitive_              -> "Primitive compiled to `Undefined' by the JS backend because it is not in the list of known primitives."
   NoMain_                          -> "Compilation of modules that do not define `main'."
   NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."

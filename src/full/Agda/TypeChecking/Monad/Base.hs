@@ -4844,6 +4844,10 @@ data Warning
     --   General form of 'PragmaCompileWrongName' and 'NotARewriteRule'.
   | PragmaExpectsUnambiguousProjectionOrFunction String C.QName IsAmbiguous
     -- ^ Pragma 'String' with name 'C.QName' that is not an unambiguous projection or function.
+  | UnknownJSPrimitive String
+    -- ^ A primitive was compiled to @Undefined@ by the JS backend
+    --   because it was not listed in the known or intentionally
+    --   undefined primitives.
   | NoMain TopLevelModuleName
     -- ^ Compiler run on module that does not have a @main@ function.
   | NotInScopeW C.QName
@@ -5005,6 +5009,7 @@ warningName = \case
     PragmaExpectsUnambiguousConstructorOrFunction_
   PragmaExpectsUnambiguousProjectionOrFunction{} ->
     PragmaExpectsUnambiguousProjectionOrFunction_
+  UnknownJSPrimitive{}         -> UnknownJSPrimitive_
   NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_
