@@ -23,7 +23,17 @@ jobs:
       uses: styfle/cancel-workflow-action@0.13.0
       with:
         access_token: ${{ github.token }}
-    - uses: easimon/maximize-build-space@v10
+    - id: check-mnt
+      name: Check if /mnt is a mountpoint
+      run: |
+        echo "Running df:"
+        result=$(df)
+        echo "$result"
+        if echo "$result" | awk '{print $6}' | grep -q '/mnt'; then
+          echo "found=1" >> $GITHUB_OUTPUT
+        fi
+    - if: steps.check_mnt.outputs.found
+      uses: easimon/maximize-build-space@v10
       with:
         remove-android: true
         remove-codeql: true
