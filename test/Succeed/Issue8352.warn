@@ -1,0 +1,4 @@
+
+warning: -W[no]UnknownJSPrimitive
+The primitive primLockUniv is not known to the JS backend and will
+be compiled to undefined.
