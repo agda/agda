@@ -1,5 +1,6 @@
 -- Andreas, 2017-03-30, issue #2524
 -- compile abstract definitions to arbitrary Haskell code
+-- Andreas, 2026-02-01: since a while, this is forbidden, works only JS backend.
 
 module Issue2524 where
 
@@ -31,12 +32,9 @@ postulate
 
 postulate
   nativePutStrLn  : String → NativeIO ⊤
-  primShowNat     : Nat → String
 
 {-# COMPILE GHC nativePutStrLn = (\ s -> putStrLn (Data.Text.unpack s)) #-}
-{-# COMPILE GHC primShowNat = Data.Text.pack . show #-}
 {-# COMPILE JS nativePutStrLn = function (x) { return function(cb) { process.stdout.write(x + '\n'); cb(0); }; } #-}
-{-# COMPILE JS primShowNat = agdaRTS.primShowInteger #-}
 
 abstract
   record Pointer : Set where

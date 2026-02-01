@@ -78,35 +78,31 @@ defaultOptions = TestOptions
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [ -----------------------------------------------------------------------------
-    -- These test are disabled on all backends.
-    -- See issue 1528
-    disable "Compiler/.*/simple/Sharing"
-    -- Fix to 2524 is too unsafe
-  , disable "Compiler/.*/simple/Issue2524"
-    -- Issue #2640 (forcing translation for runtime erasure) is still open
-  , disable "Compiler/.*/simple/Erasure-Issue2640"
-    -----------------------------------------------------------------------------
-    -- The test case for #2918 stopped working when inlining of
-    -- recursive pattern-matching lambdas was disabled.
-  , disable "Compiler/MAlonzo_.*/simple/Issue2918$"
-    -----------------------------------------------------------------------------
-    -- The following test cases fail (at least at the time of writing)
-    -- for the JS backend.
-  , disable "Compiler/JS_Optimized/simple/ModuleReexport"
-  , disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport"
-    -----------------------------------------------------------------------------
-    -- The following test cases are GHC backend specific and thus disabled on JS.
-  , disable "Compiler/JS_.*/simple/Issue2821"
-  , disable "Compiler/JS_.*/simple/Issue2879-.*"
-  , disable "Compiler/JS_.*/simple/Issue2909-.*"
-  , disable "Compiler/JS_.*/simple/Issue2914"
-  , disable "Compiler/JS_.*/simple/Issue2918$"
-  , disable "Compiler/JS_.*/simple/Issue3732"
-  , disable "Compiler/JS_.*/simple/VecReverseIrr"
-  , disable "Compiler/JS_.*/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
-    -----------------------------------------------------------------------------
-  ]
+  -----------------------------------------------------------------------------
+  -- The GHC backend no longer allows compiling abstract definitions
+  -- to user-chosen Haskell representations.
+  disable "Compiler/MAlonzo_.*/simple/Issue2524" :
+  -----------------------------------------------------------------------------
+  -- The test case for #2918 stopped working when inlining of
+  -- recursive pattern-matching lambdas was disabled.
+  disable "Compiler/MAlonzo_.*/simple/Issue2918$" :
+  -----------------------------------------------------------------------------
+  -- The following test cases fail (at least at the time of writing)
+  -- for the JS backend.
+  disable "Compiler/JS_Optimized/simple/ModuleReexport" :
+  disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport" :
+  -----------------------------------------------------------------------------
+  -- The following test cases are GHC backend specific and thus disabled on JS.
+  disable "Compiler/JS_.*/simple/Issue2821" :
+  disable "Compiler/JS_.*/simple/Issue2879-.*" :
+  disable "Compiler/JS_.*/simple/Issue2909-.*" :
+  disable "Compiler/JS_.*/simple/Issue2914" :
+  disable "Compiler/JS_.*/simple/Issue2918$" :
+  disable "Compiler/JS_.*/simple/Issue3732" :
+  disable "Compiler/JS_.*/simple/VecReverseIrr" :
+  disable "Compiler/JS_.*/simple/VecReverseErased" :  -- RangeError: Maximum call stack size exceeded
+  -----------------------------------------------------------------------------
+  []
   where disable = RFInclude
 
 -- | Filtering out compiler tests that require Agda built with -fdebug.
