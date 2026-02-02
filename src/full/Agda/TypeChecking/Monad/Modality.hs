@@ -147,8 +147,8 @@ splittableCohesion a = do
 -- | Apply modalities and equational constraints (local rewrite rules) to the
 -- context.
 applyDomToContext :: (MonadTCEnv tcm) => Dom e -> tcm a -> tcm a
-applyDomToContext d c
-  = applyModalityToContext d $ applyEquationToContext (domEq d) c
+applyDomToContext d c =
+  applyModalityToContext d $ applyEquationToContext (domEq d) c
 
 -- | Checking against more than one equation at once is impossible
 composeEquation
@@ -164,8 +164,8 @@ composeEquation eq eq' = case maybeToList eq ++ maybeToList eq' of
 --   stays consistent with the way modalities are handled.
 applyEquationToContext
   :: (MonadTCEnv tcm) => Maybe LocalEquation -> tcm a -> tcm a
-applyEquationToContext eq
-  = localTC $ over eLocalEquation (composeEquation eq)
+applyEquationToContext eq =
+  localTC $ over eLocalEquation (composeEquation eq)
 
 
 {-# SPECIALIZE applyModalityToContext :: Modality -> TCM a -> TCM a #-}

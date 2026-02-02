@@ -281,7 +281,7 @@ instance Instantiate Sort where
       _            -> __IMPOSSIBLE__
     s -> return s
 
-instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
+instance Instantiate e => Instantiate (Dom e) where
     instantiate' (Dom i n b tac rew x) = Dom i n b <$> instantiate' tac <*> instantiate' rew <*> instantiate' x
 
 instance Instantiate a => Instantiate (Closure a) where
@@ -1572,7 +1572,7 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
-instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
+instance InstantiateFull e => InstantiateFull (Dom e) where
     instantiateFull' (Dom i n b tac rew x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' rew <*> instantiateFull' x
 
 instance InstantiateFull Context where

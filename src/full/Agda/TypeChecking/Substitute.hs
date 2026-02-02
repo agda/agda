@@ -886,7 +886,7 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Type'' a b) where
   type SubstArg (Type'' a b) = SubstArg a
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
-instance Subst a => Subst (Sort' a) where
+instance (Subst a) => Subst (Sort' a) where
   type SubstArg (Sort' a) = SubstArg a
   applySubst rho = \case
     Univ u n   -> Univ u $ sub n
@@ -1015,8 +1015,8 @@ instance Subst RewriteRule where
                   c top
     where n = size gamma
 
-instance Subst LocalEquation where
-  type SubstArg LocalEquation = Term
+instance Subst a => Subst (LocalEquation' a) where
+  type SubstArg (LocalEquation' a) = SubstArg a
   applySubst rho (LocalEquation gamma lhs rhs t) =
     LocalEquation (applySubst rho gamma)
                   (applySubst rho' lhs)
@@ -1051,8 +1051,8 @@ instance Subst LocalRewriteRule where
       rho' :: DeBruijn a => Substitution' a
       rho' = coerceRen $ liftS (size gamma) rho
 
-instance Subst RewDom where
-  type SubstArg RewDom = Term
+instance Subst a => Subst (RewDom' a) where
+  type SubstArg (RewDom' a) = SubstArg a
   applySubst rho (RewDom eq rew) =
     RewDom (applySubst rho eq) (applySubst <$> noCons rho <*> rew)
 
@@ -1138,7 +1138,10 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
 
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
-    fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
+    fmap (applySubst rho) dom
+      { rewDom    = applySubst rho (rewDom dom)
+      , domTactic = applySubst rho (domTactic dom)
+      }
   {-# INLINABLE applySubst #-}
 
 instance Subst LetBinding where

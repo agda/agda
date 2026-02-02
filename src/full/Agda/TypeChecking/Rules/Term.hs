@@ -88,7 +88,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
-import Agda.TypeChecking.Rewriting (checkRewApp, getEquation, checkLocalRewriteRule)
+import Agda.TypeChecking.Rewriting (getEquation, checkLocalRewriteRule, checkRewConstraint)
 import Control.Monad.Trans.Maybe (runMaybeT)
 
 ---------------------------------------------------------------------------
@@ -333,6 +333,10 @@ checkDomain lamOrPi xs e = do
   -- For now, we disallow '@rew' domains on pi types
   -- In the future, this should be allowed only when the pi type is not in
   -- higher-order position (checked syntactically)
+  --
+  -- TODO: Make sure we don't actually add the rewrite rule if it is a @rew
+  -- annotated pi type to avoid weird behaviour.
+  -- The current behaviour is useful for debugging though...
     case (lamOrPi, r) of
       (PiNotLam, IsRewrite)
         -> void $ runMaybeT
@@ -362,7 +366,10 @@ checkDomain lamOrPi xs e = do
     -- technically still store the LocalEquation and check the convertibility
     -- constraint at call sites. I don't think this is super important, but
     -- maybe worth trying in future.
-    let rDom = RewDom <$> eq <*> pure (join rew)
+    let rDom = RewDom <$> eq <*> fmap pure (join rew)
+    whenJust rDom \rDom' -> reportSDoc "rewriting" 30 $
+      "Successfully elaborated: " <+> prettyTCM (rewDomEq rDom') <+>
+        " into a rewrite rule"
 
     return (rDom, t)
   where
@@ -395,6 +402,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
     (rew, t) <- checkDomain lamOrPi xps e
+    whenJust rew $ \r -> reportSDoc "rewriting" 30 $ "Checked local rewrite:" <+> prettyTCM (rewDomEq r)
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -1503,6 +1511,14 @@ checkExpr' cmp e t =
     reportSDoc "tc.term.expr.top" 15 $
         "    --> " <+> prettyTCM tReduced
 
+    -- If we are checking against a convertibility constraint "@rew x = y", we
+    -- need to ensure it is satisfied
+    eq <- viewTC eLocalEquation
+    whenJust eq \eq' -> do
+      reportSDoc "tc.term.expr.top" 15 $
+        "Checking @rew constraint " <+> prettyTCM eq'
+      checkRewConstraint eq'
+
     e <- scopedExpr e
 
     irrelevantIfProp <- runBlocked (isPropM t) >>= \case
@@ -1593,13 +1609,6 @@ checkExpr' cmp e t =
         e -> do
           Application hd args <- appViewM e
           e' <- checkApplication cmp hd args e t
-
-          -- If we are checking against a convertibility constraint
-          -- "@rew x = y", we need to ensure it is satisfied
-          eq <- viewTC eLocalEquation
-          case eq of
-            Just eq -> checkRewApp eq t e'
-            Nothing -> pure ()
           pure e'
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do

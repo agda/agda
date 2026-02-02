@@ -56,8 +56,8 @@ import Agda.Utils.Impossible
 -- * Function type domain
 ---------------------------------------------------------------------------
 
-data RewDom = RewDom
-  { rewDomEq  :: LocalEquation
+data RewDom' t = RewDom
+  { rewDomEq  :: LocalEquation' t
     -- ^ Elaborated "@rew" equation
   , rewDomRew :: Maybe LocalRewriteRule
     -- ^ "@rew" equation transformed into a directed rewrite rule.
@@ -66,6 +66,8 @@ data RewDom = RewDom
     -- against an "@rew" domain, this is fine, but if we are inside an "@rew"
     -- context, this is probably an internal error.
   } deriving (Show, Generic)
+
+type RewDom = RewDom' Term
 
 -- | Similar to 'Arg', but we need to distinguish
 --   an irrelevance annotation in a function domain
@@ -87,7 +89,7 @@ data Dom' t e = Dom
   , domIsFinite :: Bool
     -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
-  , rewDom    :: Maybe RewDom
+  , rewDom    :: Maybe (RewDom' t)
     -- ^ Elaborated "@rew" equation
     --
     -- Will only be present if domain annotated with "@rew" (@annRewrite@
@@ -97,7 +99,7 @@ data Dom' t e = Dom
 
 type Dom = Dom' Term
 
-domEq :: Dom' t e -> Maybe LocalEquation
+domEq :: Dom' t e -> Maybe (LocalEquation' t)
 domEq = fmap rewDomEq . rewDom
 
 instance Decoration (Dom' t) where
@@ -106,7 +108,7 @@ instance Decoration (Dom' t) where
 instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
-instance KillRange RewDom where
+instance KillRange t => KillRange (RewDom' t) where
   killRange (RewDom eq rew) = killRangeN RewDom eq rew
 
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
@@ -134,7 +136,7 @@ instance LensRewriteAnn (Dom' t e) where
   getRewriteAnn = getRewriteAnn . getArgInfo
   setRewriteAnn = mapRewriteAnn . setRewriteAnn
 
-instance LensLocalEquation (Dom' t e) where
+instance LensLocalEquation (Dom e) where
   getLocalEq = domEq
 
 -- The other lenses are defined through LensArgInfo
@@ -1326,13 +1328,15 @@ headToTerm (LocHead x) = Var x
 -- | Local equations are used for local rewriting constraints ("the LHS and RHS
 -- must be convertible in the calling context").
 -- They admit arbitrary substitution.
-data LocalEquation = LocalEquation
-  { lEqContext :: Telescope
-  , lEqLHS     :: Term
-  , lEqRHS     :: Term
-  , lEqType    :: Type
+data LocalEquation' t = LocalEquation
+  { lEqContext :: Tele (Dom' t (Type'' t t))
+  , lEqLHS     :: t
+  , lEqRHS     :: t
+  , lEqType    :: Type'' t t
   }
   deriving (Show, Generic)
+
+type LocalEquation = LocalEquation' Term
 
 -- | Local rewrites are used for actual rewriting (applied during conversion
 -- checking). They do not admit arbitrary substitution.
@@ -1488,16 +1492,16 @@ instance KillRange Term where
     DontCare mv -> killRangeN DontCare mv
     v@Dummy{}   -> v
 
-instance KillRange Level where
+instance KillRange a => KillRange (Level' a) where
   killRange (Max n as) = killRangeN (Max n) as
 
-instance KillRange PlusLevel where
+instance KillRange a => KillRange (PlusLevel' a) where
   killRange (Plus n l) = killRangeN (Plus n) l
 
-instance (KillRange a) => KillRange (Type' a) where
+instance (KillRange a, KillRange b) => KillRange (Type'' a b) where
   killRange (El s v) = killRangeN El s v
 
-instance KillRange Sort where
+instance KillRange a => KillRange (Sort' a) where
   killRange = \case
     Inf u n    -> Inf u n
     SizeUniv   -> SizeUniv
@@ -1587,7 +1591,7 @@ instance KillRange LocalRewriteHead where
   killRange (DefHead a) =
     killRangeN DefHead a
 
-instance KillRange LocalEquation where
+instance KillRange t => KillRange (LocalEquation' t) where
   killRange (LocalEquation a b c d) =
     killRangeN LocalEquation a b c d
 

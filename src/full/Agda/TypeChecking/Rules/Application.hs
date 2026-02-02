@@ -769,6 +769,9 @@ checkArgumentsE'
             | let name = bareNameWithDefault "_" dname,
               sameHiding info info'
               && (visible info || maybe True (name ==) mx) -> do
+                whenJust (domEq dom) \eq ->
+                  reportSDoc "rewriting" 30 $
+                    "Applying equational constraint to context: " <+> prettyTCM eq
                 u <- lift $ applyDomToContext dom $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info

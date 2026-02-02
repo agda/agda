@@ -201,10 +201,10 @@ instance NamesIn (Pattern' a) where
     ProjP _ f       -> namesAndMetasIn' sg f
     IApplyP _ t u _ -> namesAndMetasIn' sg (t, u)
 
-instance NamesIn a => NamesIn (Type' a) where
+instance (NamesIn a, NamesIn b) => NamesIn (Type'' a b) where
   namesAndMetasIn' sg (El s t) = namesAndMetasIn' sg (s, t)
 
-instance NamesIn Sort where
+instance NamesIn a => NamesIn (Sort' a) where
   namesAndMetasIn' sg = \case
     Univ _ l    -> namesAndMetasIn' sg l
     Inf _ _     -> mempty
@@ -233,10 +233,10 @@ instance NamesIn Term where
     DontCare v   -> namesAndMetasIn' sg v
     Dummy _ args -> namesAndMetasIn' sg args
 
-instance NamesIn Level where
+instance NamesIn a => NamesIn (Level' a) where
   namesAndMetasIn' sg (Max _ ls) = namesAndMetasIn' sg ls
 
-instance NamesIn PlusLevel where
+instance NamesIn a => NamesIn (PlusLevel' a) where
   namesAndMetasIn' sg (Plus _ l) = namesAndMetasIn' sg l
 
 -- For QName and Meta literals!
@@ -318,7 +318,7 @@ instance NamesIn RewriteRule where
     RewriteRule a b c d e f _ _ ->
       namesAndMetasIn' sg (a, b, c, d, e, f)
 
-instance NamesIn LocalEquation where
+instance NamesIn a => NamesIn (LocalEquation' a) where
   namesAndMetasIn' sg (LocalEquation a b c d) = namesAndMetasIn' sg (a, b, c, d)
 
 instance NamesIn LocalRewriteHead where
@@ -329,7 +329,7 @@ instance NamesIn LocalRewriteRule where
   namesAndMetasIn' sg (LocalRewriteRule a b c d e) =
     namesAndMetasIn' sg (a, b, c, d, e)
 
-instance NamesIn RewDom where
+instance NamesIn a => NamesIn (RewDom' a) where
   namesAndMetasIn' sg (RewDom a b) =
     namesAndMetasIn' sg (a, b)
 
