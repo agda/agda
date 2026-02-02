@@ -862,11 +862,11 @@ instance Subst BraveTerm where
   type SubstArg BraveTerm = BraveTerm
   applySubst = applySubstTerm
 
-instance (Coercible a Term, Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Type'' a b) where
+instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Type'' a b) where
   type SubstArg (Type'' a b) = SubstArg a
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
-instance (Coercible a Term, Subst a) => Subst (Sort' a) where
+instance Subst a => Subst (Sort' a) where
   type SubstArg (Sort' a) = SubstArg a
   applySubst rho = \case
     Univ u n   -> Univ u $ sub n
@@ -875,9 +875,9 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
-    PiSort a s1 s2 -> PiSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
-    FunSort s1 s2 -> FunSort (coerce $ sub s1) (coerce $ sub s2)
-    UnivSort s -> UnivSort $ coerce $ sub s
+    PiSort a s1 s2 -> PiSort (sub a) (sub s1) (sub s2)
+    FunSort s1 s2 -> FunSort (sub s1) (sub s2)
+    UnivSort s -> UnivSort $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
     s@DummyS{} -> s
