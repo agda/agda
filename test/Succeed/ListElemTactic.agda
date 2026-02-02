@@ -28,9 +28,12 @@ search (suc n) i hole = do
 findElem : Nat → Term → TC ⊤
 findElem depth hole = search depth (con (quote _∈_.zero) []) hole
 
-index : (x : A) (xs : List A) {@(tactic findElem 10) i : x ∈ xs} → Nat
-index x xs {zero}  = zero
-index x xs {suc i} = suc (index x _ {i})
+index' : (x : A) (xs : List A) {i : x ∈ xs} → Nat
+index' x xs {zero}  = zero
+index' x xs {suc i} = suc (index' x _ {i})
+
+module _ (x : A) (xs : List A) {@(tactic findElem 10) i : x ∈ xs} where
+  index = index' x xs {i}
 
 test₁ : index 3 (1 ∷ 2 ∷ 3 ∷ []) ≡ 2
 test₁ = refl
