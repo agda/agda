@@ -982,16 +982,18 @@ executable agda
   -- However, we sometimes recommend people to use +RTS to control
   -- Agda's memory usage, so we want this functionality enabled by
   -- default.
+  ghc-options:
+    -rtsopts
 
   -- The threaded RTS by default starts a major GC after a program has
   -- been idle for 0.3 s. This feature turned out to be annoying, so
   -- the idle GC is now by default turned off (-I0).
-  ghc-options:
-    -rtsopts
-    "-with-rtsopts=-I0 -N1"
-
   if !arch(wasm32)
-    ghc-options: -threaded
+    ghc-options:
+      -threaded
+      "-with-rtsopts=-I0 -N1"
+  else
+    ghc-options: -with-rtsopts=-I0
 
 -- agda-mode executable
 ---------------------------------------------------------------------------
