@@ -5,10 +5,11 @@ open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 
 -- TODO: Fix the nonsense and vague error message
-module _ where
+module LocalRewriteConstraint where
 
-foo : (x : Nat) → @rew 0 ≡ x → Nat
-foo _ _ = 0
+module _ (x : Nat) (@rew _ : x ≡ 0) where
+  foo : Nat
+  foo = 0
 
-bar : (x : Nat) → 0 ≡ x → Nat
+bar : (x : Nat) → x ≡ 0 → Nat
 bar x p = foo x p

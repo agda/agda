@@ -256,7 +256,10 @@ checkLocalRewriteRule :: LocalEquation -> TCM (Maybe LocalRewriteRule)
 checkLocalRewriteRule eq = runMaybeT $ checkRewriteRule' eq LocalRewrite
 
 checkRewriteRule' :: LocalEquation -> RewriteSource -> MaybeT TCM LocalRewriteRule
-checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
+checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
+  reportSDoc "rewriting" 30 $
+    "Checking rewrite rule: " <+> prettyTCM eq
+
   let failureBlocked :: Blocker -> MaybeT TCM a
       failureBlocked b
         | Set1.IsNonEmpty ms <- allBlockingMetas    b = illegalRule s $ ContainsUnsolvedMetaVariables ms
@@ -272,6 +275,9 @@ checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
 
   gamma0 <- getContextTelescope
   let gamma = gamma0 `abstract` gamma1
+
+  reportSDoc "rewriting" 40 $
+    "Full context: " <+> prettyTCM gamma
 
   -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
   -- This is necessary to replace copies created by imports by their
@@ -291,7 +297,7 @@ checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
       return (DefHead $ conName c , hd , t , pars , vs)
     -- TODO: Allow local variable heads
     Var x es -> do
-      t <- typeOfBV x
+      t <- addContext gamma1 $ typeOfBV x
       return (LocHead x, Var x , t , [] , es)
     _ -> do
       reportSDoc "rewriting.rule.check" 30 $ hsep
@@ -300,13 +306,18 @@ checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
 
   ifNotAlreadyAdded s f $ do
 
+  let telStart = case s of
+        LocalRewrite    -> size gamma1
+        GlobalRewrite _ -> size gamma
+
   addContext gamma1 $ do
 
     checkNoLhsReduction f hd es
 
     ps <- fromRightM failureBlocked $ lift $
       catchPatternErr (pure . Left) $
-        Right <$> patternFrom NeverSing NeverSing 0 (t , headToTerm f) es
+        Right <$> patternFrom NeverSing NeverSing telStart 0
+                              (t , headToTerm f) es
 
     reportSDoc "rewriting" 30 $
       "Pattern generated from lhs: " <+> prettyTCM (headToPat f ps)
@@ -323,18 +334,18 @@ checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
     --    as 'used' (see #5238).
     let PatVars neverSingPatVars maybeSingPatVars = nlPatVars ps
         boundVars   = neverSingPatVars <> maybeSingPatVars
-        freeVarsLhs = freeVarSet lhs
-        freeVarsRhs = freeVarSet rhs
+        telVars     = VarSet.full telStart
+        freeVarsLhs = telVars `VarSet.intersection` freeVarSet lhs
+        freeVarsRhs = telVars `VarSet.intersection` freeVarSet rhs
         freeVars    = freeVarsLhs <> freeVarsRhs
-        allVars     = VarSet.full $ size gamma
         usedVars    = case s of
-          LocalRewrite      -> allVars
+          LocalRewrite      -> VarSet.empty
           GlobalRewrite def -> case theDef def of
             Function{}         -> usedArgs def
-            Axiom{}            -> allVars
-            AbstractDefn{}     -> allVars
-            Constructor{}      -> allVars
-            Primitive{}        -> allVars
+            Axiom{}            -> telVars
+            AbstractDefn{}     -> telVars
+            Constructor{}      -> telVars
+            Primitive{}        -> telVars
             DataOrRecSig{}     -> __IMPOSSIBLE__
             GeneralizableVar{} -> __IMPOSSIBLE__
             Datatype{}         -> __IMPOSSIBLE__
@@ -342,6 +353,8 @@ checkRewriteRule' (LocalEquation gamma1 lhs rhs b) s = do
             PrimitiveSort{}    -> __IMPOSSIBLE__
     reportSDoc "rewriting" 70 $
       "variables bound by the pattern: " <+> text (show boundVars)
+    reportSDoc "rewriting" 70 $
+      "variables free in the lhs: " <+> text (show freeVarsLhs)
     reportSDoc "rewriting" 70 $
       "variables free in the rhs: " <+> text (show freeVarsRhs)
     reportSDoc "rewriting" 70 $

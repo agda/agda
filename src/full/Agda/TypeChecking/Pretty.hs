@@ -639,6 +639,18 @@ instance PrettyTCM RewriteRule where
     ]
 {-# SPECIALIZE prettyTCM :: RewriteRule -> TCM Doc #-}
 
+instance PrettyTCM LocalEquation where
+  prettyTCM (LocalEquation gamma lhs rhs b) = fsep
+    [ prettyTCM gamma <+> " |- "
+    , addContext gamma $ sep
+      [ prettyTCM lhs
+      , " = "
+      , prettyTCM rhs
+      , " : "
+      , prettyTCM b
+      ]
+    ]
+
 instance PrettyTCM LocalRewriteRule where
   prettyTCM (LocalRewriteRule gamma f ps rhs b) = fsep
     [ prettyTCM gamma <+> " |- "
