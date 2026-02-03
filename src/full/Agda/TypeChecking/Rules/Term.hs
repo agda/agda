@@ -360,14 +360,16 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         NoOutputTypeName -> setCurrentRange e $
           warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let setTac tac EmptyTel            = EmptyTel
-        setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
-        xs'  = fmap (modMod lamOrPi experimental) xs
-        -- Ensure tactic annotation is not dropped
-        xs'' = fmap (\n -> (domFromNamedArg n) { domTactic = tac }) xs'
-    let tel = setTac tac $ namedBindsToTel1 xs t
+    let setTac tac dom = dom { domTactic = tac }
+        setTacTel tac EmptyTel            = EmptyTel
+        setTacTel tac (ExtendTel dom tel) =
+          ExtendTel (setTac tac dom) $ setTacTel (raise 1 tac) <$> tel
+        -- We need to convert to Dom and set the domTactic field here in order
+        -- to not drop @tactic annotations
+        xs' = setTac tac . domFromNamedArg . modMod lamOrPi experimental <$> xs
+    let tel = setTacTel tac $ namedBindsToTel1 xs t
 
-    addContext (xs'', t) $ addTypedPatterns xps (ret tel)
+    addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
     where
         -- if we are checking a typed lambda, we resurrect before we check the

@@ -434,7 +434,7 @@ instance AddContext ([Dom Name], Type) where
 
 instance AddContext (List1 (Dom Name), Type) where
   addContext (x :| xs, t) =
-    addContext (unDom x, fmap (const t) x) .
+    addContext (unDom x, x $> t) .
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
