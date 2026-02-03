@@ -51,7 +51,7 @@ memoUnsafe f = unsafePerformIO $ do
           return y
 
 {-# NOINLINE memoUnsafeH #-}
-memoUnsafeH :: (Eq a, Hashable a) => (a -> b) -> (a -> b)
+memoUnsafeH :: (Hashable a) => (a -> b) -> (a -> b)
 memoUnsafeH f = unsafePerformIO $ do
   tbl <- newIORef HMap.empty
   return (unsafePerformIO . f' tbl)

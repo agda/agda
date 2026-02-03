@@ -312,7 +312,7 @@ addSection m = do
 --   A.B.C say, A and A.B do not exist.
 {-# SPECIALIZE getSection :: ModuleName -> TCM (Maybe Section) #-}
 {-# SPECIALIZE getSection :: ModuleName -> ReduceM (Maybe Section) #-}
-getSection :: (Functor m, ReadTCState m) => ModuleName -> m (Maybe Section)
+getSection :: (ReadTCState m) => ModuleName -> m (Maybe Section)
 getSection m = do
   sig  <- (^. stSignature . sigSections) <$> getTCState
   isig <- (^. stImports   . sigSections) <$> getTCState
@@ -324,7 +324,7 @@ getSection m = do
 --   the section telescope is empty.
 {-# SPECIALIZE lookupSection :: ModuleName -> TCM Telescope #-}
 {-# SPECIALIZE lookupSection :: ModuleName -> ReduceM Telescope #-}
-lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope
+lookupSection :: (ReadTCState m) => ModuleName -> m Telescope
 lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 
 -- | Add display forms for a name @f@ copied by a module application. Essentially if @f@ can reduce to
@@ -1013,7 +1013,7 @@ defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
 
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.
-getFilteredRewriteRulesFor :: (ReadTCState m, MonadTCEnv m)
+getFilteredRewriteRulesFor :: (ReadTCState m)
   => Bool            -- ^ Only return rewrite rules that are in scope?
   -> QName           -- ^ Head symbol.
   -> m RewriteRules  -- ^ Rules for the head symbol.
@@ -1048,7 +1048,7 @@ instance HasConstInfo TCM where
       Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
 defaultGetConstInfo
-  :: (HasCallStack, HasOptions m, MonadDebug m, MonadTCEnv m)
+  :: (HasCallStack, HasOptions m, MonadDebug m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
     let defs  = st ^. stSignature . sigDefinitions
@@ -1276,11 +1276,11 @@ getDefModule f = mapRight modName <$> getConstInfo' f
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of
 --   anonymous variables (if the name comes from a let-bound module).
-getDefFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadTCEnv m) => QName -> m Nat
+getDefFreeVars :: (ReadTCState m, MonadTCEnv m) => QName -> m Nat
 getDefFreeVars = getModuleFreeVars . qnameModule
 
-freeVarsToApply :: (Functor m, HasConstInfo m, HasOptions m,
-                    ReadTCState m, MonadTCEnv m, MonadDebug m)
+freeVarsToApply :: (HasConstInfo m,
+                    ReadTCState m)
                 => QName -> m Args
 freeVarsToApply q = do
   vs <- moduleParamsToApply $ qnameModule q
@@ -1297,8 +1297,8 @@ freeVarsToApply q = do
 
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
-getModuleFreeVars :: (Functor m, Applicative m, MonadTCEnv m, ReadTCState m)
-                  => ModuleName -> m Nat
+getModuleFreeVars :: ( MonadTCEnv m, ReadTCState m)
+                  =>ModuleName -> m Nat
 getModuleFreeVars m = do
   m0   <- commonParentModule m <$> currentModule
   (+) <$> getAnonymousVariables m <*> (size <$> lookupSection m0)
@@ -1317,9 +1317,9 @@ getModuleFreeVars m = do
 --        module M₃ Θ where
 --          ... M₁.M₂.f [insert Γ raised by Θ]
 --   @
-moduleParamsToApply :: (Functor m, Applicative m, HasOptions m,
+moduleParamsToApply :: ( HasOptions m,
                         MonadTCEnv m, ReadTCState m, MonadDebug m)
-                    => ModuleName -> m Args
+                    =>ModuleName -> m Args
 moduleParamsToApply m = do
 
   traceSDoc "tc.sig.param" 90 ("computing module parameters of " <+> pretty m) $ do
@@ -1383,8 +1383,7 @@ inFreshModuleIfFreeParams k = do
 --   context.
 {-# SPECIALIZE instantiateDef :: Definition -> TCM Definition #-}
 instantiateDef
-  :: ( Functor m, HasConstInfo m, HasOptions m
-     , ReadTCState m, MonadTCEnv m, MonadDebug m )
+  :: (HasConstInfo m, ReadTCState m )
   => Definition -> m Definition
 instantiateDef d = do
   vs  <- freeVarsToApply $ defName d
@@ -1396,9 +1395,8 @@ instantiateDef d = do
       fsep (map pretty $ zipWith (<$) ctx vs)
   return $ d `apply` vs
 
-instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
-                           ReadTCState m, MonadTCEnv m, MonadDebug m)
-                       => RewriteRule -> m RewriteRule
+instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
+  => RewriteRule -> m RewriteRule
 instantiateRewriteRule rew = do
   traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> pretty (rewName rew) <+> "to the local context.") $ do
   vs  <- freeVarsToApply $ rewName rew
@@ -1407,9 +1405,8 @@ instantiateRewriteRule rew = do
   traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
-instantiateRewriteRules :: (Functor m, HasConstInfo m, HasOptions m,
-                            ReadTCState m, MonadTCEnv m, MonadDebug m)
-                        => RewriteRules -> m RewriteRules
+instantiateRewriteRules :: (HasConstInfo m, ReadTCState m)
+  => RewriteRules -> m RewriteRules
 instantiateRewriteRules = mapM instantiateRewriteRule
 
 -- | Return the abstract view of a definition, /regardless/ of whether
@@ -1467,7 +1464,7 @@ notUnderOpaque = localTC $ \e -> e { envCurrentOpaqueId = Nothing }
 -- The environment will have the same concreteness as the name, and we
 -- will be in the opaque block enclosing the name, if any.
 {-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
-inConcreteOrAbstractMode :: (MonadTCEnv m, HasConstInfo m) => QName -> (Definition -> m a) -> m a
+inConcreteOrAbstractMode :: (HasConstInfo m) => QName -> (Definition -> m a) -> m a
 inConcreteOrAbstractMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
@@ -1558,7 +1555,7 @@ projectionArgs :: Definition -> Int
 projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
-usesCopatterns :: (HasConstInfo m, HasBuiltins m) => QName -> m Bool
+usesCopatterns :: (HasConstInfo m) => QName -> m Bool
 usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper

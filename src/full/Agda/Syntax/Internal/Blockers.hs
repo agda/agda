@@ -194,7 +194,7 @@ instance Semigroup a => Semigroup (Blocked' t a) where
   NotBlocked{}   <> b@Blocked{}    = b
   NotBlocked x a <> NotBlocked y b = NotBlocked (x <> y) (a <> b)
 
-instance (Semigroup a, Monoid a) => Monoid (Blocked' t a) where
+instance (Monoid a) => Monoid (Blocked' t a) where
   mempty = notBlocked mempty
   mappend = (<>)
 

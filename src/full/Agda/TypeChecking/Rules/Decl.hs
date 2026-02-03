@@ -247,7 +247,7 @@ checkDecl d = setCurrentRange d $ do
 
     -- Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
-          . ( MonadTCEnv m, MonadPretty m, MonadDebug m
+          . ( MonadTCEnv m, MonadDebug m
             , MonadBench m, Bench.BenchPhase m ~ Phase
             , AnyIsAbstract i
             , AllAreOpaque i

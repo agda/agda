@@ -91,7 +91,7 @@ registerFileId''  f d@(FileDictBuilder n (FileDict fileToId idToFile)) =
 -- * Monadic interface
 
 class Monad m => MonadFileId m where
-  fileFromId :: FileId -> m File
+  fileFromId :: HasCallStack => FileId -> m File
   idFromFile :: File -> m FileId
 
   default fileFromId :: (MonadTrans t, MonadFileId n, m ~ t n) => FileId -> m File

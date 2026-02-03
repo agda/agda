@@ -166,7 +166,7 @@ newtype AbsToConT m a = AbsToCon { unAbsToCon :: ReaderT Env m a }
 deriving instance MonadFresh NameId m => MonadFresh NameId (AbsToConT m)
 deriving instance (Monad m, IsString  (m Doc)) => IsString (AbsToConT m Doc)
 deriving instance (Monad m, Null      (m Doc)) => Null (AbsToConT m Doc)
-deriving instance (Monad m, Semigroup (m Doc)) => Semigroup (AbsToConT m Doc)
+deriving instance (Monad m) => Semigroup (AbsToConT m Doc)
 
 runAbsToCon :: MonadAbsToCon m => AbsToConT m c -> m c
 runAbsToCon m = do
@@ -400,7 +400,7 @@ pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ Just . \case
     Just ys -> List1.snoc (List1.toList ys) y
 
 -- | For the given abstract name, return the names that could shadow it.
-shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
+shadowingNames :: (ReadTCState m)
                => A.Name -> m (Set RawName)
 shadowingNames x = Set1.toSet' . Map.lookup x <$> useR stShadowingNames
 
@@ -1819,7 +1819,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
      YesSection       -> False
      NoSection (i, e) -> isLam e && preferParenless (appParens i)
 
-  doQNameHelper :: MonadToConcrete m => Either A.Name A.QName -> [MaybeSection (AppInfo, a)] -> m (Maybe c)
+  doQNameHelper :: Either A.Name A.QName -> [MaybeSection (AppInfo, a)] -> m (Maybe c)
   doQNameHelper n args = do
     x <- either (C.QName <.> toConcrete) toConcrete n
     let n' = either id A.qnameName n
@@ -1835,7 +1835,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
     List1.ifNull args {-then-} mDefault {-else-} $ \ as ->
       doQName (nameAspects True nk n') fx x n' as (C.nameParts $ C.unqualify x)
 
-  doQName :: MonadToConcrete m => Asp.Aspects -> Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> m (Maybe c)
+  doQName :: Asp.Aspects -> Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> m (Maybe c)
 
   -- fall-back (wrong number of arguments or no holes)
   doQName nk _ x _ as xs

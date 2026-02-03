@@ -135,7 +135,7 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
   -- Every memoised parser must be annotated with a /unique/ key.
   -- (Parametrised parsers must use distinct keys for distinct
   -- inputs.)
-  memoise :: (Eq k, Hashable k, Show k) => k -> p r -> p r
+  memoise :: (Hashable k, Show k) => k -> p r -> p r
 
   -- | Memoises the given parser, but only if printing, not if
   -- parsing.
@@ -143,7 +143,7 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
   -- Every memoised parser must be annotated with a /unique/ key.
   -- (Parametrised parsers must use distinct keys for distinct
   -- inputs.)
-  memoiseIfPrinting :: (Eq k, Hashable k, Show k) => k -> p r -> p r
+  memoiseIfPrinting :: (Hashable k, Show k) => k -> p r -> p r
 
 -- | Uses the given document as the printed representation of the
 -- given parser. The document's precedence is taken to be 'atomP'.
@@ -313,7 +313,7 @@ prettyKey key = (text ("<" ++ show key ++ ">"), atomP)
 -- | A helper function.
 
 memoiseDocs ::
-  (Eq k, Hashable k, Show k) =>
+  (Hashable k, Show k) =>
   k -> ParserWithGrammar k r tok r -> Docs k
 memoiseDocs key p = do
   r <- Map.lookup key <$> get

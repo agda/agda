@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Boolean algebras and types isomorphic to 'Bool'.

@@ -83,7 +83,7 @@ type MonadConversion m =
 --   (may create new metas, though).
 --   Restores state upon failure.
 tryConversion
-  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+  :: (MonadConstraint m, MonadWarning m, MonadFresh ProblemId m)
   => m () -> m Bool
 tryConversion = isJust <.> tryConversion'
 
@@ -92,7 +92,7 @@ tryConversion = isJust <.> tryConversion'
 --   Return 'Just' the result upon success.
 --   Return 'Nothing' and restore state upon failure.
 tryConversion'
-  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+  :: (MonadConstraint m, MonadWarning m, MonadFresh ProblemId m)
   => m a -> m (Maybe a)
 tryConversion' m = tryMaybe $ noConstraints m
 
@@ -445,7 +445,7 @@ compareTerm' cmp a m n =
         _ -> compareAtom cmp (AsTermsOf a') m n
   where
     -- equality at function type (accounts for eta)
-    equalFun :: (MonadConversion m) => Sort -> Term -> Term -> Term -> m ()
+    equalFun :: Sort -> Term -> Term -> Term -> m ()
     equalFun s a@(Pi dom b) m n | domIsFinite dom = do
        mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
        let asFn = El s (Pi (dom { domIsFinite = False }) b)
@@ -465,7 +465,7 @@ compareTerm' cmp a m n =
 
     equalFun _ _ _ _ = __IMPOSSIBLE__
 
-    equalPath :: (MonadConversion m) => PathView -> Type -> Term -> Term -> m ()
+    equalPath :: PathView -> Type -> Term -> Term -> m ()
     equalPath (PathType s _ l a x y) _ m n = do
       whenProfile Profile.Conversion $ tick "compare at path type"
       interval <- el primInterval
@@ -688,7 +688,7 @@ compareAtom cmp t m n =
           _ -> notEqual
     where
         -- returns True in case we handled the comparison already.
-        compareEtaPrims :: MonadConversion m => QName -> Elims -> Elims -> m Bool
+        compareEtaPrims :: QName -> Elims -> Elims -> m Bool
         compareEtaPrims q es es' = do
           munglue <- getPrimitiveName' builtin_unglue
           munglueU <- getPrimitiveName' builtin_unglueU
@@ -732,7 +732,7 @@ compareAtom cmp t m n =
               compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
-        compareUnglueUApp :: MonadConversion m => QName -> Elims -> Elims -> m Bool
+        compareUnglueUApp :: QName -> Elims -> Elims -> m Bool
         compareUnglueUApp q es es' = do
           let (as,bs) = splitAt 5 es; (as',bs') = splitAt 5 es'
           case (allApplyElims as, allApplyElims as') of

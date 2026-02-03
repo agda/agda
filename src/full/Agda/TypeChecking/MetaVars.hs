@@ -547,7 +547,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
 {-# SPECIALIZE blockTerm :: Type -> TCM Term -> TCM Term #-}
 -- | Construct a blocked constant if there are constraints.
 blockTerm
-  :: (MonadMetaSolver m, MonadConstraint m, MonadFresh Nat m, MonadFresh ProblemId m)
+  :: (MonadMetaSolver m, MonadFresh Nat m, MonadFresh ProblemId m)
   => Type -> m Term -> m Term
 blockTerm t blocker = do
   (pid, v) <- newProblem blocker
@@ -762,7 +762,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
 
-etaExpandBlocked :: (MonadReduce m, MonadMetaSolver m, IsMeta t, Reduce t)
+etaExpandBlocked :: (MonadMetaSolver m, IsMeta t, Reduce t)
                  => Blocked t -> m (Blocked t)
 etaExpandBlocked t@NotBlocked{} = return t
 etaExpandBlocked t@(Blocked _ v) | Just{} <- isMeta v = return t
@@ -775,7 +775,7 @@ etaExpandBlocked (Blocked b t)  = do
     _                      -> return t
 
 {-# SPECIALIZE assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM () #-}
-assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
+assignWrapper :: (MonadMetaSolver m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
 assignWrapper dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) dontAssign $ {- else -} do
@@ -1149,7 +1149,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 -- | Is the given metavariable application secretly an interaction point
 -- application? Ugly.
 isInteractionMetaB
-  :: forall m. (ReadTCState m, MonadReduce m, MonadPretty m)
+  :: forall m. (MonadPretty m)
   => MetaId
   -> Args
   -> m (Maybe (MetaId, InteractionId, Args))
@@ -1548,7 +1548,7 @@ class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
   reduceAndEtaContract :: a -> TCM a
 
   default reduceAndEtaContract
-    :: (Traversable f, TermLike b, Subst b, Reduce b, ReduceAndEtaContract b, f b ~ a)
+    :: (Traversable f, ReduceAndEtaContract b, f b ~ a)
     => a -> TCM a
   reduceAndEtaContract = Trav.mapM reduceAndEtaContract
 

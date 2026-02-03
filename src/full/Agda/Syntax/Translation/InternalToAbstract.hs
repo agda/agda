@@ -355,8 +355,7 @@ reifyDisplayFormP f ps wps = do
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS
-      :: MonadReify m
-      => A.Patterns   -- Patterns to substituted into display term.
+      :: A.Patterns   -- Patterns to substituted into display term.
       -> DisplayTerm  -- Display term.
       -> m (QName, A.Patterns, A.Patterns)  -- New head, patterns, with-patterns.
     displayLHS ps d = do
@@ -365,16 +364,16 @@ reifyDisplayFormP f ps wps = do
         wps <- mapM (updateNamedArg (A.WithP empty) <.> elimToPat) es
         return (f, ps, wps)
       where
-        argToPat :: MonadReify m => Arg DisplayTerm -> m (NamedArg A.Pattern)
+        argToPat :: Arg DisplayTerm -> m (NamedArg A.Pattern)
         argToPat arg = traverse termToPat arg
 
-        elimToPat :: MonadReify m => I.Elim' DisplayTerm -> m (NamedArg A.Pattern)
+        elimToPat :: I.Elim' DisplayTerm -> m (NamedArg A.Pattern)
         elimToPat (I.IApply _ _ r) = argToPat (Arg defaultArgInfo r)
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ unambiguous d
 
         -- Substitute variables in display term by patterns.
-        termToPat :: MonadReify m => DisplayTerm -> m (Named_ A.Pattern)
+        termToPat :: DisplayTerm -> m (Named_ A.Pattern)
 
         -- Main action HERE:
         termToPat (DTerm (I.Var n [])) =
@@ -400,11 +399,11 @@ reifyDisplayFormP f ps wps = do
 
         len = length ps
 
-        argsToExpr :: MonadReify m => I.Args -> m [Arg A.Expr]
+        argsToExpr :: I.Args -> m [Arg A.Expr]
         argsToExpr = mapM (traverse termToExpr)
 
         -- TODO: restructure this to avoid having to repeat the code for reify
-        termToExpr :: MonadReify m => Term -> m A.Expr
+        termToExpr :: Term -> m A.Expr
         termToExpr v = do
           reportSLn "reify.display" 60 $ "termToExpr " ++ show v
           -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
@@ -665,7 +664,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           df <- asksTC envPrintDomainFreePi
           return $ df && freeIn 0 b && closed a
 
-        skipGeneralizedParameter :: MonadReify m => ArgInfo -> m Bool
+        skipGeneralizedParameter :: ArgInfo -> m Bool
         skipGeneralizedParameter info = (not <$> showGeneralizedArguments) <&> (&& (argInfoOrigin info == Generalization))
 
     I.Sort s     -> reify s
@@ -740,7 +739,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     -- to improve error messages.
     -- Don't do this if we have just expanded into a display form,
     -- otherwise we loop!
-    reifyDef :: MonadReify m => Bool -> QName -> I.Elims -> m Expr
+    reifyDef :: Bool -> QName -> I.Elims -> m Expr
     reifyDef True x es =
       ifM (not . null . inverseScopeLookupName x <$> getScope) (reifyDef' x es) $ do
       r <- reduceDefCopy x es
@@ -768,7 +767,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     discontiguous (I.Apply (Arg info _):es) =
       (notVisible info && ConversionFail == argInfoOrigin info) || discontiguous es
 
-    reifyDef' :: MonadReify m => QName -> I.Elims -> m Expr
+    reifyDef' :: QName -> I.Elims -> m Expr
     reifyDef' x es = do
       reportSLn "reify.def" 60 $ "reifying call to " ++ prettyShow x
       -- We should drop this many arguments from the local context.
@@ -954,8 +953,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     -- extended lambda, instead trying to construct the nice syntax.
 
     reifyExtLam
-      :: MonadReify m
-      => QName -> ArgInfo -> Int -> Maybe System -> [I.Clause]
+      :: QName -> ArgInfo -> Int -> Maybe System -> [I.Clause]
       -> I.Elims -> m Expr
     reifyExtLam x ai npars msys cls es = do
       reportS "reify.def" 10 $ "reifying extended lambda" <+> pretty x

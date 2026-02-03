@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
 
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 module Agda.TypeChecking.Monad.Debug
   ( module Agda.TypeChecking.Monad.Debug
   , Verbosity, VerboseKey, VerboseLevel
@@ -399,7 +401,7 @@ hasExactVerbosity k n = (n ==) <$> getVerbosityLevel k
 whenExactVerbosity :: MonadDebug m => VerboseKey -> VerboseLevel -> m () -> m ()
 whenExactVerbosity k n = whenM $ hasExactVerbosity k n
 
-__CRASH_WHEN__ :: (HasCallStack, MonadTCM m, MonadDebug m) => VerboseKey -> VerboseLevel -> m ()
+__CRASH_WHEN__ :: (HasCallStack, MonadDebug m) => VerboseKey -> VerboseLevel -> m ()
 __CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
   where
     -- Create the "Unreachable" error using *our* caller as the call site.

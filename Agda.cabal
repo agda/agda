@@ -320,7 +320,7 @@ common language
       -Werror=overlapping-patterns
       -Werror=overlapping-patterns
       -Werror=redundant-bang-patterns
---      -Werror=redundant-constraints
+      -Werror=redundant-constraints
       -Werror=redundant-record-wildcards
       -Werror=simplifiable-class-constraints
       -Werror=star-binder

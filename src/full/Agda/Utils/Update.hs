@@ -105,7 +105,7 @@ dirty a = do
 
 {-# SPECIALIZE ifDirty :: Change a -> (a -> Change b) -> (a -> Change b) -> Change b #-}
 {-# SPECIALIZE ifDirty :: Identity a -> (a -> Identity b) -> (a -> Identity b) -> Identity b #-}
-ifDirty :: (Monad m, MonadChange m) => m a -> (a -> m b) -> (a -> m b) -> m b
+ifDirty :: (MonadChange m) => m a -> (a -> m b) -> (a -> m b) -> m b
 ifDirty m f g = do
   (a, dirty) <- listenDirty m
   if dirty then f a else g a

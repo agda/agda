@@ -75,10 +75,10 @@ instance Enum k             => Collection k      (EnumSet k)   where
 instance Enum k             => Collection (k, a) (EnumMap k a) where
   fromList = EnumMap.fromList
   {-# INLINE fromList #-}
-instance (Eq k, Hashable k) => Collection k      (HashSet k)   where
+instance Hashable k         => Collection k      (HashSet k)   where
   fromList = HashSet.fromList
   {-# INLINE fromList #-}
-instance (Eq k, Hashable k) => Collection (k, a) (HashMap k a) where
+instance Hashable k         => Collection (k, a) (HashMap k a) where
   fromList = HashMap.fromList
   {-# INLINE fromList #-}
 instance Ord k              => Collection k      (Set k)       where

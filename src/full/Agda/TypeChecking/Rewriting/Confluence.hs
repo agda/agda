@@ -619,7 +619,7 @@ instance ParallelReduce a => ParallelReduce (Elim' a) where
   parReduce e@Proj{}   = pure e
   parReduce e@IApply{} = pure e -- TODO
 
-instance (Free a, Subst a, ParallelReduce a) => ParallelReduce (Abs a) where
+instance (Subst a, ParallelReduce a) => ParallelReduce (Abs a) where
   parReduce = mapAbstraction __DUMMY_DOM__ parReduce
 
 

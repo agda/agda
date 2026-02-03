@@ -499,12 +499,12 @@ underAbstraction_ = underAbstraction __DUMMY_DOM__
 -- | Map a monadic function on the thing under the abstraction, adding
 --   the abstracted variable to the context.
 mapAbstraction
-  :: (Subst a, Subst b, MonadAddContext m)
+  :: (Subst a, MonadAddContext m)
   => Dom Type -> (a -> m b) -> Abs a -> m (Abs b)
 mapAbstraction dom f x = (x $>) <$> underAbstraction dom x f
 
 mapAbstraction_
-  :: (Subst a, Subst b, MonadAddContext m)
+  :: (Subst a, MonadAddContext m)
   => (a -> m b) -> Abs a -> m (Abs b)
 mapAbstraction_ = mapAbstraction __DUMMY_DOM__
 

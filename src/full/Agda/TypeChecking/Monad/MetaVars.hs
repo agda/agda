@@ -104,7 +104,7 @@ class ( MonadConstraint m
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen
   -- metas.
-  assignTerm' :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
+  assignTerm' :: MetaId -> [Arg ArgName] -> Term -> m ()
 
   -- | Eta-expand a local meta-variable, if it is of the specified
   -- class. Don't do anything if the meta-variable is a blocked term.
@@ -127,7 +127,7 @@ instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
   speculateMetas fallback m = ReaderT $ \x -> speculateMetas (runReaderT fallback x) (runReaderT m x)
 
 -- | Switch off assignment of metas.
-dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
+dontAssignMetas :: (MonadTCEnv m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
   reportSLn "tc.meta" 45 $ "don't assign metas"
   localTC (\ env -> env { envAssignMetas = False }) cont
@@ -332,8 +332,7 @@ getMetaContextArgs MetaVar{ mvPermutation = p } = do
 -- | Given a local meta-variable, return the type applied to the
 -- current context.
 getMetaTypeInContext ::
-  (HasBuiltins m, HasCallStack, MonadDebug m, MonadReduce m,
-   MonadTCEnv m, ReadTCState m) =>
+  (HasBuiltins m, HasCallStack, MonadDebug m, MonadReduce m) =>
   MetaId -> m Type
 getMetaTypeInContext m = do
   mv@MetaVar{ mvJudgement = j } <- lookupLocalMeta m
@@ -720,7 +719,7 @@ getInteractionRange = ipRange <.> lookupInteractionPoint
 
 -- | Set the 'Range' for an interaction point.
 {-# SPECIALIZE setInteractionRange :: Range -> InteractionId -> TCM () #-}
-setInteractionRange :: (MonadInteractionPoints m, MonadDebug m, MonadError TCErr m)
+setInteractionRange :: (MonadInteractionPoints m, MonadDebug m)
   => Range -> InteractionId -> m ()
 setInteractionRange r ii = do
   modifyInteractionPoints $ BiMap.update (\ ip -> Just ip{ ipRange = r }) ii
@@ -738,24 +737,22 @@ getInteractionScope ::
 getInteractionScope =
   getMetaScope <.> lookupLocalMeta <=< lookupInteractionId
 
-withMetaInfo' :: (MonadTCEnv m, ReadTCState m, MonadTrace m) => MetaVariable -> m a -> m a
+withMetaInfo' :: (MonadTrace m) => MetaVariable -> m a -> m a
 withMetaInfo' mv = withMetaInfo (miClosRange $ mvInfo mv)
 
-withMetaInfo :: (MonadTCEnv m, ReadTCState m, MonadTrace m) => Closure Range -> m a -> m a
+withMetaInfo :: (MonadTrace m) => Closure Range -> m a -> m a
 withMetaInfo mI cont = enterClosure mI $ \ r ->
   setCurrentRange r cont
 
 withInteractionId ::
-  (MonadDebug m, ReadTCState m, MonadError TCErr m,
-   MonadTCEnv m, MonadTrace m) =>
+  (MonadDebug m, MonadError TCErr m, MonadTrace m) =>
   InteractionId -> m a -> m a
 withInteractionId i ret = do
   m <- lookupInteractionId i
   withMetaId m ret
 
 withMetaId ::
-  (HasCallStack, MonadDebug m, MonadTCEnv m, MonadTrace m,
-   ReadTCState m) =>
+  (HasCallStack, MonadDebug m, MonadTrace m) =>
   MetaId -> m a -> m a
 withMetaId m ret = do
   mv <- lookupLocalMeta m

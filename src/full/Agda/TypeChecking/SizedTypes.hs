@@ -188,7 +188,7 @@ isBounded :: PureTCM m => Nat -> m BoundedSize
 isBounded i = isBoundedSizeType =<< typeOfBV i
 
 isBoundedProjVar
-  :: (MonadCheckInternal m, PureTCM m)
+  :: (MonadCheckInternal m)
   => ProjectedVar -> m BoundedSize
 isBoundedProjVar pv = isBoundedSizeType =<< infer (unviewProjectedVar pv)
 
@@ -205,10 +205,7 @@ isBoundedSizeType t =
 --   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
 boundedSizeMetaHook
   :: ( MonadConstraint m
-     , MonadTCEnv m
-     , ReadTCState m
      , MonadAddContext m
-     , HasOptions m
      , HasBuiltins m
      )
   => Term -> Telescope -> Type -> m ()

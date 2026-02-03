@@ -101,7 +101,7 @@ unlessM :: Monad m => m Bool -> m () -> m ()
 unlessM c m = c >>= (`unless` m)
 
 -- | Monadic guard.
-guardM :: (Monad m, MonadPlus m) => m Bool -> m ()
+guardM :: (MonadPlus m) => m Bool -> m ()
 guardM c = guard =<< c
 
 -- | Monadic if-then-else.
@@ -151,7 +151,7 @@ altM1 f (a : as) = either (const $ altM1 f as) (return . Right) =<< f a
 
 -- | Lazy monadic disjunction with accumulation of errors in a monoid.
 --   Errors are discarded if we succeed.
-orEitherM :: (Monoid e, Monad m, Functor m) => [m (Either e b)] -> m (Either e b)
+orEitherM :: (Monoid e, Monad m) => [m (Either e b)] -> m (Either e b)
 orEitherM []       = return $ Left mempty
 orEitherM (m : ms) = caseEitherM m (\e -> mapLeft (e `mappend`) <$> orEitherM ms)
                                    (return . Right)
@@ -245,7 +245,7 @@ dropWhileEndM p (x : xs) = ifNotNullM (dropWhileEndM p xs) (return . (x:)) $ {-e
   ifM (p x) (return []) (return [x])
 
 -- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
-partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM :: (Applicative m) => (a -> m Bool) -> [a] -> m ([a], [a])
 partitionM f =
   foldr (\ x -> liftA2 (bool (second (x:)) (first (x:))) $ f x)
         (pure empty)
@@ -281,12 +281,12 @@ first `finally` after = do
 
 -- | Try a computation, return 'Nothing' if an 'Error' occurs.
 
-tryMaybe :: (MonadError e m, Functor m) => m a -> m (Maybe a)
+tryMaybe :: (MonadError e m) => m a -> m (Maybe a)
 tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
 
 -- | Run a command, catch the exception and return it.
 
-tryCatch :: (MonadError e m, Functor m) => m () -> m (Maybe e)
+tryCatch :: (MonadError e m) => m () -> m (Maybe e)
 tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
 
 -- | Like 'guard', but raise given error when condition fails.
@@ -319,9 +319,9 @@ localState = bracket_ get put
 
 -- Writer monad -----------------------------------------------------------
 
-embedWriter :: (Monoid w, Monad m) => Writer w a -> WriterT w m a
+embedWriter :: (Monad m) => Writer w a -> WriterT w m a
 embedWriter = mapWriterT (pure . runIdentity)
 
 -- | Output a single value.
-tell1 :: (Monoid ws, Singleton w ws, MonadWriter ws m) => w -> m ()
+tell1 :: (Singleton w ws, MonadWriter ws m) => w -> m ()
 tell1 = tell . singleton

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Primitive functions, such as addition on builtin integers.

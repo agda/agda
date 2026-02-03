@@ -162,7 +162,7 @@ instance Semigroup c => Semigroup (WithArity c) where
     | n1 == n2  = WithArity n1 (c1 <> c2)
     | otherwise = __IMPOSSIBLE__   -- arity must match!
 
-instance (Semigroup c, Monoid c) => Monoid (WithArity c) where
+instance (Monoid c) => Monoid (WithArity c) where
   mempty  = WithArity __IMPOSSIBLE__ mempty
   mappend = (<>)
 
@@ -184,7 +184,7 @@ instance Semigroup m => Semigroup (Case m) where
      unionEta b Nothing = b
      unionEta Just{} Just{} = __IMPOSSIBLE__
 
-instance (Semigroup m, Monoid m) => Monoid (Case m) where
+instance (Monoid m) => Monoid (Case m) where
   mempty  = empty
   mappend = (<>)
 

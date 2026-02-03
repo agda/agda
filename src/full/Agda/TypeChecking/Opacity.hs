@@ -38,7 +38,7 @@ import Agda.Utils.Lens
 -- | Ensure that opaque blocks defined in the current module have
 -- saturated unfolding sets.
 saturateOpaqueBlocks
-  :: forall m. (MonadTCState m, ReadTCState m, MonadFresh OpaqueId m, MonadDebug m, MonadTrace m, MonadWarning m, MonadIO m)
+  :: forall m. (MonadTCState m, MonadFresh OpaqueId m, MonadTrace m, MonadWarning m, MonadIO m)
   => m ()
 saturateOpaqueBlocks = entry where
   entry = do
@@ -205,7 +205,7 @@ isAccessibleDef env state defn =
 -- | Will the given 'QName' have a proper definition, or will it be
 -- wrapped in an 'AbstractDefn'?
 hasAccessibleDef
-  :: (ReadTCState m, MonadTCEnv m, HasConstInfo m) => QName -> m Bool
+  :: (ReadTCState m, HasConstInfo m) => QName -> m Bool
 hasAccessibleDef qn = do
   env <- askTC
   st <- getTCState

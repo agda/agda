@@ -130,7 +130,7 @@ isSemigroup = isAssociative (<>)
 
 -- | Does the operator satisfy the monoid laws?
 
-isMonoid :: (Eq a, Semigroup a, Monoid a) => Property3 a
+isMonoid :: (Eq a, Monoid a) => Property3 a
 isMonoid x y z =
 -- ASR (2017-01-25): What if `mappend ≠ (<>)`? It isn't possible
 -- because we are using the `-Wnoncanonical-monoid-instances` flag.
@@ -166,7 +166,7 @@ isSemimodule one (*) op r s m n =
   op (r * s) m == op r (op s m)
 
 -- | The semiring is given by an additive monoid, a unit and a multiplication.
-isAlmostSemimodule :: (Eq m, Semigroup r, Monoid r, Semigroup m, Monoid m) => r -> (r -> r -> r) -> (r -> m -> m)
+isAlmostSemimodule :: (Eq m, Semigroup r, Monoid m) => r -> (r -> r -> r) -> (r -> m -> m)
   -> r -> r -> Property2 m
 isAlmostSemimodule one (*) op r s m n =
   isMonoidMorphism (op r) m n
@@ -182,14 +182,14 @@ isAlmostSemimodule one (*) op r s m n =
 -- | Is the semigroup operation monotone in both arguments
 --   wrt. to the associated partial ordering?
 --   We state this with only three variables to get fewer discarded tests.
-isMonotoneComposition :: (Eq a, POSemigroup a) => Property3 a
+isMonotoneComposition :: (POSemigroup a) => Property3 a
 isMonotoneComposition x x' y =
   related x POLE x' ==> related (x <> y) POLE (x' <> y) && related (y <> x) POLE (y <> x')
 
 -- | Do the semigroup operation and the inverse composition form
 --   a Galois connection?
 
-isGaloisConnection :: (Eq a, Semigroup a, LeftClosedPOMonoid a) => Prop3 a
+isGaloisConnection :: (LeftClosedPOMonoid a) => Prop3 a
 isGaloisConnection p x y =
   related (inverseCompose p x) POLE y == related x POLE (p <> y)
 

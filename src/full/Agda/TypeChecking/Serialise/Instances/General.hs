@@ -295,7 +295,7 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
   icod_ m = icode (BiMap.toDistinctAscendingLists m)
   value m = BiMap.fromDistinctAscendingLists <$!> value m
 
-instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
+instance (Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
   icod_ m = icodeNode =<< icodeListPair (HMap.foldrWithKey' (\ k v !acc -> Cons k v acc) Nil m)
   value = vcase ((HMap.fromList <$!>) . valueListPair)
 

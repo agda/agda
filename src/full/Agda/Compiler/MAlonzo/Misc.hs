@@ -113,7 +113,7 @@ class Monad m => ReadGHCModuleEnv m where
   askGHCModuleEnv :: m GHCModuleEnv
 
   default askGHCModuleEnv
-    :: (MonadTrans t, Monad n, m ~ (t n), ReadGHCModuleEnv n)
+    :: (MonadTrans t, m ~ (t n), ReadGHCModuleEnv n)
     => m GHCModuleEnv
   askGHCModuleEnv = lift askGHCModuleEnv
 

@@ -191,7 +191,7 @@ data Debug = MoveColumn | NonCode | Code | Spaces | Output | FileSystem
   deriving (Eq, Show)
 
 -- | Run function for the @LaTeX@ monad.
-runLaTeX :: MonadLogLaTeX m =>
+runLaTeX ::
   LaTeXT m a -> Env -> State -> m (a, State, [Output])
 runLaTeX = runRWST
 

@@ -936,7 +936,7 @@ instance PrettyTCM TypeError where
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
       where
-        help :: MonadPretty m => ModuleName -> m Doc
+        help :: ModuleName -> m Doc
         help m = do
           anno <- caseMaybeM (isDatatypeModule m) (return empty) $ \case
             IsDataModule   -> return $ "(datatype module)"
@@ -1034,16 +1034,16 @@ instance PrettyTCM TypeError where
       pwords "Could mean any one of:"
       ) $$ nest 2 (vcat $ fmap pretty' es')
       where
-        pretty_es :: MonadPretty m => m Doc
+        pretty_es :: m Doc
         pretty_es = pretty $ C.RawApp noRange es
 
-        pretty' :: MonadPretty m => C.Expr -> m Doc
+        pretty' :: C.Expr -> m Doc
         pretty' e = do
           p1 <- pretty_es
           p2 <- pretty e
           if render p1 == render p2 then unambiguous e else return p2
 
-        unambiguous :: MonadPretty m => C.Expr -> m Doc
+        unambiguous :: C.Expr -> m Doc
         unambiguous e@(C.OpApp r op _ xs)
           | all (isOrdinary . namedArg) xs =
             pretty $
@@ -1133,7 +1133,7 @@ instance PrettyTCM TypeError where
           ++
         map (nest 2 . pretty' d) (List2.toList ps)
       where
-        pretty' :: MonadPretty m => Doc -> C.Pattern -> m Doc
+        pretty' :: Doc -> C.Pattern -> m Doc
         pretty' d1 p' = do
           d2 <- pretty p'
           if render d1 == render d2 then pretty $ unambiguousP p' else return d2
@@ -1756,13 +1756,13 @@ instance PrettyTCM TypeError where
       | n > 0 && not (null args) = parens
       | otherwise                = id
 
-    prettyArg :: MonadPretty m => Arg (I.Pattern' a) -> m Doc
+    prettyArg :: Arg (I.Pattern' a) -> m Doc
     prettyArg (Arg info x) = case getHiding info of
       Hidden     -> braces $ prettyPat 0 x
       Instance{} -> dbraces $ prettyPat 0 x
       NotHidden  -> prettyPat 1 x
 
-    prettyPat :: MonadPretty m => Integer -> (I.Pattern' a) -> m Doc
+    prettyPat :: Integer -> (I.Pattern' a) -> m Doc
     prettyPat _ (I.VarP _ _) = "_"
     prettyPat _ (I.DotP _ _) = "._"
     prettyPat n (I.ConP c _ args) =

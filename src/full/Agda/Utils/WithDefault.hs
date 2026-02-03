@@ -48,14 +48,14 @@ instance Null (WithDefault' a b) where
 -- | The main mode of operation of these flags, apart from setting them explicitly,
 -- is to toggle them one way or the other if they hadn't been set already.
 --
-setDefault :: Boolean a => a -> WithDefault' a b -> WithDefault' a b
+setDefault :: a -> WithDefault' a b -> WithDefault' a b
 setDefault b = \case
   Default -> Value b
   t -> t
 
 -- | Only modify non-'Default' values.
 --
-mapValue :: Boolean a => (a -> a) -> WithDefault' a b -> WithDefault' a b
+mapValue :: (a -> a) -> WithDefault' a b -> WithDefault' a b
 mapValue f = \case
   Default -> Default
   Value b -> Value (f b)

@@ -190,9 +190,8 @@ agdaFileExtensions = ".agda" : literateExts
 --   When @True@, only blocks marked @```agda@ are considered code.
 --   When @False@, both @```@ and @```agda@ blocks are code (default).
 
-parseFile
-  :: Show a
-  => Bool
+parseFile ::
+     Bool
      -- ^ When @True@, only treat @```agda@ blocks as code in Markdown/Typst.
   -> Parser a
   -> RangeFile

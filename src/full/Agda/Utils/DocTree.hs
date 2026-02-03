@@ -231,17 +231,17 @@ data LinSt ann = LinSt
 type Lin ann = Fwd (LinSt ann)
 
 -- | Run linearizer with given initial offset.
-evalLin :: Monoid ann => Int -> Lin ann -> (Text, RangeMap ann)
+evalLin :: Int -> Lin ann -> (Text, RangeMap ann)
 evalLin start f =
   case f `appFwd` initLinSt start of
     LinSt _ b m -> (builderToText b, m)
 
 -- | Initial linearizer state with configurable offset.
-initLinSt :: Monoid ann => Int -> LinSt ann
+initLinSt :: Int -> LinSt ann
 initLinSt start = LinSt start mempty empty
 
 -- | Outputting some text under the currently active annotations.
-linText :: Monoid ann => Text -> Lin ann
+linText :: Text -> Lin ann
 linText t = Fwd \case
   LinSt start b m -> LinSt end b' m
     where

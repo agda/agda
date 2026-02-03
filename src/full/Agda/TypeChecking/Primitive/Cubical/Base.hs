@@ -322,7 +322,7 @@ fiber la lb bA bB f b = do
 -- | Helper function for constructing the filler of a given composition
 -- problem.
 hfill
-  :: (HasBuiltins m, HasConstInfo m)
+  :: (HasBuiltins m)
   => NamesT m Term -- @la : Level@
   -> NamesT m Term -- @A : Type la@
   -> NamesT m Term -- @φ : I@. Cofibration

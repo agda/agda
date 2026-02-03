@@ -88,7 +88,7 @@ terminatesFilter useGuardedness f cs0 = loop (cs0, cs0)
           Terminates -> loop $ completionStep cs0 cs
 
 -- | Does the given callgraph contain a counterexample to termination?
-terminationCounterexample :: (Monoid cinfo, ?cutoff :: CutOff)
+terminationCounterexample :: (?cutoff :: CutOff)
   => Bool              -- ^ Use guardedness?
   -> (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
   -> CallGraph cinfo   -- ^ Callgraph augmented with @cinfo@.

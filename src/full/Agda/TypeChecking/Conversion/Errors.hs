@@ -279,7 +279,7 @@ failConversion cmp l r cas = do
 -- and the changes to the context should be reflected in the
 -- 'ConversionZipper'.
 addConversionContext
-  :: (MonadTCError m, HasBuiltins m)
+  :: (MonadTCError m)
   => (ConversionZipper -> ConversionZipper)
     -- ^ How to modify the zipper
   -> m a

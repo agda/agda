@@ -596,7 +596,7 @@ mkSortKit prop set sset propomega setomega ssetomega = SortKit
 -- When 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible operation,
 -- so for the uses of 'sortKit' in fallible contexts (e.g. 'TCM'),
 -- we report a type error rather than exploding.
-sortKit :: (HasBuiltins m, MonadTCError m, HasOptions m) => m SortKit
+sortKit :: (HasBuiltins m, MonadTCError m) => m SortKit
 sortKit = do
   prop      <- getBuiltinName_ builtinProp
   set       <- getBuiltinName_ builtinSet

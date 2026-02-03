@@ -128,7 +128,7 @@ mapLhsOriginalPattern f lhs@LHS{ lhsOriginalPattern = p } =
   lhs { lhsOriginalPattern = f p }
 
 -- | Effectfully modify the 'Pattern' component in 'LHS'.
-mapLhsOriginalPatternM :: (Functor m, Applicative m) => (Pattern -> m Pattern) -> LHS -> m LHS
+mapLhsOriginalPatternM :: (Functor m) => (Pattern -> m Pattern) -> LHS -> m LHS
 mapLhsOriginalPatternM f lhs@LHS{ lhsOriginalPattern = p } = f p <&> \ p' ->
   lhs { lhsOriginalPattern = p' }
 
@@ -161,12 +161,12 @@ class CPatternLike p where
   foldrCPattern = foldMap . foldrCPattern
 
   -- | Traverse pattern with option of post-traversal modification.
-  traverseCPatternA :: (Applicative m, Functor m)
+  traverseCPatternA :: (Applicative m)
       => (Pattern -> m Pattern -> m Pattern)
          -- ^ Combine a pattern and the its recursively computed version.
       -> p -> m p
 
-  default traverseCPatternA :: (Traversable f, CPatternLike q, f q ~ p, Applicative m, Functor m)
+  default traverseCPatternA :: (Traversable f, CPatternLike q, f q ~ p, Applicative m)
       => (Pattern -> m Pattern -> m Pattern)
       -> p -> m p
   traverseCPatternA = traverse . traverseCPatternA

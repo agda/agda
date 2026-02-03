@@ -150,7 +150,7 @@ instance Arbitrary a => Arbitrary (Position' a) where
 -- | Generates an interval located in the same file as the given
 -- interval.
 
-intervalInSameFileAs :: Arbitrary a => Interval' a -> Gen (Interval' a)
+intervalInSameFileAs :: Interval' a -> Gen (Interval' a)
 intervalInSameFileAs (Interval f _ _) = do
   i :: IntervalWithoutFile <- arbitrary
   pure $ f <$ i

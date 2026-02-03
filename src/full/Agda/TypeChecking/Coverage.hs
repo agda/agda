@@ -1429,7 +1429,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
-    inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm) => tcm a -> tcm a
+    inContextOfT, inContextOfDelta2 :: (MonadAddContext tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext impossible (x + 1)
     inContextOfDelta2 = addContext tel . escapeContext impossible x
 
