@@ -366,7 +366,8 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
           ExtendTel (setTac tac dom) $ setTacTel (raise 1 tac) <$> tel
         -- We need to convert to Dom and set the domTactic field here in order
         -- to not drop @tactic annotations
-        xs' = setTac tac . domFromNamedArg . modMod lamOrPi experimental <$> xs
+        xs' = setTac tac . domNameFromNamedArgName . modMod lamOrPi experimental
+              <$> xs
     let tel = setTacTel tac $ namedBindsToTel1 xs t
 
     addContext (xs', t) $ addTypedPatterns xps (ret tel)
