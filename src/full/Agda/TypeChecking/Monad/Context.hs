@@ -299,7 +299,7 @@ defaultAddCtx x a ret = updateContext (raiseS 1) (CxExtendVar x a) $
 addRewDom :: MonadAddContext m => RewDom -> m a -> m a
 addRewDom rew = case rewDomRew rew of
   Just r  -> addLocalRewrite r
-  Nothing -> id -- TODO: This should be __IMPOSSIBLE__
+  Nothing -> __IMPOSSIBLE__
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
