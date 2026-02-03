@@ -857,6 +857,14 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
     addOptionsCompatibilityWarnings currentOptions
       mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
 
+      -- Andreas, 2026-02-03, issue #8361, debug printing by @nad.
+      -- For testing whether 'isBuiltinModule' is thread-safe.
+      reportSDoc "import.iface.builtin" 25 do
+        isBuiltin <- isJust <$> isBuiltinModule (srcFileId (miSourceFile mi))
+        P.hsep [ "The module", prettyTCM (iTopLevelModuleName i), "is"
+               , if isBuiltin then "primitive." else "not primitive."
+               ]
+
       -- Check that imported options are compatible with current ones (issue #2487),
       -- but give primitive modules a pass.
       -- Compute updated warnings if needed.

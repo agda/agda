@@ -588,6 +588,12 @@ std-lib-interaction :
 	@$(call decorate, "Interaction tests using the standard library", \
 	  $(MAKE) -C test/lib-interaction)
 
+.PHONY : issue-8361 ##
+issue-8361 :
+	@$(call decorate, "Testing issue 8361 (file access race)", \
+	  (cd std-lib/src/ && $(AGDA_BIN) -j --ignore-interfaces -vimport.iface.builtin:25 Data/Product/Base.agda) | fgrep "Agda.Builtin.Sigma is")
+
+
 .PHONY : compiler-test ##
 compiler-test :
 	@$(call decorate, "Compiler tests", \
