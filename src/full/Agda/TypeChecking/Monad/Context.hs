@@ -598,7 +598,7 @@ illegalRule s reason = do
   mzero
 
 warnIfRew :: (MonadWarning m) => RewriteAnn -> m ()
-warnIfRew rewAnn = when (rewAnn == IsRewrite) $
+warnIfRew rewAnn = when (isRewrite rewAnn) $
   void $ runMaybeT $ illegalRule LocalRewrite LetBoundLocalRewrite
 
 -- | Add a let bound variable.

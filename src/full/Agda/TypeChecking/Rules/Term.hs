@@ -333,15 +333,10 @@ checkDomain lamOrPi xs e = do
   -- For now, we disallow '@rew' domains on pi types
   -- In the future, this should be allowed only when the pi type is not in
   -- higher-order position (checked syntactically)
-  --
-  -- TODO: Make sure we don't actually add the rewrite rule if it is a @rew
-  -- annotated pi type to avoid weird behaviour.
-  -- The current behaviour is useful for debugging though...
-    case (lamOrPi, r) of
-      (PiNotLam, IsRewrite)
-        -> void $ runMaybeT
-                $ illegalRule LocalRewrite LocalRewriteOutsideTelescope
-      _ -> pure ()
+    r <- case lamOrPi of
+      PiNotLam | isRewrite r -> IsNotRewrite <$
+        runMaybeT (illegalRule LocalRewrite LocalRewriteOutsideTelescope)
+      _                      -> pure r
 
     -- Also get whether the domain is a local rewrite rule. If it is, and there
     -- are multiple arguments, we warn that this is unnecessary
@@ -665,7 +660,6 @@ checkLambda' cmp r tac xps typ body target = do
             setCurrentRange x $ typeError $ WrongHidingInLHS
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
 
-        -- TODO: deal with @rew annotations here
         info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523
         -- Ensure we are not stepping under a possibly non-existing size.

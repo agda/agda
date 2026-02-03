@@ -177,9 +177,9 @@ rewriteRelationDom rel = do
   return (delta, a)
 
 getEquation :: RewriteAnn -> Type -> TCM (Maybe LocalEquation)
-getEquation IsRewrite t
-  = runMaybeT $ checkIsRewriteRelation LocalRewrite t
-getEquation IsNotRewrite t = pure Nothing
+getEquation rewAnn t = if isRewrite rewAnn
+  then runMaybeT $ checkIsRewriteRelation LocalRewrite t
+  else pure Nothing
 
 checkIsRewriteRelation ::
   RewriteSource -> Type -> MaybeT TCM LocalEquation
@@ -295,8 +295,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
       ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c b
       pars <- addContext gamma1 $ checkParametersAreGeneral c pars
       return (DefHead $ conName c , hd , t , pars , vs)
-    -- TODO: Allow local variable heads
-    Var x es -> do
+    Var x es | isLocalRewrite s -> do
       t <- addContext gamma1 $ typeOfBV x
       return (LocHead x, Var x , t , [] , es)
     _ -> do

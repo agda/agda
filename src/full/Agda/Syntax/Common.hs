@@ -1906,6 +1906,10 @@ data RewriteAnn
   | IsRewrite
   deriving (Show, Generic, Eq, Ord)
 
+isRewrite :: RewriteAnn -> Bool
+isRewrite IsNotRewrite = False
+isRewrite IsRewrite    = True
+
 defaultRewrite :: RewriteAnn
 defaultRewrite = IsNotRewrite
 
@@ -1918,7 +1922,7 @@ instance NFData RewriteAnn where
 
 instance Pretty RewriteAnn where
   pretty = \case
-    IsRewrite     -> "@rewrite"
+    IsRewrite    -> "@rewrite"
     IsNotRewrite -> empty
 
 class LensRewriteAnn a where
