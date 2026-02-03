@@ -362,10 +362,12 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
 
     let setTac tac EmptyTel            = EmptyTel
         setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
-        xs' = fmap (modMod lamOrPi experimental) xs
+        xs'  = fmap (modMod lamOrPi experimental) xs
+        -- Ensure tactic annotation is not dropped
+        xs'' = fmap (\n -> (domFromNamedArg n) { domTactic = tac }) xs'
     let tel = setTac tac $ namedBindsToTel1 xs t
 
-    addContext (xs', t) $ addTypedPatterns xps (ret tel)
+    addContext (xs'', t) $ addTypedPatterns xps (ret tel)
 
     where
         -- if we are checking a typed lambda, we resurrect before we check the

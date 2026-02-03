@@ -286,6 +286,8 @@ markFirstOrder = setFunctionFlag FunFirstOrder True
 addSection :: ModuleName -> TCM ()
 addSection m = do
   tel <- getContextTelescope
+  reportSDoc "rewriting" 30 $
+    "TEST" <+> text (show tel)
   let sec = Section tel
   -- Make sure we do not overwrite an existing section!
   whenJustM (getSection m) $ \ sec' -> do
