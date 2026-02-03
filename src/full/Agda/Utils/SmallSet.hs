@@ -63,10 +63,10 @@ instance Null.Null (SmallSet a) where
   empty = empty
   null = null
 
-instance SmallSetElement a => Semigroup (SmallSet a) where
+instance Semigroup (SmallSet a) where
   (<>) = union
 
-instance SmallSetElement a => Monoid (SmallSet a) where
+instance Monoid (SmallSet a) where
   mempty = empty
 
 -- * Query
