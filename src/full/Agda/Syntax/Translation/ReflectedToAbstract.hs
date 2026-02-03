@@ -103,9 +103,7 @@ toAbstract_ ::
   (ToAbstract r
   , MonadFresh NameId m
   , MonadError TCErr m
-  , MonadTCEnv m
   , ReadTCState m
-  , HasOptions m
   , HasBuiltins m
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)
@@ -116,9 +114,7 @@ toAbstractWithoutImplicit ::
   (ToAbstract r
   , MonadFresh NameId m
   , MonadError TCErr m
-  , MonadTCEnv m
   , ReadTCState m
-  , HasOptions m
   , HasBuiltins m
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-# LANGUAGE NondecreasingIndentation  #-}
@@ -374,6 +375,7 @@ class Occurs t where
   default metaOccurs :: (Foldable f, Occurs a, f a ~ t) => MetaId -> t -> TCM ()
   metaOccurs = traverse_ . metaOccurs
 
+-- GHC flags this as redundant constraint, so we turn off -Wredundant-constraints.
 occurs_ :: (Occurs t, TypeOf t ~ ()) => t -> OccursM t
 occurs_ t = occurs t
 
@@ -672,7 +674,7 @@ instance Occurs a => Occurs (Arg a) where
   metaOccurs m = metaOccurs m . unArg
 
 instance Occurs a => Occurs (Dom a) where
-  occurs :: Occurs a => Dom a -> OccursM (Dom a)
+  occurs :: Dom a -> OccursM (Dom a)
   occurs (Dom info n f t x) =
     Dom info n f t <$> underQuantity info (occurs x)
 

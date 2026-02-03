@@ -52,4 +52,4 @@ instance HasConstInfo m => HasConstInfo (StateT s m)
 instance HasConstInfo TCM where
 
 inFreshModuleIfFreeParams :: TCM a -> TCM a
-lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope
+lookupSection :: (ReadTCState m) => ModuleName -> m Telescope

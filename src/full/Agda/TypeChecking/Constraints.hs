@@ -6,8 +6,6 @@ module Agda.TypeChecking.Constraints where
 
 import Prelude hiding (null)
 
-import Control.Monad.Except ( MonadError )
-
 import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Either
@@ -144,20 +142,20 @@ stealConstraintsTCM pid = do
 -- constrain the solution space further.
 -- It can well do so, by solving metas.
 noConstraints
-  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+  :: (MonadConstraint m, MonadWarning m, MonadFresh ProblemId m)
   => m a -> m a
 noConstraints = noConstraints' False
 
 -- | As 'noConstraints' but also fail for non-blocking constraints.
 reallyNoConstraints
-  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+  :: (MonadConstraint m, MonadWarning m, MonadFresh ProblemId m)
   => m a -> m a
 reallyNoConstraints = noConstraints' True
 
 -- | Error out with @'NonFatalErrors' 'UnsolvedConstraints'@
 --   when given computation produced constraints ('True') or blocking constraints ('False').
 noConstraints' ::
-     (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+     (MonadConstraint m, MonadWarning m, MonadFresh ProblemId m)
   => Bool -> m a -> m a
 noConstraints' includingNonBlocking problem = do
   (pid, x) <- newProblem problem
@@ -173,12 +171,8 @@ noConstraints' includingNonBlocking problem = do
 -- | Run a computation that should succeeds without constraining
 --   the solution space, i.e., not add any information about meta-variables.
 nonConstraining ::
-  ( HasOptions m
-  , MonadConstraint m
-  , MonadDebug m
-  , MonadError TCErr m
+  ( MonadConstraint m
   , MonadFresh ProblemId m
-  , MonadTCEnv m
   , MonadWarning m
   ) => m a -> m a
 nonConstraining = dontAssignMetas . noConstraints

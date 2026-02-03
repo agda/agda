@@ -1553,7 +1553,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 -- 'MainInterface', the warnings definitely include also unsolved
 -- warnings.
 
-getAllWarnings' :: (ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m (Set TCWarning)
+getAllWarnings' :: (MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m (Set TCWarning)
 getAllWarnings' MainInterface{}  = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface = getAllWarningsPreserving Set.empty
 

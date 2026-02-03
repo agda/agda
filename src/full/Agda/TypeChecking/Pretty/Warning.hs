@@ -759,10 +759,10 @@ prettyNotInScopeNames printRange suggestion xs = nest 2 $ vcat $ map name xs
     , suggestion x
     ]
 
-{-# SPECIALIZE didYouMean :: (Pretty a, Pretty b) => [C.QName] -> (a -> b) -> a -> Maybe (TCM Doc) #-}
+{-# SPECIALIZE didYouMean :: (Pretty b) => [C.QName] -> (a -> b) -> a -> Maybe (TCM Doc) #-}
 -- | Suggest some corrections to a misspelled name.
 didYouMean
-  :: (MonadPretty m, Pretty a, Pretty b)
+  :: (MonadPretty m, Pretty b)
   => [C.QName]     -- ^ Names in scope.
   -> (a -> b)      -- ^ Canonization function for similarity search.
   -> a             -- ^ A name which is not in scope.
@@ -862,7 +862,7 @@ isBoundaryConstraint c =
     g (a, _, _, _) = getRange a
 
 {-# SPECIALIZE getAllUnsolvedWarnings :: TCM [TCWarning] #-}
-getAllUnsolvedWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
+getAllUnsolvedWarnings :: (MonadWarning m, MonadTCM m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
 
@@ -882,12 +882,12 @@ getAllUnsolvedWarnings = do
 -- | Collect all warnings that have accumulated in the state.
 
 {-# SPECIALIZE getAllWarnings :: WhichWarnings -> TCM (Set TCWarning) #-}
-getAllWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m (Set TCWarning)
+getAllWarnings :: (MonadWarning m, MonadTCM m) => WhichWarnings -> m (Set TCWarning)
 getAllWarnings = getAllWarningsPreserving Set.empty
 
 {-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM (Set TCWarning) #-}
 getAllWarningsPreserving ::
-  (ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m (Set TCWarning)
+  (MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m (Set TCWarning)
 getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- Set.fromList <$> getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings

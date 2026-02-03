@@ -108,7 +108,7 @@ import Agda.Utils.Impossible
 --
 class UsableRelevance a where
   usableRel
-    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m)
+    :: (ReadTCState m, HasConstInfo m, MonadAddContext m)
     => Relevance -> a -> m Bool
 
 instance UsableRelevance Term where
@@ -202,7 +202,7 @@ instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
 --
 class UsableModality a where
   usableMod
-    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m, MonadReduce m, MonadError Blocker m)
+    :: (HasConstInfo m, MonadAddContext m, MonadReduce m, MonadError Blocker m)
     => Modality -> a -> m Bool
 
 instance UsableModality Term where
@@ -260,8 +260,7 @@ instance UsableModality Term where
     DontCare v -> usableMod mod v
     Dummy{}  -> return True
 
-usableModAbs :: (Subst a, MonadAddContext m, UsableModality a,
-                       ReadTCState m, HasConstInfo m, MonadReduce m, MonadError Blocker m) =>
+usableModAbs :: (Subst a, MonadAddContext m, UsableModality a, HasConstInfo m, MonadReduce m, MonadError Blocker m) =>
                       ArgInfo -> Modality -> Abs a -> m Bool
 usableModAbs info mod abs = underAbstraction (setArgInfo info $ __DUMMY_DOM__) abs $ \ u -> usableMod mod u
 

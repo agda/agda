@@ -3713,7 +3713,7 @@ data Renaming' n m = Renaming
 
 -- ** HasRange instances
 
-instance (HasRange a, HasRange b) => HasRange (ImportDirective' a b) where
+instance HasRange (ImportDirective' a b) where
   getRange = importDirRange
 
 instance (HasRange a, HasRange b) => HasRange (Using' a b) where
@@ -3954,7 +3954,7 @@ instance (Pretty nm, Pretty p, Pretty e) => Pretty (RewriteEqn' qn nm p e) where
           Nothing -> patexp
           Just nm -> pretty nm <+> ":" <+> patexp
 
-instance (HasRange qn, HasRange nm, HasRange p, HasRange e) => HasRange (RewriteEqn' qn nm p e) where
+instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn nm p e) where
   getRange = \case
     Rewrite es    -> getRange es
     Invert qn pes -> getRange (qn, pes)

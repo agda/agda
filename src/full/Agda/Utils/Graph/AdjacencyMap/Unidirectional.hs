@@ -314,7 +314,7 @@ fromNodes ns = Graph $ Map.fromList $ map (, Map.empty) ns
 -- | Constructs a completely disconnected graph containing the given
 --   nodes. /O(n)/.
 
-fromNodeSet :: Ord n => Set n -> Graph n e
+fromNodeSet :: Set n -> Graph n e
 fromNodeSet ns = Graph $ Map.fromSet (\_ -> Map.empty) ns
 
 -- | @fromEdges es@ is a graph containing the edges in @es@, with the
@@ -446,7 +446,7 @@ clean = Graph . Map.map (Map.filter (not . null)) . graph
 -- that satisfy the predicate @p@. Edges to or from nodes that are
 -- removed are also removed. /O(n + e)/.
 
-filterNodes :: Ord n => (n -> Bool) -> Graph n e -> Graph n e
+filterNodes :: (n -> Bool) -> Graph n e -> Graph n e
 filterNodes p (Graph g) = Graph (Map.mapMaybeWithKey remSrc g)
   where
   remSrc s m
@@ -555,7 +555,7 @@ renameNodes ren =
 -- Time complexity: /O(n + e)/.
 
 renameNodesMonotonic ::
-  (Ord n1, Ord n2) => (n1 -> n2) -> Graph n1 e -> Graph n2 e
+  (n1 -> n2) -> Graph n1 e -> Graph n2 e
 renameNodesMonotonic ren =
   Graph .
   fmap (Map.mapKeysMonotonic ren) .

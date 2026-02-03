@@ -94,7 +94,7 @@ checkSyntacticEquality u v s f =
       (Type -> Type -> ReduceM a) ->
       ReduceM a #-}
 checkSyntacticEquality'
-  :: (Instantiate a, SynEq a, MonadReduce m)
+  :: (SynEq a, MonadReduce m)
   => a
   -> a
   -> (a -> a -> m b)  -- ^ Continuation used upon success.

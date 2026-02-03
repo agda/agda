@@ -259,7 +259,7 @@ instance Semigroup a => Semigroup (VarOcc' a) where
 --   occurrence: flexible, irrelevant.
 --   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
-instance (Semigroup a, Monoid a) => Monoid (VarOcc' a) where
+instance (Monoid a) => Monoid (VarOcc' a) where
   mempty  = VarOcc (Flexible mempty) zeroModality
   mappend = (<>)
 
@@ -287,7 +287,7 @@ oneVarOcc = VarOcc Unguarded unitModality
 --
 --   In algebraic terminology, a variable set @a@ needs to be (almost) a left semimodule
 --   to the semiring 'VarOcc'.
-class (Singleton MetaId a, Semigroup a, Monoid a, Semigroup c, Monoid c) => IsVarSet a c | c -> a where
+class (Singleton MetaId a, Monoid a, Monoid c) => IsVarSet a c | c -> a where
   -- | Laws
   --    * Respects monoid operations:
   --      ```
@@ -342,7 +342,7 @@ instance Semigroup a => Monoid (VarMap' a) where
   mconcat = VarMap . IntMap.unionsWith (<>) . map theVarMap
   -- mconcat = VarMap . IntMap.unionsWith mappend . coerce   -- ghc 8.6.5 does not seem to like this coerce
 
-instance (Singleton MetaId a, Semigroup a, Monoid a) => IsVarSet a (VarMap' a) where
+instance (Singleton MetaId a, Monoid a) => IsVarSet a (VarMap' a) where
   withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
 
 
@@ -432,7 +432,7 @@ type FreeM a c = Reader (FreeEnv' a IgnoreSorts c) c
 runFreeM :: IsVarSet a c => SingleVar c -> IgnoreSorts -> FreeM a c -> c
 runFreeM single i m = runReader m $ initFreeEnv i single
 
-instance (Functor m, Applicative m, Monad m, Semigroup c, Monoid c) => Monoid (FreeT a b m c) where
+instance (Monad m, Monoid c) => Monoid (FreeT a b m c) where
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence

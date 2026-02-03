@@ -121,7 +121,7 @@ prop_acyclicGraph =
 
 -- | Generates a node from the graph. (Unless the graph is empty.)
 
-nodeIn :: (Ord n, Arbitrary n) => Graph n e -> Gen n
+nodeIn :: (Arbitrary n) => Graph n e -> Gen n
 nodeIn g = elementsUnlessEmpty (Set.toList $ nodes g)
 
 -- | Generates an edge from the graph. (Unless the graph contains no

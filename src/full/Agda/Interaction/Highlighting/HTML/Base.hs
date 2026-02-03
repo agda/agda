@@ -173,7 +173,7 @@ instance Monad m => MonadLogHtml (LogHtmlT m) where
     doLog <- ask
     lift $ doLog message
 
-runLogHtmlWith :: Monad m => HtmlLogAction m -> LogHtmlT m a -> m a
+runLogHtmlWith :: HtmlLogAction m -> LogHtmlT m a -> m a
 runLogHtmlWith = flip runReaderT
 
 renderSourceFile :: HtmlOptions -> HtmlInputSourceFile -> Text

@@ -386,7 +386,7 @@ data OccEnv = OccEnv
 -- | Monad for computing occurrences.
 type OccM = ReaderT OccEnv ReduceM
 
-instance (Semigroup a, Monoid a) => Monoid (OccM a) where
+instance (Monoid a) => Monoid (OccM a) where
   mempty  = return mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence

@@ -167,7 +167,7 @@ warning = withCallerCallStack . flip warning'
 
 -- | Raise every 'WARNING_ON_USAGE' connected to a name.
 {-# SPECIALIZE raiseWarningsOnUsage :: QName -> TCM () #-}
-raiseWarningsOnUsage :: (MonadWarning m, ReadTCState m) => QName -> m ()
+raiseWarningsOnUsage :: (MonadWarning m) => QName -> m ()
 raiseWarningsOnUsage d = do
   -- In case we find a defined name, we start by checking whether there's
   -- a warning attached to it

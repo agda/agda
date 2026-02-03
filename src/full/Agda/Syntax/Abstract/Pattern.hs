@@ -397,7 +397,7 @@ data LHSPatternView e
 --
 -- Return the view and the remaining patterns.
 
-lhsPatternView :: IsProjP e => NAPs e -> Maybe (LHSPatternView e, NAPs e)
+lhsPatternView :: NAPs e -> Maybe (LHSPatternView e, NAPs e)
 lhsPatternView [] = Nothing
 lhsPatternView (p0 : ps) =
   case namedArg p0 of
@@ -458,7 +458,7 @@ lhsCoreWith :: LHSCore' e -> List1 (Arg (Pattern' e)) -> LHSCore' e
 lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps <> wps') []
 lhsCoreWith core                  wps' = LHSWith core wps' []
 
-lhsCoreAddChunk :: IsProjP e => LHSCore' e -> LHSPatternView e -> LHSCore' e
+lhsCoreAddChunk :: LHSCore' e -> LHSPatternView e -> LHSCore' e
 lhsCoreAddChunk core = \case
   LHSAppP ps               -> lhsCoreApp core $ List1.toList ps
   LHSWithP wps             -> lhsCoreWith core (defaultArg <$> wps)

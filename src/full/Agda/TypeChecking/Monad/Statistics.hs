@@ -83,7 +83,7 @@ tick x = tickN x 1
 
 -- | Print the given statistics.
 printStatistics
-  :: (MonadDebug m, MonadTCEnv m, HasOptions m)
+  :: (MonadDebug m)
   => Maybe TopLevelModuleName -> Statistics -> m ()
 printStatistics mmname (Statistics tick max) = do
   let

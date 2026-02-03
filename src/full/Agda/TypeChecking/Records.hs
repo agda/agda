@@ -211,7 +211,7 @@ getRecordDef r = fromMaybeM err $ isRecord r
   where err = typeError $ ShouldBeRecordType (El __DUMMY_SORT__ $ Def r [])
 
 -- | Get the record name belonging to a field name.
-getRecordOfField :: HasCallStack => QName -> TCM (Maybe QName)
+getRecordOfField :: QName -> TCM (Maybe QName)
 getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
   \ Projection{ projProper = proper, projFromType = r} ->
     return $ unArg r <$ proper -- if proper then Just (unArg r) else Nothing
@@ -687,7 +687,7 @@ curryAt t n = do
 
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
-etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m)
+etaExpandRecord :: (HasConstInfo m)
   => QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.
   -> Term        -- ^ Term to eta-expand.
@@ -696,7 +696,7 @@ etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m)
 etaExpandRecord = etaExpandRecord' False
 
 -- | Eta expand a record regardless of whether it's an eta-record or not.
-forceEtaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
+forceEtaExpandRecord :: (HasConstInfo m)
   => QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.
   -> Term        -- ^ Term to eta-expand.
@@ -705,7 +705,7 @@ forceEtaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError
 forceEtaExpandRecord = etaExpandRecord' True
 
 -- | Eta-expand a value at the given record type (must match).
-etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m)
+etaExpandRecord' :: (HasConstInfo m)
   => Bool        -- ^ Force expansion, overriding '_recEtaEquality'?
   -> QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.

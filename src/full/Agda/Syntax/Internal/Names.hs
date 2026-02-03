@@ -315,7 +315,7 @@ instance NamesIn RewriteRule where
     RewriteRule a b c d e f _ _ ->
       namesAndMetasIn' sg (a, b, c, d, e, f)
 
-instance (NamesIn a, NamesIn b) => NamesIn (HashMap a b) where
+instance (NamesIn b) => NamesIn (HashMap a b) where
   namesAndMetasIn' sg map = foldMap (namesAndMetasIn' sg) map
 
 instance NamesIn System where

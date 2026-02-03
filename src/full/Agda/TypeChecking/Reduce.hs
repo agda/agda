@@ -354,7 +354,7 @@ instance IsMeta Term where
   isMeta (MetaV m _) = Just m
   isMeta _           = Nothing
 
-instance IsMeta a => IsMeta (Sort' a) where
+instance IsMeta (Sort' a) where
   isMeta (MetaS m _) = Just m
   isMeta _           = Nothing
 
@@ -724,7 +724,7 @@ unfoldDefinitionStep v0 f es =
       where
           ar  = primFunArity pf
 
-          mredToBlocked :: IsMeta t => MaybeReduced t -> Blocked t
+          mredToBlocked :: MaybeReduced t -> Blocked t
           mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 

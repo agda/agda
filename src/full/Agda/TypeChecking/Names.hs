@@ -194,8 +194,7 @@ bindN1 :: Monad m
   => List1 ArgName -> (Vars1 m -> NamesT m a) -> NamesT m (AbsN a)
 bindN1 (x :| xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x :| xs)))
 
-glamN :: (Functor m, Monad m) =>
-         [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term
+glamN :: (Monad m) => [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term
 glamN [] f = f $ pure []
 glamN (Arg i n:ns) f = glam i n $ \ x -> glamN ns (\ xs -> f ((:) <$> (Arg i <$> x) <*> xs))
 

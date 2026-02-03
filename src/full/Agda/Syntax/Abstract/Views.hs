@@ -146,7 +146,7 @@ type RecurseExprRecFn m = forall a. ExprLike a => a -> m a
 type FoldExprFn m a = Monoid m => (Expr -> m) -> a -> m
 type FoldExprRecFn m = forall a. ExprLike a => a -> m
 
-type TraverseExprFn m a = (Applicative m, Monad m) => (Expr -> m Expr) -> a -> m a
+type TraverseExprFn m a = (Monad m) => (Expr -> m Expr) -> a -> m a
 type TraverseExprRecFn m = forall a. ExprLike a => a -> m a
 
 -- | Apply an expression rewriting to every subexpression, inside-out.

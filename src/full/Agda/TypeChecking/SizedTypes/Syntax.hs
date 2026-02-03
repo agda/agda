@@ -190,7 +190,7 @@ instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
 type CTrans r f = Constraint' r f -> Maybe [Constraint' r f]
 
 -- | Returns 'Nothing' if the constraint is contradictory.
-simplify1 :: (Pretty f, Pretty r, Eq r) => CTrans r f -> CTrans r f
+simplify1 :: (Eq r) => CTrans r f -> CTrans r f
 simplify1 test c = do
   let err = Nothing
   case c of

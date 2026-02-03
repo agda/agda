@@ -48,7 +48,6 @@ import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable (Typeable, TypeRep, typeRep, typeRepFingerprint)
 import GHC.Exts
-import GHC.Stack
 import GHC.Fingerprint.Type
 import Unsafe.Coerce
 
@@ -246,11 +245,11 @@ type S a = ReaderT Dict IO a
 -- decoding slower.
 type R = ReaderT Decode IO
 
-malformed :: HasCallStack => R a
+malformed :: R a
 malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
-malformedIO :: HasCallStack => IO a
+malformedIO :: IO a
 malformedIO = E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformedIO #-}
 
@@ -277,7 +276,7 @@ class Typeable a => EmbPrj a where
     then pure $! toEnum i'
     else malformed
 
-  default icod_ :: (Enum a, Bounded a) => a -> S Word32
+  default icod_ :: (Enum a) => a -> S Word32
   icod_ x = return $! fromIntegral $! fromEnum x
 
 -- | The actual logic of `tickICode` is cold code, so it's out-of-line,
@@ -397,7 +396,7 @@ icodeNode key = do
 
 -- | @icode@ only if thing has not been seen before.
 icodeMemo
-  :: (Ord a, Hashable a)
+  :: (Hashable a)
   => (Dict -> HashTableLU a Word32)    -- ^ Memo structure for thing of key @a@.
   -> (Dict -> FreshAndReuse)         -- ^ Counter and statistics.
   -> a        -- ^ Key to the thing.

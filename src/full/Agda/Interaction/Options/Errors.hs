@@ -542,7 +542,7 @@ verbalizeNotAValidLetExpression = \case
 deriving via (FiniteEnumeration (Maybe a))
   instance (Bounded a, Enum a) => Enum (Maybe a)
 deriving via (FiniteEnumeration (Maybe a))
-  instance (Bounded a, Enum a) => Bounded (Maybe a)
+  instance (Bounded a) => Bounded (Maybe a)
 
 instance NFData CannotQuoteTerm
 instance NFData ErasedDatatypeReason

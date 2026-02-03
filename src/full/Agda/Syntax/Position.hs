@@ -134,7 +134,7 @@ data Position' a = Pn'
   deriving (Functor, Foldable, Traversable, Generic)
 
 instance Show a => Show (Position' a) where
-  showsPrec :: Show a => Int -> Position' a -> ShowS
+  showsPrec :: Int -> Position' a -> ShowS
   showsPrec i (Pn a p l c) = showParen (i > 10) $
     showString "Pn " .
     showsPrec 11 a . showChar ' ' .
@@ -327,7 +327,7 @@ consecutiveAndSeparated is =
   allConsecutive (\ i j -> iEnd i < iStart j) is
 
 -- | Range invariant.
-rangeInvariant :: Ord a => Range' a -> Bool
+rangeInvariant :: Range' a -> Bool
 rangeInvariant r =
   consecutiveAndSeparated (rangeIntervals r)
     &&
@@ -667,7 +667,7 @@ continuous r@(Range f _) =
   maybe __IMPOSSIBLE__ (intervalToRange f) $ rangeToInterval r
 
 -- | Removes gaps between intervals on the same line.
-continuousPerLine :: Ord a => Range' a -> Range' a
+continuousPerLine :: Range' a -> Range' a
 continuousPerLine r@NoRange     = r
 continuousPerLine r@(Range f _) =
   Range f (Seq.unfoldr step (rangeIntervals r))
@@ -708,7 +708,7 @@ fuseIntervals (Interval () s1 e1) (Interval () s2 e2) = Interval () (min s1 s2) 
 --   Meaning it finds the least range @r0@ that covers @r@ and @r'@.
 --
 -- Precondition: The ranges must point to the same file (or be empty).
-fuseRanges :: (Ord a) => Range' a -> Range' a -> Range' a
+fuseRanges :: Range' a -> Range' a -> Range' a
 fuseRanges NoRange       is2           = is2
 fuseRanges is1           NoRange       = is1
 fuseRanges (Range f is1) (Range _ is2) = Range f (fuse is1 is2)

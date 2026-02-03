@@ -247,7 +247,7 @@ runTerDefault cont = do
 instance Semigroup m => Semigroup (TerM m) where
   (<>) = liftA2 (<>)
 
-instance (Semigroup m, Monoid m) => Monoid (TerM m) where
+instance (Monoid m) => Monoid (TerM m) where
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence

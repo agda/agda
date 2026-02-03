@@ -53,12 +53,12 @@ binAppView t = case t of
 -- | Contracts all eta-redexes it sees without reducing.
 {-# SPECIALIZE etaContract :: TermLike a => a -> TCM a #-}
 {-# SPECIALIZE etaContract :: TermLike a => a -> ReduceM a #-}
-etaContract :: (MonadTCEnv m, HasConstInfo m, HasOptions m, TermLike a) => a -> m a
+etaContract :: (HasConstInfo m, TermLike a) => a -> m a
 etaContract = traverseTermM etaOnce
 
 {-# SPECIALIZE etaOnce :: Term -> TCM Term #-}
 {-# SPECIALIZE etaOnce :: Term -> ReduceM Term #-}
-etaOnce :: (MonadTCEnv m, HasConstInfo m, HasOptions m) => Term -> m Term
+etaOnce :: (HasConstInfo m) => Term -> m Term
 etaOnce = \case
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
@@ -73,7 +73,7 @@ etaOnce = \case
   v -> return v
 
 -- | If record constructor, call eta-contraction function.
-etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
+etaCon :: (HasConstInfo m)
   => ConHead  -- ^ Constructor name @c@.
   -> ConInfo  -- ^ Constructor info @ci@.
   -> Elims     -- ^ Constructor arguments @args@.
@@ -90,7 +90,7 @@ etaCon c ci es cont = ignoreAbstractMode $ do
     cont r c ci args
 
 -- | Try to contract a lambda-abstraction @Lam i (Abs x b)@.
-etaLam :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
+etaLam :: (MonadTCEnv m, HasOptions m)
   => ArgInfo  -- ^ Info @i@ of the 'Lam'.
   -> ArgName  -- ^ Name @x@ of the abstraction.
   -> Term     -- ^ Body ('Term') @b@ of the 'Abs'.

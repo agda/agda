@@ -178,7 +178,7 @@ prettyInterval s e
         | otherwise = pretty el <> dot <> pretty ec
 
 instance Pretty a => Pretty (Interval' a) where
-  pretty :: Pretty a => Interval' a -> Doc
+  pretty :: Interval' a -> Doc
   pretty i@(Interval f s e) = applyUnlessNull (pretty f) (\ d -> ((d <> colon) <>)) (prettyInterval s e)
 
 instance Pretty a => Pretty (Range' a) where

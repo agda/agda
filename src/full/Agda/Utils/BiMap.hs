@@ -137,7 +137,7 @@ insert k v (BiMap t b) =
 -- for which @k ≠ k'@ and @'tag' v = 'tag' v'@.
 
 insertPrecondition ::
-  (Eq k, Eq v, Eq (Tag v), HasTag v) =>
+  (Eq k, Eq (Tag v), HasTag v) =>
   k -> v -> BiMap k v -> Bool
 insertPrecondition k v m =
   case tag v of
@@ -190,7 +190,7 @@ alter f k m = runIdentity $ alterM (Identity . f) k m
 -- @k@ may map to a value @v'@ for which @'tag' v' = 'tag' v@.
 
 alterPrecondition ::
-  (Ord k, Eq v, Eq (Tag v), HasTag v) =>
+  (Ord k, Eq (Tag v), HasTag v) =>
   (Maybe v -> Maybe v) -> k -> BiMap k v -> Bool
 alterPrecondition f k m =
   case tag =<< f (lookup k m) of
@@ -216,7 +216,7 @@ update f = alter (f =<<)
 -- than @k@ may map to a value @v'@ for which @'tag' v' = 'tag' v@.
 
 updatePrecondition ::
-  (Ord k, Eq v, Eq (Tag v), HasTag v) =>
+  (Ord k, Eq (Tag v), HasTag v) =>
   (v -> Maybe v) -> k -> BiMap k v -> Bool
 updatePrecondition f = alterPrecondition (f =<<)
 
@@ -234,7 +234,7 @@ adjust f = update (Just . f)
 -- than @k@ may map to a value @v'@ for which @'tag' v' = 'tag' v@.
 
 adjustPrecondition ::
-  (Ord k, Eq v, Eq (Tag v), HasTag v) =>
+  (Ord k, Eq (Tag v), HasTag v) =>
   (v -> v) -> k -> BiMap k v -> Bool
 adjustPrecondition f = updatePrecondition (Just . f)
 
@@ -262,7 +262,7 @@ insertLookupWithKey f k v m = swap $ runState (alterM f' k m) Nothing
 -- @'tag' v'' = 'tag' v'@.
 
 insertLookupWithKeyPrecondition ::
-  (Ord k, Eq v, Eq (Tag v), HasTag v) =>
+  (Ord k, Eq (Tag v), HasTag v) =>
   (k -> v -> v -> v) -> k -> v -> BiMap k v -> Bool
 insertLookupWithKeyPrecondition f k v =
   alterPrecondition (Just . maybe v (f k v)) k
@@ -302,8 +302,7 @@ mapWithKeyFixedTags f (BiMap t b) = BiMap (Map.mapWithKey f t) b
 -- maps @k@ to @v@, then @'tag' (f k v) == 'tag' v@.
 
 mapWithKeyFixedTagsPrecondition ::
-  (Eq v, Eq (Tag v), HasTag v) =>
-  (k -> v -> v) -> BiMap k v -> Bool
+  ( Eq (Tag v), HasTag v) =>(k -> v -> v) -> BiMap k v -> Bool
 mapWithKeyFixedTagsPrecondition f m = and
   [ tag (f k v) == tag v
   | (k, v) <- toList m

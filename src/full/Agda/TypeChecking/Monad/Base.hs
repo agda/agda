@@ -6193,7 +6193,7 @@ instance Monad m => MonadBlock (ExceptT TCErr m) where
     PatternErr b -> h b
     err          -> throwError err
 
-runBlocked :: Monad m => BlockT m a -> m (Either Blocker a)
+runBlocked :: BlockT m a -> m (Either Blocker a)
 runBlocked = runExceptT . unBlockT
 {-# INLINE runBlocked #-}
 
@@ -6362,7 +6362,7 @@ instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a) => Semigroup (TCMT m a) w
   (<>) = liftA2 (<>)
 
 -- | Strict (non-shortcut) monoid.
-instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMT m a) where
+instance {-# OVERLAPPABLE #-} (MonadIO m, Monoid a) => Monoid (TCMT m a) where
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence
@@ -6740,7 +6740,7 @@ instance KillRange DisplayTerm where
       DDot' v es         -> killRangeN DDot' v es
       DTerm' v es        -> killRangeN DTerm' v es
 
-instance KillRange a => KillRange (Closure a) where
+instance KillRange (Closure a) where
   killRange = id
 
 ---------------------------------------------------------------------------

@@ -56,7 +56,7 @@ type SM a = ReaderT SearchOptions TCM a
 -- * Agda internals
 ------------------------------------------------------------------------
 
-getRecordFields :: (HasConstInfo tcm, MonadTCM tcm) => QName -> tcm [QName]
+getRecordFields :: (HasConstInfo tcm) => QName -> tcm [QName]
 getRecordFields = fmap (map unDom . recFields . theDef) . getConstInfo
 
 getRecordInfo :: (MonadTCM tcm, HasConstInfo tcm) => Type
@@ -104,17 +104,17 @@ getLocalVarTerms localCxt = do
   return [ e | (True, e) <- zip scope $ zip contextTerms contextTypes ]
 
 -- TODO: Rename (see metaInstantiation)
-getMetaInstantiation :: (MonadTCM tcm, PureTCM tcm, MonadDebug tcm, MonadInteractionPoints tcm, MonadFresh NameId tcm)
+getMetaInstantiation :: (MonadTCM tcm, PureTCM tcm, MonadInteractionPoints tcm, MonadFresh NameId tcm)
   => MetaId -> tcm (Maybe Expr)
 getMetaInstantiation = metaInstantiation >=> traverse (instantiateFull >=> reify)
 
-metaInstantiation :: (MonadTCM tcm, MonadDebug tcm, ReadTCState tcm) => MetaId -> tcm (Maybe Term)
+metaInstantiation :: (MonadDebug tcm, ReadTCState tcm) => MetaId -> tcm (Maybe Term)
 metaInstantiation metaId = lookupLocalMeta metaId <&> mvInstantiation >>= \case
   InstV inst -> return $ Just $ instBody inst
   _ -> return Nothing
 
 -- TODO: why not also accept pattern record types here?
-isTypeDatatype :: (MonadTCM tcm, MonadReduce tcm, HasConstInfo tcm) => Type -> tcm Bool
+isTypeDatatype :: (MonadTCM tcm) => Type -> tcm Bool
 isTypeDatatype typ = liftTCM do
   reduce typ <&> unEl >>= isDataOrRecord <&> \case
     Just (_, IsData) -> True
@@ -353,7 +353,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
           addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
 
 
-qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, MonadTCM tcm)
+qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm)
   => Cost -> QName -> tcm Component
 qnameToComponent cost qname = do
   defn <- getConstInfo qname
@@ -374,7 +374,7 @@ qnameToComponent cost qname = do
   newComponentQ [] cost qname pars term (defType defn `piApply` mParams)
 
 -- | Turn the let bindings of the current 'TCEnv' into components.
-getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
+getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm) => Cost -> tcm [Open Component]
 getLetVars cost = do
   bindings <- asksTC envLetBindings
   mapM makeComp $ Map.toAscList bindings
@@ -717,7 +717,7 @@ updateStat f = verboseS "mimer.stats" 10 $ do
   ref <- asks searchStats
   liftIO $ modifyIORef' ref f
 
-bench :: NFData a => [Bench.Phase] -> SM a -> SM a
+bench :: [Bench.Phase] -> SM a -> SM a
 bench k ma = billTo (mimerAccount : k) ma
   where
     -- Dummy account to avoid updating Bench. Doesn't matter since this is only used interactively

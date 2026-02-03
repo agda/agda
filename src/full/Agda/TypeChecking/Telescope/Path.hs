@@ -129,7 +129,7 @@ instance IApplyVars p => IApplyVars [p] where
 
 {-# SPECIALIZE isInterval :: Type -> TCM Bool #-}
 -- | Check whether a type is the built-in interval type.
-isInterval :: (MonadTCM m, MonadReduce m) => Type -> m Bool
+isInterval :: (MonadTCM m) => Type -> m Bool
 isInterval t = liftTCM $ do
   caseMaybeM (getName' builtinInterval) (return False) $ \ i -> do
   reduce (unEl t) <&> \case

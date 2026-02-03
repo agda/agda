@@ -98,7 +98,7 @@ purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
 -- | A quick transliterations of occurrences to polarities.
 polarityFromPositivity
-  :: (HasConstInfo m, MonadTCEnv m, MonadTCState m, MonadDebug m)
+  :: (HasConstInfo m, MonadTCState m)
   => QName -> m ()
 polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
 
@@ -206,7 +206,7 @@ usagePolarity def = case def of
 --
 --   Precondition: the "phantom" polarity list has the same length as the polarity list.
 dependentPolarity
-  :: (HasOptions m, HasBuiltins m, MonadReduce m, MonadAddContext m, MonadDebug m)
+  :: (HasBuiltins m, MonadReduce m, MonadAddContext m, MonadDebug m)
   => Type -> [Polarity] -> [Polarity] -> m [Polarity]
 dependentPolarity t _      []          = return []  -- all remaining are 'Invariant'
 dependentPolarity t []     (_ : _)     = __IMPOSSIBLE__
@@ -251,9 +251,8 @@ relevantInIgnoringNonvariant i t (p:ps) =
 --   See test/succeed/PolaritySizeSucData.agda for a case where this is needed.
 sizePolarity
   :: forall m .
-     ( HasOptions m, HasConstInfo m, HasBuiltins m, ReadTCState m
-     , MonadTCEnv m, MonadTCState m, MonadReduce m, MonadAddContext m, MonadTCError m
-     , MonadDebug m, MonadPretty m )
+     ( MonadTCState m, MonadTCError m
+     , MonadPretty m )
   => QName -> [Polarity] -> m [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
@@ -326,7 +325,7 @@ sizePolarity d pol0 = do
 --
 --   Precondition: @a@ is reduced and of form @d ps idxs0@.
 checkSizeIndex
-  :: (HasConstInfo m, ReadTCState m, MonadDebug m, MonadPretty m, MonadTCError m)
+  :: (MonadPretty m, MonadTCError m)
   => QName -> Nat -> Type -> m Bool
 checkSizeIndex d i a = do
   reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $ vcat

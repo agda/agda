@@ -701,7 +701,7 @@ nubOn f = loop Set.empty
 -- @'maxBound' :: 'Int'@.
 
 nubFavouriteOn
-  :: forall a b c. (Ord b, Eq c, Hashable c)
+  :: forall a b c. (Ord b, Hashable c)
   => (a -> b)
      -- ^ The values returned by this function are used to determine
      -- which element from a group of equal elements that is returned:

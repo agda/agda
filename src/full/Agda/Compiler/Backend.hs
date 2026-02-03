@@ -83,7 +83,7 @@ callBackendInteractHole name cmd ii rng s =
 -- | Run a monadic action given an existing backend.
 -- Throws an error if the user requested an unknown backend.
 withKnownBackend ::
-  (MonadTCError m, ReadTCState m) => BackendName -> (Backend -> m ()) -> m ()
+  (MonadTCError m) => BackendName -> (Backend -> m ()) -> m ()
 withKnownBackend name k = ifJustM (lookupBackend name) k $ do
   backends <- useTC stBackends
   let backendSet = otherBackends ++ [ backendName b | Backend b <- backends ]

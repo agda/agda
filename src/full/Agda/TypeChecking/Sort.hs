@@ -60,7 +60,7 @@ import Agda.Utils.Impossible
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a
 --   constraint to ensure we can compute the sort eventually.
 inferUnivSort
-  :: (PureTCM m, MonadConstraint m)
+  :: (PureTCM m)
   => Sort -> m Sort
 inferUnivSort s = do
   s <- reduce s
@@ -89,7 +89,7 @@ hasBiggerSort = void . inferUnivSort
 --   If we can compute the sort straight away, return that.
 --   Otherwise, return a 'PiSort'.
 --   Note that this function does NOT check PTS constraints, use 'hasPTSRule' for that
-inferPiSort :: (PureTCM m, MonadConstraint m)
+inferPiSort :: (MonadConstraint m)
   => Dom Type  -- ^ Domain of the Pi type.
   -> Abs Type  -- ^ (Dependent) codomain of the Pi type.
   -> m Sort    -- ^ Sort of the Pi type.
@@ -98,7 +98,7 @@ inferPiSort a b = piSortM (unEl <$> a) (getSort a) (getSort <$> b)
 {-# SPECIALIZE inferFunSort :: Dom Type -> Type -> TCM Sort #-}
 -- | As @inferPiSort@, but for a nondependent function type.
 --
-inferFunSort :: (PureTCM m, MonadConstraint m)
+inferFunSort :: (MonadConstraint m)
   => Dom Type  -- ^ Domain of the function type.
   -> Type      -- ^ Sort of the codomain of the function type.
   -> m Sort    -- ^ Sort of the function type.
@@ -180,7 +180,7 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 --
 --   Precondition: given term is a well-sorted type.
 sortOf
-  :: forall m. (PureTCM m, MonadBlock m, MonadConstraint m)
+  :: forall m. (PureTCM m, MonadConstraint m)
   => Term -> m Sort
 sortOf t = do
   reportSDoc "tc.sort" 60 $ "sortOf" <+> prettyTCM t
@@ -251,6 +251,6 @@ sortOf t = do
 {-# INLINE sortOfType #-}
 -- | Reconstruct the minimal sort of a type (ignoring the sort annotation).
 sortOfType
-  :: forall m. (PureTCM m, MonadBlock m,MonadConstraint m)
+  :: forall m. (PureTCM m, MonadConstraint m)
   => Type -> m Sort
 sortOfType = sortOf . unEl
