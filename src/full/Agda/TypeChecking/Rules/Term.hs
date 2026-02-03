@@ -338,7 +338,7 @@ checkPiDomain = checkDomain PiNotLam
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     let xs = fmap (updateNamedArg $ A.unBind . A.binderName) xps
-    tac <- traverse (checkTacticAttribute lamOrPi) $ theTacticAttribute $ tbTacticAttr tac
+    tac <- traverse checkTacticAttribute $ theTacticAttribute $ tbTacticAttr tac
     whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
@@ -397,11 +397,8 @@ addTypedPatterns xps ret = do
   checkLetBindings' lbs ret
 
 -- | Check a tactic attribute. Should have type Term → TC ⊤.
-checkTacticAttribute :: LamOrPi -> Ranged A.Expr -> TCM Term
-checkTacticAttribute LamNotPi (Ranged r e) = do
-  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
-  checkExpr e expectedType
-checkTacticAttribute PiNotLam (Ranged r e) = do
+checkTacticAttribute :: Ranged A.Expr -> TCM Term
+checkTacticAttribute (Ranged r e) = do
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   checkExpr e expectedType
 
@@ -487,12 +484,10 @@ checkLambda' cmp r tac xps typ body target = do
   -- Consume @tac@:
   case tac of
     _ | null tac -> pure ()
-    A.TypedBindingInfo{ tbTacticAttr = TacticAttribute (Just tactic) } -> do
+    A.TypedBindingInfo{ tbTacticAttr = TacticAttribute (Just (Ranged r e)) } -> do
       -- Andreas, 2024-02-22, issue #6783
       -- Error out if user supplied a tactic (rather than dropping it silently).
-      _tactic <- checkTacticAttribute LamNotPi tactic
-      -- We should not survive this check...
-      __IMPOSSIBLE__
+      setCurrentRange r $ typeError $ TacticAttributeNotAllowed
     _ -> __IMPOSSIBLE__
 
   TelV tel btyp <- telViewUpTo numbinds target
