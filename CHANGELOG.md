@@ -305,6 +305,8 @@ Reflection
 
 * `tcTypeError` now throws `UserError` instead of `GenericDocError`.
 
+* Tactic arguments (`@tactic`) are now supported in module telescopes.
+
 Library management
 ------------------
 
