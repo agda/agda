@@ -4,7 +4,7 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 
--- TODO: Fix the nonsense and vague error message
+-- TODO: Improve the error message
 module LocalRewriteConstraint where
 
 module _ (x : Nat) (@rew _ : x ≡ 0) where
