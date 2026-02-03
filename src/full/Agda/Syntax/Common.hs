@@ -3623,7 +3623,7 @@ instance Null (ImportDirective' n m) where
     _ -> False
   empty = defaultImportDir
 
-instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
+instance Semigroup (ImportDirective' n m) where
   i1 <> i2 = ImportDirective
     { importDirRange = fuseRange i1 i2
     , using          = using i1 <> using i2
@@ -3632,7 +3632,7 @@ instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
     , publicOpen     = publicOpen i1 <|> publicOpen i2
     }
 
-instance (HasRange n, HasRange m) => Monoid (ImportDirective' n m) where
+instance Monoid (ImportDirective' n m) where
   mempty  = empty
   mappend = (<>)
 

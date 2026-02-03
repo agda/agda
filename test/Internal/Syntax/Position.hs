@@ -164,7 +164,7 @@ prop_intervalInSameFileAs i =
 -- | Generates a range located in the same file as the given
 -- range (if possible).
 
-rangeInSameFileAs :: (Arbitrary a, Ord a) => Range' a -> Gen (Range' a)
+rangeInSameFileAs :: (Arbitrary a) => Range' a -> Gen (Range' a)
 rangeInSameFileAs NoRange      = arbitrary
 rangeInSameFileAs (Range f is) = do
   Range _f is <- arbitrary `suchThat` (not . null)
@@ -209,14 +209,14 @@ instance Arbitrary RangeFile where
             map T.unpack (List1.toList (moduleNameParts top))
     return $ mkRangeFile f (Just top)
 
-instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where
+instance (Arbitrary a) => Arbitrary (Interval' a) where
   arbitrary = do
     f <- arbitrary
     (p1, p2 :: PositionWithoutFile) <- liftM2 (,) arbitrary arbitrary
     let (p1', p2') = sortPair (p1, p2)
     return (Interval f p1' p2')
 
-instance (Ord a, Arbitrary a) => Arbitrary (Range' a) where
+instance (Arbitrary a) => Arbitrary (Range' a) where
   arbitrary = do
     f <- arbitrary
     intervalsToRange f . fuse . sort <$> arbitrary

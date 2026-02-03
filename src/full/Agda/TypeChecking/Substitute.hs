@@ -1537,13 +1537,13 @@ instance (Subst a, Ord a) => Ord (Abs a) where
 
 deriving instance Ord a => Ord (Dom a)
 
-instance (Subst a, Eq a)  => Eq  (Elim' a) where
+instance (Eq a) => Eq (Elim' a) where
   Apply  a == Apply  b = a == b
   Proj _ x == Proj _ y = x == y
   IApply x y r == IApply x' y' r' = x == x' && y == y' && r == r'
   _ == _ = False
 
-instance (Subst a, Ord a) => Ord (Elim' a) where
+instance (Ord a) => Ord (Elim' a) where
   Apply  a `compare` Apply  b = a `compare` b
   Proj _ x `compare` Proj _ y = x `compare` y
   IApply x y r `compare` IApply x' y' r' = compare x x' `mappend` compare y y' `mappend` compare r r'

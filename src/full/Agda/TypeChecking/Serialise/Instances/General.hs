@@ -310,7 +310,7 @@ instance EmbPrj IntSet where
   icod_ s = icode (IntSet.foldr' (:) [] s)
   value s = IntSet.fromDistinctAscList <$!> value s
 
-instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
+instance (EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.foldr' (:) [] s)
   value s = Set.fromDistinctAscList <$!> value s
 
@@ -318,7 +318,7 @@ instance (Hashable a, EmbPrj a) => EmbPrj (HashSet a) where
   icod_ s = icode (Fold.foldr' (:) [] s)
   value s = HSet.fromList <$!> value s
 
-instance (Ord a, EmbPrj a) => EmbPrj (Set1 a) where
+instance (EmbPrj a) => EmbPrj (Set1 a) where
   icod_ s = icode (Set1.foldr' (:) [] s)
   value s = Set1.fromDistinctAscList <$!> value s
 
