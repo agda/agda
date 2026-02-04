@@ -76,13 +76,13 @@ jobs:
         access_token: ${{ github.token }}
 
     - name: Check if /mnt is a mountpoint
-      id: check-mnt
+      id: check_mnt
       run: |
         echo "Running df:"
         result=$(df)
         echo "$result"
         if echo "$result" | awk '{print $6}' | grep -q '/mnt'; then
-          echo "found=1" >> $GITHUB_OUTPUT
+          echo "found=1" >> "${GITHUB_OUTPUT}"
         fi
 
     - uses: easimon/maximize-build-space@v10

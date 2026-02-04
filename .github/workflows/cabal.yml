@@ -22,7 +22,7 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
+      FLAGS: -O0 ${{ matrix.cabal-flags || '--enable-tests --flags=enable-cluster-counting'
         }}
       GHC_VER: ${{ matrix.ghc-ver || '9.12.2' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
@@ -68,8 +68,7 @@ jobs:
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
-        cabal configure -O0 ${FLAGS}
-        cabal build --dry-run
+        cabal build ${FLAGS} --dry-run
     - env:
         key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
@@ -83,23 +82,29 @@ jobs:
         restore-keys: ${{ env.key }}
     - name: Install dependencies
       run: |
-        cabal build --only-dependencies
+        # shellcheck disable=SC2086
+        cabal build ${FLAGS} --only-dependencies
     - name: Build Agda
       run: |
-        cabal build
+        # shellcheck disable=SC2086
+        cabal build ${FLAGS}
     - name: Run agda --version
       run: |
-        cabal run agda -- --version
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --version
     - name: Run agda --setup
       run: |
-        cabal run agda -- --setup
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --setup
     - name: Run agda --help
       run: |
-        cabal run agda -- --help
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --help
     - if: runner.os == 'Windows'
       name: Run agda --help in PowerShell (Windows)
       run: |
-        cabal run agda -- --help
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --help
       shell: pwsh
     - if: matrix.doctest
       name: Run doctest
@@ -116,7 +121,7 @@ jobs:
       fail-fast: false
       matrix:
         cabal-flags:
-        - --enable-tests -f enable-cluster-counting
+        - --enable-tests --flags=enable-cluster-counting
         description:
         - Linux
         doctest:
@@ -129,17 +134,22 @@ jobs:
         - 9.4.8
         - 9.2.8
         include:
+        - cabal-flags: --project-file=cabal.project.ghc-9.14.1
+          description: Linux GHC 9.14.1
+          doctest: false
+          ghc-ver: 9.14.1
+          os: ubuntu-24.04
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
           ghc-ver: 9.12.2
           os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f debug
+        - cabal-flags: --enable-tests --flags=debug
           description: Linux debug
           ghc-ver: 9.12.2
           os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f use-xdg-data-home -f enable-cluster-counting
-            -f debug -f debug-serialisation -f debug-parsing
+        - cabal-flags: --enable-tests --flags=use-xdg-data-home --flags=enable-cluster-counting
+            --flags=debug --flags=debug-serialisation --flags=debug-parsing
           description: Linux debug all
           ghc-ver: 9.12.2
           os: ubuntu-24.04

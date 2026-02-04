@@ -50,10 +50,17 @@ jobs:
         os: [ubuntu-24.04]
         description: [Linux]      ## This just for pretty-printing the job name.
         ghc-ver: [9.12.2, 9.10.3, 9.8.4, 9.6.7, 9.4.8, 9.2.8]
-        cabal-flags: ['--enable-tests -f enable-cluster-counting']
+        cabal-flags: ['--enable-tests --flags=enable-cluster-counting']
         doctest: [false]
         include:
           ## Latest GHC, special builds
+
+          # Linux, with GHC 9.14.1
+          - os: ubuntu-24.04
+            description: Linux GHC 9.14.1
+            ghc-ver: '9.14.1'
+            cabal-flags: '--project-file=cabal.project.ghc-9.14.1'
+            doctest: false
 
           # Linux, without tests but with doctest
           - os: ubuntu-24.04
@@ -67,7 +74,7 @@ jobs:
           - os: ubuntu-24.04
             description: Linux debug
             ghc-ver: '9.12.2'
-            cabal-flags: '--enable-tests -f debug'
+            cabal-flags: '--enable-tests --flags=debug'
 
           # Linux, with all debug options
           - os: ubuntu-24.04
@@ -78,9 +85,11 @@ jobs:
             ## (The single quotes stay, and "-c 'containers" is an option parse error for cabal.)
             cabal-flags: >-
               --enable-tests
-              -f use-xdg-data-home
-              -f enable-cluster-counting
-              -f debug -f debug-serialisation -f debug-parsing
+              --flags=use-xdg-data-home
+              --flags=enable-cluster-counting
+              --flags=debug
+              --flags=debug-serialisation
+              --flags=debug-parsing
 
           # macOS with default flags
           - os: macos-15
@@ -95,7 +104,9 @@ jobs:
     # Default values
     env:
       GHC_VER:   ${{ matrix.ghc-ver || '9.12.2' }}
-      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
+      FLAGS: >-
+        -O0
+        ${{ matrix.cabal-flags || '--enable-tests --flags=enable-cluster-counting' }}
 
     steps:
     - uses: actions/checkout@v6
@@ -149,8 +160,7 @@ jobs:
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
-        cabal configure -O0 ${FLAGS}
-        cabal build --dry-run
+        cabal build ${FLAGS} --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
       # This does not download the dependencies, except with buggy `cabal-3.9`:
       # https://github.com/haskell/cabal/issues/8706
@@ -175,29 +185,35 @@ jobs:
       # Thus, do not skip this step:
       # if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        cabal build --only-dependencies
+        # shellcheck disable=SC2086
+        cabal build ${FLAGS} --only-dependencies
 
     - name: Build Agda
       run: |
-        cabal build
+        # shellcheck disable=SC2086
+        cabal build ${FLAGS}
 
     - name: Run agda --version
       run: |
-        cabal run agda -- --version
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --version
 
     - name: Run agda --setup
       run: |
-        cabal run agda -- --setup
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --setup
 
     - name: Run agda --help
       run: |
-        cabal run agda -- --help
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --help
 
     - name: Run agda --help in PowerShell (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run:  |
-        cabal run agda -- --help
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --help
 
     - name: Run doctest
       if: matrix.doctest
