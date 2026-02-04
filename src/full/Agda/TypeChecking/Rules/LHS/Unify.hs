@@ -243,6 +243,7 @@ unifyIndices' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
     (result,log) <- runUnifyLogT $ unify initialState rightToLeftStrategy
+    reportSDoc "tc.lhs.unify" 20 $ "unification done"
     forM result $ \ s -> do -- Unifies case
         let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
         let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
@@ -305,6 +306,7 @@ findFlexible i flex = List.find ((i ==) . flexVar) flex
 
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying basicUnifyStrategy"
   Equal dom@Dom{unDom = a} u v <- eqUnLevel (getEquality k s)
     -- Andreas, 2019-02-23: reduce equality for the sake of isHom?
   ha <- fromMaybeMP $ isHom n a
@@ -341,6 +343,7 @@ basicUnifyStrategy k s = do
 
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying dataStrategy"
   Equal Dom{unDom = a} u v <- eqConstructorForm =<< eqUnLevel =<< getReducedEqualityUnraised k s
   sortOk <- reduce (getSort a) <&> \case
     Type{} -> True
@@ -372,6 +375,7 @@ dataStrategy k s = do
 
 checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying checkEqualityStrategy"
   let Equal Dom{unDom = a} u v = getEquality k s
       n = eqCount s
   ha <- fromMaybeMP $ isHom n a
@@ -379,6 +383,7 @@ checkEqualityStrategy k s = do
 
 literalStrategy :: Int -> UnifyStrategy
 literalStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying literalStrategy"
   let n = eqCount s
   Equal Dom{unDom = a} u v <- eqUnLevel $ getEquality k s
   ha <- fromMaybeMP $ isHom n a
@@ -391,6 +396,7 @@ literalStrategy k s = do
 
 etaExpandVarStrategy :: Int -> UnifyStrategy
 etaExpandVarStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying etaExpandVarStrategy"
   Equal Dom{unDom = a} u v <- eqUnLevel =<< getReducedEquality k s
   shouldEtaExpand u v a s `mplus` shouldEtaExpand v u a s
   where
@@ -426,6 +432,7 @@ etaExpandVarStrategy k s = do
 
 etaExpandEquationStrategy :: Int -> UnifyStrategy
 etaExpandEquationStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying etaExpandEquationStrategy"
   -- Andreas, 2019-02-23, re #3578, is the following reduce redundant?
   Equal Dom{unDom = a} u v <- getReducedEqualityUnraised k s
   (d, pars) <- catMaybesMP $ addContext tel $ isEtaRecordType a
@@ -455,6 +462,7 @@ etaExpandEquationStrategy k s = do
 
 simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying simplifySizesStrategy"
   isSizeName <- isSizeNameTest
   Equal Dom{unDom = a} u v <- getReducedEquality k s
   case unEl a of
@@ -471,6 +479,7 @@ simplifySizesStrategy k s = do
 
 injectiveTypeConStrategy :: Int -> UnifyStrategy
 injectiveTypeConStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying injectiveTypeConStrategy"
   injTyCon <- optInjectiveTypeConstructors <$> pragmaOptions
   guard injTyCon
   eq <- eqUnLevel =<< getReducedEquality k s
@@ -496,6 +505,7 @@ injectiveTypeConStrategy k s = do
 
 injectivePragmaStrategy :: Int -> UnifyStrategy
 injectivePragmaStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying injectivePragmaStrategy"
   eq <- eqUnLevel =<< getReducedEquality k s
   case eq of
     Equal a u@(Def d es) v@(Def d' es') | d == d' -> do
@@ -509,6 +519,7 @@ injectivePragmaStrategy k s = do
 
 skipIrrelevantStrategy :: Int -> UnifyStrategy
 skipIrrelevantStrategy k s = do
+  reportSDoc "tc.lhs.unify" 40 $ "trying skipIrrelevantStrategy"
   let Equal a _ _ = getEquality k s                                 -- reduce not necessary
   addContext (varTel s `abstract` eqTel s) $
     guard . (== Right True) =<< runBlocked (isIrrelevantOrPropM a)  -- reduction takes place here
@@ -520,8 +531,7 @@ skipIrrelevantStrategy k s = do
 -- Actually doing the unification
 ----------------------------------------------------
 
-unifyStep
-  :: UnifyState -> UnifyStep -> UnifyStepT TCM (UnificationResult' UnifyState)
+unifyStep :: UnifyState -> UnifyStep -> UnifyStepT TCM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- addContext (varTel s) $ pureEqualTermB a u v
@@ -889,9 +899,11 @@ solutionStep retry s
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify :: UnifyState -> UnifyStrategy -> UnifyLogT TCM (UnificationResult' UnifyState)
-unify s strategy = if isUnifyStateSolved s
-                   then return $ Unifies s
-                   else tryUnifyStepsAndContinue (strategy s)
+unify s strategy = do
+    reportSDoc "tc.lhs.unify" 40 $ "unify"
+    if isUnifyStateSolved s
+    then return $ Unifies s
+    else tryUnifyStepsAndContinue (strategy s)
   where
     tryUnifyStepsAndContinue
       :: ListT TCM UnifyStep -> UnifyLogT TCM (UnificationResult' UnifyState)

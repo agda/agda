@@ -1473,7 +1473,7 @@ checkLHS mf = updateModality checkLHS_ where
       da' <- addContext delta1Gamma $ do
              let updCoh = composeCohesion (getCohesion info)
              TelV tel dt <- telView da'
-             return $ abstract (mapCohesion updCoh <$> tel) a
+             return $ abstract (mapCohesion updCoh <$> tel) dt
 
       let stuck b errs = softTypeError $ SplitError $
             UnificationStuck b (conName c) (delta1 `abstract` gamma) cixs ixs' errs
