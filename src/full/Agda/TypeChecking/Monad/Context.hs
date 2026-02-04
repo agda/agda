@@ -50,6 +50,8 @@ import Agda.Utils.Update
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Warnings (warning, MonadWarning)
 import Agda.Utils.Monad (mzero, void)
+import qualified Data.HashMap.Strict as HMap
+import qualified Data.IntMap as IntMap
 
 -- * Modifying the context
 
@@ -369,10 +371,18 @@ instance MonadAddContext TCM where
 
   withFreshName r x m = freshName r x >>= m
 
-
+-- | Adds a rewrite rule to the local typechecking environment
 defaultAddLocalRewrite :: MonadTCEnv m => LocalRewriteRule -> m a -> m a
-defaultAddLocalRewrite rew = localTC $ \e ->
-  e { envLocalRewriteRules = rew : envLocalRewriteRules e }
+defaultAddLocalRewrite (GenericRewriteRule g (RewVarHead x) ps rhs t) =
+  locallyTC (eLocalRewriteRules . lrewsVarHeaded) $
+    IntMap.insertWith mappend x [GenericRewriteRule g () ps rhs t]
+defaultAddLocalRewrite (GenericRewriteRule g (RewDefHead f) ps rhs t) =
+  locallyTC (eLocalRewriteRules . lrewsDefHeaded) $
+    HMap.insertWith mappend f [GenericRewriteRule g () ps rhs t]
+  -- TODO: Update matchability...
+  -- We maybe need to store matchability overrides in some sort of local TCEnv field?!
+  -- modifyGlobalSignature $ updateDefinitions $ updateDefsForRewrites f rews matchables
+
 
 addRecordNameContext
   :: (MonadAddContext m, MonadFresh NameId m)

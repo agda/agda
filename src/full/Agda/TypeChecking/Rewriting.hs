@@ -243,10 +243,10 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         illegalRule (GlobalRewrite def) $ BeforeMutualFunctionDefinition r
 
   eq <- checkIsRewriteRelation (GlobalRewrite def) (defType def)
-  LocalRewriteRule g h ps rhs b <- checkRewriteRule' eq (GlobalRewrite def)
+  GenericRewriteRule g h ps rhs b <- checkRewriteRule' eq (GlobalRewrite def)
   f <- case h of
-    DefHead f -> pure f
-    LocHead x -> illegalRule (GlobalRewrite def) LHSNotDefinitionOrConstructor
+    RewDefHead f -> pure f
+    RewVarHead x -> illegalRule (GlobalRewrite def) LHSNotDefinitionOrConstructor
 
   top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
 
@@ -289,15 +289,15 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
     Def f es -> do
       def <- getConstInfo f
       checkAxFunOrCon f def
-      return (DefHead f , Def f , defType def , [] , es)
+      return (RewDefHead f , Def f , defType def , [] , es)
     Con c ci vs -> do
       let hd = Con c ci
       ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c b
       pars <- addContext gamma1 $ checkParametersAreGeneral c pars
-      return (DefHead $ conName c , hd , t , pars , vs)
+      return (RewDefHead $ conName c , hd , t , pars , vs)
     Var x es | isLocalRewrite s -> do
       t <- addContext gamma1 $ typeOfBV x
-      return (LocHead x, Var x , t , [] , es)
+      return (RewVarHead (x - size gamma1), Var x , t , [] , es)
     _ -> do
       reportSDoc "rewriting.rule.check" 30 $ hsep
         [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
@@ -377,7 +377,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
     unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
 
     top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-    let rew = LocalRewriteRule gamma f ps rhs b
+    let rew = GenericRewriteRule gamma f ps rhs b
 
     reportSDoc "rewriting" 10 $ vcat
       [ "checked rewrite rule" , prettyTCM rew ]
@@ -389,13 +389,13 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
     ifNotAlreadyAdded ::
          RewriteSource -> LocalRewriteHead -> MaybeT TCM LocalRewriteRule
       -> MaybeT TCM LocalRewriteRule
-    ifNotAlreadyAdded (GlobalRewrite def) (DefHead f) cont = do
+    ifNotAlreadyAdded (GlobalRewrite def) (RewDefHead f) cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
       case List.find ((defName def ==) . rewName) rews of
         Just rew -> illegalRule (GlobalRewrite def) DuplicateRewriteRule
         Nothing -> cont
-    ifNotAlreadyAdded (GlobalRewrite def) (LocHead x) cont = __IMPOSSIBLE__
+    ifNotAlreadyAdded (GlobalRewrite def) (RewVarHead x) cont = __IMPOSSIBLE__
     ifNotAlreadyAdded LocalRewrite f cont = cont
 
     checkNoLhsReduction :: LocalRewriteHead -> (Elims -> Term) -> Elims -> MaybeT TCM ()
@@ -411,17 +411,17 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
             illegalRule s $ LHSReduces v v'
       es' <- case (f, v') of
-        (DefHead f, Def f' es')   | f == f'         -> return es'
-        (DefHead f, Con c' _ es') | f == conName c' -> return es'
-        (LocHead x, Var x' es')   | x == x'         -> return es'
+        (RewDefHead f, Def f' es')   | f == f'         -> return es'
+        (RewDefHead f, Con c' _ es') | f == conName c' -> return es'
+        (RewVarHead x, Var x' es')   | x == x'         -> return es'
         _                              -> fail
       unless (null es && null es') $ do
         a   <- case f of
-          DefHead f -> lift $ computeElimHeadType f es es'
-          LocHead x -> typeOfBV x
+          RewDefHead f -> lift $ computeElimHeadType f es es'
+          RewVarHead x -> typeOfBV x
         pol <- case f of
-          DefHead f -> getPolarity' CmpEq f
-          LocHead x -> pure []
+          RewDefHead f -> getPolarity' CmpEq f
+          RewVarHead x -> pure []
         ok  <- lift $ dontAssignMetas $ tryConversion $
                  compareElims pol [] a (headToTerm f []) es es'
         unless ok fail
@@ -491,12 +491,10 @@ checkRewConstraint
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
 rewriteWith :: Type
             -> (Elims -> Term)
-            -> RewriteRule
+            -> GenericRewriteRule ()
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause _) es
- | isClause = return $ Left $ NotBlocked ReallyNotBlocked $ hd es
- | otherwise = do
+rewriteWith t hd rew@(GenericRewriteRule gamma () ps rhs b) es = do
   traceSDoc "rewriting.rewrite" 50 (sep
     [ "{ attempting to rewrite term " <+> prettyTCM (hd es)
     , " having head " <+> prettyTCM (hd []) <+> " of type " <+> prettyTCM t
@@ -521,7 +519,8 @@ rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause _) es
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.
-rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewrite :: Blocked_ -> (Elims -> Term) -> GenericRewriteRules () -> Elims
+        -> ReduceM (Reduced (Blocked Term) Term)
 rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
@@ -530,7 +529,8 @@ rewrite block hd rules es = do
   else
     return $ NoReduction (block $> hd es)
   where
-    loop :: Blocked_ -> Type -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+    loop :: Blocked_ -> Type -> GenericRewriteRules () -> Elims
+         -> ReduceM (Reduced (Blocked Term) Term)
     loop block t [] es =
       traceSDoc "rewriting.rewrite" 20 (sep
         [ "failed to rewrite " <+> prettyTCM (hd es)
@@ -547,5 +547,4 @@ rewrite block hd rules es = do
             Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
      | otherwise = loop (block `mappend` NotBlocked Underapplied ()) t rews es
 
-    rewArity :: RewriteRule -> Int
-    rewArity = length . rewPats
+    rewArity = length . lrewPats

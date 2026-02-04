@@ -7,11 +7,11 @@ import Control.Monad.State
 
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.Syntax.Internal (ModuleName, Telescope)
+import Agda.Syntax.Internal (ModuleName, Telescope, LocalRewriteHeadLike)
 
 import Agda.TypeChecking.Monad.Base
   ( TCM, ReadTCState, HasOptions, MonadTCEnv
-  , Definition, RewriteRules
+  , Definition, RewriteRules, GenericRewriteRules
   )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 
@@ -39,12 +39,17 @@ class ( Functor m
   getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q
   getRewriteRulesFor :: QName -> m RewriteRules
+  getLocalRewriteRulesFor :: LocalRewriteHeadLike h
+    => h -> m (GenericRewriteRules ())
 
   default getConstInfo' :: (HasCallStack, HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
   default getRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m RewriteRules
   getRewriteRulesFor = lift . getRewriteRulesFor
+
+  default getLocalRewriteRulesFor :: (LocalRewriteHeadLike h, HasConstInfo n, MonadTrans t, m ~ t n) => h -> m (GenericRewriteRules ())
+  getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)

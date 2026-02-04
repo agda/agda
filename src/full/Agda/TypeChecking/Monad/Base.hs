@@ -2372,9 +2372,28 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
--- TODO: This used to be `[Open LocalRewriteRule]`. I am not really sure why
--- `Open` was used here
-type LocalRewriteRules = [LocalRewriteRule]
+-- TODO: There used to be an `[Open LocalRewriteRule]`. I am not really sure
+-- why `Open` was used here but maybe there was a good reason...
+type GenericRewriteRules h = [GenericRewriteRule h]
+type LocalRewriteRules     = [LocalRewriteRule]
+type DefHeadedRewriteRules = [DefHeadedRewriteRule]
+type VarHeadedRewriteRules = [VarHeadedRewriteRule]
+
+data LocalRewriteRuleMap = LocalRewriteRuleMap
+  { defHeadedRews :: HashMap QName (GenericRewriteRules ())
+  , varHeadedRews :: IntMap (GenericRewriteRules ())
+  }
+    deriving (Show, Generic)
+
+lrewsDefHeaded :: Lens' LocalRewriteRuleMap (HashMap QName (GenericRewriteRules ()))
+lrewsDefHeaded f rs = f (defHeadedRews rs) <&> \ rs' -> rs { defHeadedRews = rs' }
+
+lrewsVarHeaded :: Lens' LocalRewriteRuleMap (IntMap (GenericRewriteRules ()))
+lrewsVarHeaded f rs = f (varHeadedRews rs) <&> \ rs' -> rs { varHeadedRews = rs' }
+
+instance Null LocalRewriteRuleMap where
+  empty                               = LocalRewriteRuleMap empty empty
+  null  (LocalRewriteRuleMap rs1 rs2) = null rs1 && null rs2
 
 -- | Information about an @instance@ definition.
 data InstanceInfo = InstanceInfo
@@ -4182,7 +4201,7 @@ data TCEnv =
                 -- currently under, if any. Used by the scope checker
                 -- (to associate definitions to blocks), and by the type
                 -- checker (for unfolding control).
-          , envLocalRewriteRules :: LocalRewriteRules
+          , envLocalRewriteRules :: LocalRewriteRuleMap
                 -- ^ Local rewrite rules
           , envLocalEquation :: Maybe LocalEquation
                 -- ^ Are we checking in an @rew context?
@@ -4253,7 +4272,7 @@ initEnv = TCEnv { envContext             = CxEmpty
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
-                , envLocalRewriteRules      = []
+                , envLocalRewriteRules      = empty
                 , envLocalEquation          = Nothing
                 }
 
@@ -4448,7 +4467,7 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 eCurrentlyElaborating :: Lens' TCEnv Bool
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
 
-eLocalRewriteRules :: Lens' TCEnv LocalRewriteRules
+eLocalRewriteRules :: Lens' TCEnv LocalRewriteRuleMap
 eLocalRewriteRules f e = f (envLocalRewriteRules e) <&> \ x -> e { envLocalRewriteRules = x }
 
 eLocalEquation :: Lens' TCEnv (Maybe LocalEquation)
@@ -6842,6 +6861,7 @@ instance NFData DisplayForm
 instance NFData DisplayTerm
 instance NFData RewriteRule
 instance NFData InstanceInfo
+instance NFData LocalRewriteRuleMap
 instance NFData Definition
 instance NFData Polarity
 instance NFData IsForced

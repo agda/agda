@@ -256,6 +256,21 @@ instance Apply RewriteRule where
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
+instance Apply (GenericRewriteRule a) where
+  apply r args =
+    let newContext = apply (lrewContext r) args
+        sub        = liftS (size newContext) $ parallelS $
+                       reverse $ map (PTerm . unArg) args
+    in GenericRewriteRule
+       { lrewContext = newContext
+       , lrewHead    = lrewHead r
+       , lrewPats    = applySubst sub (lrewPats r)
+       , lrewRHS     = applyNLPatSubst sub (lrewRHS r)
+       , lrewType    = applyNLPatSubst sub (lrewType r)
+       }
+
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+
 instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
   apply occ args = List.drop (length args) occ
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -1030,8 +1045,8 @@ instance Subst Nat where
 
 instance Subst LocalRewriteHead where
   type SubstArg LocalRewriteHead = Nat
-  applySubst rho (DefHead f) = DefHead f
-  applySubst rho (LocHead x) = LocHead $ applySubst rho x
+  applySubst rho (RewDefHead f) = RewDefHead f
+  applySubst rho (RewVarHead x) = RewVarHead $ applySubst rho x
 
 -- Local rewrite rules are not stable under arbitrary substitution, but they can
 -- at least be weakened.
@@ -1039,14 +1054,14 @@ instance Subst LocalRewriteHead where
 -- TODO: All the @coerceRen@ are gonna be kinda terrible for performance.
 -- I think we should maybe just have a top-level function for applying
 -- substitutions so we can document a stronger pre-condition and unsafe coerce
-instance Subst LocalRewriteRule where
-  type SubstArg LocalRewriteRule = Nat
-  applySubst rho (LocalRewriteRule gamma f ps rhs b) =
-    LocalRewriteRule (applySubst (coerceRen rho) gamma)
-                      (applySubst rho' f)
-                      (applySubst rho' ps)
-                      (applySubst rho' rhs)
-                      (applySubst rho' b)
+instance (Subst h, SubstArg h ~ Nat) => Subst (GenericRewriteRule h) where
+  type SubstArg (GenericRewriteRule h) = Nat
+  applySubst rho (GenericRewriteRule gamma f ps rhs b) =
+    GenericRewriteRule (applySubst (coerceRen rho) gamma)
+                       (applySubst (coerceRen rho) f)
+                       (applySubst rho' ps)
+                        (applySubst rho' rhs)
+                       (applySubst rho' b)
     where
       rho' :: DeBruijn a => Substitution' a
       rho' = coerceRen $ liftS (size gamma) rho
@@ -1624,7 +1639,6 @@ deriving instance Eq NLPat
 deriving instance Eq NLPType
 deriving instance Eq NLPSort
 deriving instance Eq LocalEquation
-deriving instance Eq LocalRewriteHead
 deriving instance Eq LocalRewriteRule
 deriving instance Eq RewDom
 

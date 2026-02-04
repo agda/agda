@@ -1313,21 +1313,31 @@ pattern PSSet p = PUniv USSet p
   PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
 
 data LocalRewriteHead
-  = DefHead QName
-  | LocHead Int -- de Bruijn index of head symbol (excluding lrewContext variables)
-  deriving (Show, Generic)
+  = RewDefHead QName
+  | RewVarHead Nat
+    -- ^ de Bruijn index of head symbol (excluding lrewContext variables)
+  deriving (Show, Generic, Eq)
+
+class LocalRewriteHeadLike a where
+  toHead :: a -> LocalRewriteHead
+
+instance LocalRewriteHeadLike QName where
+  toHead = RewDefHead
+
+instance LocalRewriteHeadLike Nat where
+  toHead = RewVarHead
 
 headToPat :: LocalRewriteHead -> PElims -> NLPat
-headToPat (DefHead f) = PDef f
-headToPat (LocHead x) = PBoundVar x
+headToPat (RewDefHead f) = PDef f
+headToPat (RewVarHead x) = PBoundVar x
 
 headToTerm :: LocalRewriteHead -> Elims -> Term
-headToTerm (DefHead f) = Def f
-headToTerm (LocHead x) = Var x
+headToTerm (RewDefHead f) = Def f
+headToTerm (RewVarHead x) = Var x
 
--- | Local equations are used for local rewriting constraints ("the LHS and RHS
--- must be convertible in the calling context").
--- They admit arbitrary substitution.
+-- | Undirected equational constraint ("the LHS and RHS
+--   must be convertible in the calling context").
+--   Admits arbitrary substitution.
 data LocalEquation' t = LocalEquation
   { lEqContext :: Tele (Dom' t (Type'' t t))
   , lEqLHS     :: t
@@ -1338,16 +1348,20 @@ data LocalEquation' t = LocalEquation
 
 type LocalEquation = LocalEquation' Term
 
--- | Local rewrites are used for actual rewriting (applied during conversion
--- checking). They do not admit arbitrary substitution.
-data LocalRewriteRule = LocalRewriteRule
+-- | Directed rewrite rules generic over the type of head symbol.
+--   Generally unstable under substitution.
+data GenericRewriteRule h = GenericRewriteRule
   { lrewContext :: Telescope
-  , lrewHead    :: LocalRewriteHead
+  , lrewHead    :: h
   , lrewPats    :: PElims     -- patterns (including lrewContext variables)
   , lrewRHS     :: Term
   , lrewType    :: Type
   }
   deriving (Show, Generic)
+
+type DefHeadedRewriteRule = GenericRewriteRule QName
+type VarHeadedRewriteRule = GenericRewriteRule Nat
+type LocalRewriteRule     = GenericRewriteRule LocalRewriteHead
 
 class LensLocalEquation a where
   getLocalEq :: a -> Maybe LocalEquation
@@ -1586,18 +1600,18 @@ instance KillRange NLPSort where
   killRange PIntervalUniv = PIntervalUniv
 
 instance KillRange LocalRewriteHead where
-  killRange (LocHead a) =
-    killRangeN LocHead a
-  killRange (DefHead a) =
-    killRangeN DefHead a
+  killRange (RewVarHead a) =
+    killRangeN RewVarHead a
+  killRange (RewDefHead a) =
+    killRangeN RewDefHead a
 
 instance KillRange t => KillRange (LocalEquation' t) where
   killRange (LocalEquation a b c d) =
     killRangeN LocalEquation a b c d
 
-instance KillRange LocalRewriteRule where
-  killRange (LocalRewriteRule a b c d e) =
-    killRangeN LocalRewriteRule a b c d e
+instance KillRange h => KillRange (GenericRewriteRule h) where
+  killRange (GenericRewriteRule a b c d e) =
+    killRangeN GenericRewriteRule a b c d e
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1839,5 +1853,5 @@ instance NFData NLPType
 instance NFData NLPSort
 instance NFData LocalRewriteHead
 instance NFData LocalEquation
-instance NFData LocalRewriteRule
+instance NFData a => NFData (GenericRewriteRule a)
 instance NFData RewDom

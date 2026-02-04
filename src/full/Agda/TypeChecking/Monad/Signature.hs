@@ -79,6 +79,7 @@ import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
+import qualified Data.IntMap as IntMap
 
 -- | If the first argument is @'Erased' something@, then hard
 -- compile-time mode is enabled when the continuation is run.
@@ -974,12 +975,17 @@ class ( Functor m
   getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
-  -- | Return the rewrite rules for the given head symbol that could be tried.
-  --   Not categorically all rewrite rules are returned, in particular, none when
-  --   reduction of the head symbol is disabled.
-  --   Rewrite rules that only happen to be in the signature but are not in scope
-  --   are also not returned.
+  -- | Return the global rewrite rules for the given head symbol that could be
+  --   tried.
+  --   Not categorically all rewrite rules are returned, in particular, none
+  --   when reduction of the head symbol is disabled.
+  --   Rewrite rules that only happen to be in the signature but are not in
+  --   scope are also not returned.
   getRewriteRulesFor :: QName -> m RewriteRules
+
+  -- | Return the local rewrite rules for the given head symbol.
+  getLocalRewriteRulesFor :: LocalRewriteHeadLike h
+    => h -> m (GenericRewriteRules ())
 
   -- Lifting HasConstInfo through monad transformers:
 
@@ -993,7 +999,27 @@ class ( Functor m
     => QName -> m RewriteRules
   getRewriteRulesFor = lift . getRewriteRulesFor
 
+  default getLocalRewriteRulesFor
+    :: (LocalRewriteHeadLike h, HasConstInfo n, MonadTrans t, m ~ t n)
+    => h -> m (GenericRewriteRules ())
+  getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
+
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
+
+getAllRewriteRulesForDefHead :: HasConstInfo m
+  => QName -> m (GenericRewriteRules ())
+getAllRewriteRulesForDefHead f =
+  mappend <$> (catMaybes . fmap justTheRule <$> getRewriteRulesFor f)
+          <*> getLocalRewriteRulesFor f
+  where
+    justTheRule :: RewriteRule -> Maybe (GenericRewriteRule ())
+    justTheRule (RewriteRule _ g _ ps rhs t isClause _)
+      | isClause  = Nothing
+      | otherwise = pure $ GenericRewriteRule g () ps rhs t
+
+getAllRewriteRulesForVarHead :: HasConstInfo m
+  => Nat -> m (GenericRewriteRules ())
+getAllRewriteRulesForVarHead x = getLocalRewriteRulesFor x
 
 {-# SPECIALIZE getOriginalConstInfo :: HasCallStack => QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
@@ -1022,6 +1048,19 @@ defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m Rewrite
 defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   getFilteredRewriteRulesFor True q
 
+defaultGetLocalRewriteRulesFor ::
+  (LocalRewriteHeadLike h, ReadTCState m, MonadTCEnv m)
+  => h -> m (GenericRewriteRules ())
+defaultGetLocalRewriteRulesFor (toHead -> h) =
+  ifNotM (shouldReduceDef' h) (return []) $ do
+    rews <- asksTC envLocalRewriteRules
+    pure $ fromMaybe [] $ lookup h rews
+  where
+    shouldReduceDef' (RewDefHead f) = shouldReduceDef f
+    shouldReduceDef' (RewVarHead _) = pure True
+    lookup (RewDefHead f) = HMap.lookup   f . defHeadedRews
+    lookup (RewVarHead f) = IntMap.lookup f . varHeadedRews
+
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.
 getFilteredRewriteRulesFor :: (ReadTCState m)
@@ -1047,7 +1086,8 @@ getOriginalProjection :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo TCM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor
+  getRewriteRulesFor      = defaultGetRewriteRulesFor
+  getLocalRewriteRulesFor = defaultGetLocalRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
     env <- askTC
@@ -1313,6 +1353,12 @@ freeVarsToApply q = do
   unless (size tel == size vs) __IMPOSSIBLE__
   return $ zipWith (\ arg dom -> unArg arg <$ argFromDom dom) vs $ telToList tel
 
+-- freeVarsToApplyToHead ::(Functor m, HasConstInfo m, HasOptions m,
+--                     ReadTCState m, MonadTCEnv m, MonadDebug m)
+--   => LocalRewriteHead -> m Args
+-- freeVarsToApplyToHead (RewDefHead f) = freeVarsToApply f
+-- freeVarsToApplyToHead (RewVarHead x) = freeVarsToApply _
+
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
 getModuleFreeVars :: ( MonadTCEnv m, ReadTCState m)
@@ -1414,18 +1460,21 @@ instantiateDef d = do
   return $ d `apply` vs
 
 instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
-  => RewriteRule -> m RewriteRule
-instantiateRewriteRule rew = do
-  traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> pretty (rewName rew) <+> "to the local context.") $ do
-  vs  <- freeVarsToApply $ rewName rew
-  let rew' = rew `apply` vs
+  => Args -> GenericRewriteRule () -> m (GenericRewriteRule ())
+instantiateRewriteRule args rew =
+  traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> text (show rew) <+> "to the local context.") $ do
+  let rew' = rew `apply` args
   traceSLn "rewriting" 95 ("instantiated rewrite rule: ") $ do
   traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
-instantiateRewriteRules :: (HasConstInfo m, ReadTCState m)
-  => RewriteRules -> m RewriteRules
-instantiateRewriteRules = mapM instantiateRewriteRule
+instantiateDefHeadedRewriteRules :: (HasConstInfo m, ReadTCState m)
+  => QName -> GenericRewriteRules () -> m (GenericRewriteRules ())
+instantiateDefHeadedRewriteRules f rews = do
+  vs <- freeVarsToApply f
+  mapM (instantiateRewriteRule vs) rews
+
+-- TODO: Instantiate for local-headed rewrite rules
 
 -- | Return the abstract view of a definition, /regardless/ of whether
 -- the definition would be treated abstractly.

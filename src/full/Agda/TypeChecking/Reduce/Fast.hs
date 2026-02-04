@@ -94,7 +94,7 @@ import Debug.Trace
 data CompactDef =
   CompactDef { cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
-             , cdefRewriteRules   :: RewriteRules
+             , cdefRewriteRules   :: GenericRewriteRules ()
              }
 
 data CompactDefn
@@ -113,7 +113,7 @@ data BuiltinEnv = BuiltinEnv
   , bPrimForce, bPrimErase  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
-compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
+compactDef :: BuiltinEnv -> Definition -> GenericRewriteRules () -> ReduceM CompactDef
 compactDef bEnv def rewr = do
 
   -- WARNING: don't use isPropM here because it relies on reduction,
@@ -459,7 +459,7 @@ fastReduce' norm v = do
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
-    rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
+    rewr <- if rwr then instantiateDefHeadedRewriteRules f =<< getAllRewriteRulesForDefHead f
                    else return []
     compactDef bEnv info rewr
   ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v

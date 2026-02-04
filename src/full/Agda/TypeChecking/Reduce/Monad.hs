@@ -80,7 +80,8 @@ instance MonadDebug ReduceM where
   nowDebugPrinting  = defaultNowDebugPrinting
 
 instance HasConstInfo ReduceM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor
+  getRewriteRulesFor      = defaultGetRewriteRulesFor
+  getLocalRewriteRulesFor = defaultGetLocalRewriteRulesFor
   getConstInfo' q = do
     ReduceEnv env st _ _ <- askR
     defaultGetConstInfo st env q

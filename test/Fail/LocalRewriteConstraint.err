@@ -4,4 +4,4 @@ The terms
 and
   zero
 are not equal at type Nat
-when checking that the expression p has type x ≡ 
+when checking that the expression p has type x ≡ 0
