@@ -1596,9 +1596,9 @@ niceDefParameters dataOrRec = concatMapM \case
       WithHiding h (Named mn x) <$ do
         unless (null m)   $ warn m   "parameter modality"
         unless (null ann) $ warn ann "parameter annotation"
-        unless (null mp)  $ warn mp  "pattern attacted to parameter"
+        unless (null mp)  $ warn mp  "pattern attached to parameter"
+        unless (null tac) $ warn tac "tactic argument"
         unless (null fx)  $ __IMPOSSIBLE__
-        unless (null tac) $ __IMPOSSIBLE__  -- warn tac "tactic (you should not see this, please report a bug)"
 
 -- | Emit bits attached to the given name
 --   that have been accumulated during processing of the interleaved mutual block
