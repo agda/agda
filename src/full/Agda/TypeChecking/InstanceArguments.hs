@@ -125,7 +125,12 @@ initialInstanceCandidates blockOverlap instTy = do
                  ]
 
       -- {{}}-fields of variables are also candidates
-      let cxtAndTypes = [ (LocalCandidate, x, t) | (x, Dom{unDom = t}) <- varsAndRaisedTypes ]
+      let
+        cxtAndTypes =
+          [ (LocalCandidate, x, t)
+          | (x, Dom{domInfo = info, unDom = t}) <- varsAndRaisedTypes
+          , isInstance info
+          ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else
