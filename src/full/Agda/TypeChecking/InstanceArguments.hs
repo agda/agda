@@ -124,13 +124,19 @@ initialInstanceCandidates blockOverlap instTy = do
                  , isInstance info
                  ]
 
-      -- {{}}-fields of variables are also candidates
+      -- {{}}-fields of variables are also candidates, as long as those
+      -- variables are themselves instance arguments.
+      -- as an exception, the record argument to a record module can
+      -- also introduce instances, so that {{}}-fields of a record R
+      -- will be considered when checking a declaration nested in the
+      -- definition of R.
       let
         cxtAndTypes =
           [ (LocalCandidate, x, t)
           | (x, Dom{domInfo = info, unDom = t}) <- varsAndRaisedTypes
-          , isInstance info
+          , isInstance info || argInfoOrigin info == RecordSelf
           ]
+      reportSDoc "tc.instance" 40 $ vcat [ pretty x <+> "" <+> text (show o) | (x, Dom{domInfo = i}) <- varsAndRaisedTypes, let o = argInfoOrigin i ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else

@@ -1,0 +1,3 @@
+InstanceEtaVisible.agda:14.12-17: error: [InstanceNoCandidate]
+No instance of type Inner (F x) was found in scope.
+when checking that the expression inner has type F x

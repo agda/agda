@@ -673,23 +673,23 @@ Find candidates
   left-hand sides, or module parameters, are candidates if they are
   bound as instance arguments, using ``{{ }}``.
 
-  If a local variable has an :ref:`eta record <eta-expansion>` type,
-  then any of its :ref:`instance fields <instance-fields>` are also
-  considered as locals. Beware that if Agda can not tell whether or not
-  a local variable is eta-expandable (e.g., its type is a metavariable),
-  instance search will not run.
-
-  This also applies to local variables that are a function producing an
-  eta record, in which case the instance fields are extracting with
-  visible arguments marked implicit. For example, if a local variable
-  ``G : X → Group`` is in scope and ``Group`` is an eta record with a
-  field ``Carrier : Set`` and an instance field
-  ``⦃ mul ⦄ : Mul Carrier``, then ``λ {x} → mul (G x)`` will be a
-  candidate of type ``{x : X} -> Mul (Carrier G)``.
+  If a local variable has instance visibility (i.e., it is bound by the
+  type of the function with ``{{ }}``), and its type is an :ref:`eta
+  record <eta-expansion>` type, then any of its :ref:`instance fields
+  <instance-fields>` will also be considered as candidates. This applies
+  even if the instance argument is a function *returning* an eta record.
 
   Only candidates of type ``{Δ} → C us``, where ``C`` is the target type
   computed in the previous stage, and ``{Δ}`` only contains implicit or
   instance arguments, are considered.
+
+  Note that if any candidates have an indeterminate type (i.e., their
+  type is an unsolved metavariable, or a function type returning an
+  unsolved metavariable), then instance search will not run.
+  Also keep in mind that the types of all instance arguments in the
+  context need to be reduced to determine whether they are eta records,
+  and to determine whether they are applicable to solving the current
+  goal.
 
 Check the type of the candidates
   The list of initial candidates is an overapproximation to the set of

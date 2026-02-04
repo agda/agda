@@ -59,59 +59,113 @@ Failed to solve the following constraints:
     C : Structure
     (stuck)
       [ at Issue1952.agda:29.25-26 ]
-  Resolve instance argument _r_68 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_68 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:31.31-32 ]
-  Resolve instance argument _r_67 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_67 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:31.41-42 ]
-  Resolve instance argument _r_75 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_75 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:31.49-50 ]
-  Resolve instance argument _r_95 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_95 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.44-47 ]
-  Resolve instance argument _r_89 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_89 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.58-59 ]
-  Resolve instance argument _r_86 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_86 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.103-104 ]
-  Resolve instance argument _r_102 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_102 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.66-67 ]
-  Resolve instance argument _r_114 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_114 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.75-76 ]
-  Resolve instance argument _r_110 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_110 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.97-98 ]
-  Resolve instance argument _r_130 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_130 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.78-80 ]
-  Resolve instance argument _r_126 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_126 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.81-82 ]
-  Resolve instance argument _r_122 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_122 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.86-87 ]
-  Resolve instance argument _r_135 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_135 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.83-85 ]
-  Resolve instance argument _r_146 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_146 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.88-90 ]
-  Resolve instance argument _r_142 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_142 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.91-92 ]
-  Resolve instance argument _r_151 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_151 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.93-95 ]
-  Resolve instance argument _r_162 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_162 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.99-101 ]
-  Resolve instance argument _r_173 : Structure No candidates yet
-    (blocked on _r_57)
+  Resolve instance argument _r_173 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
       [ at Issue1952.agda:33.105-108 ]
   (_r_173 Structure.⟶
    (_r_173 Structure.× (_r_173 Structure.× _X_174) _X_174) _X_174)
