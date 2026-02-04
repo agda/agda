@@ -1,3 +1,4 @@
+module Issue3358 where
 
 open import Agda.Builtin.Equality
 
@@ -16,6 +17,6 @@ variable
   G : Group
 
 postulate
-  works : ∀ {G} → (x : [ G ]) → (x ∙ x) ≡ x
-  fails : (x : [ G ]) → (x ∙ x) ≡ x
-  -- WAS: No instance of type IsGroup [ G ]
+  -- used to be succesful, requires eta-expanding the non-instance
+  -- argument to find an isRG instance. now rejected
+  fails : ∀ {G} → (x : [ G ]) → (x ∙ x) ≡ x

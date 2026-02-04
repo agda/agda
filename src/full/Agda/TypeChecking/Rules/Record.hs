@@ -307,9 +307,9 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         ]
 -}
 
-      let info = setRelevance recordRelevance defaultArgInfo
-          addRecordVar =
-            addRecordNameContext (setArgInfo info $ defaultDom rect)
+      -- Make a note of what variable is the 'self' variable in the telescope.
+      let info = setOrigin RecordSelf $ setRelevance recordRelevance defaultArgInfo
+          addRecordVar = addRecordNameContext (setArgInfo info $ defaultDom rect)
 
       let m = qnameToMName name  -- Name of record module.
 

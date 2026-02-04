@@ -1,0 +1,4 @@
+Issue3358.agda:22.36-37: error: [InstanceNoCandidate]
+No instance of type IsGroup [ G ] was found in scope.
+when checking that x x are valid arguments to a function of type
+{G = G₁ : Set} ⦃ r : IsGroup G₁ ⦄ → G₁ → G₁ → G₁

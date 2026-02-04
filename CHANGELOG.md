@@ -266,12 +266,6 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
-* Added support for [Cubical Agda without Glue Types](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#cubical-agda-without-glue)
-  by using the flag `--cubical=no-glue`,
-  a variant of Cubical Agda which disables the Glue types.
-  For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
-  [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
-
 * (**BREAKING**): In the presence of `--erasure`, types of lambdas expressions
   are not inferred unless every lambda-bound variable has been given its erasure
   status (`@0` or `@ω`) explicitely.
@@ -287,17 +281,76 @@ Changes to type checker and other components defining the Agda language.
   With that change `--erasure` gets more akin to Cubical Agda that categorically
   refuses to infer lambdas (since they could construct either functions or paths).
 
+* (**BREAKING**): Instance search will no longer eta-expand non-instance
+  (visible and hidden) variables of record type in the context to find
+  instance fields ([PR #8367](https://github.com/agda/agda/pull/8367)).
+  This means code like the following will no longer work, since it
+  relied on eta-expanding the **visible** argument `r : R` to find the
+  instance field.
+
+  ```agda
+  postulate
+    T : Set
+    use : ⦃ t : T ⦄ → Set
+
+  record R : Set where
+    field ⦃ inst ⦄ : T
+
+  fails : R → Set
+  fails r = use
+  ```
+
+  It can be repaired by explicitly eta-expanding the record pattern:
+
+  ```agda
+  succeeds : R → Set
+  succeeds r@record{} = use -- or just record{}, if r is unused
+  ```
+
+  This change allows instance search to work in more contexts
+  (specifically, instance search can now happen even when the types of
+  non-instance arguments are yet-unsolved metavariables, e.g. when they
+  are bound by `∀ x → ...`), and prevents instance search from
+  head-normalising the types of non-instance variables in the context.
+
+* Instance search now finds instance fields in *functions* that produce
+  eta records ([Issue #8337](github.com/agda/agda/issues/8337)), as
+  long as these functions are in the context with instance visibility.
+
+  In effect, this means that a family of instances of a "subclass" also
+  provides a family of instances for the "superclass". For example, the
+  following code is now accepted:
+
+  ```agda
+  record Eq (A : Set) : Set where
+    field
+      _==_ : A → A → Bool
+
+  record Ord (A : Set) : Set where
+    field
+      ⦃ eq ⦄ : Eq A
+      _<=_ : A → A → Bool
+
+  open Ord ⦃ ... ⦄
+  open Eq ⦃ ... ⦄
+
+  test
+    : {I : Set} {F : I → Set} ⦃ ordi : ∀ {i} → Ord (F i) ⦄
+    → (i : I) → F i → F i → Bool
+  test i x y = x == y
+  ```
+
 * Functions defined using with-abstraction equality (`with … in eq`) can now be
   reasoned about using the same with-abstraction equality: the equality proof
   is correctly generalised over. This should make most (if not all) uses of the
   old-style `inspect` idioms for the built-in equality type unnecessary.
 
-* Instance search now finds instance fields in functions that produce eta
-  records. For example, if a local variable `G : X → Group` is in scope
-  and `Group` is an eta record with a field `Carrier : Set` and an instance
-  field `⦃ mul ⦄ : Mul Carrier`, then `λ {x} → mul (G x)` will be a candidate
-  of type `{x : X} -> Mul (Carrier G)`. See also
-  [Issue #8337](https://github.com/agda/agda/issues/8337).
+* Added support for [Cubical Agda without Glue Types](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#cubical-agda-without-glue)
+  by using the flag `--cubical=no-glue`,
+  a variant of Cubical Agda which disables the Glue types.
+  For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
+  [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
+
 
 
 Reflection
