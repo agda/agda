@@ -387,7 +387,7 @@ literalStrategy k s = do
   let n = eqCount s
   Equal Dom{unDom = a} u v <- eqUnLevel $ getEquality k s
   ha <- fromMaybeMP $ isHom n a
-  (u, v) <- reduce (u, v)
+  (u, v) <- addContext (varTel s) $ reduce (u, v)
   case (u , v) of
     (Lit l1 , Lit l2)
      | l1 == l2  -> return $ Deletion k ha u v
