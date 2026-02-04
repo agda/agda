@@ -2360,6 +2360,9 @@ data Origin
     -- Indicates that the argument at this position should always be
     -- reified, even if the visibility/modality would be skipped with
     -- the current flags.
+  | RecordSelf
+  -- ^ Inserted to stand for the record "self" variable when checking a
+  -- declaration inside a record module.
   deriving (Show, Eq, Ord)
 
 instance HasRange Origin where
@@ -2377,6 +2380,7 @@ instance NFData Origin where
   rnf ExpandedPun    = ()
   rnf Generalization = ()
   rnf ConversionFail = ()
+  rnf RecordSelf     = ()
 
 -- | Decorating something with 'Origin' information.
 data WithOrigin a = WithOrigin

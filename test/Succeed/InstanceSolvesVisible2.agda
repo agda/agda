@@ -1,4 +1,4 @@
-module Issue8337 where
+module InstanceSolvesVisible2 where
 
 record Funlike {ℓ} (A : Set) (arg : Set) (out : arg → Set ℓ) : Set ℓ where
   field
@@ -11,7 +11,7 @@ postulate
   Fn : Set
   fn : Fn
   A : Set
-  instance i : Funlike Fn (A → A) (λ _ → Set)
+  instance i : Funlike Fn A (λ _ → Set)
 
-FailsBecauseThereCouldBeAnInstanceAtTheEndOfTheTelescope : Set
-FailsBecauseThereCouldBeAnInstanceAtTheEndOfTheTelescope = (x : _ → _) → fn · x
+_ : Set
+_ = ∀ x → fn · x

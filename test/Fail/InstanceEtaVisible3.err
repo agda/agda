@@ -1,0 +1,4 @@
+InstanceEtaVisible3.agda:21.79-80: error: [InstanceNoCandidate]
+No instance of type Mul (M .carrier) was found in scope.
+when checking that (x * y) z are valid arguments to a function of
+type {A : Set} ⦃ r : Mul A ⦄ → A → A → A

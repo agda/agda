@@ -523,6 +523,7 @@ instance EmbPrj Origin where
   icod_ ExpandedPun    = return 5
   icod_ Generalization = return 6
   icod_ ConversionFail = return 7
+  icod_ RecordSelf     = return 8
 
   value 0 = return UserWritten
   value 1 = return Inserted
@@ -532,6 +533,7 @@ instance EmbPrj Origin where
   value 5 = return ExpandedPun
   value 6 = return Generalization
   value 7 = return ConversionFail
+  value 8 = return RecordSelf
   value _ = malformed
 
 instance EmbPrj a => EmbPrj (WithOrigin a) where
