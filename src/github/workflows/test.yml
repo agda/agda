@@ -121,6 +121,7 @@ jobs:
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
         enable-stack: true
+        cabal-update: false
 
     # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
@@ -294,12 +295,12 @@ jobs:
     # - *cache
     - *agda_setup
 
-    - name: "Sequential standard library build"
+    - name: "Parallel standard library build"
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
         cabal update
-        make std-lib-test
+        make AGDA_OPTS="-j" std-lib-test
 
     # Andreas, 2023-09-13: Benchmark `any` uses the standard library,
     # so benchmarks should be run here (or split out the std-lib benchmarks).
@@ -319,15 +320,15 @@ jobs:
     - name: "Interaction tests using the standard library"
       run: make std-lib-interaction
 
-    # This relies on the sequential build having executed first, so we
-    # don't need the Cabal step.
-    # We also have to remove the interface files otherwise we're just
-    # checking parallel *loading*, but the std-lib Makefile has a clean
-    # target we can use.
-    - name: "Parallel standard library build"
-      run: |
-        make -C std-lib clean
-        make AGDA_OPTS="-j" std-lib-test
+    # # This relies on the parallel build having executed first, so we
+    # # don't need the Cabal step.
+    # # We also have to remove the interface files otherwise we're just
+    # # checking sequential *loading*, but the std-lib Makefile has a clean
+    # # target we can use.
+    # - name: "Sequential standard library build"
+    #   run: |
+    #     make -C std-lib clean
+    #     make std-lib-test
 
 
   # Step 2c: testing the interaction and the LaTeX/HTML backend
@@ -398,13 +399,15 @@ jobs:
   ###########################################################################
 
   cubical:
-    # Only run the workflow with tag [cubical] in commit message or PR title
-    # or if it was scheduled or started manually.
-    if: |
-      contains(github.event.head_commit.message, '[cubical]')
-      || contains(github.event.pull_request.title, '[cubical]')
-      || github.event_name == 'schedule'
-      || github.event_name == 'workflow_dispatch'
+    # Andreas, 2026-02-04 reactivate cubical CI because we got burned.
+    #
+    # # Only run the workflow with tag [cubical] in commit message or PR title
+    # # or if it was scheduled or started manually.
+    # if: |
+    #   contains(github.event.head_commit.message, '[cubical]')
+    #   || contains(github.event.pull_request.title, '[cubical]')
+    #   || github.event_name == 'schedule'
+    #   || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: *runs_on
 

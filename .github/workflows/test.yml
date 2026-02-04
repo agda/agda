@@ -40,6 +40,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
@@ -92,11 +93,6 @@ jobs:
           hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
   cubical:
-    if: |
-      contains(github.event.head_commit.message, '[cubical]')
-      || contains(github.event.pull_request.title, '[cubical]')
-      || github.event_name == 'schedule'
-      || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-24.04
     steps:
@@ -106,6 +102,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
@@ -132,6 +129,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
@@ -193,6 +191,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
@@ -205,12 +204,12 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - name: Setup Agda
       run: make setup-agda
-    - name: Sequential standard library build
+    - name: Parallel standard library build
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
         cabal update
-        make std-lib-test
+        make AGDA_OPTS="-j" std-lib-test
     - if: always()
       name: Benchmark
       run: |
@@ -222,10 +221,6 @@ jobs:
       run: make std-lib-succeed
     - name: Interaction tests using the standard library
       run: make std-lib-interaction
-    - name: Parallel standard library build
-      run: |
-        make -C std-lib clean
-        make AGDA_OPTS="-j" std-lib-test
   test:
     needs: build
     runs-on: ubuntu-24.04
@@ -236,6 +231,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest

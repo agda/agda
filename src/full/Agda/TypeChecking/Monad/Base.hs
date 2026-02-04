@@ -208,7 +208,7 @@ data PreScopeState = PreScopeState
     -- 'stPostSyntaxInfo').
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
-    --   Those most not be serialized!
+    --   Those must not be serialized!
   , stPreImportedModules    :: !ImportedModules
       -- Andreas, 2023-08-05, issue #6750, don't make this a 'HashSet'
       -- because then the order of its @toList@ is undefined,
