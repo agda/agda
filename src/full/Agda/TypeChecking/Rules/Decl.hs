@@ -58,8 +58,9 @@ import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Rules.Application
 import Agda.TypeChecking.Rules.Term
-import Agda.TypeChecking.Rules.Data    ( checkDataDef )
+import Agda.TypeChecking.Rules.Data    ( checkDataDef, forceSort )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
+import Agda.TypeChecking.Rules.Record.Cubical
 import Agda.TypeChecking.Rules.Def     ( checkFunDef, newSection, useTerPragma )
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
@@ -75,6 +76,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.Update
 import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -288,7 +290,7 @@ mutualChecks mi d mid names = do
   -- to avoid making the injectivity checker loop.
   localTC (\ e -> e { envMutualBlock = Just mid }) $
     checkTermination_ d
-  revisitRecordPatternTranslation nameList -- Andreas, 2016-11-19 issue #2308
+  revisitInferredEtaRecords nameList -- Andreas, 2016-11-19 issue #2308
 
   mapM_ checkIApplyConfluence_ nameList
 
@@ -315,28 +317,51 @@ mutualChecks mi d mid names = do
   checkInjectivity_        names
   checkProjectionLikeness_ names
 
--- | Check if there is a inferred eta record type in the mutual block.
---   If yes, repeat the record pattern translation for all function definitions
---   in the block.
---   This is necessary since the original record pattern translation will
---   have skipped record patterns of the new record types (as eta was off for them).
---   See issue #2308 (and #2197).
-revisitRecordPatternTranslation :: [QName] -> TCM ()
-revisitRecordPatternTranslation qs = do
-  -- rs: inferred eta record types of this mutual block
+-- | Reprocess any record types with inferred eta (or no-eta) in the mutual block.
+--  * If there are any records that were inferred YesEta, repeat the record
+--    pattern translation for all function definitions in the block.
+--    This is necessary since the original record pattern translation will have
+--    skipped patterns of the new record types (as eta was off for them).
+--    See issue #2308 (and #2197).
+--  * If cubical, we need to define the cubical operations for each record with
+--    inferred eta, since we put that off while checking the records.
+--    See #8370.
+revisitInferredEtaRecords :: [QName] -> TCM ()
+revisitInferredEtaRecords qs = do
+  -- rs: record types with Inferred YesEta in this mutual block
   -- qccs: compiled clauses of definitions
-  (rs, qccs) <- partitionEithers . catMaybes <$> mapM classify qs
+  (rs, qccs) <- partitionEithers . catMaybes <$> mapM walk qs
   unless (null rs) $ forM_ qccs $ \(q,cc) -> do
     (cc, recordExpressionBecameCopatternLHS) <- runChangeT $ translateCompiledClauses q cc
     modifySignature $ updateDefinition q
       $ updateTheDef (updateCompiledClauses $ const $ Just cc)
       . updateDefCopatternLHS (|| recordExpressionBecameCopatternLHS)
   where
-  -- Walk through the definitions and return the set of inferred eta record types
-  -- and the set of function definitions in the mutual block
-  classify q = inConcreteOrAbstractMode q $ \ def -> do
+  -- Walk through the definitions and
+  -- 1. add cubical operations for any Inferred eta/no-eta record
+  -- 2. out of those, return the Inferred YesEta ones as Left
+  -- 3. and return the function definitions as Right
+  walk q = inConcreteOrAbstractMode q $ \ def -> do
     case theDef def of
-      Record{ recEtaEquality' = Inferred YesEta } -> return $ Just $ Left q
+      Record
+        { recEtaEquality' = Inferred eta
+        , recConHead      = con
+        , recTel          = tel
+        , recPars         = nPars
+        , recFields       = fields
+        } -> do
+        whenM cubicalCompatibleOption do
+          -- rDefTy = Π params → <sort>
+          rDefTy <- instantiateFull . defType =<< getConstInfo q
+          TelV _ s <- telView rDefTy
+          s <- forceSort s
+          -- telPars ⊢ rTy := R <params> : <sort>
+          rTy <- addContext telPars $
+            El s . Def q . map Apply <$> getContextArgs
+          addCompositionForRecord q eta con telPars (map argFromDom fields) telFields rTy
+        pure $ Left q <$ guard (eta == YesEta)
+        where
+          Pair telPars telFields = listTel (uncurry Pair . splitAt nPars) tel
       Function
         { funProjection = Left MaybeProjection
             -- Andreas, 2017-08-10, issue #2664:
