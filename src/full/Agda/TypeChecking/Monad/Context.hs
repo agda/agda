@@ -372,13 +372,15 @@ instance MonadAddContext TCM where
   withFreshName r x m = freshName r x >>= m
 
 -- | Adds a rewrite rule to the local typechecking environment
-defaultAddLocalRewrite :: MonadTCEnv m => LocalRewriteRule -> m a -> m a
-defaultAddLocalRewrite (GenericRewriteRule g (RewVarHead x) ps rhs t) =
-  locallyTC (eLocalRewriteRules . lrewsVarHeaded) $
-    IntMap.insertWith mappend x [GenericRewriteRule g () ps rhs t]
-defaultAddLocalRewrite (GenericRewriteRule g (RewDefHead f) ps rhs t) =
-  locallyTC (eLocalRewriteRules . lrewsDefHeaded) $
-    HMap.insertWith mappend f [GenericRewriteRule g () ps rhs t]
+defaultAddLocalRewrite :: (MonadTCEnv m, ReadTCState m)
+  => LocalRewriteRule -> m a -> m a
+defaultAddLocalRewrite rew ret = do
+  rew' <- makeOpen rew
+  case lrewHead rew of
+    RewVarHead x -> locallyTC (eLocalRewriteRules . lrewsVarHeaded)
+      (IntMap.insertWith mappend x [rew']) ret
+    RewDefHead f -> locallyTC (eLocalRewriteRules . lrewsDefHeaded)
+      (HMap.insertWith mappend f [rew']) ret
   -- TODO: Update matchability...
   -- We maybe need to store matchability overrides in some sort of local TCEnv field?!
   -- modifyGlobalSignature $ updateDefinitions $ updateDefsForRewrites f rews matchables

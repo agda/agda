@@ -348,9 +348,9 @@ instance Instantiate LocalEquation where
       <*> instantiate' c
       <*> instantiate' d
 
-instance Instantiate (GenericRewriteRule h) where
-  instantiate' (GenericRewriteRule a b c d e) =
-    GenericRewriteRule
+instance Instantiate LocalRewriteRule where
+  instantiate' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
       <$> instantiate' a
       <*> pure b
       <*> pure c
@@ -765,7 +765,7 @@ unfoldDefinitionStep v0 f es =
           mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
-    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> GenericRewriteRules () -> ReduceM (Reduced (Blocked Term) Term)
+    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> LocalRewriteRules -> ReduceM (Reduced (Blocked Term) Term)
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
       case (def,rewr) of
@@ -912,10 +912,10 @@ unfoldInlined v = do
 
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.
-appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> GenericRewriteRules () -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> LocalRewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) args
 
-appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> GenericRewriteRules () -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
   localTC (\ e -> e { envAppDef = Just f }) $
   maybe (appDefE'' v0 cls rewr args)
@@ -924,10 +924,10 @@ appDefE_ f v0 cls mcc rewr args =
 
 -- | Apply a defined function to it's arguments, using the compiled clauses.
 --   The original term is the first argument applied to the third.
-appDef :: Term -> CompiledClauses -> GenericRewriteRules () -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef :: Term -> CompiledClauses -> LocalRewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef v cc rewr args = appDefE v cc rewr $ map (fmap Apply) args
 
-appDefE :: Term -> CompiledClauses -> GenericRewriteRules () -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE :: Term -> CompiledClauses -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE v cc rewr es = do
   traceSDoc "tc.reduce" 90 ("appDefE v = " <+> pretty v) $ do
   r <- matchCompiledE cc es
@@ -936,16 +936,16 @@ appDefE v cc rewr es = do
     NoReduction es'      -> rewrite (void es') (applyE v) rewr (ignoreBlocking es')
 
 -- | Apply a defined function to it's arguments, using the original clauses.
-appDef' :: QName -> Term -> [Clause] -> GenericRewriteRules () -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef' :: QName -> Term -> [Clause] -> LocalRewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef' f v cls rewr args = appDefE' f v cls rewr $ map (fmap Apply) args
 
-appDefE' :: QName -> Term -> [Clause] -> GenericRewriteRules () -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE' :: QName -> Term -> [Clause] -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE' f v cls rewr es =
   localTC (\ e -> e { envAppDef = Just f }) $
   appDefE'' v cls rewr es
 
 -- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
-appDefE'' :: Term -> [Clause] -> GenericRewriteRules () -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE'' :: Term -> [Clause] -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
   goCls cls $ map ignoreReduced es
   where
@@ -1700,9 +1700,9 @@ instance InstantiateFull LocalEquation where
       <*> instantiateFull' c
       <*> instantiateFull' d
 
-instance InstantiateFull (GenericRewriteRule h) where
-  instantiateFull' (GenericRewriteRule a b c d e) =
-    GenericRewriteRule
+instance InstantiateFull LocalRewriteRule where
+  instantiateFull' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
       <$> instantiateFull' a
       <*> pure b
       <*> instantiateFull' c

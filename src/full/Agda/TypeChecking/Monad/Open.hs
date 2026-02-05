@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad.Open
         ( makeOpen
         , getOpen
         , tryGetOpen
+        , tryGetOpenWeak
         , isClosed
         ) where
 
@@ -36,6 +37,24 @@ getOpen :: (TermSubst a, MonadTCEnv m) => Open a -> m a
 getOpen (OpenThing cp _ _ x) = do
   sub <- checkpointSubstitution cp
   return $ applySubst sub x
+
+-- | Try to extract the value from an open thing which does not admit arbitrary
+--   substitution.
+--   The checkpoint at which it was created must be in scope.
+tryGetOpenWeak :: (WeakSubst a, MonadTCEnv m)
+  => (Substitution -> m a)
+       -- ^ Action to take if the substitution was invalid
+  -> Open a
+       -- ^ The thing we are trying to open
+  -> m a
+tryGetOpenWeak fallback (OpenThing cp _ _ x) = do
+  sub <- checkpointSubstitution cp
+  -- TODO: Ideally we would use noCons here but unfortunately it seems like
+  -- some checkpoint substitutions are being constructed without the smart
+  -- constructors.
+  case onlyInjRen sub of
+    Nothing   -> fallback sub
+    Just sub' -> return $ applySubst sub' x
 
 -- | Extract the value from an open term. If the checkpoint is no longer in scope use the provided
 --   function to pull the object to the most recent common checkpoint. The function is given the

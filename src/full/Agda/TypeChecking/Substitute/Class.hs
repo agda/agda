@@ -72,11 +72,15 @@ class DeBruijn (SubstArg a) => Subst a where
 -- | Simple constraint alias for a `Subst` instance `a` with arg type `t`.
 type SubstWith t a = (Subst a, SubstArg a ~ t)
 
--- | `Subst` instance whose agument type is itself
+-- | `Subst` instance whose argument type is itself
 type EndoSubst a = SubstWith a a
 
 -- | `Subst` instance whose argument type is `Term`
 type TermSubst a = SubstWith Term a
+
+-- | `Subst` instance whose argument type is `Nat` (i.e. for things that
+--   can be weakened, but do not admit arbitrary substitution)
+type WeakSubst a = SubstWith Nat a
 
 -- | Raise de Bruijn index, i.e. weakening
 raise :: Subst a => Nat -> a -> a

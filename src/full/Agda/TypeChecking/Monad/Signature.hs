@@ -8,7 +8,7 @@ import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
 import Control.Monad.Writer          ( WriterT )
-import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Trans.Maybe     ( MaybeT, hoistMaybe, runMaybeT  )
 import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
 
@@ -984,8 +984,7 @@ class ( Functor m
   getRewriteRulesFor :: QName -> m RewriteRules
 
   -- | Return the local rewrite rules for the given head symbol.
-  getLocalRewriteRulesFor :: LocalRewriteHeadLike h
-    => h -> m (GenericRewriteRules ())
+  getLocalRewriteRulesFor :: LocalRewriteHead -> m (LocalRewriteRules)
 
   -- Lifting HasConstInfo through monad transformers:
 
@@ -1000,26 +999,26 @@ class ( Functor m
   getRewriteRulesFor = lift . getRewriteRulesFor
 
   default getLocalRewriteRulesFor
-    :: (LocalRewriteHeadLike h, HasConstInfo n, MonadTrans t, m ~ t n)
-    => h -> m (GenericRewriteRules ())
+    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    => LocalRewriteHead -> m (LocalRewriteRules)
   getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
 
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
 
 getAllRewriteRulesForDefHead :: HasConstInfo m
-  => QName -> m (GenericRewriteRules ())
+  => QName -> m (LocalRewriteRules)
 getAllRewriteRulesForDefHead f =
   mappend <$> (catMaybes . fmap justTheRule <$> getRewriteRulesFor f)
-          <*> getLocalRewriteRulesFor f
+          <*> getLocalRewriteRulesFor (RewDefHead f)
   where
-    justTheRule :: RewriteRule -> Maybe (GenericRewriteRule ())
-    justTheRule (RewriteRule _ g _ ps rhs t isClause _)
+    justTheRule :: RewriteRule -> Maybe (LocalRewriteRule)
+    justTheRule (RewriteRule _ g q ps rhs t isClause _)
       | isClause  = Nothing
-      | otherwise = pure $ GenericRewriteRule g () ps rhs t
+      | otherwise = pure $ LocalRewriteRule g (RewDefHead q)  ps rhs t
 
 getAllRewriteRulesForVarHead :: HasConstInfo m
-  => Nat -> m (GenericRewriteRules ())
-getAllRewriteRulesForVarHead x = getLocalRewriteRulesFor x
+  => Nat -> m (LocalRewriteRules)
+getAllRewriteRulesForVarHead x = getLocalRewriteRulesFor $ RewVarHead x
 
 {-# SPECIALIZE getOriginalConstInfo :: HasCallStack => QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
@@ -1049,17 +1048,24 @@ defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   getFilteredRewriteRulesFor True q
 
 defaultGetLocalRewriteRulesFor ::
-  (LocalRewriteHeadLike h, ReadTCState m, MonadTCEnv m)
-  => h -> m (GenericRewriteRules ())
-defaultGetLocalRewriteRulesFor (toHead -> h) =
+  (ReadTCState m, MonadTCEnv m, MonadDebug m)
+  => LocalRewriteHead -> m (LocalRewriteRules)
+defaultGetLocalRewriteRulesFor h =
   ifNotM (shouldReduceDef' h) (return []) $ do
-    rews <- asksTC envLocalRewriteRules
-    pure $ fromMaybe [] $ lookup h rews
+    m <- runMaybeT . lookup h =<< asksTC envLocalRewriteRules
+    pure $ fromMaybe [] m
   where
     shouldReduceDef' (RewDefHead f) = shouldReduceDef f
     shouldReduceDef' (RewVarHead _) = pure True
-    lookup (RewDefHead f) = HMap.lookup   f . defHeadedRews
-    lookup (RewVarHead f) = IntMap.lookup f . varHeadedRews
+
+    lookup h m = do
+      rews  <- hoistMaybe $ lookup' h m
+      lift $ traverse (tryGetOpenWeak fallback) rews
+
+    fallback = __IMPOSSIBLE_VERBOSE__ . show
+
+    lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
+    lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
 
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.
@@ -1460,7 +1466,7 @@ instantiateDef d = do
   return $ d `apply` vs
 
 instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
-  => Args -> GenericRewriteRule () -> m (GenericRewriteRule ())
+  => Args -> LocalRewriteRule -> m (LocalRewriteRule)
 instantiateRewriteRule args rew =
   traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> text (show rew) <+> "to the local context.") $ do
   let rew' = rew `apply` args
@@ -1469,7 +1475,7 @@ instantiateRewriteRule args rew =
   return rew'
 
 instantiateDefHeadedRewriteRules :: (HasConstInfo m, ReadTCState m)
-  => QName -> GenericRewriteRules () -> m (GenericRewriteRules ())
+  => QName -> LocalRewriteRules -> m (LocalRewriteRules)
 instantiateDefHeadedRewriteRules f rews = do
   vs <- freeVarsToApply f
   mapM (instantiateRewriteRule vs) rews

@@ -38,7 +38,7 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
 
 -- | Flatten telescope: @(Γ : Tel) -> [Type Γ]@.
 --
@@ -440,16 +440,8 @@ telViewUpTo n t = telViewUpTo' n (const True) t
 --   the first @n@ (or arbitrary many if @n < 0@) function domains
 --   as long as they satify @p@.
 telViewUpTo' :: (MonadReduce m, MonadAddContext m) => Int -> (Dom Type -> Bool) -> Type -> m TelView
-telViewUpTo' 0 p t = return $ TelV EmptyTel t
-telViewUpTo' n p t = do
-  t <- reduce t
-  case unEl t of
-    Pi a b | p a ->
-          -- Force the name to avoid retaining the rest of b.
-      let !bn = absName b in
-      absV a bn <$> do
-        underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
-    _ -> return $ TelV EmptyTel t
+telViewUpTo' n p t = fromMaybe __IMPOSSIBLE__ <$>
+  (runMaybeT $ safeTelViewUpTo' n p t)
 
 -- | If there are @rew arguments in the type then trying to construct the
 --   telescope might fail.
@@ -466,7 +458,7 @@ safeTelViewUpTo' n p t = do
         -- Force the name to avoid retaining the rest of b.
         let !bn = absName b
         absV a bn <$> do
-          underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
+          underAbstractionAbs a b $ \b -> safeTelViewUpTo' (n - 1) p b
     _ -> return $ TelV EmptyTel t
 
 {-# INLINE telViewPath #-}

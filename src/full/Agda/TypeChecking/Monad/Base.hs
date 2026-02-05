@@ -2373,23 +2373,21 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
--- TODO: There used to be an `[Open LocalRewriteRule]`. I am not really sure
--- why `Open` was used here but maybe there was a good reason...
-type GenericRewriteRules h = [GenericRewriteRule h]
 type LocalRewriteRules     = [LocalRewriteRule]
-type DefHeadedRewriteRules = [DefHeadedRewriteRule]
-type VarHeadedRewriteRules = [VarHeadedRewriteRule]
 
+-- | Map from head symbols to local rewrite rules
+--   While the head symbols need to be eagerly updated to live in the current
+--   context, the rewrite rules do not. They instead each store a checkpoint id.
 data LocalRewriteRuleMap = LocalRewriteRuleMap
-  { defHeadedRews :: HashMap QName (GenericRewriteRules ())
-  , varHeadedRews :: IntMap (GenericRewriteRules ())
+  { defHeadedRews :: HashMap QName [Open LocalRewriteRule]
+  , varHeadedRews :: IntMap [Open LocalRewriteRule]
   }
     deriving (Show, Generic)
 
-lrewsDefHeaded :: Lens' LocalRewriteRuleMap (HashMap QName (GenericRewriteRules ()))
+lrewsDefHeaded :: Lens' LocalRewriteRuleMap (HashMap QName [Open LocalRewriteRule])
 lrewsDefHeaded f rs = f (defHeadedRews rs) <&> \ rs' -> rs { defHeadedRews = rs' }
 
-lrewsVarHeaded :: Lens' LocalRewriteRuleMap (IntMap (GenericRewriteRules ()))
+lrewsVarHeaded :: Lens' LocalRewriteRuleMap (IntMap [Open LocalRewriteRule])
 lrewsVarHeaded f rs = f (varHeadedRews rs) <&> \ rs' -> rs { varHeadedRews = rs' }
 
 instance Null LocalRewriteRuleMap where

@@ -94,7 +94,7 @@ import Debug.Trace
 data CompactDef =
   CompactDef { cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
-             , cdefRewriteRules   :: GenericRewriteRules ()
+             , cdefRewriteRules   :: LocalRewriteRules
              }
 
 data CompactDefn
@@ -113,7 +113,7 @@ data BuiltinEnv = BuiltinEnv
   , bPrimForce, bPrimErase  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
-compactDef :: BuiltinEnv -> Definition -> GenericRewriteRules () -> ReduceM CompactDef
+compactDef :: BuiltinEnv -> Definition -> LocalRewriteRules -> ReduceM CompactDef
 compactDef bEnv def rewr = do
 
   -- WARNING: don't use isPropM here because it relies on reduction,

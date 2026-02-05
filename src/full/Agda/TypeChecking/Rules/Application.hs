@@ -769,7 +769,6 @@ checkArgumentsE'
                       return s{ sChecked = chk }
 
             _ -> do
-              reportSDoc "tc.term" 30 $ "Actually we skip!"
               return s
 
         -- sFunType <- lift $ forcePi (getHiding info)

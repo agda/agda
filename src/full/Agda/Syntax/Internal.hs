@@ -1318,15 +1318,6 @@ data LocalRewriteHead
     -- ^ de Bruijn index of head symbol (excluding lrewContext variables)
   deriving (Show, Generic, Eq)
 
-class LocalRewriteHeadLike a where
-  toHead :: a -> LocalRewriteHead
-
-instance LocalRewriteHeadLike QName where
-  toHead = RewDefHead
-
-instance LocalRewriteHeadLike Nat where
-  toHead = RewVarHead
-
 headToPat :: LocalRewriteHead -> PElims -> NLPat
 headToPat (RewDefHead f) = PDef f
 headToPat (RewVarHead x) = PBoundVar x
@@ -1350,18 +1341,14 @@ type LocalEquation = LocalEquation' Term
 
 -- | Directed rewrite rules generic over the type of head symbol.
 --   Generally unstable under substitution.
-data GenericRewriteRule h = GenericRewriteRule
+data LocalRewriteRule = LocalRewriteRule
   { lrewContext :: Telescope
-  , lrewHead    :: h
+  , lrewHead    :: LocalRewriteHead
   , lrewPats    :: PElims     -- patterns (including lrewContext variables)
   , lrewRHS     :: Term
   , lrewType    :: Type
   }
   deriving (Show, Generic)
-
-type DefHeadedRewriteRule = GenericRewriteRule QName
-type VarHeadedRewriteRule = GenericRewriteRule Nat
-type LocalRewriteRule     = GenericRewriteRule LocalRewriteHead
 
 class LensLocalEquation a where
   getLocalEq :: a -> Maybe LocalEquation
@@ -1609,9 +1596,9 @@ instance KillRange t => KillRange (LocalEquation' t) where
   killRange (LocalEquation a b c d) =
     killRangeN LocalEquation a b c d
 
-instance KillRange h => KillRange (GenericRewriteRule h) where
-  killRange (GenericRewriteRule a b c d e) =
-    killRangeN GenericRewriteRule a b c d e
+instance KillRange LocalRewriteRule where
+  killRange (LocalRewriteRule a b c d e) =
+    killRangeN LocalRewriteRule a b c d e
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1853,5 +1840,5 @@ instance NFData NLPType
 instance NFData NLPSort
 instance NFData LocalRewriteHead
 instance NFData LocalEquation
-instance NFData a => NFData (GenericRewriteRule a)
+instance NFData LocalRewriteRule
 instance NFData RewDom

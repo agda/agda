@@ -325,8 +325,8 @@ instance NamesIn LocalRewriteHead where
   namesAndMetasIn' sg (RewVarHead a) = namesAndMetasIn' sg a
   namesAndMetasIn' sg (RewDefHead a) = namesAndMetasIn' sg a
 
-instance NamesIn a => NamesIn (GenericRewriteRule a) where
-  namesAndMetasIn' sg (GenericRewriteRule a b c d e) =
+instance NamesIn LocalRewriteRule where
+  namesAndMetasIn' sg (LocalRewriteRule a b c d e) =
     namesAndMetasIn' sg (a, b, c, d, e)
 
 instance NamesIn a => NamesIn (RewDom' a) where

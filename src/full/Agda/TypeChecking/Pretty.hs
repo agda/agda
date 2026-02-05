@@ -362,8 +362,6 @@ instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => Closure a -> TCM Doc #-}
 
-instance PrettyTCM () where
-  prettyTCM () = "_"
 
 instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
@@ -658,11 +656,11 @@ instance PrettyTCM LocalRewriteHead where
   prettyTCM (RewDefHead f) = prettyTCM f
   prettyTCM (RewVarHead x) = prettyTCM (var x)
 
-instance PrettyTCM h => PrettyTCM (GenericRewriteRule h) where
-  prettyTCM (GenericRewriteRule gamma f ps rhs b) = fsep
+instance PrettyTCM LocalRewriteRule where
+  prettyTCM (LocalRewriteRule gamma f ps rhs b) = fsep
     [ prettyTCM gamma <+> " |- "
     , addContext gamma $ sep
-      [ prettyTCM f <+> fsep (map prettyTCM ps)
+      [ prettyTCM (headToPat f ps)
       , " --> "
       , prettyTCM rhs
       , " : "

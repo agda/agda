@@ -256,12 +256,12 @@ instance Apply RewriteRule where
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
-instance Apply (GenericRewriteRule a) where
+instance Apply LocalRewriteRule where
   apply r args =
     let newContext = apply (lrewContext r) args
         sub        = liftS (size newContext) $ parallelS $
                        reverse $ map (PTerm . unArg) args
-    in GenericRewriteRule
+    in LocalRewriteRule
        { lrewContext = newContext
        , lrewHead    = lrewHead r
        , lrewPats    = applySubst sub (lrewPats r)
@@ -838,7 +838,22 @@ renamingR p@(Perm n is) = xs ++# raiseS n
 renameP :: Subst a => Impossible -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
--- | Only lets through weakenings (or strengthening)
+-- | Only lets through renamings (and strengthenings)
+onlyRen :: DeBruijn a => Substitution' a -> Maybe Renaming
+onlyRen IdS                  = pure idS
+onlyRen (EmptyS i)           = pure $ EmptyS i
+onlyRen (t :# rho)
+  | Just x <- deBruijnView t = consS x <$> onlyRen rho
+  | otherwise = Nothing
+onlyRen (Strengthen i n rho) = strengthenS' i n <$> onlyRen rho
+onlyRen (Wk n rho)           = wkS n <$> onlyRen rho
+onlyRen (Lift n rho)         = liftS n <$> onlyRen rho
+
+-- | Only lets through injective renamings (and strengthenings)
+onlyInjRen :: DeBruijn a => Substitution' a -> Maybe Renaming
+onlyInjRen = onlyRen -- TODO: Check the renaming is injective
+
+-- | Only lets through weakenings (or strengthenings)
 noCons :: Substitution' a -> Maybe Renaming
 noCons IdS                  = pure IdS
 noCons (EmptyS i)           = pure $ EmptyS i
@@ -1054,10 +1069,10 @@ instance Subst LocalRewriteHead where
 -- TODO: All the @coerceRen@ are gonna be kinda terrible for performance.
 -- I think we should maybe just have a top-level function for applying
 -- substitutions so we can document a stronger pre-condition and unsafe coerce
-instance (Subst h, SubstArg h ~ Nat) => Subst (GenericRewriteRule h) where
-  type SubstArg (GenericRewriteRule h) = Nat
-  applySubst rho (GenericRewriteRule gamma f ps rhs b) =
-    GenericRewriteRule (applySubst (coerceRen rho) gamma)
+instance Subst LocalRewriteRule where
+  type SubstArg LocalRewriteRule = Nat
+  applySubst rho (LocalRewriteRule gamma f ps rhs b) =
+    LocalRewriteRule (applySubst (coerceRen rho) gamma)
                        (applySubst (coerceRen rho) f)
                        (applySubst rho' ps)
                         (applySubst rho' rhs)

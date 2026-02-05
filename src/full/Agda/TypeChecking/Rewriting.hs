@@ -243,7 +243,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         illegalRule (GlobalRewrite def) $ BeforeMutualFunctionDefinition r
 
   eq <- checkIsRewriteRelation (GlobalRewrite def) (defType def)
-  GenericRewriteRule g h ps rhs b <- checkRewriteRule' eq (GlobalRewrite def)
+  LocalRewriteRule g h ps rhs b <- checkRewriteRule' eq (GlobalRewrite def)
   f <- case h of
     RewDefHead f -> pure f
     RewVarHead x -> illegalRule (GlobalRewrite def) LHSNotDefinitionOrConstructor
@@ -377,7 +377,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
     unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
 
     top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-    let rew = GenericRewriteRule gamma f ps rhs b
+    let rew = LocalRewriteRule gamma f ps rhs b
 
     reportSDoc "rewriting" 10 $ vcat
       [ "checked rewrite rule" , prettyTCM rew ]
@@ -491,10 +491,10 @@ checkRewConstraint
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
 rewriteWith :: Type
             -> (Elims -> Term)
-            -> GenericRewriteRule ()
+            -> LocalRewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t hd rew@(GenericRewriteRule gamma () ps rhs b) es = do
+rewriteWith t hd rew@(LocalRewriteRule gamma _ ps rhs b) es = do
   traceSDoc "rewriting.rewrite" 50 (sep
     [ "{ attempting to rewrite term " <+> prettyTCM (hd es)
     , " having head " <+> prettyTCM (hd []) <+> " of type " <+> prettyTCM t
@@ -519,7 +519,7 @@ rewriteWith t hd rew@(GenericRewriteRule gamma () ps rhs b) es = do
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.
-rewrite :: Blocked_ -> (Elims -> Term) -> GenericRewriteRules () -> Elims
+rewrite :: Blocked_ -> (Elims -> Term) -> LocalRewriteRules -> Elims
         -> ReduceM (Reduced (Blocked Term) Term)
 rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
@@ -529,7 +529,7 @@ rewrite block hd rules es = do
   else
     return $ NoReduction (block $> hd es)
   where
-    loop :: Blocked_ -> Type -> GenericRewriteRules () -> Elims
+    loop :: Blocked_ -> Type -> LocalRewriteRules -> Elims
          -> ReduceM (Reduced (Blocked Term) Term)
     loop block t [] es =
       traceSDoc "rewriting.rewrite" 20 (sep

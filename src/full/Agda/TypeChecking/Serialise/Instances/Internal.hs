@@ -339,10 +339,10 @@ instance EmbPrj LocalRewriteHead where
     valu (N2 1 a) = valuN RewVarHead a
     valu _        = malformed
 
-instance EmbPrj h => EmbPrj (GenericRewriteRule h) where
-  icod_ (GenericRewriteRule a b c d e) = icodeN' GenericRewriteRule a b c d e
+instance EmbPrj LocalRewriteRule where
+  icod_ (LocalRewriteRule a b c d e) = icodeN' LocalRewriteRule a b c d e
 
-  value = valueN GenericRewriteRule
+  value = valueN LocalRewriteRule
 
 instance EmbPrj RewDom where
   icod_ (RewDom a b) = icodeN' RewDom a b
