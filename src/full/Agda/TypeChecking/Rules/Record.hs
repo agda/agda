@@ -38,7 +38,6 @@ import Agda.TypeChecking.Rules.Data
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
-import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Lens
 import Agda.Utils.List (headWithDefault)
@@ -78,7 +77,7 @@ checkRecDef
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
+checkRecDef i name uc (RecordDirectives ind eta pat con) (A.DataDefParams gpars ps) contel0 fields = do
 
   -- Andreas, 2022-10-06, issue #6165:
   -- The target type of the constructor is a meaningless dummy expression which does not type-check.
@@ -159,8 +158,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ "adding record type to signature"
 
-      etaenabled <- etaEnabled
-
       let getName :: A.Declaration -> [Dom QName]
           getName = \case
             A.Field _ x arg          -> [ x <$ domFromArg arg ]
@@ -176,32 +173,34 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           indCo = rangedThing <$> ind
           -- A constructor is inductive unless declared coinductive.
           conInduction = fromMaybe Inductive indCo
-          -- Andreas, 2016-09-20, issue #2197.
-          -- Eta is inferred by the positivity checker.
-          -- We should turn it off until it is proven to be safe.
-          noEta    = Inferred $ NoEta patCopat
-          haveEta0 = maybe noEta Specified eta
           con = ConHead conName (IsRecord patCopat) conInduction $ map argFromDom fs
 
-          -- A record is irrelevant if all of its fields are.
+      etaenabled <- etaEnabled
+      -- Andreas, 2016-09-20, issue #2197.
+      -- Eta is inferred by the positivity checker.
+      -- We should turn it off until it is proven to be safe.
+      let noEta = Inferred $ NoEta patCopat
+      provisionalEta <- case (patCopat <$) . rangedThing <$> eta of
+        Nothing      -> pure noEta
+        -- Andreas, 2017-01-26, issue #2436
+        -- Disallow coinductive records with eta-equality
+        -- Andreas, 2024-06-14, PR #7300
+        -- Just make this a deadcode warning.
+        Just YesEta | CoInductive <- conInduction -> do
+          setCurrentRange eta $ warning $ CoinductiveEtaRecord name
+          pure noEta
+        Just userEta -> pure $ Specified userEta
+
+      let -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
           -- See issue #392.
           -- Unless it's been declared coinductive or no-eta-equality (#2607).
           recordRelevance
-            | Just NoEta{} <- eta         = relevant
-            | CoInductive <- conInduction = relevant
-            | null (telToList ftel)       = relevant    -- #6270: eta unit types don't need to be irrelevant
-            | otherwise                   = minimum $ irrelevant : map getRelevance (telToList ftel)
+            | Specified NoEta{} <- provisionalEta = relevant
+            | CoInductive <- conInduction         = relevant
+            | null (telToList ftel)               = relevant    -- #6270: eta unit types don't need to be irrelevant
+            | otherwise                           = minimum $ irrelevant : map getRelevance (telToList ftel)
 
-      -- Andreas, 2017-01-26, issue #2436
-      -- Disallow coinductive records with eta-equality
-      -- Andreas, 2024-06-14, PR #7300
-      -- Just make this a deadcode warning.
-      haveEta <-
-        if (conInduction == CoInductive && theEtaEquality haveEta0 == YesEta) then do
-          noEta <$ do
-            setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
-        else pure haveEta0
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
       -- Add the record definition.
@@ -223,7 +222,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , recFields         = fs
               , recTel            = telh `abstract` ftel
               , recAbstr          = Info.defAbstract i
-              , recEtaEquality'   = haveEta
+              , recEtaEquality'   = provisionalEta
               , recPatternMatching= patCopat
               , recInduction      = indCo
                   -- We retain the original user declaration [(co)inductive]
@@ -362,11 +361,11 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           setModuleCheckpoint m cp
           checkRecordProjections m name hasNamedCon con tel' ftel fields
 
-
-      -- we define composition here so that the projections are already in the signature.
+      -- We define composition here so that the projections are already in the signature.
+      -- Issue #8370 is caused by using provisionalEta here.
       whenM cubicalCompatibleOption do
         escapeContext impossible npars do
-          addCompositionForRecord name haveEta con tel (map argFromDom fs) ftel rect
+          addCompositionForRecord name provisionalEta con tel (map argFromDom fs) ftel rect
 
       -- The confluence checker needs to know what symbols match against
       -- the constructor.
@@ -379,7 +378,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
   -- then switch on pattern matching for no-eta-equality.
   -- Default is no pattern matching, but definition by copatterns instead.
   patCopat = maybe CopatternMatching (const PatternMatching) pat
-  eta      = ((patCopat <$) . rangedThing) <$> eta0
 
 
 {-| @checkRecordProjections m r q tel ftel fs@.
