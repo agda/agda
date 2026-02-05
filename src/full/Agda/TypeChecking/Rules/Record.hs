@@ -42,6 +42,7 @@ import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Lens
 import Agda.Utils.List (headWithDefault)
 import Agda.Utils.List1 (pattern (:|) )
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Pretty as P
@@ -361,11 +362,15 @@ checkRecDef i name uc (RecordDirectives ind eta pat con) (A.DataDefParams gpars 
           setModuleCheckpoint m cp
           checkRecordProjections m name hasNamedCon con tel' ftel fields
 
-      -- We define composition here so that the projections are already in the signature.
-      -- Issue #8370 is caused by using provisionalEta here.
-      whenM cubicalCompatibleOption do
+      -- We define composition once the projections are in the signature.
+      -- If eta was explicitly specified, we can do so now.
+      -- If eta needs to be inferred, we need to wait until the end of
+      -- the mutual block (#8370).
+      let getSpecified (Specified finalEta) = Just finalEta
+          getSpecified (Inferred _)         = Nothing
+      whenM cubicalCompatibleOption $ whenJust (getSpecified provisionalEta) \finalEta ->
         escapeContext impossible npars do
-          addCompositionForRecord name provisionalEta con tel (map argFromDom fs) ftel rect
+          addCompositionForRecord name finalEta con tel (map argFromDom fs) ftel rect
 
       -- The confluence checker needs to know what symbols match against
       -- the constructor.
