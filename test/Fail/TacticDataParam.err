@@ -1,0 +1,2 @@
+TacticDataParam.agda:9.9-22: error: [TacticAttributeNotAllowed]
+The @tactic attribute is not allowed here

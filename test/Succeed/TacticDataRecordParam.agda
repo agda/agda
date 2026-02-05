@@ -8,22 +8,23 @@ open import Agda.Builtin.Equality
 tac : Term → TC ⊤
 tac hole = unify hole (lit (nat 42))
 
-data Foo {@(tactic tac) n : Nat} : Set where
-  foo : Foo {n}
+module _ {@(tactic tac) n : Nat} where
+  data D1 : Nat → Set where
+    c1 : (m : Nat) → n ≡ m → D1 m
 
-mkFoo : Foo {42}
-mkFoo = foo
+test : {m : Nat} → D1 m → m ≡ 42
+test (c1 m refl) = refl
 
-record Bar {@(tactic tac) n : Nat} : Set where
-  constructor bar
+record R2 {@(tactic tac) n : Nat} : Set where
+  constructor c2
 
-mkBar : Bar {42}
-mkBar = bar
+test2 : R2 {42}
+test2 = c2
 
-data Baz {@(tactic tac) n : Nat} : Set
+data D3 {n : Nat} : Set
 
-data Baz {@(tactic tac) n : Nat} where
-  baz : Baz {n}
+data D3 {@(tactic tac) n} where
+  c3 : D3
 
-mkBaz : Baz {42}
-mkBaz = baz
+test3 : D3
+test3 = c3 {10}

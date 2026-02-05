@@ -249,24 +249,33 @@ leqType_ t t' = workOnTypes $ leqType t t'
 -- * Telescopes
 ---------------------------------------------------------------------------
 
+-- | We track whether a module telescope came from a data declaration because
+--   data telescopes cannot contain tactic arguments (because they result
+--   in slightly weird behaviour w.r.t. checking parameters of constructors
+--   are fully general)
+data ModTelOrigin = ModTelData | ModTelNotData
+  deriving (Eq, Show)
+
 checkGeneralizeTelescope ::
-     Maybe ModuleName
+     ModTelOrigin
+       -- ^ Origin of telescope (i.e. if it came from a data declaration)
+  -> Maybe ModuleName
        -- ^ The module the telescope belongs to (if any).
   -> A.GeneralizeTelescope
        -- ^ Telescope to check and add to the context for the continuation.
   -> ([Maybe Name] -> Telescope -> TCM a)
        -- ^ Continuation living in the extended context.
   -> TCM a
-checkGeneralizeTelescope mm (A.GeneralizeTel vars tel) =
-    tr (generalizeTelescope vars (checkTelescope tel) . curry) . uncurry
+checkGeneralizeTelescope o mm (A.GeneralizeTel vars tel) =
+    tr (generalizeTelescope vars (checkTelescope o tel) . curry) . uncurry
   where
     tr = applyUnless (null tel) $ applyWhenJust mm $ \ m ->
       traceCallCPS $ CheckModuleParameters m tel
 
 -- | Type check a (module) telescope.
 --   Binds the variables defined by the telescope.
-checkTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
-checkTelescope = checkTelescope' LamNotPi
+checkTelescope :: ModTelOrigin -> A.Telescope -> (Telescope -> TCM a) -> TCM a
+checkTelescope o = checkTelescope' (LamNotPi o)
 
 -- | Type check the telescope of a dependent function type.
 --   Binds the resurrected variables defined by the telescope.
@@ -276,13 +285,15 @@ checkPiTelescope = checkTelescope' PiNotLam
 
 -- | Flag to control resurrection on domains.
 data LamOrPi
-  = LamNotPi -- ^ We are checking a module telescope.
-             --   We pass into the type world to check the domain type.
-             --   This resurrects the whole context.
-  | PiNotLam -- ^ We are checking a telescope in a Pi-type.
-             --   We stay in the term world, but add resurrected
-             --   domains to the context to check the remaining
-             --   domains and codomain of the Pi-type.
+  = LamNotPi ModTelOrigin
+      -- ^ We are checking a module telescope.
+      --   We pass into the type world to check the domain type.
+      --   This resurrects the whole context.
+  | PiNotLam
+      -- ^ We are checking a telescope in a Pi-type.
+      --   We stay in the term world, but add resurrected
+      --   domains to the context to check the remaining
+      --   domains and codomain of the Pi-type.
   deriving (Eq, Show)
 
 -- | Type check a telescope. Binds the variables defined by the telescope.
@@ -323,8 +334,8 @@ checkDomain lamOrPi xs e = do
         -- types, but do not modify the new context entries
         -- otherwise, if we are checking a pi, we do not resurrect, but
         -- modify the new context entries
-        modEnv LamNotPi = workOnTypes
-        modEnv _        = id
+        modEnv (LamNotPi _) = workOnTypes
+        modEnv PiNotLam     = id
 
 checkPiDomain :: (LensLock a, LensModality a) => List1 a -> A.Expr -> TCM Type
 checkPiDomain = checkDomain PiNotLam
@@ -338,7 +349,8 @@ checkPiDomain = checkDomain PiNotLam
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     let xs = fmap (updateNamedArg $ A.unBind . A.binderName) xps
-    tac <- traverse checkTacticAttribute $ theTacticAttribute $ tbTacticAttr tac
+    tac <- traverse (checkTacticAttribute lamOrPi) $
+      theTacticAttribute $ tbTacticAttr tac
     whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
@@ -377,11 +389,10 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         -- types, but do not modify the new context entries
         -- otherwise, if we are checking a pi, we do not resurrect, but
         -- modify the new context entries
-        modEnv LamNotPi = workOnTypes
-        modEnv _        = id
-        modMod PiNotLam xp = inverseApplyPolarity (withStandardLock UnusedPolarity)
-                             . applyWhen xp (mapRelevance irrelevantToShapeIrrelevant)
-        modMod _        _  = id
+        modMod PiNotLam xp =
+          inverseApplyPolarity (withStandardLock UnusedPolarity) .
+          applyWhen xp (mapRelevance irrelevantToShapeIrrelevant)
+        modMod (LamNotPi _) _ = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
   checkLetBindings lbs (ret EmptyTel)
@@ -400,8 +411,10 @@ addTypedPatterns xps ret = do
   checkLetBindings' lbs ret
 
 -- | Check a tactic attribute. Should have type Term → TC ⊤.
-checkTacticAttribute :: Ranged A.Expr -> TCM Term
-checkTacticAttribute (Ranged r e) = do
+checkTacticAttribute :: LamOrPi -> Ranged A.Expr -> TCM Term
+checkTacticAttribute (LamNotPi ModTelData) (Ranged r e) = setCurrentRange r $
+  typeError $ TacticAttributeNotAllowed
+checkTacticAttribute _                     (Ranged r e) = do
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   checkExpr e expectedType
 
