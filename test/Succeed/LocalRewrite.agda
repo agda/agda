@@ -4,9 +4,13 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 
-postulate
-  f : Nat → Nat
+f : Nat → Nat
+f zero    = zero
+f (suc n) = suc (suc (f n))
 
-module _ (x : Nat) (@rew _ : f x ≡ 0) where
+module Foo (x : Nat) (@rew p : f x ≡ 0) where
   test : f x ≡ 0
   test = refl
+
+test2 : f 0 ≡ 0
+test2 = Foo.test 0 refl

@@ -1478,6 +1478,16 @@ scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 scopedExpr (A.Qualified mod e)    = scopedExpr e
 scopedExpr e                      = return e
 
+-- | If we are checking an @rew application, the equational constraint must hold
+--   definitionally.
+checkLocalEquation :: TCM ()
+checkLocalEquation = do
+  eq <- viewTC eLocalEquation
+  whenJust eq \eq' -> do
+    reportSDoc "tc.term.expr.top" 15 $
+      "Checking @rew constraint " <+> prettyTCM eq'
+    checkRewConstraint eq'
+
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr = checkExpr' CmpLeq
@@ -1496,6 +1506,8 @@ checkExpr' cmp e t =
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
   traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
+    checkLocalEquation
+
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]
@@ -1507,13 +1519,6 @@ checkExpr' cmp e t =
     reportSDoc "tc.term.expr.top" 15 $
         "    --> " <+> prettyTCM tReduced
 
-    -- If we are checking against a convertibility constraint "@rew x = y", we
-    -- need to ensure it is satisfied
-    eq <- viewTC eLocalEquation
-    whenJust eq \eq' -> do
-      reportSDoc "tc.term.expr.top" 15 $
-        "Checking @rew constraint " <+> prettyTCM eq'
-      checkRewConstraint eq'
 
     e <- scopedExpr e
 
@@ -1778,6 +1783,11 @@ checkOrInferMeta
   -> Maybe (Comparison , Type)
   -> TCM (Term, Type)
 checkOrInferMeta i newMeta mt = do
+  -- We still need to check equational constraints even when checking a meta
+  -- because definitions parameterised by a local rewrite rule do not block
+  -- on the corresponding argument
+  checkLocalEquation
+
   case A.metaNumber i of
     Nothing -> do
       unlessNull (A.metaScope i) setScope
