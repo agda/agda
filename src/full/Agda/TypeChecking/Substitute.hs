@@ -977,14 +977,15 @@ instance DeBruijn BraveTerm where
 instance DeBruijn NLPat where
   deBruijnVar i = PVar MaybeSing i []
   deBruijnView = \case
-    PVar s i [] -> Just i
-    PVar{}      -> Nothing
-    PDef{}      -> Nothing
-    PLam{}      -> Nothing
-    PPi{}       -> Nothing
-    PSort{}     -> Nothing
-    PBoundVar{} -> Nothing -- or... ?
-    PTerm{}     -> Nothing -- or... ?
+    PVar s i []    -> Just i
+    PVar{}         -> Nothing
+    PDef{}         -> Nothing
+    PLam{}         -> Nothing
+    PPi{}          -> Nothing
+    PSort{}        -> Nothing
+    PBoundVar i [] -> Just i
+    PBoundVar{}    -> Nothing -- or... ?
+    PTerm{}        -> Nothing -- or... ?
 
 applyNLPatSubst :: TermSubst a => Substitution' NLPat -> a -> a
 applyNLPatSubst = applySubst . fmap nlPatToTerm
@@ -1002,6 +1003,10 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
 applyNLSubstToDom :: SubstWith NLPat a => Substitution' NLPat -> Dom a -> Dom a
 applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst rho $ domTactic dom }
 
+-- Assume substitution maps the given variable to a variable
+lookupSVar ::  EndoSubst a => Substitution' a -> Nat -> Maybe Nat
+lookupSVar sub x = deBruijnView $ lookupS sub x
+
 instance Subst NLPat where
   type SubstArg NLPat = NLPat
   applySubst rho = \case
@@ -1012,11 +1017,9 @@ instance Subst NLPat where
     PSort s        -> PSort $ applySubst rho s
     -- Bound variables should only ever be substituted for other bound
     -- variables
-    PBoundVar i es -> case lookupS rho i of
-      PBoundVar i' [] -> PBoundVar i' $ applySubst rho es
-      -- This is a hack to account for the dodgy DeBruijn NLPat instance
-      PVar _ i' []    -> PBoundVar i' $ applySubst rho es
-      _               -> __IMPOSSIBLE__
+    PBoundVar i es ->
+      PBoundVar (fromMaybe __IMPOSSIBLE__ $ lookupSVar rho i) $
+        applySubst rho es
     PTerm u        -> PTerm $ applyNLPatSubst rho u
 
     where

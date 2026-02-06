@@ -452,9 +452,20 @@ equal a u v = pureEqualTermB a u v >>= \case
 
 -- | Utility function for getting the name and type of a head term (i.e. a
 --   `Def` or `Con` with no arguments)
+--   Fails on variable heads
 getTypedHead :: PureTCM m => Term -> m (Maybe (QName, Type))
-getTypedHead = \case
-  Def f []   -> Just . (f,) . defType <$> getConstInfo f
+getTypedHead x = do
+  t <- getLocalHeadType x
+  case t of
+    Just (RewDefHead f, t) -> pure $ Just (f, t)
+    Just (RewVarHead x, t) -> pure Nothing
+    Nothing                -> pure Nothing
+
+-- | Utility function for getting the type of a head term. Includes a case
+--   for variables (which are valid heads of local rewrite rules)
+getLocalHeadType :: PureTCM m => Term -> m (Maybe (LocalRewriteHead, Type))
+getLocalHeadType =  \case
+  Def f []   -> Just . (RewDefHead f,) . defType <$> getConstInfo f
   Con (ConHead { conName = c }) _ [] -> do
     -- Andreas, 2018-09-08, issue #3211:
     -- discount module parameters for constructor heads
@@ -466,6 +477,10 @@ getTypedHead = \case
         let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
         t0 <- defType <$> getConstInfo c
         t <- t0 `piApplyM` (vs ++ ws)
-        return $ Just (c , t)
-      Nothing -> return Nothing
-  _ -> return Nothing
+        return $ Just (RewDefHead c , t)
+      Nothing -> pure Nothing
+  Var x [] -> do
+    t <- domOfBV x
+    pure $ Just (RewVarHead x, unDom t)
+  _ -> pure Nothing
+

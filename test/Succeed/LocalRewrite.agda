@@ -10,5 +10,5 @@ module Foo (n : Nat) (m : Nat) (@rew p : n + m ≡ m) (l : Nat) where
   test : n + m ≡ m
   test = refl
 
-test2 : 0 + 3 ≡ 3
+test2 : 3 ≡ 3
 test2 = Foo.test 0 3 refl 42

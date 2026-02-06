@@ -619,10 +619,10 @@ slowReduceTerm v = do
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
-      Pi _ _   -> done
-      Lit _    -> done
-      Var _ es  -> iapp es
-      Lam _ _  -> done
+      Pi _ _     -> done
+      Lit _      -> done
+      Var x es   -> reduceIApply (rewriteVarApp x es) es
+      Lam _ _    -> done
       DontCare _ -> done
       Dummy{}    -> done
     where
@@ -643,7 +643,23 @@ slowReduceTerm v = do
               w              -> Con c ci [Apply $ defaultArg w]
       reduceNat v = return v
 
--- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
+rewriteVarApp :: Nat -> Elims -> ReduceM (Blocked Term)
+rewriteVarApp x es = do
+  r <- rewriteVarAppStep x es
+  case r of
+    NoReduction v    -> return v
+    YesReduction _ v -> reduceB' v
+
+rewriteVarAppStep :: Nat -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewriteVarAppStep x es = do
+  rewr <- getAllRewriteRulesForVarHead x
+  when (not $ null rewr) $
+    reportSDoc "rewriting" 30 $
+      "Trying to rewrite variable application" <+> prettyTCM (Var x es)
+  rewrite (NotBlocked ReallyNotBlocked ())
+          (Var x) rewr es
+
+-- Andreas, 2013-03-20 recursive invocations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
 unfoldCorecursionE (Proj o p)           = notBlocked . Proj o <$> getOriginalProjection p

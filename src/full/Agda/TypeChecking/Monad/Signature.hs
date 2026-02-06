@@ -1359,12 +1359,6 @@ freeVarsToApply q = do
   unless (size tel == size vs) __IMPOSSIBLE__
   return $ zipWith (\ arg dom -> unArg arg <$ argFromDom dom) vs $ telToList tel
 
--- freeVarsToApplyToHead ::(Functor m, HasConstInfo m, HasOptions m,
---                     ReadTCState m, MonadTCEnv m, MonadDebug m)
---   => LocalRewriteHead -> m Args
--- freeVarsToApplyToHead (RewDefHead f) = freeVarsToApply f
--- freeVarsToApplyToHead (RewVarHead x) = freeVarsToApply _
-
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
 getModuleFreeVars :: ( MonadTCEnv m, ReadTCState m)
@@ -1479,8 +1473,6 @@ instantiateDefHeadedRewriteRules :: (HasConstInfo m, ReadTCState m)
 instantiateDefHeadedRewriteRules f rews = do
   vs <- freeVarsToApply f
   mapM (instantiateRewriteRule vs) rews
-
--- TODO: Instantiate for local-headed rewrite rules
 
 -- | Return the abstract view of a definition, /regardless/ of whether
 -- the definition would be treated abstractly.

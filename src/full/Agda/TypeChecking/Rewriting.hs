@@ -526,7 +526,7 @@ rewrite :: Blocked_ -> (Elims -> Term) -> LocalRewriteRules -> Elims
 rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    (_ , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
+    (_ , t) <- fromMaybe __IMPOSSIBLE__ <$> getLocalHeadType (hd [])
     loop block t rules es
   else
     return $ NoReduction (block $> hd es)
