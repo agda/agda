@@ -8,7 +8,7 @@ import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
 import Control.Monad.Writer          ( WriterT )
-import Control.Monad.Trans.Maybe     ( MaybeT, hoistMaybe, runMaybeT  )
+import Control.Monad.Trans.Maybe     ( MaybeT (MaybeT), runMaybeT  )
 import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
 
@@ -1059,7 +1059,7 @@ defaultGetLocalRewriteRulesFor h =
     shouldReduceDef' (RewVarHead _) = pure True
 
     lookup h m = do
-      rews  <- hoistMaybe $ lookup' h m
+      rews  <- MaybeT $ pure $ lookup' h m
       lift $ traverse (tryGetOpenWeak fallback) rews
 
     fallback = __IMPOSSIBLE_VERBOSE__ . show
