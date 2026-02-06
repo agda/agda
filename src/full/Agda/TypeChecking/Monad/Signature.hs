@@ -1005,11 +1005,12 @@ class ( Functor m
 
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
 
-getAllRewriteRulesForDefHead :: HasConstInfo m
+getAllRewriteRulesForDefHead :: (HasConstInfo m, ReadTCState m)
   => QName -> m (LocalRewriteRules)
 getAllRewriteRulesForDefHead f =
-  mappend <$> (catMaybes . fmap justTheRule <$> getRewriteRulesFor f)
-          <*> getLocalRewriteRulesFor (RewDefHead f)
+  mappend <$> (catMaybes . fmap justTheRule <$>
+                (instantiateRewriteRules =<< getRewriteRulesFor f)) <*>
+              getLocalRewriteRulesFor (RewDefHead f)
   where
     justTheRule :: RewriteRule -> Maybe (LocalRewriteRule)
     justTheRule (RewriteRule _ g q ps rhs t isClause _)
@@ -1459,20 +1460,21 @@ instantiateDef d = do
       fsep (map pretty $ zipWith (<$) ctx vs)
   return $ d `apply` vs
 
+-- | Instantiate a global rewrite rule
 instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
-  => Args -> LocalRewriteRule -> m (LocalRewriteRule)
-instantiateRewriteRule args rew =
-  traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> text (show rew) <+> "to the local context.") $ do
-  let rew' = rew `apply` args
+  => RewriteRule -> m RewriteRule
+instantiateRewriteRule rew = do
+  traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> pretty (rewName rew) <+> "to the local context.") $ do
+  vs  <- freeVarsToApply $ rewName rew
+  let rew' = rew `apply` vs
   traceSLn "rewriting" 95 ("instantiated rewrite rule: ") $ do
   traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
-instantiateDefHeadedRewriteRules :: (HasConstInfo m, ReadTCState m)
-  => QName -> LocalRewriteRules -> m (LocalRewriteRules)
-instantiateDefHeadedRewriteRules f rews = do
-  vs <- freeVarsToApply f
-  mapM (instantiateRewriteRule vs) rews
+-- | Instantiate global rewrite rules
+instantiateRewriteRules :: (HasConstInfo m, ReadTCState m)
+  => RewriteRules -> m RewriteRules
+instantiateRewriteRules = mapM instantiateRewriteRule
 
 -- | Return the abstract view of a definition, /regardless/ of whether
 -- the definition would be treated abstractly.

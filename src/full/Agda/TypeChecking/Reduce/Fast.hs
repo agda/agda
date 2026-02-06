@@ -477,7 +477,7 @@ fastReduce' norm v = do
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
-    rewr <- if rwr then instantiateDefHeadedRewriteRules f =<< getAllRewriteRulesForDefHead f
+    rewr <- if rwr then getAllRewriteRulesForDefHead f
                    else return []
     compactDef bEnv info rewr
   localRewr <- unKleisli $ \x -> if rwr then getAllRewriteRulesForVarHead x else return []

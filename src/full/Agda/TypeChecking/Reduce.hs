@@ -707,7 +707,7 @@ unfoldDefinitionStep v0 f es =
   {-# SCC "reduceDef" #-} do
   traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
   info <- getConstInfo f
-  rewr <- instantiateDefHeadedRewriteRules f =<< getAllRewriteRulesForDefHead f
+  rewr <- getAllRewriteRulesForDefHead f
   allowed <- asksTC envAllowedReductions
   prp <- runBlocked $ isPropM $ defType info
   defOk <- shouldReduceDef f
