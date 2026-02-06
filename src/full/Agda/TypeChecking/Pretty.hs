@@ -64,7 +64,7 @@ import Agda.Utils.Null
 import Agda.Utils.Trie
 import Agda.Utils.Permutation ( Permutation )
 import qualified Agda.Utils.Maybe.Strict as S
-import Agda.Utils.Size ( Sized, natSize )
+import Agda.Utils.Size ( Sized, natSize, size )
 
 import Agda.Utils.Impossible
 
@@ -660,7 +660,7 @@ instance PrettyTCM LocalRewriteRule where
   prettyTCM (LocalRewriteRule gamma f ps rhs b) = fsep
     [ prettyTCM gamma <+> " |- "
     , addContext gamma $ sep
-      [ prettyTCM (headToPat f ps)
+      [ prettyTCM (headToPat (size gamma) f ps)
       , " --> "
       , prettyTCM rhs
       , " : "

@@ -373,8 +373,14 @@ instance Match NLPat Term where
       PSort ps -> case v of
         Sort s -> match r gamma k () ps s
         v -> maybeBlock v
-      PBoundVar i ps -> case v of
-        Var i' es | i == i' -> do
+      PBoundVar i ps -> traceSDoc "rewriting.match" 60
+          ("Matching a PBoundVar" <+> addContext gamma (addContext k $
+            prettyTCM $ PBoundVar i ps) <+> "with" <+>
+            (addContext k $ prettyTCM v)) $ case v of
+        -- Either we are matching a higher order bound variable in k or we
+        -- are matching a locally bound variable outside gamma
+        Var i' es |  (i < size k && i == i')
+                  || (i >= size k && i == i' + size gamma) -> do
           let ti = maybe __IMPOSSIBLE__ (unDom . ctxEntryDom) $ lookupBV_ i k
           match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
@@ -457,15 +463,15 @@ getTypedHead :: PureTCM m => Term -> m (Maybe (QName, Type))
 getTypedHead x = do
   t <- getLocalHeadType x
   case t of
-    Just (RewDefHead f, t) -> pure $ Just (f, t)
-    Just (RewVarHead x, t) -> pure Nothing
-    Nothing                -> pure Nothing
+    Just (Just f,  t) -> pure $ Just (f, t)
+    Just (Nothing, t) -> pure Nothing
+    Nothing           -> pure Nothing
 
 -- | Utility function for getting the type of a head term. Includes a case
 --   for variables (which are valid heads of local rewrite rules)
-getLocalHeadType :: PureTCM m => Term -> m (Maybe (LocalRewriteHead, Type))
+getLocalHeadType :: PureTCM m => Term -> m (Maybe (Maybe QName, Type))
 getLocalHeadType =  \case
-  Def f []   -> Just . (RewDefHead f,) . defType <$> getConstInfo f
+  Def f []   -> Just . (Just f,) . defType <$> getConstInfo f
   Con (ConHead { conName = c }) _ [] -> do
     -- Andreas, 2018-09-08, issue #3211:
     -- discount module parameters for constructor heads
@@ -477,10 +483,10 @@ getLocalHeadType =  \case
         let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
         t0 <- defType <$> getConstInfo c
         t <- t0 `piApplyM` (vs ++ ws)
-        return $ Just (RewDefHead c , t)
+        return $ Just (Just c , t)
       Nothing -> pure Nothing
   Var x [] -> do
     t <- domOfBV x
-    pure $ Just (RewVarHead x, unDom t)
+    pure $ Just (Nothing, unDom t)
   _ -> pure Nothing
 

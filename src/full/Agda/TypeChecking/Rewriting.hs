@@ -313,15 +313,15 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
 
   addContext gamma1 $ do
 
-    checkNoLhsReduction f hd es
+    checkNoLhsReduction telStart f hd es
 
     ps <- fromRightM failureBlocked $ lift $
       catchPatternErr (pure . Left) $
         Right <$> patternFrom NeverSing NeverSing telStart 0
-                              (t , headToTerm f) es
+                              (t , headToTerm telStart f) es
 
     reportSDoc "rewriting" 30 $
-      "Pattern generated from lhs: " <+> prettyTCM (headToPat f ps)
+      "Pattern generated from lhs: " <+> prettyTCM (headToPat telStart f ps)
 
     -- We need to check two properties on the variables used in the rewrite rule
     -- 1. For actually being able to apply the rewrite rule, we need
@@ -400,8 +400,8 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
     ifNotAlreadyAdded (GlobalRewrite def) (RewVarHead x) cont = __IMPOSSIBLE__
     ifNotAlreadyAdded LocalRewrite f cont = cont
 
-    checkNoLhsReduction :: LocalRewriteHead -> (Elims -> Term) -> Elims -> MaybeT TCM ()
-    checkNoLhsReduction f hd es = do
+    checkNoLhsReduction :: Nat -> LocalRewriteHead -> (Elims -> Term) -> Elims -> MaybeT TCM ()
+    checkNoLhsReduction telStart f hd es = do
       -- Skip this check when global confluence check is enabled, as
       -- redundant rewrite rules may be required to prove confluence.
       unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
@@ -413,19 +413,19 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
             illegalRule s $ LHSReduces v v'
       es' <- case (f, v') of
-        (RewDefHead f, Def f' es')   | f == f'         -> return es'
-        (RewDefHead f, Con c' _ es') | f == conName c' -> return es'
-        (RewVarHead x, Var x' es')   | x == x'         -> return es'
+        (RewDefHead f, Def f' es')   | f == f'            -> return es'
+        (RewDefHead f, Con c' _ es') | f == conName c'    -> return es'
+        (RewVarHead x, Var x' es')   | x + telStart == x' -> return es'
         _                              -> fail
       unless (null es && null es') $ do
         a   <- case f of
           RewDefHead f -> lift $ computeElimHeadType f es es'
-          RewVarHead x -> typeOfBV x
+          RewVarHead x -> typeOfBV $ x + telStart
         pol <- case f of
           RewDefHead f -> getPolarity' CmpEq f
           RewVarHead x -> pure []
         ok  <- lift $ dontAssignMetas $ tryConversion $
-                 compareElims pol [] a (headToTerm f []) es es'
+                 compareElims pol [] a (headToTerm telStart f []) es es'
         unless ok fail
 
     checkAxFunOrCon :: QName -> Definition -> MaybeT TCM ()

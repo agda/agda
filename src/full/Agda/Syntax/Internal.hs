@@ -1318,13 +1318,13 @@ data LocalRewriteHead
     -- ^ de Bruijn index of head symbol (excluding lrewContext variables)
   deriving (Show, Generic, Eq)
 
-headToPat :: LocalRewriteHead -> PElims -> NLPat
-headToPat (RewDefHead f) = PDef f
-headToPat (RewVarHead x) = PBoundVar x
+headToPat :: Nat -> LocalRewriteHead -> PElims -> NLPat
+headToPat _        (RewDefHead f) = PDef f
+headToPat telStart (RewVarHead x) = PBoundVar (x + telStart)
 
-headToTerm :: LocalRewriteHead -> Elims -> Term
-headToTerm (RewDefHead f) = Def f
-headToTerm (RewVarHead x) = Var x
+headToTerm :: Nat -> LocalRewriteHead -> Elims -> Term
+headToTerm _        (RewDefHead f) = Def f
+headToTerm telStart (RewVarHead x) = Var (x + telStart)
 
 -- | Undirected equational constraint ("the LHS and RHS
 --   must be convertible in the calling context").
