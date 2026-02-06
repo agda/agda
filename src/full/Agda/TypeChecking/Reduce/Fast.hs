@@ -85,6 +85,7 @@ import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Impossible
 
 import Debug.Trace
+import qualified Data.IntMap as IntMap
 
 -- * Compact definitions
 
@@ -421,6 +422,23 @@ memoQName f = unsafePerformIO $ do
           writeIORef tbl (Map.insert i y m)
           return y
 
+-- Int memo ---------------------------------------------------------------
+
+{-# NOINLINE memoInt #-}
+memoInt :: (Int -> a) -> (Int -> a)
+memoInt f = unsafePerformIO $ do
+  tbl <- newIORef IntMap.empty
+  return (unsafePerformIO . f' tbl)
+  where
+    f' tbl x = do
+      m <- readIORef tbl
+      case IntMap.lookup x m of
+        Just y  -> return y
+        Nothing -> do
+          let y = f x
+          writeIORef tbl (IntMap.insert x y m)
+          return y
+
 -- * Fast reduction
 
 data Normalisation = WHNF | NF
@@ -462,7 +480,9 @@ fastReduce' norm v = do
     rewr <- if rwr then instantiateDefHeadedRewriteRules f =<< getAllRewriteRulesForDefHead f
                    else return []
     compactDef bEnv info rewr
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
+  localRewr <- unKleisli $ \x -> if rwr then getAllRewriteRulesForVarHead x else return []
+
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) (memoInt localRewr) norm v
 
 -- * Closures
 
@@ -815,11 +835,11 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 
 -- | Evaluating a term in the abstract machine. It gets the type checking state and environment in
 --   the 'ReduceEnv' argument, some precomputed built-in mappings in 'BuiltinEnv', the memoised
---   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
---   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
---   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation =
+--   'getConstInfo' function, a memoised function to lookup local rewrite rules, and a term to
+--   reduce. The result is the weak-head normal form of the term with an attached blocking tag.
+reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef)
+         -> (Nat -> LocalRewriteRules) -> Normalisation -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
@@ -939,7 +959,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         Var x []   ->
           evalIApplyAM spine ctrl $
           case lookupEnv x env of
-            Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
+            Nothing -> rewriteAM $ evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl
             Just p  -> evalPointerAM p spine ctrl
 
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
@@ -1355,6 +1375,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where rewr = case t of
                      Def f []   -> rewriteRules f
                      Con c _ [] -> rewriteRules (conName c)
+                     Var x _    -> localRewr x
                      _          -> __IMPOSSIBLE__
     rewriteAM _ =
       __IMPOSSIBLE__

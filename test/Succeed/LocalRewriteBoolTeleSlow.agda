@@ -1,9 +1,9 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --no-fast-reduce #-}
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 
-module LocalRewriteBoolTele where
+module LocalRewriteBoolTeleSlow where
 
 module Foo (Bool : Set) (tt ff : Bool)
            (elim : (P : Bool → Set) → P tt → P ff → ∀ b → P b)
