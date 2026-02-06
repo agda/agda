@@ -389,6 +389,11 @@ Backends
   such that the Agda name of the function is printed to `stderr`
   whenever a function is entered.
 
+* The JS backend now explicitly lists all primitives that should compile
+  to `undefined`. Primitives not in this list or the RTS trigger a new
+  `UnknownJSPrimitive` warning
+  (see [#8352](https://github.com/agda/agda/issues/8352)).
+
 Issues closed
 -------------
 

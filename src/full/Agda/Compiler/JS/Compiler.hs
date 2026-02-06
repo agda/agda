@@ -472,7 +472,10 @@ definition' kit q d t ls =
         plainJS $ "agdaRTS." ++ getBuiltinId p
       | Just e <- defJSDef d ->
         plainJS e
-      | otherwise ->
+      | p `Set.member` undefinedPrimitives ->
+        ret Undefined
+      | otherwise -> do
+        warning $ UnknownJSPrimitive $ getBuiltinId p
         ret Undefined
     PrimitiveSort{} -> return Nothing
 
@@ -735,11 +738,6 @@ outFile ms m = do
   return fp
 
 -- | Primitives implemented in the JS Agda RTS.
---
--- TODO: Primitives that are not part of this set, and for which
--- 'defJSDef' does not return anything, are silently compiled to
--- 'Undefined'. A better approach might be to list exactly those
--- primitives which should be compiled to 'Undefined'.
 primitives :: Set PrimitiveId
 primitives = Set.fromList
   [ PrimShowInteger
@@ -865,4 +863,78 @@ primitives = Set.fromList
   -- , builtinGlue                   -- missing
   -- , builtin_glue                  -- missing
   -- , builtin_unglue                -- missing
+  ]
+
+-- | Primitives that are intentionally compiled to @Undefined@ by the
+-- JS backend (e.g. because they are erased, they are type-level only,
+-- or they are implemented in Agda). Any primitive not in 'primitives',
+-- 'undefinedPrimitives', or handled via 'defJSDef' will trigger an
+-- 'UnknownJSPrimitive' warning.
+undefinedPrimitives :: Set PrimitiveId
+undefinedPrimitives = Set.fromList
+  [ -- Natural number functions
+    PrimNatPlus
+  , PrimNatTimes
+  , PrimNatDivSucAux
+  , PrimNatModSucAux
+  , PrimNatEquality
+  , PrimNatLess
+  , PrimShowNat
+
+  -- Machine words
+  , PrimWord64ToNatInjective
+
+  -- Level functions
+  , PrimLevelZero
+  , PrimLevelSuc
+  , PrimLevelMax
+
+  -- Floating point functions (implemented in Agda.Builtin.Float)
+  , PrimFloatRound
+  , PrimFloatFloor
+  , PrimFloatCeiling
+  , PrimFloatToRatio
+  , PrimFloatDecode
+  , PrimFloatEncode
+  , PrimFloatToWord64Injective
+
+  -- Character functions (implemented in Agda.Builtin.Char)
+  , PrimCharEquality
+  , PrimIsLower
+  , PrimIsDigit
+  , PrimIsAlpha
+  , PrimIsSpace
+  , PrimIsAscii
+  , PrimIsLatin1
+  , PrimIsPrint
+  , PrimIsHexDigit
+  , PrimToUpper
+  , PrimToLower
+  , PrimCharToNat
+  , PrimCharToNatInjective
+  , PrimNatToChar
+  , PrimShowChar
+
+  -- String functions (implemented in Agda.Builtin.String)
+  , PrimStringToList
+  , PrimStringToListInjective
+  , PrimStringFromList
+  , PrimStringFromListInjective
+  , PrimStringAppend
+  , PrimStringEquality
+  , PrimShowString
+  , PrimStringUncons
+
+  -- Other
+  , PrimEraseEquality
+  , PrimForce
+  , PrimForceLemma
+  , PrimQNameToWord64s
+  , PrimQNameToWord64sInjective
+  , PrimMetaToNatInjective
+
+  -- Cubical (missing)
+  , builtinGlue
+  , builtin_glue
+  , builtin_unglue
   ]
