@@ -305,9 +305,11 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
 
   ifNotAlreadyAdded s f $ do
 
-  let telStart = case s of
-        LocalRewrite    -> size gamma1
-        GlobalRewrite _ -> size gamma
+  let rewGamma = case s of
+        LocalRewrite    -> gamma1
+        GlobalRewrite _ -> gamma
+
+      telStart = size rewGamma
 
   addContext gamma1 $ do
 
@@ -377,7 +379,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
     unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
 
     top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-    let rew = LocalRewriteRule gamma f ps rhs b
+    let rew = LocalRewriteRule rewGamma f ps rhs b
 
     reportSDoc "rewriting" 10 $ vcat
       [ "checked rewrite rule" , prettyTCM rew ]

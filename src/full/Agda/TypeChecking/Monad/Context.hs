@@ -295,8 +295,8 @@ class MonadTCEnv m => MonadAddContext m where
 {-# INLINE defaultAddCtx #-}
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
-defaultAddCtx x a ret = updateContext (raiseS 1) (CxExtendVar x a) $
-  applyWhenJust (rewDom a) addRewDom ret
+defaultAddCtx x a ret = applyWhenJust (rewDom a) addRewDom $
+  updateContext (raiseS 1) (CxExtendVar x a) ret
 
 addRewDom :: MonadAddContext m => RewDom -> m a -> m a
 addRewDom rew = case rewDomRew rew of

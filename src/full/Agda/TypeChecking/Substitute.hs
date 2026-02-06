@@ -971,6 +971,9 @@ instance DeBruijn BraveTerm where
   deBruijnVar = BraveTerm . deBruijnVar
   deBruijnView = deBruijnView . unBrave
 
+-- This instance is a bit of a hack. Whether a variable ought to be mapped to
+-- a PVar or a PBoundVar is dependent on context, but here we always assume
+-- PVar.
 instance DeBruijn NLPat where
   deBruijnVar i = PVar MaybeSing i []
   deBruijnView = \case
@@ -1007,7 +1010,13 @@ instance Subst NLPat where
     PLam i u       -> PLam i $ applySubst rho u
     PPi a b        -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
     PSort s        -> PSort $ applySubst rho s
-    PBoundVar i es -> PBoundVar i $ applySubst rho es
+    -- Bound variables should only ever be substituted for other bound
+    -- variables
+    PBoundVar i es -> case lookupS rho i of
+      PBoundVar i' [] -> PBoundVar i' $ applySubst rho es
+      -- This is a hack to account for the dodgy DeBruijn NLPat instance
+      PVar _ i' []    -> PBoundVar i' $ applySubst rho es
+      _               -> __IMPOSSIBLE__
     PTerm u        -> PTerm $ applyNLPatSubst rho u
 
     where

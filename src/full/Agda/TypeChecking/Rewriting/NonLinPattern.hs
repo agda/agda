@@ -140,7 +140,9 @@ instance PatternFrom Term NLPat where
         p <- addContext a (patternFrom r0 r1 (k0 + 1) (k1 + 1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       (_ , Var i es)
-       | k0 < i || i < k1 -> do
+       -- Variables before k0 are locally bound outside the rewrite telescope
+       -- Variables after k1 are bound in higher order patterns
+       | i >= k0 || k1 > i -> do
            t <- typeOfBV i
            PBoundVar i <$> patternFrom r1 r1 k0 k1 (t , Var i) es
        -- The arguments of `var i` should be distinct bound variables

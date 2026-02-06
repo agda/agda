@@ -4,13 +4,11 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 
-f : Nat → Nat
-f zero    = zero
-f (suc n) = suc (suc (f n))
+module LocalRewrite where
 
-module Foo (x : Nat) (@rew p : f x ≡ 0) where
-  test : f x ≡ 0
+module Foo (n : Nat) (m : Nat) (@rew p : n + m ≡ m) (l : Nat) where
+  test : n + m ≡ m
   test = refl
 
-test2 : f 0 ≡ 0
-test2 = Foo.test 0 refl
+test2 : 0 + 3 ≡ 3
+test2 = Foo.test 0 3 refl 42
