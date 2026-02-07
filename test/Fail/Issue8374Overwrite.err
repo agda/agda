@@ -1,0 +1,9 @@
+Issue8374Overwrite.agda:17.9-14: error: [UnequalTypes]
+The type
+  List _A_7
+is not a subtype of
+  A
+when checking that the inferred type of an application
+  List _A_7
+matches the expected type
+  A

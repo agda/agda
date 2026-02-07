@@ -439,17 +439,30 @@ instance MonadFixityError ScopeM where
   warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
   warnEmptyPolarityPragma             = scopeWarning . EmptyPolarityPragma
 
+-- | Can we use fixities from the parent scope?
+data InheritFixities
+  = YesInheritFixities  -- ^ Inherit fixities from parent.  Only for anonymous child modules!
+  | NoInheritFixities   -- ^ Disregard fixities from parent in child module.
+
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
-computeFixitiesAndPolarities :: DoWarn -> [C.Declaration] -> ScopeM a -> ScopeM a
-computeFixitiesAndPolarities warn ds cont = do
-  !fp <- fixitiesAndPolarities warn ds
+computeFixitiesAndPolarities :: DoWarn -> InheritFixities -> [C.Declaration] -> ScopeM a -> ScopeM a
+computeFixitiesAndPolarities warn inheritFixities ds cont = do
+  fp@(!fixs, !pols) <- fixitiesAndPolarities warn ds
+  -- Andreas, 2026-02-07 issue #8374
+  -- Allow fixity decls in parent module when we are an anonymous module.
+  let
+    upd = case inheritFixities of
+      YesInheritFixities -> \ (inheritedFixs, inheritedPols) ->
+        (Map.union fixs inheritedFixs, Map.union pols inheritedPols)
+        -- Note: union is left-biased, so we can overwrite outer fixities by inner ones.
+      NoInheritFixities -> const fp
   -- Andreas, 2019-08-16:
   -- Since changing fixities and polarities does not affect the name sets,
   -- we do not need to invoke @modifyScope@ here
   -- (which does @recomputeInverseScopeMaps@).
   -- A simple @locallyScope@ is sufficient.
-  locallyScope scopeFixitiesAndPolarities (const fp) cont
+  locallyScope scopeFixitiesAndPolarities upd cont
 
 -- | Get the notation of a name. The name is assumed to be in scope.
 getNotation

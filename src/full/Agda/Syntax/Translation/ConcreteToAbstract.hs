@@ -146,7 +146,7 @@ recordConstructorType decls =
     -- the the last field. Use NoWarn to silence fixity warnings. We'll get
     -- them again when scope checking the declarations to build the record
     -- module.
-    niceDecls NoWarn decls $ buildType . takeFields
+    niceDecls NoWarn NoInheritFixities decls $ buildType . takeFields
   where
     takeFields = List.dropWhileEnd notField
 
@@ -1602,8 +1602,8 @@ importPrimitives = do
       scopeCheckDeclarations importAgdaPrimitive
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
-niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
-niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
+niceDecls :: DoWarn -> InheritFixities -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
+niceDecls warn inheritFixities ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn inheritFixities ds $ do
 
   -- Some pragmas are not allowed in safe mode unless we are in a builtin module.
   -- So we need to tell the nicifier whether it should yell about unsafe pragmas.
@@ -1641,8 +1641,13 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
     Right ds -> ret ds
 
 -- | Wrapper to avoid instance conflict with generic list instance.
+scopeCheckDeclarations' :: InheritFixities -> [C.Declaration] -> ScopeM [A.Declaration]
+scopeCheckDeclarations' inheritFixities ds =
+  niceDecls DoWarn inheritFixities ds \ niceds -> catMaybes <$> toAbstract niceds
+
+-- | @scopeCheckDeclarations = scopeCheckDeclarations' NoInheritFixities@
 scopeCheckDeclarations :: [C.Declaration] -> ScopeM [A.Declaration]
-scopeCheckDeclarations ds = niceDecls DoWarn ds \ niceds -> catMaybes <$> toAbstract niceds
+scopeCheckDeclarations = scopeCheckDeclarations' NoInheritFixities
 
 -- | Where did these 'LetDef's come from?
 data LetDefOrigin
@@ -1661,7 +1666,7 @@ instance ToAbstract LetDefs where
 
   toAbstract :: LetDefs -> ScopeM (AbsOfCon LetDefs)
   toAbstract (LetDefs wh ds) =
-    List1.concat <$> niceDecls DoWarn (List1.toList ds) \ nds -> mapM (scopeCheckLetDef wh) nds
+    List1.concat <$> niceDecls DoWarn NoInheritFixities (List1.toList ds) \ nds -> mapM (scopeCheckLetDef wh) nds
 
 -- | Raise appropriate (error-)warnings for if a declaration with
 -- illegal access, macro flag, or abstractness appear in a let
@@ -2036,13 +2041,17 @@ instance ToAbstract NiceDeclaration where
       adecl <- traceCall (ScopeCheckDeclaration $
                           NiceModule r p a e x tel []) $ do
         scopeCheckNiceModule r p e name tel $
-          scopeCheckDeclarations ds
+          scopeCheckDeclarations' inheritFixities ds
 
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checked NiceModule " ++ prettyShow x
         , nest 2 $ prettyA adecl
         ]
       return $ singleton adecl
+      where
+        inheritFixities = case isUnderscore name of
+          True -> YesInheritFixities
+          False -> NoInheritFixities
 
     NiceModule _ _ _ _ m@C.Qual{} _ _ -> typeError QualifiedLocalModule
 

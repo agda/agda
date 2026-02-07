@@ -261,6 +261,30 @@ Changes to the Agda syntax.
   desugaring these are looked up in `M` rather than in the surrounding
   scope.
 
+* Fixity declarations may now appear outside of the anonymous module
+  that contains the operators they apply to
+  ([Issue #8374](https://github.com/agda/agda/issues/8374)).
+  E.g. the following is now accepted:
+  ```agda
+  infixr 6 _∷_
+
+  module _ (A : Set) where
+    data List : Set where
+      [] : List
+      _∷_ : A → List → List
+  ```
+  Rationale: anonymous modules do not really define a new scope,
+  they just serve to declare common parameters.
+  With the fix, the above can be seamlessly refactored from
+  ```agda
+  infixr 6 _∷_
+
+  data List (A : Set) : Set where
+    [] : List A
+    _∷_ : A → List A → List A
+  ```
+  without having to move the fixity declaration into the module.
+
 Language
 --------
 

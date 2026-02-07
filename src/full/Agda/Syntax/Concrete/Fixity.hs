@@ -219,7 +219,7 @@ declaresName :: Name -> DeclaredNames
 declaresName x = declaresNames [x]
 
 -- | Compute the names defined in a declaration. We stay in the current scope,
---   i.e., do not go into modules.
+--   i.e., do not go into non-anonymous modules.
 declaredNames :: Declaration -> DeclaredNames
 declaredNames = \case
   TypeSig _ _ x _       -> declaresName x
@@ -253,7 +253,12 @@ declaredNames = \case
   Unfolding{}           -> mempty
   Import{}              -> mempty
   ModuleMacro{}         -> mempty
-  Module{}              -> mempty
+  -- Andreas, 2026-02-07, issue #8374
+  -- Allow fixity decls to be outside of the anonymous module that declares them.
+  -- Thus, we go into anonymous modules.
+  Module _ _ x _ ds
+    | isUnderscore x    -> foldMap declaredNames ds
+    | otherwise         -> mempty
   UnquoteDecl _ xs _    -> declaresNames xs
   UnquoteDef{}          -> mempty
   UnquoteData _ x cs _  -> declaresNames (x:cs)

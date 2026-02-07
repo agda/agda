@@ -1,0 +1,10 @@
+Issue8374.agda:4.11-14: warning: -W[no]UnknownNamesInFixityDecl
+The following names are not declared in the same scope as their
+syntax or fixity declaration (i.e., either not in scope at all,
+imported from another module, or declared in a super module): _∷_
+
+Issue8374.agda:21.9-19: error: [NoParseForApplication]
+Could not parse the application a ∷ a ∷ []
+Operators used in the grammar:
+  ∷ (infix operator, level 20) [_∷_ (Issue8374.agda:14.5-8)]
+when scope checking a ∷ a ∷ []
