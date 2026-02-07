@@ -842,13 +842,15 @@ solutionStep retry s
     , "dotSub     =" <+> pretty dotSub ]
 
   -- Splitting on variables that occur in local rewrite rules is not allowed!
-  reportSDoc "tc.lhs.unify" 65 $
-    "Checking whether variable:" <+>
-    addContext (varTel s) (prettyTCM $ var i) <+>
-    "occurs in a local rewrite rule in" <+>
-    prettyTCM (varTel s) <+>
-    "i.e. is one of" <+>
-    prettyTCM (fmap var $ VarSet.toAscList $ rewVars $ varTel s)
+  reportSDoc "tc.lhs.unify" 65 $ vcat
+    [ "Checking whether variable:" <+>
+      addContext (varTel s) (prettyTCM $ var i)
+    , "occurs in a local rewrite rule in" <+>
+      prettyTCM (varTel s)
+    , "i.e. is one of" <+>
+      addContext (varTel s) (prettyTCM $
+        fmap var $ VarSet.toAscList $ rewVars $ varTel s)
+    ]
 
   if i `VarSet.member` rewVars (varTel s)
   then return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]

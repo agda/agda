@@ -10,6 +10,6 @@ module LocalRewriteBadMatch where
 postulate
   f : Nat → Nat
 
-module Foo (n : Nat) (@rew p : f n ≡ 0) where
+module _ (n : Nat) (@rew p : f n ≡ 0) where
   foo : n ≡ 42 → Nat
   foo refl = 0
