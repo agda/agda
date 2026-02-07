@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 module Builtin where
 
 open import Agda.Primitive
@@ -56,7 +58,7 @@ data Maybe (A : Set) : Set where
 
 {-# BUILTIN MAYBE Maybe #-}
 
-record Sigma {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+record Sigma {@0 a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
   constructor _,_
   field
     fst : A

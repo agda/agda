@@ -2611,6 +2611,13 @@ defaultArgInfo =  ArgInfo
 defaultIrrelevantArgInfo :: ArgInfo
 defaultIrrelevantArgInfo = setRelevance irrelevant defaultArgInfo
 
+-- | The 'defaultArgInfo' with the quantity set to 'zeroQuantity' and
+-- the hiding set to 'Hidden'.
+
+erasedHiddenArgInfo :: ArgInfo
+erasedHiddenArgInfo =
+  setHiding Hidden (setQuantity zeroQuantity defaultArgInfo)
+
 
 -- Accessing through ArgInfo
 
