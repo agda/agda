@@ -1,3 +1,4 @@
-Issue6011.agda:11.1-26: error: [InvalidBuiltin]
-Invalid rewrite relation
+Issue6011.agda:11.1-26: error: [IncorrectTypeForRewriteRelation]
+P  is not a valid name for a rewriting relation
+because it is not a postulate or a data/record type.
 when checking the pragma BUILTIN REWRITE P
