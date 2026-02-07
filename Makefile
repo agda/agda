@@ -569,7 +569,7 @@ continue-cubical-test :
 .PHONY : continue-std-lib-test ##
 continue-std-lib-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) $(PROFILEOPTS) --no-default-libraries -i. -isrc Everything.agda +RTS -s)
+          time $(AGDA_BIN) $(AGDA_OPTS) $(PROFILEOPTS) --no-default-libraries -i. -isrc Everything.agda +RTS -s)
 
 .PHONY : cubical-succeed ##
 cubical-succeed :

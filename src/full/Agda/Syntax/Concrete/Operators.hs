@@ -103,7 +103,7 @@ data Parsers e = Parsers
   , argsParser :: [e] -> [[NamedArg e]]
     -- ^ A parser for sequences of arguments.
   , operators :: [NotationSection]
-    -- ^ All operators/notations/sections that were used to generate
+    -- ^ All operators, notations, and sections that were used to generate
     -- the grammar.
   , operatorScope :: OperatorScope
     -- ^ A flattened scope that only contains names such that
