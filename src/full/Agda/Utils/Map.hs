@@ -3,11 +3,14 @@
 module Agda.Utils.Map where
 
 import Control.Monad ((<$!>))
+
 import Data.Functor.Compose
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import Data.Map.Strict qualified as Map
 import Data.Map.Internal (Map(..), balanceL, balanceR, singleton)
 import Data.Maybe (mapMaybe)
+import Data.Set (Set)
+import Data.Set qualified as Set
 
 import Agda.Utils.Impossible
 
@@ -68,3 +71,13 @@ mapKeysMaybe f = Map.fromList . mapMaybe (\ (k, a) -> (, a) <$> f k) . Map.toLis
 isSingleMap :: Map k v -> Maybe (k, v)
 isSingleMap (Bin 1 k v _ _) = Just (k, v)
 isSingleMap _               = Nothing
+
+-- | @partitionKeys m s = 'Map.partition' (`Set.member` s) m@
+-- but with potential for efficient implementation.
+partitionKeys :: Ord k => Map k a -> Set k -> (Map k a, Map k a)
+partitionKeys m s = (Map.restrictKeys m s, Map.withoutKeys m s)
+
+-- | @partitionMap m m' = 'Map.partition' (`Map.member` m') m@
+-- but with potential for efficient implementation.
+partitionMap :: Ord k => Map k a -> Map k b -> (Map k a, Map k a)
+partitionMap m = partitionKeys m . Map.keysSet
