@@ -887,11 +887,12 @@ solutionStep retry s
           solutionStep DontRetryNormalised s step{ solutionTerm = u }
         Nothing ->
           return $ UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
-        Just (s', sub) -> do
+        Just (s', sub, perm) -> do
           let rho = sub `composeS` dotSub
           tellUnifySubst rho
           let (s'', sigma) = solveEq k (applyPatSubst rho u) s'
           tellUnifyProof sigma
+          tellUnifySolutionPerm perm
           return $ Unifies s''
           -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
           -- Unifies <$> liftTCM (reduce s'')
