@@ -1810,8 +1810,8 @@ data MetaVariable =
                 , mvPriority      :: MetaPriority -- ^ some metavariables are more eager to be instantiated
                 , mvPermutation   :: Permutation
                   -- ^ a metavariable doesn't have to depend on all variables
-                  --   in the context, this "permutation" will throw away the
-                  --   ones it does not depend on
+                  --   in the context, this "permutation" (on de Bruijn levels)
+                  --   will throw away the ones it does not depend on
                 , mvJudgement     :: Judgement MetaId
                 , mvInstantiation :: MetaInstantiation
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
