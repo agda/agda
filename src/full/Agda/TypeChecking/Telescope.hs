@@ -122,11 +122,15 @@ teleNames = map (fst . unDom) . telToList
 teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = telToArgs
 
--- | Convert a telescope to a list of 'Arg' in descending order.
+-- | Convert a telescope to a list of 'Arg' in left-to-right order:
+--
+--   @teleArgs ((a : A) (b : B a) {c : C}) = [a, b, {c}] = [2, 1, {0}]@
 teleArgs :: (DeBruijn a) => Tele (Dom t) -> [Arg a]
 teleArgs = map argFromDom . teleDoms
 
--- | Convert a telescope to a list of 'Dom' in descending order.
+-- | Convert a telescope to a list of 'Dom' in left-to-right order:
+--
+--   @teleDoms ((a : A) (b : B a) {c : C}) = [a, b, {c}] = [2, 1, {0}]@
 teleDoms :: (DeBruijn a) => Tele (Dom t) -> [Dom a]
 teleDoms tel = zipWith (\ i dom -> deBruijnVar i <$ dom) (downFrom $ size l) l
   where l = telToList tel
@@ -167,26 +171,26 @@ splitTelescopeAt n tel
           (tel', tel'') = splitTelescopeAt (m - 1) $ absBody tel
 
 -- | Permute telescope: permutes or drops the types in the telescope according
---   to the given permutation. Assumes that the permutation preserves the
+--   to the given permutation (on de Bruijn _levels_). Assumes that the permutation preserves the
 --   dependencies in the telescope.
 --
 --   For example (Andreas, 2016-12-18, issue #2344):
 --   @
---     tel                     = (A : Set) (X : _18 A) (i : Fin (_m_23 A X))
---     tel (de Bruijn)         = 2:Set, 1:_18 @0, 0:Fin(_m_23 @1 @0)
---     flattenTel tel          = 2:Set, 1:_18 @0, 0:Fin(_m_23 @1 @0) |- [ Set, _18 @2, Fin (_m_23 @2 @1) ]
---     perm                    = 0,1,2 -> 0,1  (picks the first two)
---     renaming _ perm         = [var 0, var 1, error]  -- THE WRONG RENAMING!
---     renaming _ (flipP perm) = [error, var 1, var 0]  -- The correct renaming!
---     apply to flattened tel  = ... |- [ Set, _18 @1, Fin (_m_23 @1 @0) ]
---     permute perm it         = ... |- [ Set, _18 @1 ]
---     unflatten (de Bruijn)   = 1:Set, 0: _18 @0
---     unflatten               = (A : Set) (X : _18 A)
---  @
+--     tel                        = (A : Set) (X : _18 A) (i : Fin (_m_23 A X))
+--     tel (de Bruijn)            = 2:Set, 1:_18 @0, 0:Fin(_m_23 @1 @0)
+--     flattenTel tel             = 2:Set, 1:_18 @0, 0:Fin(_m_23 @1 @0) |- [ Set, _18 @2, Fin (_m_23 @2 @1) ]
+--     perm                       = 0,1,2 -> 0,1  (picks the first two)
+--     renaming _ perm            = [var 0, var 1, error]  -- THE WRONG RENAMING! (levels)
+--     renaming _ (reverseP perm) = [error, var 0, var 1]  -- The correct renaming! (indices)
+--     apply to flattened tel     = ... |- [ Set, _18 @1, Fin (_m_23 @1 @0) ]
+--     permute perm it            = ... |- [ Set, _18 @1 ]
+--     unflatten (de Bruijn)      = 1:Set, 0: _18 @0
+--     unflatten                  = (A : Set) (X : _18 A)
+--   @
 permuteTel :: Permutation -> Telescope -> Telescope
 permuteTel perm tel =
   let names = permute perm $ teleNames tel
-      types = permute perm $ renameP impossible (flipP perm) $ flattenTel tel
+      types = permute perm $ renameP impossible (reverseP perm) $ flattenTel tel
   in  unflattenTel names types
 
 -- | Like 'permuteTel', but start with a context.
@@ -263,7 +267,7 @@ data SplitTel = SplitTel
   { firstPart  :: Telescope
   , secondPart :: Telescope
   , splitPerm  :: Permutation
-    -- ^ The permutation takes us from the original telescope to
+    -- ^ The permutation (of de Bruijn _levels_) that takes us from the original telescope to
     --   @firstPart ++ secondPart@.
   }
 
