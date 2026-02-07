@@ -490,6 +490,8 @@ data TCWorkers = Workers
     -- worker to signal completion (or failure).
   , workerModules    :: !(IORef DecodedModules)
     -- ^ The shared 'DecodedModules' where workers can put their results.
+  , workerModSrc     :: !(MVar ModuleToSource)
+    -- ^ I'm so goddamn tired
   }
 
 -- | If the user has asked for it, prepare the type checker for loading
@@ -512,10 +514,24 @@ wantsParallelChecking = fmap optParallelChecking commandLineOptions >>= \case
 
     threads <- liftIO $ newMVar mempty
     results <- liftIO . newIORef =<< getDecodedModules
+    files   <- liftIO . newMVar =<< useTC stModuleToSource
     pure Workers
-      { workerThreads    = threads
-      , workerModules    = results
+      { workerThreads  = threads
+      , workerModules  = results
+      , workerModSrc   = files
       }
+
+-- | Like 'findFile', but stupid in that it synchronizes the
+-- 'ModuleToSource' or something. It's called 'findFile', why does it
+-- modify anything to begin with
+parFindFile :: TCWorkers -> TopLevelModuleName -> TCM SourceFile
+parFindFile workers mod =
+  let
+    cont msrc = do
+      setTCLens' stModuleToSource msrc
+      src <- findFile mod
+      (,src) <$> useTC stModuleToSource
+  in TCM \st env -> modifyMVar (workerModSrc workers) \msc -> unTCM (cont msc) st env
 
 -- | Type-check the given module, using a 'TCWorkers' instance to check
 -- its imports in parallel.
@@ -599,7 +615,7 @@ chaseModule workers mod main msrc = do
 
       detach do
         reportSDoc "import.parallel" 15 $ "checking " <> P.pretty mod
-        src <- maybe (parseSource =<< findFile mod) pure msrc
+        src <- maybe (parseSource =<< parFindFile workers mod) pure msrc
 
         -- Now we traverse through all the imports and collect the
         -- "promises" for waiting on them. This will spawn the threads
