@@ -63,6 +63,9 @@ import Agda.Utils.Zip
 import Agda.Utils.Impossible
 import Data.Void (Void)
 import Unsafe.Coerce (unsafeCoerce)
+import Control.Applicative (Const (..))
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 
 -- | Apply @Elims@ while using the given function to report ill-typed
@@ -838,39 +841,36 @@ renamingR p@(Perm n is) = xs ++# raiseS n
 renameP :: Subst a => Impossible -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
--- | Only lets through renamings (and strengthenings)
-onlyRen :: DeBruijn a => Substitution' a -> Maybe Renaming
-onlyRen IdS                  = pure idS
-onlyRen (EmptyS i)           = pure $ EmptyS i
-onlyRen (t :# rho)
-  | Just x <- deBruijnView t = consS x <$> onlyRen rho
-  | otherwise = Nothing
-onlyRen (Strengthen i n rho) = strengthenS' i n <$> onlyRen rho
-onlyRen (Wk n rho)           = wkS n <$> onlyRen rho
-onlyRen (Lift n rho)         = liftS n <$> onlyRen rho
+-- | Polymorphic substitution
+data AnySubstitution = AnySub
+  { getSub :: forall a. DeBruijn a => Substitution' a }
 
--- | Only lets through injective renamings (and strengthenings)
-onlyInjRen :: DeBruijn a => Substitution' a -> Maybe Renaming
-onlyInjRen = onlyRen -- TODO: Check the renaming is injective
-
--- | Only lets through weakenings (or strengthenings)
-noCons :: Substitution' a -> Maybe Renaming
-noCons IdS                  = pure IdS
-noCons (EmptyS i)           = pure $ EmptyS i
-noCons (t :# rho)           = Nothing
-noCons (Strengthen i n rho) = Strengthen i n <$> noCons rho
-noCons (Wk n rho)           = Wk n <$> noCons rho
-noCons (Lift n rho)         = Lift n <$> noCons rho
-
--- | If we know there are no cons-es, we could actually @unsafeCoerce@ and
---   probably get a nice performance win.
-coerceRen :: DeBruijn a => Renaming -> Substitution' a
-coerceRen IdS                  = IdS
-coerceRen (EmptyS i)           = EmptyS i
-coerceRen (x :# rho)           = deBruijnVar x :# coerceRen rho
-coerceRen (Strengthen i n rho) = Strengthen i n $ coerceRen rho
-coerceRen (Wk n rho)           = Wk n $ coerceRen rho
-coerceRen (Lift n rho)         = Lift n $ coerceRen rho
+-- | Attempts to convert a substitution into a renaming. Returns Nothing if
+--   any of the variables in the set are mapped to non-variable terms.
+--   Returns a polymorphic substitution.
+toRenOn :: DeBruijn a => VarSet -> Substitution' a -> Maybe AnySubstitution
+toRenOn vars rho = go 0 rho
+  where
+    go x IdS        = Just $ AnySub $ IdS
+    go x (EmptyS i) = Just $ AnySub $ EmptyS i
+    go x (t :# rho) = case go (x + 1) rho of
+      Just (AnySub rho') | Just y <- deBruijnView t ->
+        Just $ AnySub $ deBruijnVar y :# rho'
+      Just (AnySub rho') | not (x `VarSet.member` vars) ->
+        Just $ AnySub $ __IMPOSSIBLE__ :# rho'
+      _ -> Nothing
+    go x (Strengthen i n rho)
+      | Just (AnySub rho') <- go (x + n) rho =
+        Just $ AnySub $ Strengthen i n rho'
+      | otherwise = Nothing
+    go x (Wk n rho)
+      | Just (AnySub rho') <- go x rho =
+        Just $ AnySub $ Wk n rho'
+      | otherwise = Nothing
+    go x (Lift n rho)
+      | Just (AnySub rho') <- go (x + n) rho =
+        Just $ AnySub $ Lift n rho'
+      | otherwise = Nothing
 
 instance EndoSubst a => Subst (Substitution' a) where
   type SubstArg (Substitution' a) = a
@@ -1066,37 +1066,33 @@ instance Subst a => Subst (LocalEquation' a) where
                   (applySubst rho' t)
     where rho' = liftS (size gamma) rho
 
-instance Subst Nat where
-  type SubstArg Nat = Nat
-  applySubst rho x = lookupS rho x
-
 instance Subst LocalRewriteHead where
-  type SubstArg LocalRewriteHead = Nat
+  type SubstArg LocalRewriteHead = Term
   applySubst rho (RewDefHead f) = RewDefHead f
-  applySubst rho (RewVarHead x) = RewVarHead $ applySubst rho x
+  applySubst rho (RewVarHead x) = RewVarHead $ fromMaybe __IMPOSSIBLE__ $
+    deBruijnView $ lookupS rho x
 
--- Local rewrite rules are not stable under arbitrary substitution, but they can
--- at least be weakened.
---
--- TODO: All the @coerceRen@ are gonna be kinda terrible for performance.
--- I think we should maybe just have a top-level function for applying
--- substitutions so we can document a stronger pre-condition and unsafe coerce
-instance Subst LocalRewriteRule where
-  type SubstArg LocalRewriteRule = Nat
-  applySubst rho (LocalRewriteRule gamma f ps rhs b) =
-    LocalRewriteRule (applySubst (coerceRen rho) gamma)
-                       (applySubst (coerceRen rho) f)
-                       (applySubst rho' ps)
-                        (applySubst rho' rhs)
-                       (applySubst rho' b)
-    where
-      rho' :: DeBruijn a => Substitution' a
-      rho' = coerceRen $ liftS (size gamma) rho
+-- | Substitution on local rewrite rules is partial.
+applySubstLocalRewrite :: DeBruijn a
+  => Substitution' a -> LocalRewriteRule -> Maybe LocalRewriteRule
+applySubstLocalRewrite rho rew@(LocalRewriteRule gamma f ps rhs b) =
+  case toRenOn (freeVarSet rew) rho of
+    Just (AnySub rho') -> do
+      let rho'' :: DeBruijn a => Substitution' a
+          rho'' = liftS (size gamma) rho'
+
+      Just $ LocalRewriteRule (applySubst rho' gamma)
+                                 (applySubst rho'' f)
+                                 (applySubst rho'' ps)
+                                  (applySubst rho'' rhs)
+                                 (applySubst rho'' b)
+    Nothing            -> Nothing
 
 instance Subst a => Subst (RewDom' a) where
   type SubstArg (RewDom' a) = SubstArg a
   applySubst rho (RewDom eq rew) =
-    RewDom (applySubst rho eq) (applySubst <$> noCons rho <*> rew)
+    RewDom (applySubst rho eq)
+          (applySubstLocalRewrite rho =<< rew)
 
 instance Subst a => Subst (Blocked a) where
   type SubstArg (Blocked a) = SubstArg a

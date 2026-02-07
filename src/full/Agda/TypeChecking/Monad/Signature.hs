@@ -1061,7 +1061,7 @@ defaultGetLocalRewriteRulesFor h =
 
     lookup h m = do
       rews  <- MaybeT $ pure $ lookup' h m
-      lift $ traverse (tryGetOpenWeak fallback) rews
+      lift $ traverse (tryGetOpenRew fallback) rews
 
     fallback = __IMPOSSIBLE_VERBOSE__ . show
 
