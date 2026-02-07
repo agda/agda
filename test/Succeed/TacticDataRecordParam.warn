@@ -1,0 +1,10 @@
+
+TacticDataRecordParam.agda:26.10-23: warning: -W[no]InvalidDataOrRecDefParameter
+Ignoring tactic argument in data definition (note: parameters may
+not repeat information from signature)
+
+———— All done; warnings encountered ————————————————————————
+
+TacticDataRecordParam.agda:26.10-23: warning: -W[no]InvalidDataOrRecDefParameter
+Ignoring tactic argument in data definition (note: parameters may
+not repeat information from signature)

@@ -1300,6 +1300,9 @@ domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)
     forceName (Named Nothing x) = Named (Just $ WithOrigin Inserted $ Ranged (getRange x) $ nameToArgName x) x
     forceName x = x
 
+domNameFromNamedArgName :: NamedArg Name -> Dom Name
+domNameFromNamedArgName x = namedArg x <$ domFromNamedArgName x
+
 -- ** Abstracting in terms and types
 
 mkPiSort :: Dom Type -> Abs Type -> Sort

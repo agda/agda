@@ -427,6 +427,17 @@ instance AddContext (List1 (NamedArg Name), Type) where
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
+instance AddContext ([Dom Name], Type) where
+  addContext ([], _)     = id
+  addContext (x : xs, t) = addContext (x :| xs, t)
+  contextSize (xs, _) = length xs
+
+instance AddContext (List1 (Dom Name), Type) where
+  addContext (x :| xs, t) =
+    addContext (unDom x, x $> t) .
+    addContext (xs, raise 1 t)
+  contextSize (xs, _) = length xs
+
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret =
     withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret

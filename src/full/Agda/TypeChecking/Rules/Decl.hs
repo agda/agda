@@ -628,12 +628,17 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     , nest 2 $ caseMaybe gentel "(no gentel)" $ \ _ -> "(has gentel)"
     ]
 
+  let fromData = case kind of
+        DataName -> ModTelData
+        _        -> ModTelNotData
+
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e
         Just gentel ->
-          checkGeneralizeTelescope Nothing gentel $ \ genParams ptel -> do
-            t <- workOnTypes $ isType_ e
-            return (genParams, size ptel, abstract ptel t)
+          checkGeneralizeTelescope fromData Nothing gentel $
+            \genParams ptel -> do
+              t <- workOnTypes $ isType_ e
+              return (genParams, size ptel, abstract ptel t)
 
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
@@ -1015,7 +1020,7 @@ checkSectionApplication'
     return (fv - mfv)
   when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ prettyShow m1 ++ ": " ++ show extraParams
   -- Type-check the LHS (ptel) of the module macro.
-  checkTelescope ptel $ \ ptel -> do
+  checkTelescope ModTelNotData ptel $ \ ptel -> do
     -- We are now in the context @ptel@.
     -- Get the correct parameter telescope of @m2@. This is the fully lifted
     -- telescope obtained by `lookupSection` instantiated with the module
