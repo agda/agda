@@ -4,7 +4,9 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 
-module _ where
+foo : (x : Nat) (@rew p : 0 ≡ x) → Nat
+foo = λ x (@rew p : 0 ≡ x) → 0
 
-bar : (x : Nat) → @rew 0 ≡ x → Nat
-bar x = λ p → x
+postulate D : Nat → Set
+
+bar = λ (x : Nat) (@rew p : 0 ≡ x) (a : D x) (b : D 0) (q : a ≡ b) → 0

@@ -1,7 +1,17 @@
-LocalRewriteLambda.agda:9.19-35: error: [LocalRewriteOutsideTelescope]
+LocalRewriteLambda.agda:7.7-39: error: [LocalRewriteOutsideTelescope]
 Local rewrite rule arguments are (currently) only allowed in module telescopes. Consider creating an anonymous module.
-when checking that the expression 0 ≡ x → Nat is a type
+when checking that the expression (x : Nat) (@rew p : 0 ≡ x) → Nat
+is a type
 
-LocalRewriteLambda.agda:10.9-16: error: [LambdaBoundLocalRewrite]
+LocalRewriteLambda.agda:8.11-31: error: [LambdaBoundLocalRewrite]
 Local rewrite rules cannot be bound in lambdas
-when checking that the expression λ p → x has type 0 ≡ x → Nat
+when checking that the expression λ (@rew p : 0 ≡ x) → 0 has type
+0 ≡ x → Nat
+
+LocalRewriteLambda.agda:12.65-66: error: [UnequalTerms]
+The terms
+  zero
+and
+  x
+are not equal at type Nat
+when checking that the expression b has type D x
