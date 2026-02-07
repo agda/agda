@@ -669,7 +669,10 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
   -- context telescope.
-  cxt <- map (setOrigin Inserted) <$> getContext
+  --
+  -- To pick up instances from {{}}-fields in a record module, we have
+  -- to preserve which variable is the 'self' variable of that record.
+  cxt <- map (mapOrigin \case{ RecordSelf -> RecordSelf ; _ -> Inserted }) <$> getContext
   let tel = contextToTel cxt
       cps = [ argFromDom dom $> unnamed (A.VarP $ A.mkBindName $ unDom dom)
             | (_,dom) <- contextVars cxt ]
