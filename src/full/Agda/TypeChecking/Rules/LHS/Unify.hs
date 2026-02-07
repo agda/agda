@@ -173,10 +173,10 @@ import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Size
 import Agda.Utils.Singleton
+import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-
 
 -- | Result of 'unifyIndices'.
 type UnificationResult = UnificationResult'
@@ -207,7 +207,7 @@ data UnificationResult' a
 --
 --   * @gamma@ is the telescope of free variables in @us@ and @vs@.
 --
---   * @flex@ is the set of flexible (instantiable) variabes in @us@ and @vs@.
+--   * @flex@ is the set of flexible (instantiable) variables in @us@ and @vs@.
 --
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
@@ -783,6 +783,15 @@ unifyStep s (TypeConInjectivity k d us vs) = do
 data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
 
+-- | Returns all variables that occur in local rewrite rules in the telescope
+rewVars :: Telescope -> VarSet
+rewVars EmptyTel        = VarSet.empty
+rewVars (ExtendTel a b) =
+  fromMaybe VarSet.empty
+    (VarSet.weaken (size b + 1) . allFreeVars . fromMaybe __IMPOSSIBLE__ .
+      rewDomRew <$> rewDom a)
+  <> (rewVars $ unAbs b)
+
 solutionStep
   :: (PureTCM m, MonadWriter UnifyOutput m)
   => RetryNormalised
@@ -831,6 +840,19 @@ solutionStep retry s
     , "p          =" <+> prettyTCM p
     , "bound      =" <+> pretty (IntMap.keys bound)
     , "dotSub     =" <+> pretty dotSub ]
+
+  -- Splitting on variables that occur in local rewrite rules is not allowed!
+  reportSDoc "tc.lhs.unify" 65 $
+    "Checking whether variable:" <+>
+    addContext (varTel s) (prettyTCM $ var i) <+>
+    "occurs in a local rewrite rule in" <+>
+    prettyTCM (varTel s) <+>
+    "i.e. is one of" <+>
+    prettyTCM (fmap var $ VarSet.toAscList $ rewVars $ varTel s)
+
+  if i `VarSet.member` rewVars (varTel s)
+  then return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
+  else do
 
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).

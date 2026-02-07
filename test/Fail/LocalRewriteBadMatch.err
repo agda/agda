@@ -1,0 +1,9 @@
+LocalRewriteBadMatch.agda:15.7-11: error: [SplitError.UnificationStuck]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  n ≟ 42
+Possible reason why unification failed:
+  Cannot solve variable n of type Nat with solution 42 because the
+  variable occurs in a local rewrite rule.
+when checking that the pattern refl has type n ≡ 42
