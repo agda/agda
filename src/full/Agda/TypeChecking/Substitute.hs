@@ -787,6 +787,7 @@ abstractArgs args x = abstract tel x
 ---------------------------------------------------------------------------
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@
+--   Assumes that π works on de Bruijn _indices_.
 renaming :: forall a. DeBruijn a => Impossible -> Permutation -> Substitution' a
 renaming err p = prependS err gamma $ raiseS $ size p
   where
@@ -795,6 +796,7 @@ renaming err p = prependS err gamma $ raiseS $ size p
     -- gamma = safePermute (invertP (-1) p) $ map deBruijnVar [0..]
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
+--   Assumes that π works on de Bruijn _levels_.
 renamingR :: DeBruijn a => Permutation -> Substitution' a
 renamingR p@(Perm n is) = xs ++# raiseS n
   where
@@ -818,7 +820,7 @@ renamingR p@(Perm n is) = xs ++# raiseS n
   -- takes constant time), while the time complexity of the former
   -- code depends on the value of the largest index in is.
 
--- | The permutation should permute the corresponding context. (right-to-left list)
+-- | The permutation should permute the corresponding context. (as de Bruijn _indices_)
 renameP :: Subst a => Impossible -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
