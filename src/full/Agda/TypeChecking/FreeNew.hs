@@ -1,6 +1,7 @@
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
-{-# OPTIONS_GHC -fworker-wrapper-cbv #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
+{-# OPTIONS_GHC -fworker-wrapper-cbv -ddump-stg-final #-}
 {-# LANGUAGE UndecidableInstances #-} -- Due to underdetermined var in IsVarSet multi-param typeclass
+{-# LANGUAGE MagicHash, UnboxedSums, UnboxedTuples #-}
 
 -- | Computing the free variables of a term.
 --
@@ -67,32 +68,104 @@ module Agda.TypeChecking.FreeNew where
 
 import Prelude hiding (null)
 
-import Data.Monoid (Endo(..))
 import Data.Semigroup ( Any(..), All(..) )
 import Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as IntMap
+import Data.IntMap.Strict qualified as IntMap
 
-import qualified Agda.Benchmarking as Bench
+import Agda.Benchmarking qualified as Bench
 
 import Agda.Syntax.Common hiding (Arg, NamedArg)
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free.Lazy
+import Agda.TypeChecking.Free.LazyNew
 import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.Singleton
+import Agda.Utils.StrictReader
+import Agda.Utils.StrictEndo
 
-
--- ** Full occurence information for a single variable
+-- ** Flex-rigid occurrence for a single variable
 --------------------------------------------------------------------------------
 
--- newtype SingleVarOcc = SingleVarOcc VarOcc
+data SingleFR = SingleFR !Int !FlexRig
 
--- instance ComputeFree SingleVarOcc where
---   type FlexRigItem = MetaSet
---   type Collect SingleVarOcc = Endo
+instance LensFlexRig SingleFR MetaSet where
+  lensFlexRig f (SingleFR x fr) = SingleFR x <$> f fr
 
-foo = _
+data CollectSingleFR = CSFRNothing | CSFRJust !FlexRig
+
+instance Semigroup CollectSingleFR where
+  CSFRJust fr <> CSFRJust fr' = CSFRJust (addFlexRig fr fr')
+  CSFRNothing <> s            = s
+  s           <> CSFRNothing  = s
+
+instance ComputeFree SingleFR where
+  type FlexRigItem SingleFR = MetaSet
+  type Collect SingleFR     = Endo CollectSingleFR
+  underBinders' n (SingleFR x fr) = SingleFR (n + x) fr
+  variable' x' (SingleFR x fr) = Endo \acc -> if x == x' then acc <> CSFRJust fr else acc
+  ignoreSorts'      = IgnoreNot
+  underConstructor' = defaultUnderConstructor
+  underFlexRig'     = defaultUnderFlexRig
+  underModality'  _ r = r
+  underRelevance' _ r = r
+  underQuantity'  _ r = r
+
+{-# SPECIALIZE flexRigOccurrenceIn :: Nat -> Term -> Maybe FlexRig #-}
+flexRigOccurrenceIn :: Free a => Nat -> a -> Maybe FlexRig
+flexRigOccurrenceIn x a = case appEndo (runReader (freeVars a) (SingleFR x Unguarded)) CSFRNothing of
+  CSFRNothing -> Nothing
+  CSFRJust fr -> Just fr
+
+
+-- -- ** Full occurence information for a single variable
+-- --------------------------------------------------------------------------------
+
+-- data SingleVar = SingleVar !Int !Int {-# UNPACK #-} !VarOcc
+--   -- ^ Context size (level), variable we're interested in (level), FlexRig, Modality
+
+-- instance LensModality SingleVar where
+--   getModality (SingleVar _ _ occ)   = getModality occ
+--   mapModality f (SingleVar l x occ) = SingleVar l x (mapModality f occ)
+
+-- instance LensFlexRig SingleVar MetaSet where
+--   lensFlexRig f (SingleVar l x occ) = SingleVar l x <$> lensFlexRig f occ
+
+-- instance LensQuantity  SingleVar where
+-- instance LensRelevance SingleVar where
+
+-- data SingleVarOcc = SVONothing | SVOJust {-# UNPACK #-} !VarOcc
+
+-- -- | Hereditary Semigroup instance.
+-- --   (The default instance for 'Maybe' may not be the hereditary one.)
+-- instance Semigroup SingleVarOcc where
+--   SVOJust o  <> SVOJust o' = SVOJust (o <> o')
+--   SVONothing <> s          = s
+--   s          <> SVONothing = s
+
+-- instance Monoid SingleVarOcc where
+--   mempty = SVONothing
+
+-- instance ComputeFree SingleVar where
+--   type FlexRigItem SingleVar = MetaSet
+--   type Collect SingleVar     = Endo SingleVarOcc
+--   underBinders' n (SingleVar l x occ) = SingleVar (l + n) x occ
+--   variable' x' (SingleVar l x occ) = Endo \acc ->
+--     if l - x' - 1 == x then acc <> SVOJust occ
+--                        else acc
+--   ignoreSorts'      = IgnoreNot
+--   underConstructor' = defaultUnderConstructor
+--   underModality'    = defaultUnderModality
+--   underRelevance'   = defaultUnderRelevance
+--   underFlexRig'     = defaultUnderFlexRig
+--   underQuantity'    = defaultUnderQuantity
+
+
+-- -- | Get the full occurrence information of a free variable.
+-- varOccurrenceIn :: forall a. Free a => Nat -> a -> Maybe VarOcc
+-- varOccurrenceIn x a = case appEndo (runReader (freeVars a) (SingleVar _ _ _)) _ of
+--   SVONothing  -> Nothing
+--   SVOJust occ -> Just occ
 
 -- ---------------------------------------------------------------------------
 -- -- * Occurrence computation for a single variable.

@@ -2,6 +2,7 @@
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 
+
 -- | Computing the free variables of a term lazily.
 --
 -- We implement a reduce (traversal into monoid) over internal syntax
@@ -63,7 +64,7 @@
 module Agda.TypeChecking.Free.LazyNew where
 
 import Control.Applicative hiding (empty)
-import Control.Monad.Reader ( MonadReader(..), asks)
+import Control.Monad.Reader (MonadReader(..))
 import Agda.Utils.StrictReader
 
 import Agda.Utils.VarSet (VarSet)
@@ -94,6 +95,10 @@ import Agda.Utils.Size
 newtype MetaSet = MetaSet { theMetaSet :: HashSet MetaId }
   deriving (Eq, Show, Null, Semigroup, Monoid)
 
+instance Singleton MetaId MetaSet where
+  {-# INLINE singleton #-}
+  singleton x = MetaSet (HashSet.singleton x)
+
 insertMetaSet :: MetaId -> MetaSet -> MetaSet
 insertMetaSet m (MetaSet ms) = MetaSet $ HashSet.insert m ms
 
@@ -117,6 +122,32 @@ data FlexRig' a
 
 type FlexRig = FlexRig' MetaSet
 
+class LensFlexRig o a | o -> a where
+  lensFlexRig :: Lens' o (FlexRig' a)
+
+instance LensFlexRig (FlexRig' a) a where
+  lensFlexRig = id
+
+isFlexible :: LensFlexRig o a => o -> Bool
+isFlexible o = case o ^. lensFlexRig of
+  Flexible {} -> True
+  _ -> False
+
+isUnguarded :: LensFlexRig o a => o -> Bool
+isUnguarded o = case o ^. lensFlexRig of
+  Unguarded -> True
+  _ -> False
+
+isWeaklyRigid :: LensFlexRig o a => o -> Bool
+isWeaklyRigid o = case o ^. lensFlexRig of
+   WeaklyRigid -> True
+   _ -> False
+
+isStronglyRigid :: LensFlexRig o a => o -> Bool
+isStronglyRigid o = case o ^. lensFlexRig of
+  StronglyRigid -> True
+  _ -> False
+
 -- | Where should we skip sorts in free variable analysis?
 data IgnoreSorts
   = IgnoreNot            -- ^ Do not skip.
@@ -135,37 +166,40 @@ class (Monoid (Collect r), Singleton MetaId (FlexRigItem r), Monoid (FlexRigItem
   underQuantity'    :: Quantity -> r -> r
   variable'         :: Int -> r -> Collect r
   ignoreSorts'      :: IgnoreSorts
-  underBinders'     _ r = r
-  underConstructor' _ _ r = r
-  underModality'    _ r = r
-  underRelevance'   _ r = r
-  underFlexRig'     _ r = r
-  underQuantity'    _ r = r
 
+{-# INLINE ignoreSorts #-}
 ignoreSorts :: forall r m. MonadReader r m => ComputeFree r => m IgnoreSorts
 ignoreSorts = pure (ignoreSorts' @r)
 
+{-# INLINE underBinders #-}
 underBinders :: MonadReader r m => ComputeFree r => Int -> m a -> m a
 underBinders = local . underBinders'
 
+{-# INLINE underBinder #-}
 underBinder :: MonadReader r m => ComputeFree r => m a -> m a
 underBinder = underBinders 1
 
+{-# INLINE underConstructor #-}
 underConstructor :: MonadReader r m => ComputeFree r => ConHead -> Elims -> m a -> m a
 underConstructor hd es = local (underConstructor' hd es)
 
+{-# INLINE underModality #-}
 underModality :: MonadReader r m => ComputeFree r => Modality -> m a -> m a
 underModality = local . underModality'
 
+{-# INLINE underRelevance #-}
 underRelevance :: MonadReader r m => ComputeFree r => Relevance -> m a -> m a
 underRelevance = local . underRelevance'
 
+{-# INLINE underFlexRig #-}
 underFlexRig :: MonadReader r m => ComputeFree r => FlexRig' (FlexRigItem r) -> m a -> m a
 underFlexRig = local . underFlexRig'
 
+{-# INLINE underQuantity #-}
 underQuantity :: MonadReader r m => ComputeFree r => Quantity -> m a -> m a
 underQuantity = local . underQuantity'
 
+{-# INLINE variable #-}
 variable :: MonadReader r m => ComputeFree r => Int -> m (Collect r)
 variable x = variable' x <$!> ask
 
@@ -200,6 +234,7 @@ instance Free Term where
     -- Even as we do not permit infinite type expressions,
     -- we cannot prove their absence (as Set is not inductive).
     -- Also, this is incompatible with univalence (HoTT).
+
     -- András 2026-01-22: the above comment sounds wrong to me. Pi very much has to be definitionally
     -- injective.
     Pi a b       -> freeVars (a, b) -- TODO: test with "underConstructor"
@@ -361,6 +396,18 @@ type VarOcc = VarOcc' MetaSet
 instance Eq a => Eq (VarOcc' a) where
   VarOcc fr m == VarOcc fr' m' = fr == fr' && sameModality m m'
 
+instance LensModality (VarOcc' a) where
+  getModality = varModality
+  mapModality f (VarOcc x r) = VarOcc x $ f r
+
+instance LensRelevance (VarOcc' a) where
+instance LensQuantity (VarOcc' a) where
+
+-- | Access to 'varFlexRig' in 'VarOcc'.
+instance LensFlexRig (VarOcc' a) a where
+  {-# INLINE lensFlexRig #-}
+  lensFlexRig f (VarOcc fr m) = f fr <&> \fr' -> VarOcc fr' m
+
 -- | The default way of aggregating free variable info from subterms is by adding
 --   the variable occurrences.  For instance, if we have a pair @(t₁,t₂)@ then
 --   and @t₁@ has @o₁@ the occurrences of a variable @x@
@@ -398,3 +445,44 @@ composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (compos
 
 oneVarOcc :: VarOcc' a
 oneVarOcc = VarOcc Unguarded unitModality
+
+--------------------------------------------------------------------------------
+
+-- | What's the rigidity of a constructor?
+constructorFlexRig :: ConHead -> Elims -> FlexRig' a
+constructorFlexRig (ConHead _c _d i fs) es = case i of
+
+  -- Coinductive (record) constructors admit infinite cycles:
+  CoInductive -> WeaklyRigid
+  -- Inductive constructors do not admit infinite cycles:
+  Inductive   | natSize es == natSize fs -> StronglyRigid
+              | otherwise                -> WeaklyRigid
+  -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
+  -- applied constructors as weakly rigid.
+  -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
+  -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
+  -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
+  -- WAS:
+  -- -- Inductive record constructors do not admit infinite cycles,
+  -- -- but this cannot be proven inside Agda.
+  -- -- Thus, unification should not prove it either.
+
+{-# INLINE defaultUnderConstructor #-}
+defaultUnderConstructor :: (Semigroup a, LensFlexRig r a) => ConHead -> Elims -> r -> r
+defaultUnderConstructor c h = over lensFlexRig (composeFlexRig (constructorFlexRig c h))
+
+{-# INLINE defaultUnderFlexRig #-}
+defaultUnderFlexRig :: (Semigroup a, LensFlexRig r a) => FlexRig' a -> r -> r
+defaultUnderFlexRig fr = over lensFlexRig (composeFlexRig fr)
+
+{-# INLINE defaultUnderModality #-}
+defaultUnderModality :: LensModality r => Modality -> r -> r
+defaultUnderModality m = mapModality (composeModality m)
+
+{-# INLINE defaultUnderRelevance #-}
+defaultUnderRelevance :: LensRelevance r => Relevance -> r -> r
+defaultUnderRelevance rel = mapRelevance (composeRelevance rel)
+
+{-# INLINE defaultUnderQuantity #-}
+defaultUnderQuantity :: LensQuantity r => Quantity -> r -> r
+defaultUnderQuantity q = mapQuantity (composeQuantity q)

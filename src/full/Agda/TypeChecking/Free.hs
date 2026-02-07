@@ -53,7 +53,7 @@ module Agda.TypeChecking.Free
     , FlexRig'(..), FlexRig
     , LensFlexRig(..), isFlexible, isUnguarded, isStronglyRigid, isWeaklyRigid
     , VarOcc'(..), VarOcc
-    , varOccurrenceIn
+    -- , varOccurrenceIn
     , flexRigOccurrenceIn
     , closed
     , MetaSet
@@ -141,38 +141,6 @@ runFree single i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
 
 ---------------------------------------------------------------------------
 -- * Occurrence computation for a single variable.
-
--- ** Full free occurrence info for a single variable.
-
--- | Get the full occurrence information of a free variable.
-varOccurrenceIn :: Free a => Nat -> a -> Maybe VarOcc
-varOccurrenceIn = varOccurrenceIn' IgnoreNot
-
-varOccurrenceIn' :: Free a => IgnoreSorts -> Nat -> a -> Maybe VarOcc
-varOccurrenceIn' ig x t = theSingleVarOcc $ runFree sg ig t
-  where
-  sg y = if x == y then oneSingleVarOcc else mempty
-
--- | "Collection" just keeping track of the occurrence of a single variable.
---   'Nothing' means variable does not occur freely.
-newtype SingleVarOcc = SingleVarOcc { theSingleVarOcc :: Maybe VarOcc }
-
-oneSingleVarOcc :: SingleVarOcc
-oneSingleVarOcc = SingleVarOcc $ Just $ oneVarOcc
-
--- | Hereditary Semigroup instance for 'Maybe'.
---   (The default instance for 'Maybe' may not be the hereditary one.)
-instance Semigroup SingleVarOcc where
-  SingleVarOcc Nothing <> s = s
-  s <> SingleVarOcc Nothing = s
-  SingleVarOcc (Just o) <> SingleVarOcc (Just o') = SingleVarOcc $ Just $ o <> o'
-
-instance Monoid SingleVarOcc where
-  mempty = SingleVarOcc Nothing
-  mappend = (<>)
-
-instance IsVarSet MetaSet SingleVarOcc where
-  withVarOcc o = SingleVarOcc . fmap (composeVarOcc o) . theSingleVarOcc
 
 -- ** Flexible /rigid occurrence info for a single variable.
 

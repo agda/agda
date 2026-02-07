@@ -477,7 +477,7 @@ underQuantity = local . mapQuantity . composeQuantity . getQuantity
 
 -- | Changing the 'FlexRig' context.
 underFlexRig :: (MonadReader r m, LensFlexRig r a, Semigroup a, LensFlexRig o a) => o -> m z -> m z
-underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
+underFlexRig o mz = local (over lensFlexRig (composeFlexRig (view lensFlexRig o))) mz
 
 -- | What happens to the variables occurring under a constructor?
 underConstructor :: (MonadReader r m, LensFlexRig r a, Semigroup a) => ConHead -> Elims -> m z -> m z

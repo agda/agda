@@ -933,6 +933,7 @@ library
       Agda.Utils.Singleton
       Agda.Utils.Size
       Agda.Utils.SmallSet
+      Agda.Utils.StrictEndo
       Agda.Utils.StrictReader
       Agda.Utils.StrictState
       Agda.Utils.StrictState2

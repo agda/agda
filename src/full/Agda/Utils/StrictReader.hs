@@ -4,7 +4,6 @@ module Agda.Utils.StrictReader where
 
 import GHC.Exts (oneShot)
 import Control.Monad.Reader (MonadReader(..))
-import Data.Functor.Identity
 
 newtype ReaderT r m a = ReaderT {runReaderT :: r -> m a}
 
@@ -52,12 +51,6 @@ instance Monad m => MonadReader r (ReaderT r m) where
   {-# INLINE reader #-}
   reader f = ReaderT (oneShot \r -> pure $! f r)
 
-type Reader r = ReaderT r Identity
-
-{-# inline runReader #-}
-runReader :: Reader r a -> r -> a
-runReader (ReaderT ma) r = runIdentity (ma r)
-
 instance (Semigroup a, Monad m) => Semigroup (ReaderT r m a) where
   {-# INLINE (<>) #-}
   ReaderT mx <> ReaderT my = ReaderT (oneShot \r -> do
@@ -69,35 +62,45 @@ instance (Monoid a, Monad m) => Monoid (ReaderT r m a) where
   {-# INLINE mempty #-}
   mempty = ReaderT (oneShot \r -> pure mempty)
 
--- newtype Reader r a = Reader {runReader :: r -> a}
+----------------------------------------------------------------------------------------------------
 
--- instance Functor (Reader r) where
---   {-# INLINE fmap #-}
---   fmap f (Reader ma) = Reader (oneShot \r -> f $! ma r)
---   (<$) a (Reader ma) = Reader \r -> a
+newtype Reader r a = Reader {runReader :: r -> a}
 
--- instance Applicative (Reader r) where
---   {-# INLINE pure #-}
---   pure a = Reader (oneShot (\_ -> a))
---   {-# INLINE (<*>) #-}
---   Reader mf <*> Reader ma = Reader (oneShot \r -> mf r $! ma r)
---   {-# INLINE (*>) #-}
---   Reader ma *> Reader mb = Reader (oneShot \r -> mb r)
---   {-# INLINE (<*) #-}
---   Reader ma <* Reader mb = Reader (oneShot \r -> ma r)
+instance Functor (Reader r) where
+  {-# INLINE fmap #-}
+  fmap f (Reader ma) = Reader (oneShot \r -> let x = ma r in f x)
+  (<$) a (Reader ma) = Reader (oneShot \r -> a)
 
--- instance Monad (Reader r) where
---   {-# INLINE return #-}
---   return = pure
---   {-# INLINE (>>=) #-}
---   Reader ma >>= f = Reader (oneShot \r -> runReader (f $! ma r) r)
---   {-# INLINE (>>) #-}
---   (>>) = (*>)
+instance Applicative (Reader r) where
+  {-# INLINE pure #-}
+  pure a = Reader (oneShot (\_ -> a))
+  {-# INLINE (<*>) #-}
+  Reader mf <*> Reader ma = Reader (oneShot \r -> case mf r of f -> case ma r of a -> f a)
+  {-# INLINE (*>) #-}
+  Reader ma *> Reader mb = Reader (oneShot \r -> mb r)
+  {-# INLINE (<*) #-}
+  Reader ma <* Reader mb = Reader (oneShot \r -> ma r)
 
--- instance MonadReader r (Reader r) where
---   {-# INLINE ask #-}
---   ask = Reader (oneShot \r -> r)
---   {-# INLINE local #-}
---   local f (Reader ma) = Reader (oneShot \r -> ma $! f r)
---   {-# INLINE reader #-}
---   reader f = Reader (oneShot \r -> f r)
+instance Monad (Reader r) where
+  {-# INLINE return #-}
+  return = pure
+  {-# INLINE (>>=) #-}
+  Reader ma >>= f = Reader (oneShot \r -> let x = ma r in runReader (f x) r)
+  {-# INLINE (>>) #-}
+  (>>) = (*>)
+
+instance MonadReader r (Reader r) where
+  {-# INLINE ask #-}
+  ask = Reader (oneShot \r -> r)
+  {-# INLINE local #-}
+  local f (Reader ma) = Reader (oneShot \r -> let x = f r in ma x)
+  {-# INLINE reader #-}
+  reader f = Reader (oneShot \r -> f r)
+
+instance Semigroup a => Semigroup (Reader r a) where
+  {-# INLINE (<>) #-}
+  Reader f <> Reader g = Reader (oneShot \r -> f r <> g r)
+
+instance Monoid a => Monoid (Reader r a) where
+  {-# INLINE mempty #-}
+  mempty = Reader \_ -> mempty
