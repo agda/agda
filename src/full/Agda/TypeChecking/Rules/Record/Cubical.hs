@@ -35,7 +35,7 @@ import Agda.Utils.Size
 
 addCompositionForRecord
   :: QName       -- ^ Datatype name.
-  -> EtaEquality
+  -> HasEta
   -> ConHead
   -> Telescope   -- ^ @Γ@ parameters.
   -> [Arg QName] -- ^ Projection names.
@@ -56,7 +56,7 @@ addCompositionForRecord name eta con tel fs ftel rect = do
     -- No-eta record with pattern matching (i.e., withOUT copattern
     -- matching): define composition as for a data type, attach it to
     -- the record.
-    else if theEtaEquality eta == NoEta PatternMatching then do
+    else if eta == NoEta PatternMatching then do
       kit <- defineCompData name con (abstract cxt tel) (unArg <$> fs) ftel rect empty
       modifySignature $ updateDefinition name $ updateTheDef $ \case
         r@Record{} -> r { recComp = kit }
