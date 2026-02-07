@@ -77,6 +77,10 @@
           # Place the binaries in a separate output with a much smaller closure size.
           enableSeparateBinOutput = true;
           mainProgram = "agda";
+
+          buildDepends = drv.buildDepends or [ ] ++ [
+            hpkgs.text-icu # for enable-cluster-counting
+          ];
         } // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) {
           # A nixpkgs-specific patch for aarch64-darwin related to the separate bin output
           # causes a warning about some functions being removed from Paths_Agda, which
