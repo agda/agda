@@ -671,6 +671,12 @@ instance PrettyTCM LocalRewriteRule where
       ]
     ]
 
+instance PrettyTCM RewDom where
+  prettyTCM (RewDom e r) = fsep
+    [ prettyTCM e
+    , if isJust r then "(rewrite present)" else "(rewrite invalidated)"
+    ]
+
 instance PrettyTCM Occurrence where
   prettyTCM occ  = text $ "-[" ++ prettyShow occ ++ "]->"
 {-# SPECIALIZE prettyTCM :: Occurrence -> TCM Doc #-}

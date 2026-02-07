@@ -1922,7 +1922,7 @@ instance NFData RewriteAnn where
 
 instance Pretty RewriteAnn where
   pretty = \case
-    IsRewrite    -> "@rewrite"
+    IsRewrite    -> "@rew"
     IsNotRewrite -> empty
 
 class LensRewriteAnn a where
@@ -1950,6 +1950,8 @@ instance LensRewriteAnn (Arg t) where
   getRewriteAnn = getRewriteAnn . getArgInfo
   setRewriteAnn = mapArgInfo . setRewriteAnn
 
+prettyRewriteAnn :: LensRewriteAnn a => a -> Doc -> Doc
+prettyRewriteAnn a = (pretty (getRewriteAnn a) <+>)
 
 ---------------------------------------------------------------------------
 -- * Cohesion

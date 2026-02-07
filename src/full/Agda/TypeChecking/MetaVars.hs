@@ -775,6 +775,13 @@ etaExpandBlocked (Blocked b t)  = do
     Blocked b' _ | b /= b' -> etaExpandBlocked t
     _                      -> return t
 
+-- | Is the term an @rew function?
+isRewPi :: Term -> Bool
+isRewPi (Pi a b) = case getRewriteAnn a of
+  IsRewrite    -> True
+  IsNotRewrite -> isRewPi $ unEl $ unAbs b
+isRewPi _        = False
+
 {-# SPECIALIZE assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM () #-}
 assignWrapper :: (MonadMetaSolver m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
@@ -845,6 +852,12 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   case (v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
+
+  -- Instantiating metas with @rew functions is never allowed to ensure
+  -- quantification is always prenex
+  if isRewPi v
+    then patternViolation neverUnblock
+    else return ()
 
   -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
   -- we equate the sort of the solution with the sort of the

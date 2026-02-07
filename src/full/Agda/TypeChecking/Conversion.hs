@@ -849,6 +849,11 @@ compareDom cmp0
      | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> err
      | not $ samePolarity (getModalPolarity dom1) (getModalPolarity dom2) -> err
      | not $ domIsFinite dom1 == domIsFinite dom2 -> err
+     -- We compare both rewrite annotations AND the actual rewDoms to properly
+     -- handle the case where we have use a rewrite annotation outside of a
+     -- module telescope and continued trying to typecheck
+     | not $  getRewriteAnn dom1   == getRewriteAnn dom2
+           && isJust (rewDom dom1) == isJust (rewDom dom2) -> err
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
