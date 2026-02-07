@@ -593,19 +593,6 @@ instance Pretty Pragma where
     pretty (NoUniverseCheckPragma _) = hlKeyword "NO_UNIVERSE_CHECK"
     pretty (OverlapPragma _ x m) = hsep [pretty m, pretty x]
 
-instance Pretty NotationPart where
-    pretty (IdPart x) = text $ rangedThing x
-    pretty HolePart{} = underscore
-    pretty VarPart{}  = underscore
-    pretty WildPart{} = underscore
-
-    prettyList = hcat . map pretty
-
-instance Pretty Fixity' where
-    pretty (Fixity' fix nota _range)
-      | null nota = pretty fix
-      | otherwise = hlKeyword "syntax" <+> pretty nota
-
 instance Pretty Pattern where
     prettyList = fsep . map pretty
     pretty = \case

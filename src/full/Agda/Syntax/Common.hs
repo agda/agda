@@ -3572,6 +3572,11 @@ instance HasRange Fixity' where
 instance KillRange Fixity' where
   killRange (Fixity' f n r) = killRangeN Fixity' f n r
 
+instance Pretty Fixity' where
+    pretty (Fixity' fix nota _range)
+      | null nota = pretty fix
+      | otherwise = hlKeyword "syntax" <+> pretty nota
+
 -- lenses
 
 _fixityAssoc :: Lens' Fixity Associativity
@@ -4101,3 +4106,11 @@ instance NFData NotationPart where
   rnf (HolePart _ a) = rnf a
   rnf (WildPart a)   = rnf a
   rnf (IdPart a)     = rnf a
+
+instance Pretty NotationPart where
+    pretty (IdPart x) = text $ rangedThing x
+    pretty HolePart{} = underscore
+    pretty VarPart{}  = underscore
+    pretty WildPart{} = underscore
+
+    prettyList = hcat . map pretty

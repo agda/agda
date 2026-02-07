@@ -1733,12 +1733,13 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
-  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _ _) = vcat $ concat
+  pretty (ScopeInfo this mods toBind locals ctx _ _ _ fixs _ _) = vcat $ concat
     [ [ "ScopeInfo"
       , nest 2 $ "current =" <+> pretty this
       ]
-    , [ nest 2 $ "toBind  =" <+> pretty locals | not (null toBind) ]
+    , [ nest 2 $ "toBind  =" <+> pretty toBind | not (null toBind) ]
     , [ nest 2 $ "locals  =" <+> pretty locals | not (null locals) ]
+    , [ nest 2 $ "fixities=" <+> pretty fixs   | not (null fixs  ) ]
     , [ nest 2 $ "context =" <+> pretty ctx
       , nest 2 $ "modules"
       ]
