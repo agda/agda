@@ -344,13 +344,14 @@ instantiateTelescope
   -> DeBruijnPattern -- ^ Γ ⊢ u : A
   -> Maybe (Telescope,           -- ⊢ Γ'
             PatternSubstitution, -- Γ' ⊢ σ : Γ
-            Permutation)         -- Γ  ⊢ flipP ρ : Γ'
-instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
+            Permutation)         -- reordering of Γ applied before instantiating
+                                 -- (works on de Bruijn _levels_)
+instantiateTelescope tel k p = guard ok $> (tel', sigma, reverseP perm)
   where
     names = teleNames tel
     ts0   = flattenTel tel
     n     = size tel
-    j     = n-1-k
+    j     = n-1-k -- de Bruijn index
     u     = patternToTerm p
 
     -- Jesper, 2019-12-31: Previous implementation that does some
@@ -375,20 +376,21 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
     -- we move each variable in is1 to the right until it comes after
     -- all variables in is0 (i.e. after lasti)
     (as,bs) = List.partition (`VarSet.member` is1) [ n-1 , n-2 .. lasti ]
-    is    = reverse $ List.delete j $ bs ++ as ++ downFrom lasti
+    is    = reverse $ bs ++ as ++ downFrom lasti
+    perm  = Perm n is -- works on de Bruijn indices
 
     -- if u depends on var j, we cannot instantiate
     ok    = not $ j `VarSet.member` is0
 
-    perm  = Perm n $ is    -- works on de Bruijn indices
-    rho   = reverseP perm  -- works on de Bruijn levels
+    perm'  = deleteP j perm  -- works on de Bruijn indices
+    permL' = reverseP perm'  -- works on de Bruijn levels
 
-    p1    = renameP impossible perm p -- Γ' ⊢ p1 : A'
-    us    = map (\i -> maybe p1 deBruijnVar (List.elemIndex i is)) [ 0 .. n-1 ]
-    sigma = us ++# raiseS (n-1)
+    j'    = fromMaybe __IMPOSSIBLE__ $ lookupRP perm j
+    p1    = renameP impossible perm' p -- Γ' ⊢ p1 : A'
+    sigma = singletonS j' p1 `composeS` renaming impossible perm -- Γ' ⊢ σ : Г
 
-    ts1   = permute rho $ applyPatSubst sigma ts0
-    tel'  = unflattenTel (permute rho names) ts1
+    ts1   = permute permL' $ applyPatSubst sigma ts0
+    tel'  = unflattenTel (permute permL' names) ts1 -- Γ'
 
 -- | Try to eta-expand one variable in the telescope (given by its de Bruijn
 --   level)

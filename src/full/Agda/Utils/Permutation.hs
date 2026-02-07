@@ -19,6 +19,7 @@ import Data.Maybe
 import GHC.Generics (Generic)
 
 import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -185,6 +186,14 @@ invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
   tmpArray :: Array Int Int
   tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
 
+-- | @lookupP π i@ applies @π@ to @i@.
+lookupP :: Permutation -> Int -> Maybe Int
+lookupP (Perm n xs) i = xs !!! i
+
+-- | @lookupRP π i@ applies @invertP π@ to @i@.
+lookupRP :: Permutation -> Int -> Maybe Int
+lookupRP (Perm n xs) i = List.elemIndex i xs
+
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
 compactP p@(Perm _ xs) = Perm (length xs) $ map adjust xs
@@ -232,6 +241,10 @@ expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
       | j == i    = [i..i + n - 1]
       | j < i     = [j]
       | otherwise = [j + n - 1]
+
+-- | @deleteP i π@ deletes the value @i@ from the output of @π@.
+deleteP :: Int -> Permutation -> Permutation
+deleteP i (Perm n xs) = Perm n (List.delete i xs)
 
 -- | Stable topologic sort. The first argument decides whether its first
 --   argument is an immediate parent to its second argument.
