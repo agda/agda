@@ -2013,6 +2013,7 @@ checkLetBinding' (A.LetApply i erased x modapp copyInfo dir) ret = do
     [ "context =" <+> (prettyTCM =<< getContextTelescope)
     , "module  =" <+> (prettyTCM =<< currentModule)
     , "fv      =" <+> text (show fv)
+    , "copy    =" <+> pretty copyInfo
     ]
   checkSectionApplication i erased x modapp copyInfo
     -- Some other part of the code ensures that "open public" is

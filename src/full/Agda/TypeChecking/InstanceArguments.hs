@@ -136,7 +136,11 @@ initialInstanceCandidates blockOverlap instTy = do
           | (x, Dom{domInfo = info, unDom = t}) <- varsAndRaisedTypes
           , isInstance info || argInfoOrigin info == RecordSelf
           ]
-      reportSDoc "tc.instance" 40 $ vcat [ pretty x <+> "" <+> text (show o) | (x, Dom{domInfo = i}) <- varsAndRaisedTypes, let o = argInfoOrigin i ]
+      reportSDoc "tc.instance.cands" 40 $ "Getting candidates by eta-expanding context" $$ nest 2 (vcat
+        [ prettyTCM x <+> colon <+> prettyTCM t $$ (nest 2 $ "origin: " <> text (show o) <> ", used: " <> text (show used))
+        | (x, Dom{domInfo = i, unDom = t }) <- varsAndRaisedTypes, let o = argInfoOrigin i
+        , let used = isInstance i || o == RecordSelf
+        ])
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else
@@ -184,19 +188,17 @@ initialInstanceCandidates blockOverlap instTy = do
 
     instanceFields' :: Bool -> (CandidateKind,Term,Type) -> BlockT TCM [Candidate]
     instanceFields' etaOnce (q, v, t) = do
-      TelV piTel t' <- lift $ telView t
+      TelV piTel t' <- lift $ telViewUpTo' (-1) notVisible t
       ifBlocked t' (\ m _ -> patternViolation m) $ \ _ t' -> do
-      let
-        n = size piTel
-        hiddenPiTel = fmap (mapHiding \case { NotHidden -> Hidden ; x -> x }) piTel
+      let n = size piTel
       addContext piTel $ caseMaybeM (etaExpand etaOnce t') (return []) $ \ (r, pars) -> do
         let v' = raise n v `apply` teleArgs piTel
         (tel, args) <- lift $ forceEtaExpandRecord r pars v'
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) -> do
           let
-            absArg = abstract hiddenPiTel (unArg arg)
-            absTy = telePi hiddenPiTel t
+            absArg = abstract piTel (unArg arg)
+            absTy = telePi piTel t
           ([ Candidate LocalCandidate absArg absTy (infoOverlapMode arg)
             | isInstance arg
             ] ++) <$>
