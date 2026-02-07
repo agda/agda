@@ -45,6 +45,8 @@
             ];
           };
 
+          cabal2nixOptions = "-fenable-cluster-counting";
+
           modifier = hlib.overrideCabal (drv: {
             # Typecheck the primitive modules.
             postInstall = drv.postInstall or "" + ''
