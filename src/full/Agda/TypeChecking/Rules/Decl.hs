@@ -1078,20 +1078,21 @@ checkSectionApplication'
       ]
     -- Andreas, 2014-04-06, Issue 1094:
     -- Add the section with well-formed telescope.
-    addContext (KeepNames aTel) $ do
-      reportSDoc "tc.mod.apply" 80 $
-        "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> inTopContext (prettyTCM tel))
-      addSection m1
+    -- Nathaniel, 2026-02-08:
+    -- We build the telescope before entering addSection (in the presense of
+    -- local rewrite rules, adding aTel to the context is unsafe)
+    ctxTel <- getContextTelescope
+    reportSDoc "tc.mod.apply" 80 $
+        "addSection" <+> prettyTCM m1 <+>
+        (inTopContext $ prettyTCM $ ctxTel `abstract` aTel)
+    addSection' m1 $ ctxTel `abstract` aTel
 
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ sep [ "applySection", prettyTCM m1, "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
       , nest 2 $ pretty copyInfo
       ]
     args <- instantiateFull $ vs ++ ts
-    let n = size aTel
-    etaArgs <- inTopContext $ addContext aTel getContextArgs
-    addContext (KeepNames aTel) $
-      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
+    applySection m1 ptel m2 args copyInfo
 
 checkSectionApplication' _ Erased{} _ A.RecordModuleInstance{} _ =
   __IMPOSSIBLE__

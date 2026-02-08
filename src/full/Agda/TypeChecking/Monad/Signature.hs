@@ -286,6 +286,10 @@ markFirstOrder = setFunctionFlag FunFirstOrder True
 addSection :: ModuleName -> TCM ()
 addSection m = do
   tel <- getContextTelescope
+  addSection' m tel
+
+addSection' :: ModuleName -> Telescope -> TCM ()
+addSection' m tel = do
   let sec = Section tel
   -- Make sure we do not overwrite an existing section!
   whenJustM (getSection m) $ \ sec' -> do
@@ -587,15 +591,19 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
     copyDef ts x y = do
       def <- getConstInfo x
       np  <- argsToUse (qnameModule x)
+      -- Because of https://github.com/agda/agda/issues/892 we might have too
+      -- many arguments and need to drop some
+      origTel <- lookupSection (qnameModule x)
+      let ts' = drop (size ts - size origTel) ts
       -- Issue #3083: We need to use the hiding from the telescope of the
       -- original module. This can be different than the hiding for the common
       -- parent in the case of record modules.
-      hidings <- map getHiding . telToList <$> lookupSection (qnameModule x)
-      let ts' = zipWith setHiding hidings ts
+      let hidings = map getHiding $ telToList origTel
+      let ts'' = zipWith setHiding hidings ts'
       commonTel <- lookupSection (commonParentModule old $ qnameModule x)
       reportSDoc "tc.mod.apply" 80 $ vcat
         [ "copyDef" <+> pretty x <+> "->" <+> pretty y
-        , "ts' = " <+> pretty ts' ]
+        , "ts'' = " <+> pretty ts'' ]
       -- The module telescope had been divided by some μ, so the corresponding
       -- top level definition had type μ \ Γ → B, so if we have a substitution
       -- Δ → Γ we actually want to apply μ \ - to it, so the new top-level
@@ -606,7 +614,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                            , modPolarity = getModalPolarity ai
                            }
       localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
-        copyDef' ts' np def
+        copyDef' ts'' np def
       reportSDoc "tc.mod.apply" 80 $
         "finished copyDef" <+> pretty x <+> "->" <+> pretty y
       where
@@ -795,7 +803,10 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
       reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
       totalArgs <- argsToUse x
       tel       <- lookupSection x
-      let sectionTel = apply tel $ take totalArgs ts
+      -- Because of https://github.com/agda/agda/issues/892 we might have too
+      -- many arguments and need to drop some
+      let ts' = drop (size ts - size tel) ts
+      let sectionTel = apply tel $ take totalArgs ts'
       reportSDoc "tc.mod.apply" 80 $ "  ts           = " <+> mconcat (List.intersperse "; " (map pretty ts))
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
       reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
