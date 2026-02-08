@@ -214,7 +214,7 @@ Warnings
   - Unlike the other warnings about problematic rewrite rules, Agda will still
     try its best to apply rewrites which trigger this warning.
     This is because some very useful rewrite rules unfortunately do not preserve
-    subject reduction in the presense of definitional singletons.
+    subject reduction in the presence of definitional singletons.
 
 Syntax
 ------

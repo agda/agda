@@ -1079,7 +1079,7 @@ checkSectionApplication'
     -- Andreas, 2014-04-06, Issue 1094:
     -- Add the section with well-formed telescope.
     -- Nathaniel, 2026-02-08:
-    -- We build the telescope before entering addSection (in the presense of
+    -- We build the telescope before entering addSection (in the presence of
     -- local rewrite rules, adding aTel to the context is unsafe)
     ctxTel <- getContextTelescope
     reportSDoc "tc.mod.apply" 80 $
