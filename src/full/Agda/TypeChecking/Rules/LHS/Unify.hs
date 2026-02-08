@@ -788,7 +788,7 @@ rewVars :: Telescope -> VarSet
 rewVars EmptyTel        = VarSet.empty
 rewVars (ExtendTel a b) =
   fromMaybe VarSet.empty
-    (VarSet.weaken (size b + 1) . allFreeVars . fromMaybe __IMPOSSIBLE__ .
+    (VarSet.weaken (size b + 1) . freeVarSet . fromMaybe __IMPOSSIBLE__ .
       rewDomRew <$> rewDom a)
   <> (rewVars $ unAbs b)
 

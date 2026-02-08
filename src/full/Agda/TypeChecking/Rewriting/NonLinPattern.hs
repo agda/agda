@@ -16,7 +16,7 @@ import Agda.Syntax.Internal.Defs
 import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Irrelevance ( isDefSing )
+import Agda.TypeChecking.Irrelevance ( isDefSing, isPatternVar )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -44,8 +44,9 @@ import Data.Foldable (Foldable(fold))
 --   singularity of the last |PDef|/|PBoundVar| match, while the second tracks
 --   the current definitional singularity.
 --   The third argument and fourth arguments, k0 and k1, partition the context
---   into three chunks: the local context, the rewrite telescope and the bound
---   variables from pattern lambdas.
+--   into three chunks: the local context, the telescope of
+--   of pattern variables associated with the rewrite and the pattern-lambda
+--   bound variables.
 --   The fifth argument is the type of the term.
 
 class PatternFrom a b where
@@ -122,7 +123,7 @@ instance PatternFrom Term NLPat where
   patternFrom r0 r1 k0 k1 t v = do
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
-    r1 <- maxDefSing r1 <$> isDefSing t
+    r1 <- maxDefSing r1 <$> isDefSing k0 k1 t
     v <- unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
@@ -142,7 +143,7 @@ instance PatternFrom Term NLPat where
       (_ , Var i es)
        -- Variables before k0 are locally bound outside the rewrite telescope
        -- Variables after k1 are bound in higher order patterns
-       | i >= k0 || k1 > i -> do
+       | not $ isPatternVar k0 k1 i -> do
            t <- typeOfBV i
            PBoundVar i <$> patternFrom r1 r1 k0 k1 (t , Var i) es
        -- The arguments of `var i` should be distinct bound variables

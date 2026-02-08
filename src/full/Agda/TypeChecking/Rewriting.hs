@@ -353,6 +353,9 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
             Record{}           -> __IMPOSSIBLE__
             PrimitiveSort{}    -> __IMPOSSIBLE__
     reportSDoc "rewriting" 70 $
+      "variables bound by pattern never singularly: " <+>
+      text (show neverSingPatVars)
+    reportSDoc "rewriting" 70 $
       "variables bound by the pattern: " <+> text (show boundVars)
     reportSDoc "rewriting" 70 $
       "variables free in the lhs: " <+> text (show freeVarsLhs)
