@@ -671,13 +671,12 @@ Find candidates
 
   Local variables, i.e. variables bound in lambdas, function types,
   left-hand sides, or module parameters, are candidates if they are
-  bound as instance arguments, using ``{{ }}``.
+  bound as instance arguments, using ``{{ }}``. This includes any
+  instance arguments to constructors of inductive or record types that
+  have been matched on.
 
-  If a local variable has instance visibility (i.e., it is bound by the
-  type of the function with ``{{ }}``), and its type is an :ref:`eta
-  record <eta-expansion>` type, then any of its :ref:`instance fields
-  <instance-fields>` will also be considered as candidates. This applies
-  even if the instance argument is a function *returning* an eta record.
+  If local variables in the context have :ref:`superclass fields
+  <superclass-fields>`, superclass expansion will apply.
 
   Only candidates of type ``{Δ} → C us``, where ``C`` is the target type
   computed in the previous stage, and ``{Δ}`` only contains implicit or

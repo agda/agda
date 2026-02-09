@@ -433,9 +433,9 @@ follows: for each field ``x`` in ``R``,
     included in ``new-fields``, and otherwise
   - if ``x`` is an explicit field then ``x = R.x r`` is included in
     ``new-fields``, and
-  - if ``x`` is an :ref:`implicit <implicit-arguments>` or :ref:`instance field <instance-arguments>`, then it is omitted from ``new-fields``.
+  - if ``x`` is an :ref:`implicit <implicit-arguments>` or :ref:`superclass <instance-fields>` field, then it is omitted from ``new-fields``.
 
-The reason for treating implicit and instance fields specially is to
+The reason for treating implicit and superclass fields specially is to
 allow code like the following::
 
   data Vec (A : Set) : Nat → Set where
@@ -691,117 +691,384 @@ You can read more about coinductive records in the section on
 
 .. _instance-fields:
 
-Instance fields
----------------
+Records and instance search
+---------------------------
 
-Instance fields, that is record fields marked with ``{{ }}`` can be used to
-model "superclass" dependencies. For example::
+The fields of a record type can interact with the :ref:`instance search
+<instance-arguments>` mechanism in two orthogonal ways.
 
-  record Eq (A : Set) : Set where
-    field
-      _==_ : A → A → Bool
+1. A record field can be given instance *visibility*, by wrapping its
+   name in double braces ``{{ }}``. To disambiguate, we refer to record
+   fields with instance visibility as **superclass fields**.
 
-  open Eq {{...}}
+   Superclass fields are instance arguments to the record constructor.
+   This means that they :ref:`can often be omitted
+   <superclass-omission>`.
+
+2. The field declaration itself can be nested in an ``instance`` block.
+   We refer to these as (having) **instance projections**.
+
+   Making a record field into an instance projection does *not* alter
+   the visibility with which it is bound, meaning that, unless it is
+   additionally made into a superclass field (or into a hidden argument
+   to the record constructor), it must be explicitly specified when
+   constructing a record value.
+
+..
+  ::
+
+  module Both where
+    postulate Ex1 : Set → Set
+
+Any given record field can be made into both an instance projection
+*and* a superclass field. It will then be subject to *both* of the
+behaviours described in the following sections::
+
+    record Ex2 (A : Set) : Set where
+      field
+        instance ⦃ both ⦄ : Ex1 A
+
+Both superclass fields and instance projections can appear any number of
+times in a record declaration, and in any position in the list of
+fields.
+
+.. _superclass-fields:
+
+Superclass fields
+~~~~~~~~~~~~~~~~~
 
 ..
   ::
 
   module Instances-no-overlap where
 
-::
+As the name implies, superclass fields are used to model superclass
+relationships (in the Haskell sense). For example, we can define a class
+``Ord`` that "extends" a class ``Eq`` by defining a pair of record
+types, where an ``Ord`` value has a superclass field of ``Eq`` type::
+
+    record Eq (A : Set) : Set where
+      field
+        _==_ : A → A → Bool
+
+    open Eq ⦃ ... ⦄
 
     record Ord (A : Set) : Set where
       field
-        _<_ : A → A → Bool
-        {{eqA}} : Eq A
+        _<_     : A → A → Bool
+        ⦃ eqA ⦄ : Eq A
 
-    open Ord {{...}} hiding (eqA)
+    open Ord ⦃ ... ⦄ hiding (eqA)
 
-Now anytime you have a function taking an ``Ord A`` argument the ``Eq A`` instance
-is also available by virtue of η-expansion. So this works as you would expect:
+As long as ``Ord`` is an :ref:`eta record <eta-expansion>`, local
+*instance* variables of type ``Ord A`` will also bring ``Eq A``
+instances into scope. For example, a function taking an ``Ord A``
+instance argument can also use an ``Eq`` instance::
 
-::
-
-    _≤_ : {A : Set} {{OrdA : Ord A}} → A → A → Bool
+    _≤_ : {A : Set} ⦃ ordA : Ord A ⦄ → A → A → Bool
     x ≤ y = (x == y) || (x < y)
 
-There is a problem however if you have multiple record arguments with conflicting
-instance fields. For instance, suppose we also have a ``Num`` record with an ``Eq`` field
-
-::
-
-    record Num (A : Set) : Set where
-      field
-        fromNat : Nat → A
-        {{eqA}} : Eq A
-
-    open Num {{...}} hiding (eqA)
+Superclass fields are **only** brought into scope if the "subclass"
+variable is in scope *as an instance*. The following will not work:
 
 .. code-block:: agda
 
-    _≤3 : {A : Set} {{OrdA : Ord A}} {{NumA : Num A}} → A → Bool
+    weird : {A : Set} (ordA : Ord A) → A → A → Bool
+    weird _ = x == y
+
+However, since superclass fields are instance arguments to a
+constructor, they can be manually brought into scope by matching on the
+record value. Keep in mind that if the record value had non-instance
+visibility, then the **subclass** will not be available for instance
+search, even after pattern matching::
+
+    works : {A : Set} (ordA : Ord A) → A → A → Bool
+    works record{} x y = x == y
+    -- Matching on record{} makes all the fields into local variables,
+    -- including the superclass fields.
+
+.. code-block:: agda
+
+    fails : {A : Set} (ordA : Ord A) → A → A → Bool
+    fails record{} x y = x ≤ y
+    -- No instance of type Ord A was found in scope.
+    -- Since the Ord argument is visible, it is totally ignored by
+    -- instance search.
+
+.. warning::
+
+  Superclass fields are brought into the local instance table by
+  **expanding local instance variables**. This means that Agda can fail
+  to find an instance of a subclass *even if* the corresponding
+  superclass is derivable. For example, we can explicitly provide the
+  ``eqA`` field of an ``Ord`` instance when constructing it, even if
+  there is no corresponding instance in scope::
+
+    instance
+      OrdNat : Ord Nat
+      OrdNat = record
+        { _<_ = Agda.Builtin.Nat._<_
+        ; eqA = record { _==_ = Agda.Builtin.Nat._==_ }
+        -- no global Eq Nat instance!
+        }
+
+  Attempting to search for an ``Eq Nat`` instance will then fail,
+  because superclass field expansion *only* applies to local variables
+  with instance visibility, and not to top-level instance declarations.
+
+  .. code-block:: agda
+
+      fails : Bool
+      fails = 1 == 2
+      -- No instance of type Eq Nat was found in scope.
+
+Eta-expanding instance variables to find superclass fields will also
+work under binders, which means that a *family* of subclass instances
+gets expanded into a *family* of instances for the corresponding
+superclass::
+
+    fam
+      : {Ix : Set} {F : Ix → Set} ⦃ ords : ∀ {i} → Ord (F i) ⦄
+      → (ix : Ix) → F ix → F ix → Bool
+    fam ix x y = x == y
+
+If the type of a superclass field is *itself* a record type with
+superclass fields, then it will be expanded recursively::
+
+    data ORD : Set where
+      lt le eq : ORD
+
+    record Cmp (A : Set) : Set where
+      field
+        ⦃ ordA ⦄ : Ord A
+        compare  : A → A → ORD
+
+    cmp→eq : {A : Set} ⦃ ordA : Cmp A ⦄ → A → A → Bool
+    cmp→eq x y = x == y
+
+Superclass fields are in scope as local instances in the types of
+subsequent fields, and in the types of any declarations nested within
+the record::
+
+    record Interval (A : Set) : Set where
+      field
+        ⦃ cmpA ⦄ : Cmp A
+        lo hi    : A
+
+      -- Declaration *between* fields:
+      ordered : Bool
+      ordered = lo < hi
+
+      field in-order : ordered ≡ true
+
+      -- Declaration *after* fields:
+      is-empty : Bool
+      is-empty = lo == hi
+
+Any subsequent declaration within the record can depend on its
+superclass fields through instance search, and these fields are
+themselves available for superclass expansion.
+
+.. warning::
+
+  Opening a record module, even locally, will **not** make superclass
+  fields into local instances. Only the :ref:`instance projections
+  <instance-projections>` will be brought into scope by a module
+  application.
+
+  .. code-block:: agda
+
+      fails : {A : Set} (ordA : Ord A) → A → A → Bool
+      fails ord x y = let open Ord ord in x == y
+      -- no instance of Eq A in scope, since the superclass field eqA does
+      -- not have an instance projection
+
+Overlapping superclass fields
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..
+  ::
+
+  module Instances-overlap where
+    record Eq (A : Set) : Set where
+      field
+        _==_ : A → A → Bool
+
+    open Eq ⦃ ... ⦄
+
+When multiple subclasses "inherit" from the same class, superclass field
+expansion will produce distinct candidates for the superclass by
+expanding each of the subclasses. In this situation, instance search
+will fail with an unresolved overlap.
+
+This can be remedied by marking **all** of the relevant superclass
+fields with the ``overlap`` keyword. For example, we can define a
+``Num`` class that also "extends" ``Eq``, as long as ``Ord`` is
+redefined to have its ``Eq`` superclass field also marked ``overlap``::
+
+    record Ord (A : Set) : Set where
+      field
+        _<_     : A → A → Bool
+        overlap ⦃ eqA ⦄ : Eq A
+
+    record Num (A : Set) : Set where
+      field
+        fromNat         : Nat → A
+        overlap ⦃ eqA ⦄ : Eq A
+
+    open Ord ⦃ ... ⦄ hiding (eqA)
+    open Num ⦃ ... ⦄ hiding (eqA)
+
+We can now define a function that takes both ``Num`` and ``Ord``
+instances::
+
+    _≤3 : {A : Set} ⦃ ordA : Ord A ⦄ ⦃ numA : Num A ⦄ → A → Bool
     x ≤3 = (x == fromNat 3) || (x < fromNat 3)
 
-Here the ``Eq A`` argument to ``_==_`` is not resolved since there are two conflicting
-candidates: ``Ord.eqA OrdA`` and ``Num.eqA NumA``. To solve this problem you can declare
-instance fields as *overlappable* using the ``overlap`` keyword::
+When all possible candidates for an instance constraint arise from
+superclass fields marked ``overlap``, instance search will choose the
+field arising from the leftmost record value. In the function above,
+that is the candidate coming from the ``Ord`` argument::
 
-  record Ord (A : Set) : Set where
-    field
-      _<_ : A → A → Bool
-      overlap {{eqA}} : Eq A
+    _
+      : {A : Set} ⦃ ordA : Ord A ⦄ ⦃ numA : Num A ⦄ {arg : A}
+      → (arg ≤3) ≡ ((_==_ ⦃ Ord.eqA ordA ⦄ arg (fromNat 3)) || _)
+    _ = refl
 
-  open Ord {{...}} hiding (eqA)
+If overlapping candidates are introduced by *recursive* superclass
+expansion, resolution will prefer those arising from the earlier field
+in declaration order. Candidates expanded 'on the way' do not,
+themselves, need to be marked overlap; Nor will this be sufficient for
+resolving an overlap in *their* superclass fields.
 
-  record Num (A : Set) : Set where
-    field
-      fromNat : Nat → A
-      overlap {{eqA}} : Eq A
+::
 
-  open Num {{...}} hiding (eqA)
+    record NumOrd (A : Set) : Set where
+      field
+        ⦃ numA ⦄ : Num A
+        ⦃ ordA ⦄ : Ord A
 
-  _≤3 : {A : Set} {{OrdA : Ord A}} {{NumA : Num A}} → A → Bool
-  x ≤3 = (x == fromNat 3) || (x < fromNat 3)
-
-Whenever there are multiple valid candidates for an instance goal, if **all** candidates
-are overlappable, the goal is solved by the left-most candidate. In the example above
-that means that the ``Eq A`` goal is solved by the instance from the ``Ord`` argument.
-
-Clauses for instance fields can be omitted when defining values of record
-types. For instance we can define ``Nat`` instances for ``Eq``, ``Ord`` and
-``Num`` as follows, leaving out cases for the ``eqA`` fields::
-
-  instance
-    EqNat : Eq Nat
-    _==_ {{EqNat}} = Agda.Builtin.Nat._==_
-
-    OrdNat : Ord Nat
-    _<_ {{OrdNat}} = Agda.Builtin.Nat._<_
-
-    NumNat : Num Nat
-    fromNat {{NumNat}} n = n
+    _≤4 : {A : Set} ⦃ numordA : NumOrd A ⦄ → A → Bool
+    x ≤4 = (x == fromNat 4) || (x < fromNat 4)
 
 ..
   ::
-  module Note where
+    open NumOrd
+    open Num hiding (fromNat)
+
+Here, the ``Eq`` instance is selected from the ``numA`` field of the
+``NumOrd`` argument::
+
+    _
+      : {A : Set} ⦃ numordA : NumOrd A ⦄ {arg : A}
+      → (arg ≤4) ≡ ((_==_ ⦃ numordA .numA .eqA ⦄ arg (fromNat 4)) || _)
+    _ = refl
+
+.. _superclass-omission:
+
+Omitting superclass fields
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since superclass fields become instance arguments to the constructor,
+they can be omitted when the constructor is applied as a function, when
+using either form of ``record`` expression, and when defining a value of
+the record by copattern matching. In any of these cases, the missing
+fields will be filled by instance search::
+
+    instance
+      EqNat : Eq Nat
+      EqNat ._==_ = Agda.Builtin.Nat._==_
+
+    ex1 ex2 ex3 : Ord Nat
+    ex1 ._<_ = Agda.Builtin.Nat._<_
+    ex2 = record { _<_ = Agda.Builtin.Nat._<_ }
+    ex3 = record where
+      _<_ = Agda.Builtin.Nat._<_
+
+.. _instance-projections:
+
+Instance projections
+~~~~~~~~~~~~~~~~~~~~
+
+..
+  ::
+
+  module Instproj where
+    record Eq (A : Set) : Set where
+      field
+        _==_ : A → A → Bool
+
+    open Eq ⦃ ... ⦄
+
+A record field defined in a nested ``instance`` block makes the
+projection function into a top-level instance declaration nested in the
+record module. It does not affect the visibility of the field in the
+record constructor's telescope::
+
+    record Eqtype : Set₁ where
+      no-eta-equality -- (!)
+      field
+        carrier      : Set
+        instance eqA : Eq carrier
+
+    open Eqtype renaming (carrier to [_])
+
+A priori, this has no effect on the instance table, since definitions
+within the record module take the record as a **visible** argument.
+However, if the record module is instantiated, as long as the type of
+the resulting instantiation is a valid type for an instance, the
+projection will become usable as an instance, at the instantiated
+type::
+
+    example : (T : Eqtype) → [ T ] → [ T ] → Bool
+    example T x y = let open Eqtype T in x == y
+
+In the example above, the local declarations introduced by the ``let
+open Eqtype T`` expression are equivalent to::
+
+    example' : (T : Eqtype) → [ T ] → [ T ] → Bool
+    example' T x y =
+      let
+        carrier = Eqtype.carrier T
+        instance
+          eqA : Eq carrier
+          eqA = Eqtype.eqA T
+      in x == y
 
 .. note::
 
-   You can also mark a field with the ``instance`` keyword. This turns the
-   projection function into a top-level instance, instead of making the field
-   an instance argument to the constructor.
+  Because instance projections are brought into scope by instantiations
+  of the record module, they work even if they belong to a
+  ``no-eta-equality`` record type.
 
-   ::
+Since instance projections are fully equivalent to defining a top-level
+``instance`` in the record module, they can be annotated with one of the
+:ref:`overlap pragmas <overlapping-instances>` for fine-grained control
+of the overlapping behaviour of the instances resulting from an
+application of the record module.
+
+.. warning::
+
+  If an instance projection has a :ref:`modality <modalities>` that
+  prevents it from having a corresponding top-level projection (e.g., it
+  is irrelevant, and :option:`--irrelevant-projections` was not given),
+  instantiating the record module will **not** bring it into scope as an
+  instance::
 
     postulate
-      P : Set
+      Nonzero : Nat → Set
+      _/_ : Nat → (div : Nat) ⦃ _ : Nonzero div ⦄ → Nat
 
-    record Q : Set where
-      field instance p : P
+    record Pos : Set where
+      field
+        num : Nat
+        instance .pos : Nonzero num
 
-    open Q {{...}}
+  Attempting to use the ``pos`` field as an instance by opening the
+  module ``Pos`` will fail.
 
-    -- Equivalent to
-    -- instance p : {{Q}} → P
+  .. code-block:: agda
 
-  This is almost never what you want to do.
+    fails : (x : Nat) (y : Pos) → Nat
+    fails x y = let open Pos y in x / num
+    -- The field 'pos' has no projection, so:
+    -- No instance of type Nonzero num was found in scope.
