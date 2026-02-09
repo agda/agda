@@ -234,10 +234,11 @@ mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
       -> IO LaTeXResult
   runLaTeX texFile wd cont prog = do
       let proc' = (proc prog ["-interaction=errorstopmode", texFile]) { cwd = Just wd }
-      (ret, _, _) <- PB.readCreateProcessWithExitCode proc' BS.empty
+      (ret, out, _) <- PB.readCreateProcessWithExitCode proc' BS.empty
       if ret == ExitSuccess then
         cont
       else do
+        BS.putStr out
         r <- cont
         return $ case r of
           LaTeXFailed progs -> LaTeXFailed (prog : progs)
