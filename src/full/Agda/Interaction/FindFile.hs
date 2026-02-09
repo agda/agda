@@ -59,6 +59,7 @@ import Agda.Utils.Monad ( ifM, unlessM )
 import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Singleton
+import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 
@@ -141,11 +142,9 @@ findFile m = do
 --   SIDE EFFECT:  Updates 'stModuleToSource'.
 findFile' :: TopLevelModuleName -> TCM (Either FindError SourceFile)
 findFile' m = do
-    dirs     <- getIncludeDirs
-    modToSrc <- useTC stModuleToSource
-    (r, modToSrc) <- liftIO $ runStateT (findFile'' dirs m) modToSrc
-    stModuleToSource `setTCLens` modToSrc
-    return r
+  dirs     <- getIncludeDirs
+  stateSessionLensM lensModuleToSource \modToSrc -> do
+    liftIO $ runStateT (findFile'' dirs m) modToSrc
 
 -- | A variant of 'findFile'' which manipulates an extra 'ModuleToSourceId'
 
@@ -154,14 +153,12 @@ findFile'_ ::
        -- ^ Include paths.
   -> TopLevelModuleName
   -> StateT ModuleToSourceId TCM (Either FindError SourceFile)
-findFile'_ incs m = do
-  dict <- useTC stFileDict
-  m2s  <- get
+findFile'_ incs m = stateSessionLensM lensFileDict \dict -> do
+  m2s <- get
   (r, ModuleToSource dict' m2s') <- liftIO $
     runStateT (findFile'' incs m) $ ModuleToSource dict m2s
-  setTCLens stFileDict dict'
   put m2s'
-  return r
+  return (r, dict')
 
 -- | A variant of 'findFile'' which does not require 'TCM'.
 

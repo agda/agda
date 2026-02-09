@@ -701,7 +701,7 @@ checkModuleName' m f =
 importPrimitiveModules :: TCM ()
 importPrimitiveModules = whenM (optLoadPrimitives <$> pragmaOptions) $ do
   reportSLn "import.main" 10 "Importing the primitive modules."
-  libdirPrim <- useTC stPrimitiveLibDir
+  libdirPrim <- useSession lensPrimitiveLibDir
   reportSLn "import.main" 20 $ "Library primitive dir = " ++ show libdirPrim
   -- Turn off import-chasing messages.
   -- We have to modify the persistent verbosity setting, since
@@ -806,7 +806,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
           -- To prevent this, we register the connection in @ModuleToSource@ here,
           -- where we have the correct spelling of the file name.
           let file = srcOrigin src
-          modifyTCLens stModuleToSourceId $ Map.insert x file
+          modifySession lensModuleToSourceId $ Map.insert x file
           pure file
 
       reportSDoc "import.iface" 15 do
@@ -1143,7 +1143,6 @@ createInterfaceIsolated x file msrc = do
       ms          <- asksTC envImportStack
       range       <- asksTC envRange
       call        <- asksTC envCall
-      mf          <- useTC stModuleToSource
       vs          <- getVisitedModules
       ds          <- getDecodedModules
       opts        <- stPersistentOptions . stPersistentState <$> getTC
@@ -1160,7 +1159,7 @@ createInterfaceIsolated x file msrc = do
       -- the persistent state may not be preserved if an error other
       -- than a type error or an IO exception is encountered in an
       -- imported module.
-      (mi, newModToSource, newDecodedModules) <- (either throwError pure =<<) $
+      (mi, newDecodedModules) <- (either throwError pure =<<) $
            withoutCache $
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
@@ -1176,17 +1175,14 @@ createInterfaceIsolated x file msrc = do
                             }) $ do
                setDecodedModules ds
                setCommandLineOptions opts
-               stModuleToSource `setTCLens` mf
                setVisitedModules vs
                addImportedThings isig metas ibuiltin ipatsyns display
                  userwarn partialdefs empty opaqueblk opaqueid
 
                r  <- createInterface x file NotMainInterface msrc
-               mf' <- useTC stModuleToSource
                ds' <- getDecodedModules
-               return (r, mf', ds')
+               return (r, ds')
 
-      stModuleToSource `setTCLens` newModToSource
       setDecodedModules newDecodedModules
 
       -- We skip the file which has just been type-checked to

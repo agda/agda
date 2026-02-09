@@ -16,17 +16,18 @@ module Agda.TypeChecking.Monad.Base
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
-import Control.Concurrent           ( forkIO )
+import Control.Concurrent
 import Control.DeepSeq
 import qualified Control.Exception as E
 
+import qualified Control.Monad.Catch as Catch
 import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
 import Control.Monad.Writer         ( WriterT(..), runWriterT )
 import Control.Monad.Trans          ( MonadTrans(..), lift )
-import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
+import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough, MonadBaseControl )
 import Control.Monad.Trans.Identity ( IdentityT(..), runIdentityT )
 import Control.Monad.Trans.Maybe    ( MaybeT(..) )
 
@@ -165,9 +166,23 @@ data TCState = TCSt
   }
   deriving Generic
 
+-- | Class for monads which offer scoped access to the 'TCState', as
+-- well as read-only access to the 'SessionState'.
 class Monad m => ReadTCState m where
+  -- | Read the current 'TCState'.
   getTCState :: m TCState
+
+  -- | Scoped modification of the 'TCState': run the continuation where
+  -- the part of the state targeted by the lens has its value altered by
+  -- the given function, without modifying the state in the "enclosing"
+  -- thread.
   locallyTCState :: Lens' TCState a -> (a -> a) -> m b -> m b
+
+  -- | Read the current 'SessionState'.
+  --
+  -- Since the 'SessionState' is shared between threads, it is unwise to
+  -- hold onto the result of this function for very long.
+  getSessionState :: m SessionState
 
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
@@ -179,6 +194,9 @@ class Monad m => ReadTCState m where
     :: (MonadTransControl t, ReadTCState n, t n ~ m)
     => Lens' TCState a -> (a -> a) -> m b -> m b
   locallyTCState l = liftThrough . locallyTCState l
+
+  default getSessionState :: (MonadTrans t, ReadTCState n, t n ~ m) => m SessionState
+  getSessionState = lift getSessionState
 
 instance ReadTCState m => ReadTCState (ListT m) where
   locallyTCState l = mapListT . locallyTCState l
@@ -216,7 +234,6 @@ data PreScopeState = PreScopeState
     -- ^ The top-level modules imported by the current module.
   , stPreImportedModulesTransitive :: !ImportedModules
       -- ^ The top-level modules transitively imported by the current module.
-  , stPreModuleToSourceId   :: !ModuleToSourceId -- imports
   , stPreVisitedModules     :: !VisitedModules   -- imports
       -- ^ Modules loaded so far.
       --   In contrast 'stDecodedModules', contains also modules that are only scope-checked.
@@ -361,33 +378,35 @@ data PostScopeState = PostScopeState
   deriving (Generic)
 
 -- | A part of the state that grows monotonically over the whole Agda session.
--- Never reset.
-data SessionTCState = SessionTCState
-  { stSessionBenchmark :: !Benchmark
-      -- ^ Structure to track how much CPU time was spent on which Agda phase.
-      --   Needs to be a strict field to avoid space leaks!
-  , stSessionBackends  :: [Backend]
-      -- ^ Backends with their options.
+-- Shared between all threads, and never reset.
+data SessionState = SessionState
+  { stSessionBackends  :: [Backend]
+    -- ^ Backends with their options.
   , stSessionFileDict  :: !FileDictWithBuiltins
-      -- ^ Map file names to unique 'FileId' and back.
-      --   Assuming we do not see terribly many different files during one Agda session,
-      --   this map needs not be garbage-collected.
-      --
-      --   Also informs about whether a 'FileId' belongs to one of
-      --   Agda's primitive and builtin modules.
+    -- ^ Map file names to unique 'FileId' and back.
+    --   Assuming we do not see terribly many different files during one Agda session,
+    --   this map needs not be garbage-collected.
+    --
+    --   Also informs about whether a 'FileId' belongs to one of
+    --   Agda's primitive and builtin modules.
+
+  , stSessionModuleToSourceId :: !ModuleToSourceId
+    -- ^ Maps 'TopLevelModuleNames' to the 'FileId's from which they
+    -- were loaded.
+
   , stSessionInteractionOutputCallback :: InteractionOutputCallback
-      -- ^ Callback function to call when there is a response
-      --   to give to the interactive frontend.
-      --   See the documentation of 'InteractionOutputCallback'.
-      --   Set by the interactor (Terminal (default), Emacs, JSON),
-      --   remaining fixed throughout the session.
+    -- ^ Callback function to call when there is a response
+    --   to give to the interactive frontend.
+    --   See the documentation of 'InteractionOutputCallback'.
+    --   Set by the interactor (Terminal (default), Emacs, JSON),
+    --   remaining fixed throughout the session.
   }
   deriving (Generic)
 
 -- | A part of the state which is not reverted when an error is thrown
 -- or the state is reset.
 data PersistentTCState = PersistentTCSt
-  { stPersistentSession :: !SessionTCState
+  { stPersistentSession :: !(MVar SessionState)
       -- ^ State that persists for the whole Agda session.
       --   Grows monotonically, never sees any deletion.
   , stDecodedModules    :: !DecodedModules
@@ -449,20 +468,17 @@ data TypeCheckAction
 initFileDict :: AbsolutePath -> FileDictWithBuiltins
 initFileDict primLibDir = FileDictWithBuiltins empty empty primLibDir
 
-initSessionState :: AbsolutePath -> SessionTCState
-initSessionState primLibDir = SessionTCState
+initSessionState :: AbsolutePath -> SessionState
+initSessionState primLibDir = SessionState
   { stSessionFileDict                  = initFileDict primLibDir
-  , stSessionBenchmark                 = empty
   , stSessionBackends                  = empty
+  , stSessionModuleToSourceId          = empty
   , stSessionInteractionOutputCallback = defaultInteractionOutputCallback
   }
 
 -- | Empty persistent state.
 
-initPersistentState :: AbsolutePath -> PersistentTCState
-initPersistentState = initPersistentStateFromSessionState . initSessionState
-
-initPersistentStateFromSessionState :: SessionTCState -> PersistentTCState
+initPersistentStateFromSessionState :: MVar SessionState -> PersistentTCState
 initPersistentStateFromSessionState s = PersistentTCSt
   { stPersistentSession             = s
   , stPersistentOptions             = defaultOptions
@@ -488,7 +504,6 @@ initPreScopeState = PreScopeState
   , stPreImports              = emptySignature
   , stPreImportedModules      = empty
   , stPreImportedModulesTransitive = empty
-  , stPreModuleToSourceId     = Map.empty
   , stPreVisitedModules       = Map.empty
   , stPreScope                = emptyScopeInfo
   , stPrePatternSyns          = Map.empty
@@ -552,12 +567,12 @@ initPostScopeState = PostScopeState
   }
 
 initStateIO :: IO TCState
-initStateIO = initState <$> getPrimitiveLibDir
+initStateIO = initState =<< getPrimitiveLibDir
 
-initState :: AbsolutePath -> TCState
-initState = initStateFromSessionState . initSessionState
+initState :: AbsolutePath -> IO TCState
+initState fp = initStateFromSessionState <$> newMVar (initSessionState fp)
 
-initStateFromSessionState :: SessionTCState -> TCState
+initStateFromSessionState :: MVar SessionState -> TCState
 initStateFromSessionState = initStateFromPersistentState . initPersistentStateFromSessionState
 
 initStateFromPersistentState :: PersistentTCState -> TCState
@@ -580,35 +595,35 @@ lensPreScopeState f s = f (stPreScopeState s) <&> \ x -> s { stPreScopeState = x
 lensPostScopeState :: Lens' TCState PostScopeState
 lensPostScopeState f s = f (stPostScopeState s) <&> \ x -> s { stPostScopeState = x }
 
--- ** Components of 'SessionTCState'
+-- ** Components of 'SessionState'
 
-lensSessionState :: Lens' TCState SessionTCState
+lensSessionState :: Lens' TCState (MVar SessionState)
 lensSessionState = lensPersistentState . lensPersistentSession
 
-lensBackends :: Lens' SessionTCState [Backend]
+lensBackends :: Lens' SessionState [Backend]
 lensBackends f s = f (stSessionBackends s) <&> \ x -> s { stSessionBackends = x }
 
-lensBenchmark :: Lens' SessionTCState Benchmark
-lensBenchmark f s = f (stSessionBenchmark s) <&> \ x -> s { stSessionBenchmark = x }
-
-lensFileDict :: Lens' SessionTCState FileDictWithBuiltins
+lensFileDict :: Lens' SessionState FileDictWithBuiltins
 lensFileDict f s = f (stSessionFileDict s) <&> \ x -> s { stSessionFileDict = x }
 
-lensFileDictBuilder :: Lens' SessionTCState FileDictBuilder
+lensModuleToSourceId :: Lens' SessionState ModuleToSourceId
+lensModuleToSourceId f s = f (stSessionModuleToSourceId s) <&> \ x -> s { stSessionModuleToSourceId = x }
+
+lensFileDictBuilder :: Lens' SessionState FileDictBuilder
 lensFileDictBuilder = lensFileDict . lensFileDictFileDictBuilder
 
-lensBuiltinModuleIds :: Lens' SessionTCState BuiltinModuleIds
+lensBuiltinModuleIds :: Lens' SessionState BuiltinModuleIds
 lensBuiltinModuleIds = lensFileDict . lensFileDictBuiltinModuleIds
 
-lensPrimitiveLibDir :: Lens' SessionTCState PrimitiveLibDir
+lensPrimitiveLibDir :: Lens' SessionState PrimitiveLibDir
 lensPrimitiveLibDir = lensFileDict . lensFileDictPrimitiveLibDir
 
-lensInteractionOutputCallback :: Lens' SessionTCState InteractionOutputCallback
+lensInteractionOutputCallback :: Lens' SessionState InteractionOutputCallback
 lensInteractionOutputCallback f s = f (stSessionInteractionOutputCallback s) <&> \ x -> s { stSessionInteractionOutputCallback = x }
 
 -- ** Components of 'PersistentTCState'
 
-lensPersistentSession :: Lens' PersistentTCState SessionTCState
+lensPersistentSession :: Lens' PersistentTCState (MVar SessionState)
 lensPersistentSession f s = f (stPersistentSession s) <&> \ x -> s { stPersistentSession = x }
 
 lensLoadedFileCache :: Lens' PersistentTCState (Strict.Maybe LoadedFileCache)
@@ -631,9 +646,6 @@ lensImportedModules f s = f (stPreImportedModules s) <&> \ x -> s { stPreImporte
 
 lensImportedModulesTransitive :: Lens' PreScopeState ImportedModules
 lensImportedModulesTransitive f s = f (stPreImportedModulesTransitive s) <&> \ x -> s { stPreImportedModulesTransitive = x }
-
-lensModuleToSourceId :: Lens' PreScopeState ModuleToSourceId
-lensModuleToSourceId f s = f (stPreModuleToSourceId s ) <&> \ x -> s { stPreModuleToSourceId = x }
 
 lensVisitedModules :: Lens' PreScopeState VisitedModules
 lensVisitedModules f s = f (stPreVisitedModules s ) <&> \ x -> s { stPreVisitedModules = x }
@@ -802,26 +814,6 @@ lensInstanceHack f s = f (stPostInstanceHack s) <&> \ x -> s { stPostInstanceHac
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
 
--- ** Session state
-
-stBackends :: Lens' TCState [Backend]
-stBackends = lensSessionState . lensBackends
-
-stBenchmark :: Lens' TCState Benchmark
-stBenchmark = lensSessionState . lensBenchmark
-
-stFileDict :: Lens' TCState FileDictWithBuiltins
-stFileDict = lensSessionState . lensFileDict
-
-stBuiltinModuleIds :: Lens' TCState BuiltinModuleIds
-stBuiltinModuleIds = lensSessionState . lensBuiltinModuleIds
-
-stPrimitiveLibDir :: Lens' TCState PrimitiveLibDir
-stPrimitiveLibDir = lensSessionState . lensPrimitiveLibDir
-
-stInteractionOutputCallback :: Lens' TCState InteractionOutputCallback
-stInteractionOutputCallback = lensSessionState . lensInteractionOutputCallback
-
 -- ** Persistent state
 
 stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
@@ -849,11 +841,8 @@ stImportedModulesAndTransitive ::
 stImportedModulesAndTransitive
   = lensProduct stImportedModules stImportedModulesTransitive
 
-stModuleToSourceId :: Lens' TCState ModuleToSourceId
-stModuleToSourceId = lensPreScopeState . lensModuleToSourceId
-
-stModuleToSource :: Lens' TCState ModuleToSource
-stModuleToSource = lensProduct stFileDict stModuleToSourceId . lensPairModuleToSource
+lensModuleToSource :: Lens' SessionState ModuleToSource
+lensModuleToSource = lensProduct lensFileDict lensModuleToSourceId . lensPairModuleToSource
 
 stVisitedModules :: Lens' TCState VisitedModules
 stVisitedModules = lensPreScopeState . lensVisitedModules
@@ -5842,6 +5831,7 @@ enableCaching = optCaching <$> pragmaOptions
 data ReduceEnv = ReduceEnv
   { redEnv  :: TCEnv    -- ^ Read only access to environment.
   , redSt   :: TCState  -- ^ Read only access to state (signature, metas...).
+  , redSess :: SessionState -- ^ Read only access to the *session* state (module - source maps, etc)
   , redPred :: Maybe (MetaId -> ReduceM Bool)
     -- ^ An optional predicate that is used by 'instantiate'' and
     -- 'instantiateFull'': meta-variables are only instantiated if
@@ -5858,7 +5848,7 @@ mapRedSt f s = s { redSt = f (redSt s) }
 
 mapRedEnvSt :: (TCEnv -> TCEnv) -> (TCState -> TCState) -> ReduceEnv
             -> ReduceEnv
-mapRedEnvSt f g (ReduceEnv e s p) = ReduceEnv (f e) (g s) p
+mapRedEnvSt f g (ReduceEnv e s sess p) = ReduceEnv (f e) (g s) sess p
 {-# INLINE mapRedEnvSt #-}
 
 -- Lenses
@@ -5952,12 +5942,15 @@ instance MonadFail ReduceM where
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
+  getSessionState = ReduceM redSess
+
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do
   s <- Strict.readIORef r
-  E.evaluate $ unReduceM m $ ReduceEnv e s Nothing
+  sess <- readMVar (s ^. lensSessionState)
+  E.evaluate $ unReduceM m $ ReduceEnv e s sess Nothing
   -- Andreas, 2021-05-13, issue #5379
   -- This was the following, which is apparently not strict enough
   -- to force all unsafePerformIOs...
@@ -6166,6 +6159,68 @@ stateTCLensM l f = do
   (result , a') <- f a
   result <$ setTCLens l a'
 
+{-# INLINE useSession #-}
+-- | Access a part of the 'SessionState' through a lens.
+useSession :: ReadTCState m => Lens' SessionState a -> m a
+useSession l = view l <$!> getSessionState
+
+class ReadTCState m => ModifySession m where
+  -- | Modify a part of the 'SessionState' through a lens. If the
+  -- continuation fails, modifications to the session state should be
+  -- reset.
+  --
+  -- The calling thread locks **the entire session state** for the
+  -- duration of the modifying function's execution. Nested applications
+  -- of this function **will** deadlock, even if they target disjoint
+  -- lenses!
+  --
+  -- This function is strict both in the modification to the state and in
+  -- the result.
+  stateSessionLensM :: Lens' SessionState a -> (a -> m (r, a)) -> m r
+
+instance (MonadIO m, Catch.MonadMask m) => ModifySession (TCMT m) where
+
+  -- The glue code that actually modifies the MVar must be
+  -- uninterruptible, so we incur a MonadMask constraint, which
+  -- Haskeline's InputT implements.
+  stateSessionLensM l f = TCM \st env -> Catch.mask \reset -> do
+    mv <- view lensSessionState <$> liftIO (Strict.readIORef st)
+    sess <- liftIO $ takeMVar mv
+
+    -- We put the old state back into the MVar if the continuation fails
+    -- so that the MVar is not left empty for other threads to block on.
+    (res, a') <- reset (unTCM (f $! sess ^. l) st env)
+      `Catch.onException` liftIO (putMVar mv sess)
+
+    liftIO $ putMVar mv $! set l a' sess
+    pure $! res
+
+instance ModifySession m => ModifySession (StateT s m) where
+  stateSessionLensM l k = StateT \s -> stateSessionLensM l \v ->
+    runStateT (k v) s <&> \((r, a), s) -> ((r, s), a)
+
+instance ModifySession m => ModifySession (MaybeT m) where
+  stateSessionLensM l k = MaybeT $ stateSessionLensM l \v -> runMaybeT (k v) >>= \case
+    Just (r, a) -> pure (Just r, a)
+    Nothing     -> pure (Nothing, v)
+
+
+{-# INLINE stateSessionLens #-}
+-- | Like 'stateSessionLensM', but the modification function is not
+-- allowed to perform effects.
+stateSessionLens :: ModifySession m => Lens' SessionState a -> (a -> (r, a)) -> m r
+stateSessionLens l f = stateSessionLensM l $ pure . f
+
+{-# INLINE modifySession #-}
+-- | Like 'stateSessionLens', but the modification function can not
+-- return an extra result.
+modifySession :: ModifySession m => Lens' SessionState a -> (a -> a) -> m ()
+modifySession l f = stateSessionLens l $ pure . f
+
+{-# INLINE setSessionLens #-}
+-- | Like 'modifySession', but with a constant new value.
+setSessionLens :: ModifySession m => Lens' SessionState a -> a -> m ()
+setSessionLens l v = modifySession l (const v)
 
 ---------------------------------------------------------------------------
 -- ** Monad with capability to block a computation
@@ -6313,6 +6368,10 @@ instance MonadIO m => MonadTCState (TCMT m) where
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC; {-# INLINE getTCState #-}
   locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l); {-# INLINE locallyTCState #-}
+
+  getSessionState = do
+    mv <- useTC lensSessionState
+    liftIO $ readMVar mv
 
 instance MonadBlock TCM where
   patternViolation b = throwError (PatternErr b)
@@ -6502,18 +6561,17 @@ runSafeTCM m st =
     IOException _ _ err -> E.throwIO err
     _                   -> __IMPOSSIBLE__
 
--- | Runs the given computation in a separate thread, with /a copy/ of
--- the current state and environment.
+-- | Runs the computation in a separate thread, with a /copy/ of the
+-- 'TCState' of the calling thread.
 --
--- Note that Agda sometimes uses actual, mutable state. If the
--- computation given to @forkTCM@ tries to /modify/ this state, then
--- bad things can happen, because accesses are not mutually exclusive.
--- The @forkTCM@ function has been added mainly to allow the thread to
--- /read/ (a snapshot of) the current state in a convenient way.
+-- Modification of the 'TCState' performed by the detached computation
+-- (e.g. creation of metas) is invisible to the parent thread, and to
+-- any siblings. They will be "discarded" when the thread finishes. It
+-- is thus important to ensure that any results returned out-of-band by
+-- the child thread are valid in an arbitrary TC state.
 --
--- Note also that exceptions which are raised in the thread are not
--- propagated to the parent, so the thread should not do anything
--- important.
+-- The detached thread has read-write, synchronised access to the
+-- 'SessionState'.
 
 forkTCM :: TCM () -> TCM ()
 forkTCM m = do
@@ -6895,8 +6953,8 @@ instance NFData IsAxiom
 -- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
 -- See https://github.com/haskell/deepseq/issues/111.
 
-instance NFData SessionTCState where
-  rnf (SessionTCState a b c _fun) =
+instance NFData SessionState where
+  rnf (SessionState a b c _fun) =
     rnf a `seq` rnf b `seq` rnf c
 
 instance NFData PrimFun where
