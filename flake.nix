@@ -197,7 +197,6 @@
           ;
         };
         buildInputs = [
-          pkgs.which            # For Makefile
           pkgs.gitMinimal       # For diffs
           hpkgs.ghc             # For agda-tests's Compiler.Tests
           pkgs.nodejs_22        # For agda-tests's Compiler.Tests

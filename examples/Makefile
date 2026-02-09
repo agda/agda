@@ -57,7 +57,7 @@ other_files = AIM5/Hedberg/SET.agda \
 
 other_examples = $(patsubst %,%.other,$(other_files))
 
-echo = $(shell which echo)
+echo = $(shell command -v echo)
 ifeq ("$(echo)","")
 echo = echo
 endif
@@ -216,4 +216,3 @@ $(other_examples) : %.other : %
 	@$(echo) -n "Testing $<... "
 	@$(echo) :q | $(run_agda) -i$(dir $<) $<
 	@$(echo) "ok"
-

@@ -747,7 +747,7 @@ See `agda-bisect --help` for usage information.
 The following command temporarily enables Bash completion for
 `agda-bisect`:
   ```sh
-    source < (agda-bisect --bash-completion-script `which agda-bisect`)
+    source < (agda-bisect --bash-completion-script `command -v agda-bisect`)
   ```
 Bash completion can perhaps be enabled more permanently by storing the
 output of the command above in a file in a suitable directory (like
