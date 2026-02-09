@@ -85,7 +85,7 @@ callBackendInteractHole name cmd ii rng s =
 withKnownBackend ::
   (MonadTCError m) => BackendName -> (Backend -> m ()) -> m ()
 withKnownBackend name k = ifJustM (lookupBackend name) k $ do
-  backends <- useTC stBackends
+  backends <- useSession lensBackends
   let backendSet = otherBackends ++ [ backendName b | Backend b <- backends ]
   typeError $ UnknownBackend name (Set.fromList backendSet)
 

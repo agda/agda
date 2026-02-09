@@ -26,7 +26,7 @@ import Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( tcErrModuleToSource, explainWhyInScope, getAllWarningsOfTCErr, verbalize, prettyError )
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, verbalize, prettyError )
 import Agda.TypeChecking.Pretty qualified as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings')
@@ -363,7 +363,7 @@ wantBufferHighlighting other = do
     AlwaysColour -> True
     NeverColour  -> False
   if col
-    then Just <$> maybe (useTC stModuleToSource) pure other
+    then Just <$> maybe (useSession lensModuleToSource) pure other
     else return Nothing
 
 -- | Adds a \"last\" tag to a response.
@@ -417,7 +417,7 @@ prettyInfoError = \case
     e  <- prettyError err
     ws <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
     let (_title, body) = formatWarningsAndErrors empty ws [e]
-    return (tcErrModuleToSource err, body)
+    return (Nothing, body)
 
   Info_CompilationError warnings -> do
     docs <- prettyTCWarnings' warnings

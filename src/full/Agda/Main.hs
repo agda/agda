@@ -164,7 +164,7 @@ runAgdaArgs backends args = do
               IO.hSetEncoding IO.stdout enc
               IO.hSetEncoding IO.stderr enc
 
-          setTCLens stBackends bs
+          setSessionLens lensBackends bs
           runAgdaWithOptions interactor progName opts
 
 

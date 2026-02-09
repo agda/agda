@@ -7,7 +7,7 @@ module Agda.TypeChecking.Errors
   , prettyError
   , prettyShadowedModule
   , tcErrString
-  , tcErrModuleToSource
+  -- , tcErrModuleToSource
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
@@ -152,14 +152,14 @@ tcErrString err =
 -- | If the 'TCErr' carries a 'TCState', return the 'ModuleToSource'
 -- from there, since that's the 'ModuleToSource' we need for
 -- highlighting the actual error message.
-tcErrModuleToSource :: TCErr -> Maybe ModuleToSource
-tcErrModuleToSource = \case
-  err@TypeError{}    -> Just $! tcErrState err ^. stModuleToSource
-  IOException st _ _ -> (^. stModuleToSource) <$> st
+-- tcErrModuleToSource :: TCErr -> Maybe ModuleToSource
+-- tcErrModuleToSource = \case
+--   err@TypeError{}    -> Just $! tcErrState err ^. stModuleToSource
+--   IOException st _ _ -> (^. stModuleToSource) <$> st
 
-  GenericException{} -> Nothing
-  ParserError{}      -> Nothing
-  PatternErr{}       -> Nothing
+--   GenericException{} -> Nothing
+--   ParserError{}      -> Nothing
+--   PatternErr{}       -> Nothing
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of

@@ -160,7 +160,7 @@ traceDebugMessageTCM k n doc cont = do
     -- Andreas, 2019-08-20, issue #4016:
     -- Force any lazy 'Impossible' exceptions to the surface and handle them.
     msg :: DocTree <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force . renderToTree $ doc
-    cb <- useTC $ stInteractionOutputCallback
+    cb <- useSession lensInteractionOutputCallback
     cb $ Resp_RunningInfo n msg
     cont
     where
