@@ -26,7 +26,7 @@ import Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( tcErrModuleToSource, explainWhyInScope, getAllWarningsOfTCErr, verbalize, prettyError )
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, verbalize, prettyError )
 import Agda.TypeChecking.Pretty qualified as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings')
@@ -92,8 +92,7 @@ lispifyResponse = \case
     return clearRunningInfo
 
   Resp_RunningInfo n docTree
-    | n <= 1 -> do
-        displayRunningInfo docTree <$> wantBufferHighlighting Nothing
+    | n <= 1 -> displayRunningInfo docTree <$> wantBufferHighlighting
     | otherwise ->
         return $ L [ A "agda2-verbose", A (quote $ Text.unpack $ treeToTextNoAnn docTree) ]
         -- TODO: do we want colored debug-printout?
@@ -193,8 +192,7 @@ lispifyDisplayInfo = \case
     Info_Auto s ->
       format "*Auto*" $ P.text s
 
-    Info_Error err -> do
-      uncurry (format' "*Error*") =<< prettyInfoError err
+    Info_Error err -> format' "*Error*" =<< prettyInfoError err
 
     Info_Time time ->
       format "*Time*" $ prettyTimed time
@@ -330,40 +328,28 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
       format "*Inferred Type*" doc
 
 format :: String -> Doc -> TCM (Lisp String)
-format header = format' header Nothing
+format header = format' header
 
 -- | Format responses of 'DisplayInfo'.
 format'
   :: String
   -- ^ String to use as a header.
-  -> Maybe ModuleToSource
-  -- ^ Map of module names to source files *as used in the context of the 'Doc'*.
-  --
-  -- Note: 'Nothing' does not mean "do not highlight", it means "use the
-  -- current 'ModuleToSource'". This is appropriate if the 'Doc' was
-  -- generated in a TC state which the current state descends from, but
-  -- not if it was generated in a now-discarded state (e.g.: an error in
-  -- an imported module).
   -> Doc
   -- ^ The document to print.
   -> TCM (Lisp String)
-format' header m2s content = displayInfo header (renderToTree content) False <$>
-  wantBufferHighlighting m2s
+format' header content = displayInfo header (renderToTree content) False <$>
+  wantBufferHighlighting
 
 -- | Do we want highlighting in the Agda information buffer?
 --   'Nothing' with option @--color=never@.
-wantBufferHighlighting
-  :: Maybe ModuleToSource
-  -- ^ If 'Just', use the given 'ModuleToSource' instead of the one from
-  -- the TC state.
-  -> TCM (Maybe ModuleToSource)
-wantBufferHighlighting other = do
+wantBufferHighlighting :: TCM (Maybe ModuleToSource)
+wantBufferHighlighting = do
   col <- commandLineOptions <&> optDiagnosticsColour <&> \case
     AutoColour   -> True
     AlwaysColour -> True
     NeverColour  -> False
   if col
-    then Just <$> maybe (useTC stModuleToSource) pure other
+    then Just <$> useSession lensModuleToSource
     else return Nothing
 
 -- | Adds a \"last\" tag to a response.
@@ -402,35 +388,29 @@ formatWarningsAndErrors g ws es = (title, body)
 
 -- | Serializing 'Info_Error'.
 showInfoError :: Info_Error -> TCM String
-showInfoError = (render . snd) <.> prettyInfoError
+showInfoError = render <.> prettyInfoError
 
--- | Turn an 'Info_Error' into a 'Doc'. Possibly returns a
--- 'ModuleToSource' appropriate for rendering the returned 'Doc'.
---
--- A 'Nothing' return only indicates that the 'Doc' can be safely
--- rendered in the current TC state. Pass this value to
--- 'wantBufferHighlighting' to respect whether the user wants syntax
--- colouring.
-prettyInfoError :: Info_Error -> TCM (Maybe ModuleToSource, Doc)
+-- | Turn an 'Info_Error' into a 'Doc'.
+prettyInfoError :: Info_Error -> TCM Doc
 prettyInfoError = \case
   Info_GenericError err -> do
     e  <- prettyError err
     ws <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
     let (_title, body) = formatWarningsAndErrors empty ws [e]
-    return (tcErrModuleToSource err, body)
+    return body
 
   Info_CompilationError warnings -> do
     docs <- prettyTCWarnings' warnings
-    return . (Nothing,) $ vcat $
+    return $ vcat $
       "You need to fix the following errors before you can compile the module:" :
       "" :
       docs
 
   Info_HighlightingParseError ii ->
-    return . (Nothing,) $ "Highlighting failed to parse expression in" <+> pretty ii
+    return $ "Highlighting failed to parse expression in" <+> pretty ii
 
   Info_HighlightingScopeCheckError ii ->
-    return . (Nothing,) $ "Highlighting failed to scope check expression in" <+> pretty ii
+    return $ "Highlighting failed to scope check expression in" <+> pretty ii
 
 -- | Pretty-prints the context of the given meta-variable.
 
