@@ -264,13 +264,18 @@ failConversion cmp l r cas = do
       t <- sizeType
       pure $ FailAsTermsOf t t
 
-  typeError $ ConversionError_ ConversionError
-    { convErrTys = as
-    , convErrRhs = r
-    , convErrLhs = l
-    , convErrCmp = cmp
-    , convErrCtx = Floating ConvStop
-    }
+  typeError case (l, r) of
+    (Sort MetaS{} , t            ) -> ShouldBeASort $ El __IMPOSSIBLE__ t
+    (s            , Sort MetaS{} ) -> ShouldBeASort $ El __IMPOSSIBLE__ s
+    (Sort DefS{}  , t            ) -> ShouldBeASort $ El __IMPOSSIBLE__ t
+    (s            , Sort DefS{}  ) -> ShouldBeASort $ El __IMPOSSIBLE__ s
+    _                              -> ConversionError_ ConversionError
+      { convErrTys = as
+      , convErrRhs = r
+      , convErrLhs = l
+      , convErrCmp = cmp
+      , convErrCtx = Floating ConvStop
+      }
 
 -- | Add some call stack context to floating t'ConversionError's thrown
 -- from the continuation.
@@ -376,12 +381,7 @@ cutConversionErrors cont = cont `catchError` \case
   TypeError loc st cl@Closure{ clValue = ConversionError_ conv } -> enterClosure cl \_ ->
     flattenConversionError conv \conv@ConversionError{convErrLhs = lhs, convErrRhs = rhs} -> do
       cl <- buildClosure ()
-      throwError $ TypeError loc st $ cl $> case (lhs, rhs) of
-        (Sort MetaS{} , t            ) -> ShouldBeASort $ El __IMPOSSIBLE__ t
-        (s            , Sort MetaS{} ) -> ShouldBeASort $ El __IMPOSSIBLE__ s
-        (Sort DefS{}  , t            ) -> ShouldBeASort $ El __IMPOSSIBLE__ t
-        (s            , Sort DefS{}  ) -> ShouldBeASort $ El __IMPOSSIBLE__ s
-        _                              -> ConversionError_ conv
+      throwError $ TypeError loc st $ cl $> ConversionError_ conv
   err -> throwError err
 
 -- | Intermediate type for storing the results of flattening a 'ConversionZipper'.
