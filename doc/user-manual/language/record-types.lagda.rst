@@ -850,7 +850,7 @@ Superclass fields are in scope as local instances in the types of
 subsequent fields, and in the types of any declarations nested within
 the record::
 
-    record Interval (A : Set) : Set where
+    record Bounded (A : Set) : Set where
       field
         ⦃ cmpA ⦄ : Cmp A
         lo hi    : A
@@ -937,7 +937,7 @@ that is the candidate coming from the ``Ord`` argument::
 If overlapping candidates are introduced by *recursive* superclass
 expansion, resolution will prefer those arising from the earlier field
 in declaration order. Candidates expanded 'on the way' do not,
-themselves, need to be marked overlap; Nor will this be sufficient for
+themselves, need to be marked overlap; nor will this be sufficient for
 resolving an overlap in *their* superclass fields.
 
 ::
