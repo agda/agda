@@ -676,19 +676,20 @@ Find candidates
   have been matched on.
 
   If local variables in the context have :ref:`superclass fields
-  <superclass-fields>`, superclass expansion will apply.
+  <superclass-fields>`, superclass expansion will apply. Note that
+  determining whether any local instance variables are subject to
+  expansion requires head-normalising their types.
 
   Only candidates of type ``{Δ} → C us``, where ``C`` is the target type
   computed in the previous stage, and ``{Δ}`` only contains implicit or
   instance arguments, are considered.
 
-  Note that if any candidates have an indeterminate type (i.e., their
-  type is an unsolved metavariable, or a function type returning an
-  unsolved metavariable), then instance search will not run.
-  Also keep in mind that the types of all instance arguments in the
-  context need to be reduced to determine whether they are eta records,
-  and to determine whether they are applicable to solving the current
-  goal.
+  If it is not possible to determine whether a candidate's type is of
+  the correct shape, or whether its type is an eta record, instance
+  search will not run. This can happen in contexts where a local
+  *instance* variable has a metavariable as its (return) type, or if its
+  type is blocked on another metavariable, even if this metavariable
+  would be solved by choosing one of the unblocked candidates.
 
 Check the type of the candidates
   The list of initial candidates is an overapproximation to the set of
