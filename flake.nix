@@ -12,7 +12,7 @@
     perSystem = { system, pkgs, lib, inputs', ... }: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc912
-      fs = pkgs.lib.fileset;
+      fs = lib.fileset;
       ghc-wasm = inputs'.ghc-wasm;
 
       # An overlay for the Haskell package set that adds various builds of Agda
@@ -79,7 +79,7 @@
           # Place the binaries in a separate output with a much smaller closure size.
           enableSeparateBinOutput = true;
           mainProgram = "agda";
-        } // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) {
+        } // lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) {
           # A nixpkgs-specific patch for aarch64-darwin related to the separate bin output
           # causes a warning about some functions being removed from Paths_Agda, which
           # we can just ignore. See https://github.com/agda/agda/issues/8016
@@ -202,8 +202,8 @@
           pkgs.nodejs_22        # For agda-tests's Compiler.Tests
           hpkgs.Agda            # For manual testing with `agda` and `agda-tests`
         ] ++ args.buildInputs or [ ];
-        AGDA_BIN = "${pkgs.lib.getBin hpkgs.Agda}/bin/agda";
-        AGDA_TESTS_BIN = "${pkgs.lib.getBin hpkgs.Agda}/bin/agda-tests";
+        AGDA_BIN = "${lib.getBin hpkgs.Agda}/bin/agda";
+        AGDA_TESTS_BIN = "${lib.getBin hpkgs.Agda}/bin/agda-tests";
         LC_ALL = "C.UTF-8"; # Support Unicode
         buildPhase = ''
           set -euo pipefail
@@ -231,7 +231,7 @@
         overlays = [
           (final: prev: {
             haskell = prev.haskell // {
-              packageOverrides = pkgs.lib.composeExtensions prev.haskell.packageOverrides agdaOverrides;
+              packageOverrides = lib.composeExtensions prev.haskell.packageOverrides agdaOverrides;
             };
           })
         ];
@@ -251,7 +251,7 @@
       # (including as a dependency of other nixpkgs packages)
       # See https://flake.parts/overlays for more info
       overlayAttrs.haskell = pkgs.haskell // {
-        packageOverrides = pkgs.lib.composeExtensions pkgs.haskell.packageOverrides agdaOverrides;
+        packageOverrides = lib.composeExtensions pkgs.haskell.packageOverrides agdaOverrides;
       };
     };
 
