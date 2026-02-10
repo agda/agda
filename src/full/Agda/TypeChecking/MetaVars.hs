@@ -795,6 +795,23 @@ assignWrapper dir x es v doAssign = do
           reportSLn "tc.meta.assign" 10 "don't assign metas"
           patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
 
+-- | Gets the set of variables forced by local rewrite rules
+rewForced :: Tele (Dom a) -> VarSet
+rewForced EmptyTel        = VarSet.empty
+rewForced (ExtendTel a b) =
+  fromMaybe VarSet.empty
+    (VarSet.weaken (size b + 1) . rewForced' . fromMaybe __IMPOSSIBLE__ .
+      rewDomRew <$> rewDom a) <>
+    (rewForced $ unAbs b)
+  where
+    rewForced' :: LocalRewriteRule -> VarSet
+    rewForced' (LocalRewriteRule EmptyTel (RewVarHead x) [] _ _) =
+      VarSet.singleton x
+    rewForced' (LocalRewriteRule _ (RewVarHead x) [] _ _) =
+      __IMPOSSIBLE__
+    rewForced' _ =
+      VarSet.empty
+
 -- | Miller pattern unification:
 --
 --   @assign dir x vs v a@ solves problem @x vs <=(dir) v : a@ for meta @x@
@@ -1055,9 +1072,14 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       reportSDoc "tc.meta.assign" 20 $
         "fvars rhs:" <+> sep (map (text . show) $ VarSet.toAscList fvs)
 
+      -- We need to identify arguments to the meta that are forced by local
+      -- rewrite rules
+      forced <- fmap (rewForced . theTel) $ telView $ jMetaType $
+        mvJudgement mvar
+
       -- Check that the arguments are variables
       mids <- do
-        res <- runExceptT $ inverseSubst' (const False) args
+        res <- runExceptT $ inverseSubst' (const False) forced args
         case res of
           -- all args are variables
           Right ids -> do
@@ -1679,8 +1701,8 @@ data InvertExcept
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-inverseSubst' :: (Term -> Bool) -> Args -> ExceptT InvertExcept TCM SubstCand
-inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
+inverseSubst' :: (Term -> Bool) -> VarSet -> Args -> ExceptT InvertExcept TCM SubstCand
+inverseSubst' skip rewForced args = map (first unArg) <$> loop (zip args terms)
   where
   loop  = foldM isVarOrIrrelevant []
   terms = map var (downFrom (size args))
@@ -1692,6 +1714,14 @@ inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
   neutralArg = throwError NeutralArg
 
   isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
+  isVarOrIrrelevant vars (Arg info v, Var x [])
+    | x `VarSet.member` rewForced = do
+    lift $ reportSDoc "tc.meta.assign" 60 $ vcat
+            [ "argument is forced by rewrite rule"
+            , "  arg = " <+> prettyTCM v
+            , "  var = " <+> prettyTCM (var x)
+            ]
+    return vars
   isVarOrIrrelevant vars (Arg info v, t) = do
     let irr | isIrrelevant info = True
             | DontCare{} <- v   = True
@@ -1753,9 +1783,9 @@ inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
         pure $ (Arg info i, Def qn [Apply (defaultArg t)]) `cons` vars
 
       Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
-      t@Lam{}    -> failure t
-      t@Lit{}    -> failure t
-      t@MetaV{}  -> failure t
+      tm@Lam{}   -> failure tm
+      tm@Lit{}   -> failure tm
+      tm@MetaV{} -> failure tm
       Pi{}       -> neutralArg
       Sort{}     -> neutralArg
       Level{}    -> neutralArg
@@ -1820,8 +1850,10 @@ isFaceConstraint mid args = runMaybeT $ do
   -- We must check the "face condition" (the relaxed pattern condition)
   -- and check linearity of the substitution candidate, otherwise the
   -- equation can't be inverted into a face constraint.
-  sub <- MaybeT $ either (const Nothing) Just <$> runExceptT (inverseSubst' isEndpoint args)
-  ids <- MaybeT $ either (const Nothing) Just <$> runExceptT (checkLinearity sub)
+  sub <- MaybeT $ either (const Nothing) Just <$> runExceptT
+    (inverseSubst' isEndpoint VarSet.empty args)
+  ids <- MaybeT $ either (const Nothing) Just <$> runExceptT
+    (checkLinearity sub)
 
   m           <- getContextSize
   TelV tel' _ <- telViewUpToPath n t
