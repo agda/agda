@@ -93,17 +93,19 @@ import Agda.Syntax.Common hiding (Arg, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy hiding (Free)
-import Agda.TypeChecking.Free.Lazy qualified as LazyOld
-import Agda.TypeChecking.Free.LazyNew qualified as LazyNew
+import Agda.TypeChecking.Free.Lazy qualified as FreeOld
+import Agda.TypeChecking.Free.LazyNew qualified as FreeNew
+import Agda.TypeChecking.FreeNew qualified as FreeNew
 
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Singleton
+import Agda.Utils.Impossible
 
 -- New API
 --------------------------------------------------------------------------------
 
-type Free a = (LazyOld.Free a, LazyNew.Free a)
+type Free a = (FreeOld.Free a, FreeNew.Free a)
 
 anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
 anyFreeVar f t = getAny $ runFree (Any . f) IgnoreNot t
@@ -127,11 +129,16 @@ freeVarCounts :: Free t => t -> VarCounts
 freeVarCounts = freeVars
 
 freeVarSet :: Free t => t -> VarSet
-freeVarSet = freeVars
+freeVarSet t =
+  let x  = freeVars t
+      x' = FreeNew.freeVarSet t
+  in if x == x' then x else __IMPOSSIBLE__
 
 freeVarList :: Free t => t -> [Int]
-freeVarList = freeVars
-
+freeVarList t =
+  let x  = freeVars t
+      x' = FreeNew.freeVarList t
+  in if x == x' then x else __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Simple variable set implementations.
