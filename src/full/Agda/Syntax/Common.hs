@@ -1541,9 +1541,9 @@ instance Pretty OriginShapeIrrelevant where
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
-  = Relevant OriginRelevant
+  = Relevant !OriginRelevant
       -- ^ The argument is (possibly) relevant at compile-time.
-  | ShapeIrrelevant OriginShapeIrrelevant
+  | ShapeIrrelevant !OriginShapeIrrelevant
       -- ^ Like 'Quantity0', the argument may never flow into evaluation position.
       --   So it is irrelevant at run-time,
       --   yet treated relevantly during equality checking.
@@ -1556,7 +1556,7 @@ data Relevance
       --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
       --   - <https://dl.acm.org/doi/10.1145/3110277>
       --   - <https://doi.org/10.1145/3209108.3209119>
-  | Irrelevant OriginIrrelevant
+  | Irrelevant !OriginIrrelevant
       -- ^ The argument is irrelevant at compile- and runtime.
     deriving (Show, Generic)
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE AllowAmbiguousTypes, MagicHash #-}
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 
@@ -64,6 +64,8 @@ module Agda.TypeChecking.Free.LazyNew where
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader (MonadReader(..))
+import GHC.Exts
+
 import Agda.Utils.StrictReader
 import Agda.Utils.ExpandCase
 
@@ -99,17 +101,17 @@ class (ExpandCase (Collect r), Monoid (Collect r)) => ComputeFree r where
 
   underBinders'     :: Int -> r -> r
   underConstructor' :: ConHead -> Elims -> r -> r
-  underModality'    :: Modality -> r -> r
-  underFlexRig'     :: FlexRig -> r -> r
-  underRelevance'   :: Relevance -> r -> r
+  underModality'    :: Maybe (Modality -> r -> r)
+  underFlexRig'     :: Maybe (FlexRig -> r -> r)
+  underRelevance'   :: Maybe (Relevance -> r -> r)
   variable'         :: Int -> r -> Collect r
   ignoreSorts'      :: IgnoreSorts
 
-  ignoreSorts' = IgnoreNot; {-# INLINE ignoreSorts' #-}
-  underConstructor' _ _ r = r; {-# INLINE underConstructor' #-}
-  underFlexRig'     _ r   = r; {-# INLINE underFlexRig'     #-}
-  underModality'    _ r   = r; {-# INLINE underModality'    #-}
-  underRelevance'   _ r   = r; {-# INLINE underRelevance'   #-}
+  ignoreSorts'            = IgnoreNot; {-# INLINE ignoreSorts' #-}
+  underConstructor' _ _ r = r;         {-# INLINE underConstructor' #-}
+  underModality'          = Nothing;   {-# INLINE underModality'    #-}
+  underFlexRig'           = Nothing;   {-# INLINE underFlexRig'     #-}
+  underRelevance'         = Nothing;   {-# INLINE underRelevance'   #-}
 
 {-# INLINE underBinders #-}
 underBinders :: MonadReader r m => ComputeFree r => Int -> m a -> m a
@@ -125,15 +127,21 @@ underConstructor hd es = local (underConstructor' hd es)
 
 {-# INLINE underModality #-}
 underModality :: MonadReader r m => ComputeFree r => Modality -> m a -> m a
-underModality = local . underModality'
+underModality m act = case underModality' of
+  Nothing -> act
+  Just f  -> local (f m) act
 
 {-# INLINE underRelevance #-}
 underRelevance :: MonadReader r m => ComputeFree r => Relevance -> m a -> m a
-underRelevance = local . underRelevance'
+underRelevance rel act = case underRelevance' of
+  Nothing -> act
+  Just f  -> local (f rel) act
 
 {-# INLINE underFlexRig #-}
 underFlexRig :: MonadReader r m => ComputeFree r => FlexRig -> m a -> m a
-underFlexRig = local . underFlexRig'
+underFlexRig fr act = case underFlexRig' of
+  Nothing -> act
+  Just f  -> local (f fr) act
 
 {-# INLINE variable #-}
 variable :: MonadReader r m => ComputeFree r => Int -> m (Collect r)
@@ -144,23 +152,63 @@ variable x = variable' x <$!> ask
 class Free t where
   freeVars :: ComputeFree r => t -> Reader r (Collect r)
 
+-- | Find the index of the last projection in the spine if there's any.
+--   Oterwise return (-1).
+lastProjectionIx :: Elims -> Int#
+lastProjectionIx = goPIx 0# where
+  goPIx :: Int# -> Elims -> Int#
+  goPIx i = \case
+    []        -> (-1#)
+    Proj{}:es -> case goPIx (i +# 1#) es of (-1#) -> i; i -> i
+    _:es      -> goPIx (i +# 1#) es
+
+-- | Compute freeVar on an Elims, but adjust all entries before the last projection.
+--   The `Int` argument is the index of the last projection.
+goProjectedElims :: forall r. ComputeFree r => Int# -> Elims -> Reader r (Collect r)
+goProjectedElims lasti ts = expand \ret ->
+  let goPE :: Int# -> Int# -> Elims -> Reader r (Collect r)
+      goPE lasti i es = expand \ret -> case es of
+        [] -> ret mempty
+        e:es | isTrue# (i <=# lasti) ->
+                ret (underModality defaultModality (freeVars e) <> goPE lasti (i +# 1#) es )
+             | otherwise ->
+                ret (freeVars e <> goPE lasti (i +# 1#) es)
+  in ret $ goPE lasti 0# ts
+
 instance Free Term where
-  freeVars t = expand \ret -> case unSpine t of
-    -- Var n ts ->
-    --   -- #4484: avoid projected variables being treated as StronglyRigid
-    --   -- András, 2026-02-10: conceptually, we do freeVars on "unspine t",
-    --   -- so a projected variable becomes an Arg with default modality
-    --   if any (\case Proj{} -> True; _ -> False) ts then
-    --      ret (underFlexRig WeaklyRigid (underModality defaultModality (variable n) <> freeVars ts))
-    --   else
-    --      ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
-    Var n ts -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+  freeVars :: forall r. ComputeFree r => Term -> Reader r (Collect r)
+  freeVars t = expand \ret -> case t of
+
+    Var n ts -> case underModality' @r of
+      -- We don't need to adjust anything because of projections.
+      Nothing -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+
+      -- #4484: avoid projected variables being treated as StronglyRigid
+      -- we compute freeVars as if on the result on "unSpine (Var n ts)"
+      _ -> case lastProjectionIx ts of
+        (-1#) -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+        lasti -> ret (underFlexRig WeaklyRigid (   underModality defaultModality (variable n)
+                                                <> goProjectedElims lasti ts))
+
+    Def _ ts ->  case underModality' @r of
+      Nothing -> ret (underFlexRig WeaklyRigid $ freeVars ts)
+      _ -> case lastProjectionIx ts of
+        (-1#) -> ret (underFlexRig WeaklyRigid $ freeVars ts)
+        lasti -> ret (underFlexRig WeaklyRigid $ goProjectedElims lasti ts)
+
+    MetaV m ts ->
+      let !fr = Flexible (singleton m) in
+      case underModality' @r of
+        Nothing -> ret (underFlexRig fr $ freeVars ts)
+        _ -> case lastProjectionIx ts of
+          (-1#) -> ret (underFlexRig fr $ freeVars ts)
+          lasti -> ret (underFlexRig fr $ goProjectedElims lasti ts)
 
     -- λ is not considered guarding, as
     -- we cannot prove that x ≡ λy.x is impossible.
     Lam _ t      ->  ret (underFlexRig WeaklyRigid $ freeVars t)
     Lit _        ->  ret mempty
-    Def _ ts     ->  ret (underFlexRig WeaklyRigid $ freeVars ts)
+
       -- because we are not in TCM
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
@@ -176,7 +224,6 @@ instance Free Term where
     Pi a b       -> ret $ freeVars (a, b) -- TODO: test with "underConstructor"
     Sort s       -> ret $ underRelevance shapeIrrelevant (freeVars s)
     Level l      -> ret $ freeVars l
-    MetaV m ts   -> ret $ underFlexRig (Flexible $ singleton m) $ freeVars ts
     DontCare mt  -> ret $ underModality (Modality irrelevant unitQuantity unitCohesion unitPolarity) $ freeVars mt
     Dummy{}      -> ret $ mempty
 
@@ -306,13 +353,13 @@ defaultUnderConstructor :: (Semigroup a, LensFlexRig r a) => ConHead -> Elims ->
 defaultUnderConstructor c h = over lensFlexRig (composeFlexRig (constructorFlexRig c h))
 
 {-# INLINE defaultUnderFlexRig #-}
-defaultUnderFlexRig :: (Semigroup a, LensFlexRig r a) => FlexRig' a -> r -> r
-defaultUnderFlexRig fr = over lensFlexRig (composeFlexRig fr)
+defaultUnderFlexRig :: (Semigroup a, LensFlexRig r a) => Maybe (FlexRig' a -> r -> r)
+defaultUnderFlexRig = Just \fr -> over lensFlexRig (composeFlexRig fr)
 
 {-# INLINE defaultUnderModality #-}
-defaultUnderModality :: LensModality r => Modality -> r -> r
-defaultUnderModality m = mapModality (composeModality m)
+defaultUnderModality :: LensModality r => Maybe (Modality -> r -> r)
+defaultUnderModality = Just \m -> mapModality (composeModality m)
 
 {-# INLINE defaultUnderRelevance #-}
-defaultUnderRelevance :: LensRelevance r => Relevance -> r -> r
-defaultUnderRelevance rel = mapRelevance (composeRelevance rel)
+defaultUnderRelevance :: LensRelevance r => Maybe (Relevance -> r -> r)
+defaultUnderRelevance = Just \rel -> mapRelevance (composeRelevance rel)

@@ -160,7 +160,7 @@ oneFlexRig = Unguarded
 --   Currently, we have 'FlexRig' and 'Modality'.
 data VarOcc' a = VarOcc
   { varFlexRig   :: !(FlexRig' a)
-  , varModality  :: !Modality
+  , varModality  :: {-# UNPACK #-} !Modality
   }
   deriving (Show)
 type VarOcc = VarOcc' MetaSet

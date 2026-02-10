@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
-{-# OPTIONS_GHC -fworker-wrapper-cbv -ddump-stg-final #-}
+{-# OPTIONS_GHC -fworker-wrapper-cbv -fmax-worker-args=12 #-}
 {-# LANGUAGE MagicHash, UnboxedSums, UnboxedTuples #-}
 
 -- | Computing the free variables of a term.
@@ -269,7 +269,7 @@ instance ComputeFree RelevantInIgnoringSortAnn where
   variable' x' (RelevantInIgnoringSortAnn x r) = Any (x' == x && not (isIrrelevant r))
   ignoreSorts' = IgnoreInAnnotations; {-# INLINE ignoreSorts' #-}
   {-# INLINE underModality' #-}
-  underModality' m (RelevantInIgnoringSortAnn x r) =
+  underModality' = Just \m (RelevantInIgnoringSortAnn x r) ->
     RelevantInIgnoringSortAnn x (composeRelevance (getRelevance m) r)
   underRelevance' = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
