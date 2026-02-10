@@ -2132,6 +2132,10 @@ instance PrettyTCM UnificationFailure where
       pwords "with solution " ++ [prettyTCM u] ++
       pwords "because the variable occurs in a local rewrite rule."
 
+    UnifyVarInRewriteEta tel i -> addContext tel $ fsep $
+      pwords "Cannot eta-expand variable " ++ [prettyTCM (var i)] ++
+      pwords "because the variable occurs in a local rewrite rule."
+
 
 explainWhyInScope :: forall m. MonadPretty m => WhyInScopeData -> m Doc
 explainWhyInScope (WhyInScopeData y _ Nothing [] []) = text (prettyShow  y ++ " is not in scope.")

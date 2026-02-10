@@ -566,7 +566,7 @@ prettyTCMPatterns :: MonadPretty m => [NamedArg DeBruijnPattern] -> m [Doc]
 prettyTCMPatterns = mapM prettyA <=< reifyPatterns
 
 {-# SPECIALIZE prettyTCMPatternList :: [NamedArg DeBruijnPattern] -> TCM Doc #-}
-prettyTCMPatternList :: MonadPretty m => [NamedArg DeBruijnPattern] -> m Doc
+prettyTCMPatternList :: (MonadPretty m) => [NamedArg DeBruijnPattern] -> m Doc
 prettyTCMPatternList = prettyList . map prettyA <=< reifyPatterns
 
 -- | For unquote.

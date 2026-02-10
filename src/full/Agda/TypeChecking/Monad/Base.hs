@@ -5149,6 +5149,7 @@ data UnificationFailure
   | UnifyReflexiveEq Telescope Type Term              -- ^ Can't solve reflexive equation because --without-K is enabled
   | UnifyUnusableModality Telescope Type Int Term Modality  -- ^ Can't solve equation because solution modality is less "usable"
   | UnifyVarInRewrite Telescope Type Int Term         -- ^ Can't solve equation because variable occurs in a local rewrite rule
+  | UnifyVarInRewriteEta Telescope Int                -- ^ Can't eta-expand variable because variable occurs in a local rewrite rule
   deriving (Show, Generic)
 
 data UnquoteError
