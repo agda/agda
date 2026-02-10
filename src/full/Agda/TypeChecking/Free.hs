@@ -111,16 +111,36 @@ import Agda.Syntax.Position
 type Free a = (FreeOld.Free a, FreeNew.Free a)
 
 anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
-anyFreeVar f t = getAny $ runFree (Any . f) IgnoreNot t
+anyFreeVar f t =
+  let x  = getAny $ runFree (Any . f) IgnoreNot t
+      x' = FreeNew.anyFreeVar f t
+  in if x == x'
+    then x
+    else __IMPOSSIBLE__
 
 allFreeVar :: Free t => (Int -> Bool) -> t -> Bool
-allFreeVar f t = getAll $ runFree (All . f) IgnoreNot t
+allFreeVar f t =
+  let x  = getAll $ runFree (All . f) IgnoreNot t
+      x' = FreeNew.allFreeVar f t
+  in if x == x'
+    then x
+    else __IMPOSSIBLE__
 
 anyFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
-anyFreeVarIgnoreAll f t = getAny $ runFree (Any . f) IgnoreAll t
+anyFreeVarIgnoreAll f t =
+  let x = getAny $ runFree (Any . f) IgnoreAll t
+      x' = FreeNew.anyFreeVarIgnoreAll f t
+  in if x == x'
+    then x
+    else __IMPOSSIBLE__
 
 allFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
-allFreeVarIgnoreAll f t = getAll $ runFree (All . f) IgnoreAll t
+allFreeVarIgnoreAll f t =
+  let x  = getAll $ runFree (All . f) IgnoreAll t
+      x' = FreeNew.allFreeVarIgnoreAll f t
+  in if x == x'
+    then x
+    else __IMPOSSIBLE__
 
 freeVarMap :: Show t => KillRange t => Free t => t -> VarMap
 freeVarMap t =

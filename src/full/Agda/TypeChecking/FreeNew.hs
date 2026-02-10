@@ -79,6 +79,8 @@ instance LensModality FreeVarMap where
   {-# INLINE mapModality #-}
   mapModality f (FreeVarMap x occ) = FreeVarMap x (mapModality f occ)
 
+instance LensRelevance FreeVarMap
+
 instance ComputeFree FreeVarMap where
   type Collect FreeVarMap = Endo (IntMap VarOcc)
   {-# INLINE underBinders' #-}
@@ -90,6 +92,7 @@ instance ComputeFree FreeVarMap where
   underConstructor' = defaultUnderConstructor; {-# INLINE underConstructor' #-}
   underFlexRig'     = defaultUnderFlexRig;     {-# INLINE underFlexRig' #-}
   underModality'    = defaultUnderModality;    {-# INLINE underModality' #-}
+  underRelevance'   = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
 {-# SPECIALIZE freeVarMap :: Term -> VarMap #-}
 freeVarMap :: Free t => t -> VarMap
@@ -105,6 +108,8 @@ instance LensFlexRig FreeVarMapIgnoreAnn MetaSet where
   {-# INLINE lensFlexRig #-}
   lensFlexRig f (FreeVarMapIgnoreAnn x) = FreeVarMapIgnoreAnn <$> lensFlexRig f x
 
+instance LensRelevance FreeVarMapIgnoreAnn
+
 instance ComputeFree FreeVarMapIgnoreAnn where
   type Collect FreeVarMapIgnoreAnn = Endo (IntMap VarOcc)
   {-# INLINE underBinders' #-}
@@ -115,6 +120,7 @@ instance ComputeFree FreeVarMapIgnoreAnn where
   underConstructor' = defaultUnderConstructor; {-# INLINE underConstructor' #-}
   underFlexRig'     = defaultUnderFlexRig;     {-# INLINE underFlexRig' #-}
   underModality'    = defaultUnderModality;    {-# INLINE underModality' #-}
+  underRelevance'   = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
 {-# SPECIALIZE freeVarMapIgnoreAnn :: Term -> VarMap #-}
 freeVarMapIgnoreAnn :: Free t => t -> VarMap
@@ -250,18 +256,22 @@ isBinderUsed (Abs _ x) = 0 `freeIn` x
 
 data RelevantInIgnoringSortAnn = RelevantInIgnoringSortAnn !Int !Relevance
 
+instance LensRelevance RelevantInIgnoringSortAnn where
+  getRelevance (RelevantInIgnoringSortAnn _ r) = r
+  mapRelevance f (RelevantInIgnoringSortAnn x r) = RelevantInIgnoringSortAnn x (f r)
+
 instance ComputeFree RelevantInIgnoringSortAnn where
   type Collect RelevantInIgnoringSortAnn = Any
   {-# INLINE underBinders' #-}
   underBinders' n (RelevantInIgnoringSortAnn x r) =
     RelevantInIgnoringSortAnn (n + x) r
   {-# INLINE variable' #-}
-  variable' x' (RelevantInIgnoringSortAnn x r) =
-    Any (x' == x && not (isIrrelevant r))
+  variable' x' (RelevantInIgnoringSortAnn x r) = Any (x' == x && not (isIrrelevant r))
+  ignoreSorts' = IgnoreInAnnotations; {-# INLINE ignoreSorts' #-}
   {-# INLINE underModality' #-}
   underModality' m (RelevantInIgnoringSortAnn x r) =
     RelevantInIgnoringSortAnn x (composeRelevance (getRelevance m) r)
-  ignoreSorts' = IgnoreInAnnotations; {-# INLINE ignoreSorts' #-}
+  underRelevance' = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
 {-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Term -> Bool #-}
 relevantInIgnoringSortAnn :: Free t => Nat -> t -> Bool

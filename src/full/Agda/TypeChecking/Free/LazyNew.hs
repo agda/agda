@@ -101,6 +101,7 @@ class (ExpandCase (Collect r), Monoid (Collect r)) => ComputeFree r where
   underConstructor' :: ConHead -> Elims -> r -> r
   underModality'    :: Modality -> r -> r
   underFlexRig'     :: FlexRig -> r -> r
+  underRelevance'   :: Relevance -> r -> r
   variable'         :: Int -> r -> Collect r
   ignoreSorts'      :: IgnoreSorts
 
@@ -108,6 +109,7 @@ class (ExpandCase (Collect r), Monoid (Collect r)) => ComputeFree r where
   underConstructor' _ _ r = r; {-# INLINE underConstructor' #-}
   underFlexRig'     _ r   = r; {-# INLINE underFlexRig'     #-}
   underModality'    _ r   = r; {-# INLINE underModality'    #-}
+  underRelevance'   _ r   = r; {-# INLINE underRelevance'   #-}
 
 {-# INLINE underBinders #-}
 underBinders :: MonadReader r m => ComputeFree r => Int -> m a -> m a
@@ -124,6 +126,10 @@ underConstructor hd es = local (underConstructor' hd es)
 {-# INLINE underModality #-}
 underModality :: MonadReader r m => ComputeFree r => Modality -> m a -> m a
 underModality = local . underModality'
+
+{-# INLINE underRelevance #-}
+underRelevance :: MonadReader r m => ComputeFree r => Relevance -> m a -> m a
+underRelevance = local . underRelevance'
 
 {-# INLINE underFlexRig #-}
 underFlexRig :: MonadReader r m => ComputeFree r => FlexRig -> m a -> m a
@@ -168,7 +174,7 @@ instance Free Term where
     -- András 2026-01-22: the above comment sounds wrong to me. Pi very much has to be definitionally
     -- injective.
     Pi a b       -> ret $ freeVars (a, b) -- TODO: test with "underConstructor"
-    Sort s       -> ret $ freeVars s
+    Sort s       -> ret $ underRelevance shapeIrrelevant (freeVars s)
     Level l      -> ret $ freeVars l
     MetaV m ts   -> ret $ underFlexRig (Flexible $ singleton m) $ freeVars ts
     DontCare mt  -> ret $ underModality (Modality irrelevant unitQuantity unitCohesion unitPolarity) $ freeVars mt
@@ -306,3 +312,7 @@ defaultUnderFlexRig fr = over lensFlexRig (composeFlexRig fr)
 {-# INLINE defaultUnderModality #-}
 defaultUnderModality :: LensModality r => Modality -> r -> r
 defaultUnderModality m = mapModality (composeModality m)
+
+{-# INLINE defaultUnderRelevance #-}
+defaultUnderRelevance :: LensRelevance r => Relevance -> r -> r
+defaultUnderRelevance rel = mapRelevance (composeRelevance rel)
