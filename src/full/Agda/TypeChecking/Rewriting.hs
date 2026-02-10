@@ -289,8 +289,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    as 'used' (see #5238).
         let PatVars neverSingPatVars maybeSingPatVars = nlPatVars ps
             boundVars   = neverSingPatVars <> maybeSingPatVars
-            freeVarsLhs = allFreeVars lhs
-            freeVarsRhs = allFreeVars rhs
+            freeVarsLhs = freeVarSet lhs
+            freeVarsRhs = freeVarSet rhs
             freeVars    = freeVarsLhs <> freeVarsRhs
             allVars     = VarSet.full $ size gamma
             usedVars    = case theDef def of

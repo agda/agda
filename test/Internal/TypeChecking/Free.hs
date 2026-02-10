@@ -7,7 +7,7 @@ module Internal.TypeChecking.Free ( tests ) where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free (freeIn, freeVars)
+import Agda.TypeChecking.Free (freeIn)
 import Agda.TypeChecking.Free.Lazy
 
 import Agda.Utils.Singleton

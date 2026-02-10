@@ -101,7 +101,7 @@ splitTelForWith
 splitTelForWith delta t vtys = let
     -- Split the telescope into the part needed to type the with arguments
     -- and all the other stuff.
-    fv = allFreeVars vtys
+    fv = freeVarSet vtys
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ

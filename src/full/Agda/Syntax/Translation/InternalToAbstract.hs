@@ -1472,7 +1472,7 @@ instance Reify NamedClause where
       ]
 
     let clBody = clauseBody cl
-        rhsVars = maybe [] freeVars clBody
+        rhsVars = freeVarList clBody
 
     rhsBody     <- traverse reify clBody
     rhsVarNames <- mapM nameOfBV' rhsVars

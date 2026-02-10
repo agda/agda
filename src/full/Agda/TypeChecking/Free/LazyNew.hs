@@ -2,7 +2,6 @@
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 
-
 -- | Computing the free variables of a term lazily.
 --
 -- We implement a reduce (traversal into monoid) over internal syntax
@@ -79,6 +78,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup ( Any(..), All(..) )
 
+import Agda.TypeChecking.Free.Base
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -92,69 +93,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 --------------------------------------------------------------------------------
-
-newtype MetaSet = MetaSet { theMetaSet :: HashSet MetaId }
-  deriving (Eq, Show, Null, Semigroup, Monoid)
-
-instance Singleton MetaId MetaSet where
-  {-# INLINE singleton #-}
-  singleton x = MetaSet (HashSet.singleton x)
-
-insertMetaSet :: MetaId -> MetaSet -> MetaSet
-insertMetaSet m (MetaSet ms) = MetaSet $ HashSet.insert m ms
-
-foldrMetaSet :: (MetaId -> a -> a) -> a -> MetaSet -> a
-foldrMetaSet f e ms = HashSet.foldr f e $ theMetaSet ms
-
-metaSetToBlocker :: MetaSet -> Blocker
-metaSetToBlocker ms = unblockOnAny $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
-
-data FlexRig' a
-  = Flexible !a   -- ^ In arguments of metas.
-                  --   The set of metas is used by ''Agda.TypeChecking.Rewriting.NonLinMatch''
-                  --   to generate the right blocking information.
-                  --   The semantics is that the status of a variable occurrence may change
-                  --   if one of the metas in the set gets solved.  We may say the occurrence
-                  --   is tainted by the meta variables in the set.
-  | WeaklyRigid   -- ^ In arguments to variables and definitions.
-  | Unguarded     -- ^ In top position, or only under inductive record constructors (unit).
-  | StronglyRigid -- ^ Under at least one and only inductive constructors.
-  deriving (Eq, Show, Functor, Foldable)
-
-type FlexRig = FlexRig' MetaSet
-
-class LensFlexRig o a | o -> a where
-  lensFlexRig :: Lens' o (FlexRig' a)
-
-instance LensFlexRig (FlexRig' a) a where
-  lensFlexRig = id
-
-isFlexible :: LensFlexRig o a => o -> Bool
-isFlexible o = case o ^. lensFlexRig of
-  Flexible {} -> True
-  _ -> False
-
-isUnguarded :: LensFlexRig o a => o -> Bool
-isUnguarded o = case o ^. lensFlexRig of
-  Unguarded -> True
-  _ -> False
-
-isWeaklyRigid :: LensFlexRig o a => o -> Bool
-isWeaklyRigid o = case o ^. lensFlexRig of
-   WeaklyRigid -> True
-   _ -> False
-
-isStronglyRigid :: LensFlexRig o a => o -> Bool
-isStronglyRigid o = case o ^. lensFlexRig of
-  StronglyRigid -> True
-  _ -> False
-
--- | Where should we skip sorts in free variable analysis?
-data IgnoreSorts
-  = IgnoreNot            -- ^ Do not skip.
-  | IgnoreInAnnotations  -- ^ Skip when annotation to a type.
-  | IgnoreAll            -- ^ Skip unconditionally.
-  deriving (Eq, Show)
 
 class (ExpandCase (Collect r), Monoid (Collect r)) => ComputeFree r where
   type Collect r
@@ -194,15 +132,6 @@ underFlexRig = local . underFlexRig'
 {-# INLINE variable #-}
 variable :: MonadReader r m => ComputeFree r => Int -> m (Collect r)
 variable x = variable' x <$!> ask
-
--- | Representation of a variable set as map from de Bruijn indices
---   to 'VarOcc'.
-type TheVarMap' a = IntMap (VarOcc' a)
-newtype VarMap' a = VarMap { theVarMap :: TheVarMap' a }
-  deriving (Eq, Show)
-
-type TheVarMap = TheVarMap' MetaSet
-type    VarMap =    VarMap' MetaSet
 
 --------------------------------------------------------------------------------
 
@@ -343,137 +272,6 @@ instance Free EqualityView where
     OtherType t                   -> ret $ freeVars t
     IdiomType t                   -> ret $ freeVars t
     EqualityType _r s _eq l t a b -> ret $ freeVars (s, l, (t, a, b))
-
---------------------------------------------------------------------------------
-
--- | 'FlexRig' aggregation (additive operation of the semiring).
---   For combining occurrences of the same variable in subterms.
---   This is a refinement of the 'max' operation for 'FlexRig'
---   which would work if 'Flexible' did not have the 'MetaSet' as an argument.
---   Now, to aggregate two 'Flexible' occurrences, we union the involved 'MetaSet's.
-addFlexRig :: Semigroup a => FlexRig' a -> FlexRig' a -> FlexRig' a
-addFlexRig x y = case (x, y) of
-  -- StronglyRigid is dominant
-  (StronglyRigid, _) -> StronglyRigid
-  (_, StronglyRigid) -> StronglyRigid
-  -- Next is Unguarded
-  (Unguarded, _) -> Unguarded
-  (_, Unguarded) -> Unguarded
-  -- Then WeaklyRigid
-  (WeaklyRigid, _) -> WeaklyRigid
-  (_, WeaklyRigid) -> WeaklyRigid
-  -- Least is Flexible.  We union the meta sets, as the variable
-  -- is tainted by all of the involved meta variable.
-  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 <> ms2
-{-# SPECIALIZE NOINLINE addFlexRig :: FlexRig' MetaSet -> FlexRig' MetaSet -> FlexRig' MetaSet #-}
-{-# SPECIALIZE NOINLINE addFlexRig :: FlexRig' () -> FlexRig' () -> FlexRig' () #-}
-
--- | Unit for 'addFlexRig'.
-zeroFlexRig :: Monoid a => FlexRig' a
-zeroFlexRig = Flexible mempty
-
--- | Absorptive for 'addFlexRig'.
-omegaFlexRig :: FlexRig' a
-omegaFlexRig = StronglyRigid
-
--- | 'FlexRig' composition (multiplicative operation of the semiring).
---   For accumulating the context of a variable.
---
---   'Flexible' is dominant.  Once we are under a meta, we are flexible
---   regardless what else comes.  We taint all variable occurrences
---   under a meta by this meta.
---
---   'WeaklyRigid' is next in strength.  Destroys strong rigidity.
---
---   'StronglyRigid' is still dominant over 'Unguarded'.
---
---   'Unguarded' is the unit.  It is the top (identity) context.
---
-composeFlexRig :: Semigroup a => FlexRig' a -> FlexRig' a -> FlexRig' a
-composeFlexRig x y = case (x, y) of
-    (Flexible ms1 , Flexible ms2 ) -> Flexible $! ms1 <> ms2
-    (Flexible ms1 , _            ) -> Flexible ms1
-    (_            , Flexible ms2 ) -> Flexible ms2
-    (WeaklyRigid  , _            ) -> WeaklyRigid
-    (_            , WeaklyRigid  ) -> WeaklyRigid
-    (StronglyRigid, _            ) -> StronglyRigid
-    (_            , StronglyRigid) -> StronglyRigid
-    (Unguarded    , Unguarded    ) -> Unguarded
-{-# SPECIALIZE NOINLINE composeFlexRig :: FlexRig' MetaSet -> FlexRig' MetaSet -> FlexRig' MetaSet #-}
-{-# SPECIALIZE NOINLINE composeFlexRig :: FlexRig' () -> FlexRig' () -> FlexRig' () #-}
-
--- | Unit for 'composeFlexRig'.
-oneFlexRig :: FlexRig' a
-oneFlexRig = Unguarded
-
-
----------------------------------------------------------------------------
--- * Multi-dimensional feature vector for variable occurrence (semigroup)
-
--- | Occurrence of free variables is classified by several dimensions.
---   Currently, we have 'FlexRig' and 'Modality'.
-data VarOcc' a = VarOcc
-  { varFlexRig   :: !(FlexRig' a)
-  , varModality  :: !Modality
-  }
-  deriving (Show)
-type VarOcc = VarOcc' MetaSet
-
--- | Equality up to origin.
-instance Eq a => Eq (VarOcc' a) where
-  VarOcc fr m == VarOcc fr' m' = fr == fr' && sameModality m m'
-
-instance LensModality (VarOcc' a) where
-  getModality = varModality
-  mapModality f (VarOcc x r) = VarOcc x $ f r
-
-instance LensRelevance (VarOcc' a) where
-instance LensQuantity (VarOcc' a) where
-
--- | Access to 'varFlexRig' in 'VarOcc'.
-instance LensFlexRig (VarOcc' a) a where
-  {-# INLINE lensFlexRig #-}
-  lensFlexRig f (VarOcc fr m) = f fr <&> \fr' -> VarOcc fr' m
-
--- | The default way of aggregating free variable info from subterms is by adding
---   the variable occurrences.  For instance, if we have a pair @(t₁,t₂)@ then
---   and @t₁@ has @o₁@ the occurrences of a variable @x@
---   and @t₂@ has @o₂@ the occurrences of the same variable, then
---   @(t₁,t₂)@ has @mappend o₁ o₂@ occurrences of that variable.
---
---   From counting 'Quantity', we extrapolate this to 'FlexRig' and 'Relevance':
---   we care most about about 'StronglyRigid' 'Relevant' occurrences.
---   E.g., if @t₁@ has a 'StronglyRigid' occurrence and @t₂@ a 'Flexible' occurrence,
---   then @(t₁,t₂)@ still has a 'StronglyRigid' occurrence.
---   Analogously, @Relevant@ occurrences count most, as we wish e.g. to forbid
---   relevant occurrences of variables that are declared to be irrelevant.
---
---   'VarOcc' forms a semiring, and this monoid is the addition of the semiring.
-instance Semigroup a => Semigroup (VarOcc' a) where
-  VarOcc o m <> VarOcc o' m' = VarOcc (addFlexRig o o') (addModality m m')
-
--- | The neutral element for variable occurrence aggregation is least serious
---   occurrence: flexible, irrelevant.
---   This is also the absorptive element for 'composeVarOcc', if we ignore
---   the 'MetaSet' in 'Flexible'.
-instance (Semigroup a, Monoid a) => Monoid (VarOcc' a) where
-  mempty  = VarOcc (Flexible mempty) zeroModality
-
--- | The absorptive element of variable occurrence under aggregation:
---   strongly rigid, relevant.
-topVarOcc :: VarOcc' a
-topVarOcc = VarOcc StronglyRigid topModality
-
--- | First argument is the outer occurrence (context) and second is the inner.
---   This multiplicative operation is to modify an occurrence under a context.
-composeVarOcc :: Semigroup a => VarOcc' a -> VarOcc' a -> VarOcc' a
-composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (composeModality m m')
-  -- We use the multipicative modality monoid (composition).
-
-oneVarOcc :: VarOcc' a
-oneVarOcc = VarOcc Unguarded unitModality
-
---------------------------------------------------------------------------------
 
 -- | What's the rigidity of a constructor?
 constructorFlexRig :: ConHead -> Elims -> FlexRig' a

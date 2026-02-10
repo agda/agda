@@ -83,7 +83,7 @@ checkModalityArgs :: (MonadConversion m) => Definition -> Args -> m ()
 checkModalityArgs d vs = do
   let
     vmap :: VarMap
-    vmap = freeVars vs
+    vmap = freeVarMap vs
 
   -- we iterate over all vars in the context and their ArgInfo,
   -- checking for each that "vs" uses them as allowed.

@@ -42,14 +42,25 @@ module Agda.TypeChecking.Free
     , Free
     , IsVarSet(..)
     , IgnoreSorts(..)
-    , freeVars, freeVars', filterVarMap, filterVarMapToList
-    , runFree, rigidVars, stronglyRigidVars, unguardedVars, allVars
+    -- , freeVars
+    -- , freeVars'
+    , filterVarMap
+    , filterVarMapToList
+    -- , runFree
+    , rigidVars
+    , stronglyRigidVars
+    , unguardedVars
+    , allVars
     , flexibleVars
-    , allFreeVars
-    , allRelevantVars, allRelevantVarsIgnoring
+    -- , allFreeVars
+    , allRelevantVars
+    , allRelevantVarsIgnoring
     , freeVarsIgnore
-    , freeIn, freeInIgnoringSorts, isBinderUsed
-    , relevantIn, relevantInIgnoringSortAnn
+    , freeIn
+    , freeInIgnoringSorts
+    , isBinderUsed
+    , relevantIn
+    , relevantInIgnoringSortAnn
     , FlexRig'(..), FlexRig
     , LensFlexRig(..), isFlexible, isUnguarded, isStronglyRigid, isWeaklyRigid
     , VarOcc'(..), VarOcc
@@ -58,6 +69,16 @@ module Agda.TypeChecking.Free
     , closed
     , MetaSet
     , insertMetaSet, foldrMetaSet, metaSetToBlocker
+
+    , anyFreeVar
+    , allFreeVar
+    , anyFreeVarIgnoreAll
+    , allFreeVarIgnoreAll
+    , freeVarMap
+    , freeVarMapIgnoreAnn
+    , freeVarCounts
+    , freeVarSet
+    , freeVarList
     ) where
 
 import Prelude hiding (null)
@@ -72,16 +93,40 @@ import Agda.Syntax.Common hiding (Arg, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
-  -- ( Free(..) , FreeEnv(..), initFreeEnv
-  -- , FlexRig, FlexRig'(..)
-  -- , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar
-  -- , MetaSet, insertMetaSet, foldrMetaSet
-  -- , IsVarSet(..), runFreeM
-  -- )
 
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Singleton
+
+--------------------------------------------------------------------------------
+
+anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
+anyFreeVar f t = getAny $ runFree (Any . f) IgnoreNot t
+
+allFreeVar :: Free t => (Int -> Bool) -> t -> Bool
+allFreeVar f t = getAll $ runFree (All . f) IgnoreNot t
+
+anyFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
+anyFreeVarIgnoreAll f t = getAny $ runFree (Any . f) IgnoreAll t
+
+allFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
+allFreeVarIgnoreAll f t = getAll $ runFree (All . f) IgnoreAll t
+
+freeVarMap :: Free t => t -> VarMap
+freeVarMap = freeVars
+
+freeVarMapIgnoreAnn :: Free t => t -> VarMap
+freeVarMapIgnoreAnn = freeVarsIgnore IgnoreInAnnotations
+
+freeVarCounts :: Free t => t -> VarCounts
+freeVarCounts = freeVars
+
+freeVarSet :: Free t => t -> VarSet
+freeVarSet = freeVars
+
+freeVarList :: Free t => t -> [Int]
+freeVarList = freeVars
+
 
 ---------------------------------------------------------------------------
 -- * Simple variable set implementations.

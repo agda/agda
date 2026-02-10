@@ -112,6 +112,8 @@ addFlexRig = curry $ \case
   -- Least is Flexible.  We union the meta sets, as the variable
   -- is tainted by all of the involved meta variable.
   (Flexible ms1, Flexible ms2) -> Flexible $ ms1 <> ms2
+{-# SPECIALIZE NOINLINE addFlexRig :: FlexRig' MetaSet -> FlexRig' MetaSet -> FlexRig' MetaSet #-}
+{-# SPECIALIZE NOINLINE addFlexRig :: FlexRig' () -> FlexRig' () -> FlexRig' () #-}
 
 -- | Unit for 'addFlexRig'.
 zeroFlexRig :: Monoid a => FlexRig' a
@@ -144,6 +146,8 @@ composeFlexRig = curry $ \case
     (StronglyRigid, _) -> StronglyRigid
     (_, StronglyRigid) -> StronglyRigid
     (Unguarded, Unguarded) -> Unguarded
+{-# SPECIALIZE NOINLINE composeFlexRig :: FlexRig' MetaSet -> FlexRig' MetaSet -> FlexRig' MetaSet #-}
+{-# SPECIALIZE NOINLINE composeFlexRig :: FlexRig' () -> FlexRig' () -> FlexRig' () #-}
 
 -- | Unit for 'composeFlexRig'.
 oneFlexRig :: FlexRig' a

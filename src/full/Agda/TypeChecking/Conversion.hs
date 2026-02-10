@@ -1370,7 +1370,7 @@ leqSort s1 s2 = do
     omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
     let infInInf = typeInTypeEnabled || omegaInOmegaEnabled
 
-    let fvsRHS = (`VarSet.member` allFreeVars s2)
+    let fvsRHS = (`VarSet.member` freeVarSet s2)
     badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
     postponeIfBlocked $ case (s1, s2) of
