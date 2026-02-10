@@ -29,10 +29,11 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.PatternSynonyms
+import Agda.Syntax.TopLevelModuleName
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
-import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
@@ -42,13 +43,13 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.FileId ( File, getIdFile, registerFileId' )
-import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.FileId ( File, getIdFile, registerFileId' )
+import Agda.Utils.Atomic
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.Tuple
+import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 import qualified Control.Monad.Catch as Catch
@@ -63,26 +64,24 @@ resetState = modifyTC \ s -> initStateFromPersistentState (s ^. lensPersistentSt
 --   Keep only the session state (backend information, 'Benchmark', file ids).
 
 resetAllState :: TCM ()
-resetAllState = modifyTC \ s -> initStateFromSessionState (s ^. lensSessionState)
+resetAllState = modifyTC \ s -> initStateFromSessionState (stPersistentSession (stPersistentState s))
 
--- | Overwrite the 'TCState', but not the 'SessionState' part.
-putTCPreservingSession :: TCState -> TCM ()
-putTCPreservingSession = bracket_ get put . putTC where
-  get = (,) <$> useTC lensSessionState <*> useTC stStatistics
-
-  put (sess, stat) = do
-    setTCLens lensSessionState sess
-    setTCLens stStatistics stat
+-- | Set the 'TCState', preserving any parts of the state which should
+-- persist through speculation (e.g., statistics).
+putTCPreservingStats :: TCState -> TCM ()
+putTCPreservingStats = bracket_ get put . putTC where
+  get = useTC stStatistics
+  put = setTCLens stStatistics
 
 -- | Restore 'TCState' after performing subcomputation.
 --
---   In contrast to 'Agda.Utils.Monad.localState', the
---   'SessionState' from the subcomputation is saved.
+-- Parts of the state which should not be reset on speculation (e.g.,
+-- statistics) will not be reset.
 localTCState :: TCM a -> TCM a
-localTCState = bracket_ getTC putTCPreservingSession
+localTCState = bracket_ getTC putTCPreservingStats
 
--- | Same as 'localTCState' but also returns the state in which we were just
---   before reverting it.
+-- | Same as 'localTCState', but also returns the state in which we were
+-- just before reverting it.
 localTCStateSaving :: TCM a -> TCM (a, TCState)
 localTCStateSaving compute = localTCState $ liftA2 (,) compute getTC
 
@@ -555,7 +554,7 @@ appInteractionOutputCallback :: Response -> TCM ()
 appInteractionOutputCallback r = getInteractionOutputCallback >>= \ cb -> cb r
 
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
-setInteractionOutputCallback = setSessionLens lensInteractionOutputCallback
+setInteractionOutputCallback = setSession lensInteractionOutputCallback
 
 ---------------------------------------------------------------------------
 -- * Pattern synonyms

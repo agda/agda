@@ -333,7 +333,7 @@ setIncludeDirs incs root = do
     setTCLens stTCWarnings tcWarnings
     setTCLens stLibCache libCache
     setDecodedModules keptDecodedModules
-    setSessionLens lensModuleToSourceId modFile
+    setSession lensModuleToSourceId modFile
 
   Lens.putAbsoluteIncludePaths $ List1.toList incs
   where

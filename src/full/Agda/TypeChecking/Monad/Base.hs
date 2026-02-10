@@ -17,7 +17,7 @@ module Agda.TypeChecking.Monad.Base
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
-import Control.Concurrent
+import Control.Concurrent (forkIO)
 import Control.DeepSeq
 import qualified Control.Exception as E
 
@@ -151,6 +151,7 @@ import Agda.Utils.Tuple (Pair, (&&&) )
 import Agda.Utils.Update
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.Atomic
 
 import Agda.Utils.Impossible
 
@@ -395,7 +396,6 @@ data SessionState = SessionState
   , stSessionModuleToSourceId :: !ModuleToSourceId
     -- ^ Maps 'TopLevelModuleNames' to the 'FileId's from which they
     -- were loaded.
-
   , stSessionInteractionOutputCallback :: InteractionOutputCallback
     -- ^ Callback function to call when there is a response
     --   to give to the interactive frontend.
@@ -408,9 +408,9 @@ data SessionState = SessionState
 -- | A part of the state which is not reverted when an error is thrown
 -- or the state is reset.
 data PersistentTCState = PersistentTCSt
-  { stPersistentSession :: !(MVar SessionState)
-      -- ^ State that persists for the whole Agda session.
-      --   Grows monotonically, never sees any deletion.
+  { stPersistentSession :: !(Atomic SessionState)
+    -- ^ State that persists for the whole Agda session.
+    --   Grows monotonically, never sees any deletion.
   , stDecodedModules    :: !DecodedModules
       -- ^ Type-checked modules we visited during our Agda session.
       --   A module gets dropped from this list if its source
@@ -480,7 +480,7 @@ initSessionState primLibDir = SessionState
 
 -- | Empty persistent state.
 
-initPersistentStateFromSessionState :: MVar SessionState -> PersistentTCState
+initPersistentStateFromSessionState :: Atomic SessionState -> PersistentTCState
 initPersistentStateFromSessionState s = PersistentTCSt
   { stPersistentSession             = s
   , stPersistentOptions             = defaultOptions
@@ -572,9 +572,9 @@ initStateIO :: IO TCState
 initStateIO = initState =<< getPrimitiveLibDir
 
 initState :: AbsolutePath -> IO TCState
-initState fp = initStateFromSessionState <$> newMVar (initSessionState fp)
+initState fp = initStateFromSessionState <$> newAtomic (initSessionState fp)
 
-initStateFromSessionState :: MVar SessionState -> TCState
+initStateFromSessionState :: Atomic SessionState -> TCState
 initStateFromSessionState = initStateFromPersistentState . initPersistentStateFromSessionState
 
 initStateFromPersistentState :: PersistentTCState -> TCState
@@ -599,9 +599,6 @@ lensPostScopeState f s = f (stPostScopeState s) <&> \ x -> s { stPostScopeState 
 
 -- ** Components of 'SessionState'
 
-lensSessionState :: Lens' TCState (MVar SessionState)
-lensSessionState = lensPersistentState . lensPersistentSession
-
 lensBackends :: Lens' SessionState [Backend]
 lensBackends f s = f (stSessionBackends s) <&> \ x -> s { stSessionBackends = x }
 
@@ -625,7 +622,7 @@ lensInteractionOutputCallback f s = f (stSessionInteractionOutputCallback s) <&>
 
 -- ** Components of 'PersistentTCState'
 
-lensPersistentSession :: Lens' PersistentTCState (MVar SessionState)
+lensPersistentSession :: Lens' PersistentTCState (Atomic SessionState)
 lensPersistentSession f s = f (stPersistentSession s) <&> \ x -> s { stPersistentSession = x }
 
 lensLoadedFileCache :: Lens' PersistentTCState (Strict.Maybe LoadedFileCache)
@@ -5951,7 +5948,7 @@ instance ReadTCState ReduceM where
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do
   s <- Strict.readIORef r
-  sess <- readMVar (s ^. lensSessionState)
+  sess <- readAtomic (stPersistentSession (stPersistentState s))
   E.evaluate $ unReduceM m $ ReduceEnv e s sess Nothing
   -- Andreas, 2021-05-13, issue #5379
   -- This was the following, which is apparently not strict enough
@@ -6168,34 +6165,38 @@ useSession l = view l <$!> getSessionState
 
 class ReadTCState m => ModifySession m where
   -- | Modify a part of the 'SessionState' through a lens. If the
-  -- continuation fails, modifications to the session state should be
-  -- reset.
+  -- continuation fails, modifications to the *session* state are reset.
+  -- Other monadic states will not necessarily be reverted.
   --
-  -- The calling thread locks **the entire session state** for the
-  -- duration of the modifying function's execution. Nested applications
-  -- of this function **will** deadlock, even if they target disjoint
-  -- lenses!
+  -- This function keeps an **exclusive** lock on the session state
+  -- **for the entire execution of the continuation**, regardless of
+  -- what the given lens focuses on.
   --
-  -- This function is strict both in the modification to the state and in
-  -- the result.
+  -- No thread can access **any** part of the session state while
+  -- 'stateSessionLensM' is executing. This includes the continuation!
+  -- Nested applications of this function **will always** deadlock.
+  --
+  -- This function is strict in the modification to the session state,
+  -- and the exclusive lock on the session state is maintained for the
+  -- duration of forcing the new session state.
+  --
+  -- This function has a few variants if less flexibility is required:
+  -- * 'stateSessionLens' takes a pure modification function.
+  -- * 'modifySession' does not allow returning an additional result.
   stateSessionLensM :: Lens' SessionState a -> (a -> m (r, a)) -> m r
 
 instance (MonadIO m, Catch.MonadMask m) => ModifySession (TCMT m) where
 
-  -- The glue code that actually modifies the MVar must be
-  -- uninterruptible, so we incur a MonadMask constraint, which
-  -- Haskeline's InputT implements.
-  stateSessionLensM l f = TCM \st env -> Catch.mask \reset -> do
-    mv <- view lensSessionState <$> liftIO (Strict.readIORef st)
-    sess <- liftIO $ takeMVar mv
-
-    -- We put the old state back into the MVar if the continuation fails
-    -- so that the MVar is not left empty for other threads to block on.
-    (res, a') <- reset (unTCM (f $! sess ^. l) st env)
-      `Catch.onException` liftIO (putMVar mv sess)
-
-    liftIO $ putMVar mv $! set l a' sess
-    pure $! res
+  -- The heavy lifting for synchronization and atomicity is handled by
+  -- 'modifyAtomic', we just have to thread the TCM part of the state
+  -- through.
+  stateSessionLensM :: Lens' SessionState a -> (a -> TCMT m (r, a)) -> TCMT m r
+  stateSessionLensM l f = TCM \st env -> do
+    mv <- stPersistentSession . stPersistentState <$> liftIO (Strict.readIORef st)
+    modifyAtomic mv \sess -> do
+      (ret, new) <- unTCM (f $! sess ^. l) st env
+      let sess' = set l new sess
+      sess' `seq` pure (sess', ret)
 
 instance ModifySession m => ModifySession (StateT s m) where
   stateSessionLensM l k = StateT \s -> stateSessionLensM l \v ->
@@ -6205,7 +6206,6 @@ instance ModifySession m => ModifySession (MaybeT m) where
   stateSessionLensM l k = MaybeT $ stateSessionLensM l \v -> runMaybeT (k v) >>= \case
     Just (r, a) -> pure (Just r, a)
     Nothing     -> pure (Nothing, v)
-
 
 {-# INLINE stateSessionLens #-}
 -- | Like 'stateSessionLensM', but the modification function is not
@@ -6219,10 +6219,15 @@ stateSessionLens l f = stateSessionLensM l $ pure . f
 modifySession :: ModifySession m => Lens' SessionState a -> (a -> a) -> m ()
 modifySession l f = stateSessionLens l $ pure . f
 
-{-# INLINE setSessionLens #-}
+{-# INLINE setSession #-}
 -- | Like 'modifySession', but with a constant new value.
-setSessionLens :: ModifySession m => Lens' SessionState a -> a -> m ()
-setSessionLens l v = modifySession l (const v)
+--
+-- If the computation of the new value depends on a previous
+-- 'useSession', this function is prone to suffering from time-of-check
+-- vs. time-of-use issues. Prefer the 'stateSessionLensM' family of
+-- functions instead.
+setSession :: ModifySession m => Lens' SessionState a -> a -> m ()
+setSession l v = modifySession l (const v)
 
 ---------------------------------------------------------------------------
 -- ** Monad with capability to block a computation
@@ -6378,8 +6383,8 @@ instance MonadIO m => ReadTCState (TCMT m) where
   locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l); {-# INLINE locallyTCState #-}
 
   getSessionState = do
-    mv <- useTC lensSessionState
-    liftIO $ readMVar mv
+    mv <- getsTC (stPersistentSession . stPersistentState)
+    readAtomic mv
 
 instance MonadBlock TCM where
   patternViolation b = throwError (PatternErr b)
@@ -6572,11 +6577,12 @@ runSafeTCM m st =
 -- | Runs the computation in a separate thread, with a /copy/ of the
 -- 'TCState' of the calling thread.
 --
--- Modification of the 'TCState' performed by the detached computation
--- (e.g. creation of metas) is invisible to the parent thread, and to
--- any siblings. They will be "discarded" when the thread finishes. It
--- is thus important to ensure that any results returned out-of-band by
--- the child thread are valid in an arbitrary TC state.
+-- Modifications of the 'TCState' performed by the detached computation
+-- (e.g. creation of metas) are invisible to the parent thread, and to
+-- any of its siblings. They will be "discarded" when the thread
+-- finishes.
+-- It is thus important to ensure that any results returned out-of-band
+-- by the child thread are valid in an arbitrary TC state.
 --
 -- The detached thread has read-write, synchronised access to the
 -- 'SessionState'.
@@ -6614,6 +6620,9 @@ type InteractionOutputCallback = Response_boot TCErr TCWarning WarningsAndNonFat
 
 defaultInteractionOutputCallback :: InteractionOutputCallback
 defaultInteractionOutputCallback = \case
+  Resp_RunningInfo _ msg    -> do
+    putDocTreeLn msg
+    liftIO $ hFlush stdout
   Resp_HighlightingInfo {}  -> __IMPOSSIBLE__
   Resp_Status {}            -> __IMPOSSIBLE__
   Resp_JumpToError {}       -> __IMPOSSIBLE__
@@ -6623,9 +6632,6 @@ defaultInteractionOutputCallback = \case
   Resp_SolveAll {}          -> __IMPOSSIBLE__
   Resp_Mimer {}             -> __IMPOSSIBLE__
   Resp_DisplayInfo {}       -> __IMPOSSIBLE__
-  Resp_RunningInfo _ msg    -> do
-                                 putDocTreeLn msg
-                                 liftIO $ hFlush stdout
   Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
@@ -6957,13 +6963,7 @@ instance NFData Statistics
 instance NFData UnusedImportsState
 instance NFData OpenedModule
 instance NFData IsAxiom
-
--- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
--- See https://github.com/haskell/deepseq/issues/111.
-
-instance NFData SessionState where
-  rnf (SessionState a b c _fun) =
-    rnf a `seq` rnf b `seq` rnf c
+instance NFData SessionState
 
 instance NFData PrimFun where
   rnf (PrimFun a b c _fun) =
