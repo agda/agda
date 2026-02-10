@@ -152,80 +152,80 @@ variable x = variable' x <$!> ask
 class Free t where
   freeVars :: ComputeFree r => t -> Reader r (Collect r)
 
--- | Find the index of the last projection in the spine if there's any.
---   Oterwise return (-1).
-lastProjectionIx :: Elims -> Int#
-lastProjectionIx = goPIx 0# where
-  goPIx :: Int# -> Elims -> Int#
-  goPIx i = \case
-    []        -> (-1#)
-    Proj{}:es -> case goPIx (i +# 1#) es of (-1#) -> i; i -> i
-    _:es      -> goPIx (i +# 1#) es
+hasProj :: Elims -> Bool
+hasProj = \case [] -> False; Proj{}:_ -> True; _:es -> hasProj es
 
--- | Compute freeVar on an Elims, but adjust all entries before the last projection.
---   The `Int` argument is the index of the last projection.
-goProjectedElims :: forall r. ComputeFree r => Int# -> Elims -> Reader r (Collect r)
-goProjectedElims lasti ts = expand \ret ->
-  let goPE :: Int# -> Int# -> Elims -> Reader r (Collect r)
-      goPE lasti i es = expand \ret -> case es of
-        [] -> ret mempty
-        e:es | isTrue# (i <=# lasti) ->
-                ret (underModality defaultModality (freeVars e) <> goPE lasti (i +# 1#) es )
-             | otherwise ->
-                ret (freeVars e <> goPE lasti (i +# 1#) es)
-  in ret $ goPE lasti 0# ts
+loop :: (Elims -> Term) -> Elims -> Elims -> Term
+loop h res es =
+  case es of
+    []             -> h $! reverse res
+    Proj o f : es' -> let !v = defaultArg $! (h $! reverse res) in loop (Def f) [Apply v] es'
+    e        : es' -> loop h (e : res) es'
+
+-- | Convert top-level postfix projections into prefix projections.
+myUnSpine :: Term -> Term
+myUnSpine t = case t of
+  Var i es   | hasProj es -> loop (Var i)   [] es
+  Def f es   | hasProj es -> loop (Def f)   [] es
+  MetaV x es | hasProj es -> loop (MetaV x) [] es
+  t -> t
+
+-- -- | Compute freeVar on an Elims, but adjust all entries before the last projection.
+-- --   The `Int` argument is the index of the last projection.
+-- goProjectedElims :: forall r. ComputeFree r => Int# -> Elims -> Reader r (Collect r)
+-- goProjectedElims lasti ts = expand \ret ->
+--   let goPE :: Int# -> Int# -> Elims -> Reader r (Collect r)
+--       goPE lasti i es = expand \ret -> case es of
+--         [] -> ret mempty
+--         e:es | isTrue# (i <=# lasti) ->
+--                 ret (underModality defaultModality (freeVars e) <> goPE lasti (i +# 1#) es )
+--              | otherwise ->
+--                 ret (freeVars e <> goPE lasti (i +# 1#) es)
+--   in ret $ goPE lasti 0# ts
+
+-- -- | Find the index of the last projection in the spine if there's any.
+-- --   Oterwise return (-1).
+-- lastProjectionIx :: Elims -> Int#
+-- lastProjectionIx = goPIx 0# where
+--   goPIx :: Int# -> Elims -> Int#
+--   goPIx i = \case
+--     []        -> (-1#)
+--     Proj{}:es -> case goPIx (i +# 1#) es of (-1#) -> i; i -> i
+--     _:es      -> goPIx (i +# 1#) es
 
 instance Free Term where
   freeVars :: forall r. ComputeFree r => Term -> Reader r (Collect r)
-  freeVars t = expand \ret -> case t of
+  freeVars t = expand \ret ->
+    let t' = case (underModality' @r, underFlexRig' @r) of
+               (Nothing, Nothing) -> t
+               _                  -> myUnSpine t
+    in case t' of
+      Var n ts   -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+      Def _ ts   -> ret (underFlexRig WeaklyRigid $ freeVars ts)
+      MetaV m ts -> ret (underFlexRig (Flexible (singleton m)) $ freeVars ts)
 
-    Var n ts -> case underModality' @r of
-      -- We don't need to adjust anything because of projections.
-      Nothing -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+      -- λ is not considered guarding, as
+      -- we cannot prove that x ≡ λy.x is impossible.
+      Lam _ t      -> ret (underFlexRig WeaklyRigid $ freeVars t)
+      Lit _        -> ret mempty
 
-      -- #4484: avoid projected variables being treated as StronglyRigid
-      -- we compute freeVars as if on the result on "unSpine (Var n ts)"
-      _ -> case lastProjectionIx ts of
-        (-1#) -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
-        lasti -> ret (underFlexRig WeaklyRigid (   underModality defaultModality (variable n)
-                                                <> goProjectedElims lasti ts))
+        -- because we are not in TCM
+        -- we cannot query whether we are dealing with a data/record (strongly r.)
+        -- or a definition by pattern matching (weakly rigid)
+        -- thus, we approximate, losing that x = List x is unsolvable
+      Con c _ ts   ->  ret (underConstructor c ts $ freeVars ts)
+      -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
+      -- Even as we do not permit infinite type expressions,
+      -- we cannot prove their absence (as Set is not inductive).
+      -- Also, this is incompatible with univalence (HoTT).
 
-    Def _ ts ->  case underModality' @r of
-      Nothing -> ret (underFlexRig WeaklyRigid $ freeVars ts)
-      _ -> case lastProjectionIx ts of
-        (-1#) -> ret (underFlexRig WeaklyRigid $ freeVars ts)
-        lasti -> ret (underFlexRig WeaklyRigid $ goProjectedElims lasti ts)
-
-    MetaV m ts ->
-      let !fr = Flexible (singleton m) in
-      case underModality' @r of
-        Nothing -> ret (underFlexRig fr $ freeVars ts)
-        _ -> case lastProjectionIx ts of
-          (-1#) -> ret (underFlexRig fr $ freeVars ts)
-          lasti -> ret (underFlexRig fr $ goProjectedElims lasti ts)
-
-    -- λ is not considered guarding, as
-    -- we cannot prove that x ≡ λy.x is impossible.
-    Lam _ t      ->  ret (underFlexRig WeaklyRigid $ freeVars t)
-    Lit _        ->  ret mempty
-
-      -- because we are not in TCM
-      -- we cannot query whether we are dealing with a data/record (strongly r.)
-      -- or a definition by pattern matching (weakly rigid)
-      -- thus, we approximate, losing that x = List x is unsolvable
-    Con c _ ts   ->  ret (underConstructor c ts $ freeVars ts)
-    -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
-    -- Even as we do not permit infinite type expressions,
-    -- we cannot prove their absence (as Set is not inductive).
-    -- Also, this is incompatible with univalence (HoTT).
-
-    -- András 2026-01-22: the above comment sounds wrong to me. Pi very much has to be definitionally
-    -- injective.
-    Pi a b       -> ret $ freeVars (a, b) -- TODO: test with "underConstructor"
-    Sort s       -> ret $ underRelevance shapeIrrelevant (freeVars s)
-    Level l      -> ret $ freeVars l
-    DontCare mt  -> ret $ underModality (Modality irrelevant unitQuantity unitCohesion unitPolarity) $ freeVars mt
-    Dummy{}      -> ret $ mempty
+      -- András 2026-01-22: the above comment sounds wrong to me. Pi very much has to be definitionally
+      -- injective.
+      Pi a b       -> ret $ freeVars (a, b) -- TODO: test with "underConstructor"
+      Sort s       -> ret $ underRelevance shapeIrrelevant (freeVars s)
+      Level l      -> ret $ freeVars l
+      DontCare mt  -> ret $ underModality (Modality irrelevant unitQuantity unitCohesion unitPolarity) $ freeVars mt
+      Dummy{}      -> ret $ mempty
 
 instance Free t => Free (Elim' t) where
   freeVars e = expand \ret -> case e of
