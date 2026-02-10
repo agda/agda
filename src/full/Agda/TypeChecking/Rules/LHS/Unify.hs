@@ -173,7 +173,6 @@ import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Size
 import Agda.Utils.Singleton
-import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
@@ -688,6 +687,10 @@ unifyStep s Cycle
 
 unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarParameters = pars } = do
   recd <- fromMaybe __IMPOSSIBLE__ <$> isRecord d
+  -- We don't eta-expand variables which occur in local rewrite rules
+  -- In principle, I think we could handle this safely, but it is tricky
+  if i `VarSet.member` rewVars (varTel s)
+  then return $ UnifyStuck [UnifyVarInRewriteEta (varTel s) i] else do
   let delta = _recTel recd `apply` pars
       c     = _recConHead recd
   let nfields         = size delta
@@ -736,7 +739,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
     expandKth us = do
       let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
       vs <- snd <$> etaExpandRecord d pars (unArg v)
-      vs <- reduce vs
+      vs <- addContext (varTel s) $ reduce vs
       return $ us1 ++ vs ++ us2
 
 unifyStep s LitConflict
@@ -782,15 +785,6 @@ unifyStep s (TypeConInjectivity k d us vs) = do
 
 data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
-
--- | Returns all variables that occur in local rewrite rules in the telescope
-rewVars :: Telescope -> VarSet
-rewVars EmptyTel        = VarSet.empty
-rewVars (ExtendTel a b) =
-  fromMaybe VarSet.empty
-    (VarSet.weaken (size b + 1) . allFreeVars . fromMaybe __IMPOSSIBLE__ .
-      rewDomRew <$> rewDom a)
-  <> (rewVars $ unAbs b)
 
 solutionStep
   :: (PureTCM m, MonadWriter UnifyOutput m)

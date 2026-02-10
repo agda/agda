@@ -543,7 +543,7 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
           -- tree (see Issue 1872).
-          reportSDoc "tc.cover.split.eta" 60 $ vcat
+          addContext tel $ reportSDoc "tc.cover.split.eta" 60 $ vcat
             [ "etaRecordSplits"
             , nest 2 $ vcat
               [ "n   = " <+> text (show n)

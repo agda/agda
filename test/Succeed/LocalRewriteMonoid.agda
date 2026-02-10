@@ -112,9 +112,8 @@ module List (A : Set) where
   to-from = ++[]
 
   from-to : ∀ {xsD : DList} → from (to xsD) ≡ xsD
-  from-to = go where
-    go : ∀ {xsD} {xsC : CohDList xsD} → from (to (xsD , xsC)) ≡ (xsD , xsC)
-    go {xsC = []C}         = refl
-    go {xsC = (x ,-C xsC)} =
-      pre≡ (funext λ ys → ap (λ □ → x ,- □) (ap-app (ap pre (go {xsC = xsC}))))
+  from-to {xsD = xsD , xsC} = pre≡ (go xsC) where
+    go : ∀ {xsD} (xsC : CohDList xsD) → from (to (xsD , xsC)) .pre ≡ xsD
+    go []C         = refl
+    go (x ,-C xsC) = funext λ ys → ap (x ,-_) (ap-app (go xsC))
 
