@@ -53,7 +53,7 @@ metaSetToBlocker ms = unblockOnAny $ foldrMetaSet (Set.insert . unblockOnMeta) S
 --
 --   The constructors are listed in increasing order (wrt. information content).
 data FlexRig' a
-  = Flexible a        -- ^ In arguments of metas.
+  = Flexible !a       -- ^ In arguments of metas.
                       --   The set of metas is used by ''Agda.TypeChecking.Rewriting.NonLinMatch''
                       --   to generate the right blocking information.
                       --   The semantics is that the status of a variable occurrence may change
@@ -155,8 +155,8 @@ oneFlexRig = Unguarded
 -- | Occurrence of free variables is classified by several dimensions.
 --   Currently, we have 'FlexRig' and 'Modality'.
 data VarOcc' a = VarOcc
-  { varFlexRig   :: FlexRig' a
-  , varModality  :: Modality
+  { varFlexRig   :: !(FlexRig' a)
+  , varModality  :: !Modality
   }
   deriving (Show)
 type VarOcc = VarOcc' MetaSet
@@ -333,7 +333,7 @@ data FreeEnv' a b c = FreeEnv
     -- ^ Are we flexible or rigid?
   , feModality  :: !Modality
     -- ^ What is the current relevance and quantity?
-  , feSingleton :: Maybe Variable -> c
+  , feSingleton :: !(Maybe Variable -> c)
     -- ^ Method to return a single variable.
   }
 
