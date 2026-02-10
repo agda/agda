@@ -63,8 +63,6 @@ import Agda.Utils.StrictReader
 import Agda.Utils.StrictEndo
 import Agda.Utils.ExpandCase
 
-import Debug.Trace
-
 
 -- ** All free variables together with information about their occurrence.
 --------------------------------------------------------------------------------
@@ -96,7 +94,6 @@ instance ComputeFree FreeVarMap where
 {-# SPECIALIZE freeVarMap :: Term -> VarMap #-}
 freeVarMap :: Free t => t -> VarMap
 freeVarMap t =
-  debugWrap "FVMAP" "FVMAP-END"
   VarMap (appEndo (runReader (freeVars t) (FreeVarMap 0 oneVarOcc)) mempty)
 
 --------------------------------------------------------------------------------
@@ -122,7 +119,6 @@ instance ComputeFree FreeVarMapIgnoreAnn where
 {-# SPECIALIZE freeVarMapIgnoreAnn :: Term -> VarMap #-}
 freeVarMapIgnoreAnn :: Free t => t -> VarMap
 freeVarMapIgnoreAnn t =
-  debugWrap "FVMAPIGANN" "FVMAPIGANN-END"
   VarMap (appEndo (runReader (freeVars t)
                   (FreeVarMapIgnoreAnn (FreeVarMap 0 oneVarOcc))) mempty)
 
@@ -136,13 +132,12 @@ instance ComputeFree FreeVarCounts where
   underBinders' n (FreeVarCounts x) = FreeVarCounts (n + x)
   {-# INLINE variable' #-}
   variable' x' (FreeVarCounts x) = Endo \counts ->
-    if x' < x then counts else IntMap.insertWith (+) (x' - x) 0 counts
+    if x' < x then counts else IntMap.insertWith (+) (x' - x) 1 counts
 
-{-# SPECIALIZE freeVarCounts :: Term -> IntMap Int #-}
-freeVarCounts :: Free t => t -> IntMap Int
+{-# SPECIALIZE freeVarCounts :: Term -> VarCounts #-}
+freeVarCounts :: Free t => t -> VarCounts
 freeVarCounts t =
-  debugWrap "FVCOUNTS" "FVCOUNTS-END"
-  (appEndo (runReader (freeVars t) (FreeVarCounts 0)) mempty)
+  VarCounts (appEndo (runReader (freeVars t) (FreeVarCounts 0)) mempty)
 
 -- ** Testing that a predicate holds on any free variable
 --------------------------------------------------------------------------------
@@ -158,14 +153,10 @@ instance ComputeFree AnyFreeVar where
 
 {-# SPECIALIZE anyFreeVar :: (Int -> Bool) -> Term -> Bool #-}
 anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
-anyFreeVar f t =
-  debugWrap "ANYFV" "ANYFV-END"
-  (getAny (runReader (freeVars t) (AnyFreeVar 0 f)))
+anyFreeVar f t = getAny (runReader (freeVars t) (AnyFreeVar 0 f))
 
 allFreeVar :: Free t => (Int -> Bool) -> t -> Bool
-allFreeVar f t =
-  debugWrap "ALLFV" "ALLFV-END"
-  not (getAny (runReader (freeVars t) (AnyFreeVar 0 (not . f))))
+allFreeVar f t = not (getAny (runReader (freeVars t) (AnyFreeVar 0 (not . f))))
 
 data AnyFreeVarIgnoreAll = AnyFreeVarIgnoreAll !Int !(Int -> Bool)
 
@@ -180,14 +171,11 @@ instance ComputeFree AnyFreeVarIgnoreAll where
 
 {-# SPECIALIZE anyFreeVarIgnoreAll :: (Int -> Bool) -> Term -> Bool #-}
 anyFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
-anyFreeVarIgnoreAll f t =
-  debugWrap "ANYFVIG" "ANYFVIG-END"
-  (getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 f)))
+anyFreeVarIgnoreAll f t = getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 f))
 
 allFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
 allFreeVarIgnoreAll f t =
-  debugWrap "ALLFVIG" "ALLFVIG-END"
-  (not (getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 (not . f)))))
+  not (getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 (not . f))))
 
 
 -- ** Flex-rigid occurrence for a single variable
@@ -217,11 +205,9 @@ instance ComputeFree SingleFR where
 
 {-# SPECIALIZE flexRigOccurrenceIn :: Nat -> Term -> Maybe FlexRig #-}
 flexRigOccurrenceIn :: Free a => Nat -> a -> Maybe FlexRig
-flexRigOccurrenceIn x a =
-  debugWrap "FLEXRIG" "FLEXRIG-END"
-  (case appEndo (runReader (freeVars a) (SingleFR x Unguarded)) CSFRNothing of
-     CSFRNothing -> Nothing
-     CSFRJust fr -> Just fr)
+flexRigOccurrenceIn x a = case appEndo (runReader (freeVars a) (SingleFR x Unguarded)) CSFRNothing of
+  CSFRNothing -> Nothing
+  CSFRJust fr -> Just fr
 
 -- ** Plain free occurrence
 --------------------------------------------------------------------------------
@@ -239,9 +225,7 @@ instance ComputeFree FreeIn where
 
 {-# SPECIALIZE freeIn :: Nat -> Term -> Bool #-}
 freeIn :: Free a => Nat -> a -> Bool
-freeIn x a =
-  debugWrap "FREEIN" "FREEIN-END"
-  getAny (runReader (freeVars a) (FreeIn x))
+freeIn x a = getAny (runReader (freeVars a) (FreeIn x))
 
 newtype FreeInIgnoringSorts = FreeInIgnoringSorts Int
 
@@ -253,9 +237,7 @@ instance ComputeFree FreeInIgnoringSorts where
 
 {-# SPECIALIZE freeInIgnoringSorts :: Nat -> Term -> Bool #-}
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
-freeInIgnoringSorts x a =
-  debugWrap "FREEINIGSORT" "FREEINIGSORT-END"
-  (getAny (runReader (freeVars a) (FreeInIgnoringSorts x)))
+freeInIgnoringSorts x a = getAny (runReader (freeVars a) (FreeInIgnoringSorts x))
 
 {-# INLINE isBinderUsed #-}
 -- | Is the variable bound by the abstraction actually used?
@@ -284,8 +266,7 @@ instance ComputeFree RelevantInIgnoringSortAnn where
 {-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Term -> Bool #-}
 relevantInIgnoringSortAnn :: Free t => Nat -> t -> Bool
 relevantInIgnoringSortAnn x t =
-  debugWrap "RELEVANTIGANN" "RELEVANTIGANN-END"
-  (getAny (runReader (freeVars t) (RelevantInIgnoringSortAnn x unitRelevance)))
+  getAny (runReader (freeVars t) (RelevantInIgnoringSortAnn x unitRelevance))
 
 -- ** Closed objects
 ---------------------------------------------------------------------------
@@ -303,15 +284,7 @@ instance ComputeFree Closed where
 
 {-# SPECIALIZE closed :: Term -> Bool #-}
 closed :: Free t => t -> Bool
-closed t = debugWrap "CLOSED" "CLOSED-END" (getAll (runReader (freeVars t) (Closed 0)))
-
-debugWrap' :: String -> a -> a
-debugWrap' msg a = seq a (trace msg a)
-{-# noinline debugWrap' #-}
-
-debugWrap :: String -> String -> a -> a
-debugWrap msg msg' a = a -- trace msg (debugWrap' msg' a)
--- {-# noinline debugWrap #-}
+closed t = getAll (runReader (freeVars t) (Closed 0))
 
 -- ** Collect free variables
 --------------------------------------------------------------------------------

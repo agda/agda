@@ -318,6 +318,25 @@ instance Singleton MetaId () where
   singleton _ = ()
 
 ---------------------------------------------------------------------------
+-- * Plain variable occurrence counting.
+
+newtype VarCounts = VarCounts { varCounts :: IntMap Int }
+  deriving (Eq, Show)
+
+instance Semigroup VarCounts where
+  VarCounts fv1 <> VarCounts fv2 = VarCounts (IntMap.unionWith (+) fv1 fv2)
+
+instance Monoid VarCounts where
+  mempty = VarCounts IntMap.empty
+  mappend = (<>)
+
+instance IsVarSet () VarCounts where
+  withVarOcc _ = id
+
+instance Singleton Variable VarCounts where
+  singleton i = VarCounts $ IntMap.singleton i 1
+
+---------------------------------------------------------------------------
 -- * Environment for collecting free variables.
 
 -- | Where should we skip sorts in free variable analysis?

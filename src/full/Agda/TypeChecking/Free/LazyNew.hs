@@ -139,13 +139,16 @@ class Free t where
   freeVars :: ComputeFree r => t -> Reader r (Collect r)
 
 instance Free Term where
-  freeVars t = expand \ret -> case t of
-    Var n ts ->
-      -- #4484: avoid projected variables being treated as StronglyRigid
-      if any (\case Proj{} -> True; _ -> False) ts then
-         ret (underFlexRig WeaklyRigid $ variable n <> freeVars ts)
-      else
-         ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+  freeVars t = expand \ret -> case unSpine t of
+    -- Var n ts ->
+    --   -- #4484: avoid projected variables being treated as StronglyRigid
+    --   -- András, 2026-02-10: conceptually, we do freeVars on "unspine t",
+    --   -- so a projected variable becomes an Arg with default modality
+    --   if any (\case Proj{} -> True; _ -> False) ts then
+    --      ret (underFlexRig WeaklyRigid (underModality defaultModality (variable n) <> freeVars ts))
+    --   else
+    --      ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+    Var n ts -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
 
     -- λ is not considered guarding, as
     -- we cannot prove that x ≡ λy.x is impossible.

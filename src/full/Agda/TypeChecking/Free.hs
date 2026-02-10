@@ -102,6 +102,9 @@ import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Singleton
 import Agda.Utils.Impossible
 
+import Debug.Trace
+import Agda.Syntax.Position
+
 -- New API
 --------------------------------------------------------------------------------
 
@@ -119,14 +122,35 @@ anyFreeVarIgnoreAll f t = getAny $ runFree (Any . f) IgnoreAll t
 allFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
 allFreeVarIgnoreAll f t = getAll $ runFree (All . f) IgnoreAll t
 
-freeVarMap :: Free t => t -> VarMap
-freeVarMap = freeVars
+freeVarMap :: Show t => KillRange t => Free t => t -> VarMap
+freeVarMap t =
+  let x :: VarMap
+      x  = freeVars t
+      x' :: VarMap
+      x' = FreeNew.freeVarMap t
+  in if x == x'
+    then x
+    else trace ("FREEVARMAP\n" ++ show (killRange t) ++ "\n\n" ++ show x ++ "\n\n" ++ show x') __IMPOSSIBLE__
 
-freeVarMapIgnoreAnn :: Free t => t -> VarMap
-freeVarMapIgnoreAnn = freeVarsIgnore IgnoreInAnnotations
+freeVarMapIgnoreAnn :: Show t => KillRange t => Free t => t -> VarMap
+freeVarMapIgnoreAnn t =
+  let x :: VarMap
+      x = freeVarsIgnore IgnoreInAnnotations t
+      x' :: VarMap
+      x' = FreeNew.freeVarMapIgnoreAnn t
+  in if x == x'
+    then x
+    else trace ("FREEVARMAPIGANN\n" ++ show (killRange t) ++ "\n\n" ++ show x ++ "\n\n" ++ show x') __IMPOSSIBLE__
 
 freeVarCounts :: Free t => t -> VarCounts
-freeVarCounts = freeVars
+freeVarCounts t =
+  let x :: VarCounts
+      x  = freeVars t
+      x' :: VarCounts
+      x' = FreeNew.freeVarCounts t
+  in if x == x'
+    then x
+    else trace ("FREEVARCOUNTS\n" ++ show x ++ "\n\n" ++ show x') __IMPOSSIBLE__
 
 freeVarSet :: Free t => t -> VarSet
 freeVarSet t =
@@ -150,24 +174,6 @@ instance IsVarSet () VarSet where withVarOcc _ = id
 instance IsVarSet () [Int]  where withVarOcc _ = id
 instance IsVarSet () Any    where withVarOcc _ = id
 instance IsVarSet () All    where withVarOcc _ = id
-
----------------------------------------------------------------------------
--- * Plain variable occurrence counting.
-
-newtype VarCounts = VarCounts { varCounts :: IntMap Int }
-
-instance Semigroup VarCounts where
-  VarCounts fv1 <> VarCounts fv2 = VarCounts (IntMap.unionWith (+) fv1 fv2)
-
-instance Monoid VarCounts where
-  mempty = VarCounts IntMap.empty
-  mappend = (<>)
-
-instance IsVarSet () VarCounts where
-  withVarOcc _ = id
-
-instance Singleton Variable VarCounts where
-  singleton i = VarCounts $ IntMap.singleton i 1
 
 ---------------------------------------------------------------------------
 -- * Collecting free variables (generic).
