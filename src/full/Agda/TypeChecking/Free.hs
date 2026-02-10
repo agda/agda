@@ -92,13 +92,18 @@ import qualified Agda.Benchmarking as Bench
 import Agda.Syntax.Common hiding (Arg, NamedArg)
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free.Lazy
+import Agda.TypeChecking.Free.Lazy hiding (Free)
+import Agda.TypeChecking.Free.Lazy qualified as LazyOld
+import Agda.TypeChecking.Free.LazyNew qualified as LazyNew
 
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Singleton
 
+-- New API
 --------------------------------------------------------------------------------
+
+type Free a = (LazyOld.Free a, LazyNew.Free a)
 
 anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
 anyFreeVar f t = getAny $ runFree (Any . f) IgnoreNot t

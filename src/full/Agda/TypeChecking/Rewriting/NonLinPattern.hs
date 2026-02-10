@@ -19,7 +19,7 @@ import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy
+import Agda.TypeChecking.Free.Lazy qualified as FreeOld
 import Agda.TypeChecking.Irrelevance ( isDefSing )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
@@ -364,25 +364,25 @@ instance GetMatchables RewriteRule where
 -- | Only computes free variables that are not bound (see 'nlPatVars'),
 --   i.e., those in a 'PTerm'.
 
-instance Free NLPat where
+instance FreeOld.Free NLPat where
   freeVars' = \case
     PVar{}         -> mempty
-    PDef _ es      -> freeVars' es
-    PLam _ u       -> freeVars' u
-    PPi a b        -> freeVars' (a,b)
-    PSort s        -> freeVars' s
-    PBoundVar _ es -> freeVars' es
-    PTerm t        -> freeVars' t
+    PDef _ es      -> FreeOld.freeVars' es
+    PLam _ u       -> FreeOld.freeVars' u
+    PPi a b        -> FreeOld.freeVars' (a,b)
+    PSort s        -> FreeOld.freeVars' s
+    PBoundVar _ es -> FreeOld.freeVars' es
+    PTerm t        -> FreeOld.freeVars' t
 
-instance Free NLPType where
+instance FreeOld.Free NLPType where
   freeVars' (NLPType s a) =
-    ifM (asks ((IgnoreNot ==) . feIgnoreSorts))
-      {- then -} (freeVars' (s, a))
-      {- else -} (freeVars' a)
+    ifM (asks ((IgnoreNot ==) . FreeOld.feIgnoreSorts))
+      {- then -} (FreeOld.freeVars' (s, a))
+      {- else -} (FreeOld.freeVars' a)
 
-instance Free NLPSort where
+instance FreeOld.Free NLPSort where
   freeVars' = \case
-    PUniv _ l -> freeVars' l
+    PUniv _ l -> FreeOld.freeVars' l
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty
