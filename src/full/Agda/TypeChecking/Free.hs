@@ -311,20 +311,29 @@ allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . singleton) ig
 allRelevantVars :: Free t => t -> VarSet
 allRelevantVars = allRelevantVarsIgnoring IgnoreNot
 
+
 ---------------------------------------------------------------------------
 -- * Backwards-compatible interface to 'freeVars'.
 
+{-# INLINE filterVarMap #-}
 filterVarMap :: (VarOcc -> Bool) -> VarMap -> VarSet
-filterVarMap f = VarSet.fromList . IntMap.keys . IntMap.filter f . theVarMap
+filterVarMap f = \(VarMap m) ->
+  IntMap.foldlWithKey'
+  (\acc k v -> if f v then VarSet.insert k acc else acc)
+  mempty m
 
-filterVarMapToList :: (VarOcc -> Bool) -> VarMap -> [Variable]
-filterVarMapToList f = map fst . filter (f . snd) . IntMap.toList . theVarMap
+{-# INLINE filterVarMapToList #-}
+filterVarMapToList :: (VarOcc -> Bool) -> VarMap -> [Int]
+filterVarMapToList f = \(VarMap m) ->
+  IntMap.foldrWithKey'
+  (\k v acc -> if f v then k:acc else acc)
+  [] m
 
 -- | Variables under only and at least one inductive constructor(s).
 stronglyRigidVars :: VarMap -> VarSet
 stronglyRigidVars = filterVarMap $ \case
   VarOcc StronglyRigid _ -> True
-  _ -> False
+  _                      -> False
 
 -- | Variables at top or only under inductive record constructors
 --   λs and Πs.
@@ -334,32 +343,24 @@ stronglyRigidVars = filterVarMap $ \case
 unguardedVars :: VarMap -> VarSet
 unguardedVars = filterVarMap $ \case
   VarOcc Unguarded _ -> True
-  _ -> False
-
--- UNUSED Liang-Ting Chen 2019-07-16
----- | Ordinary rigid variables, e.g., in arguments of variables or functions.
---weaklyRigidVars :: VarMap -> VarSet
---weaklyRigidVars = filterVarMap $ \case
---  VarOcc WeaklyRigid _ -> True
---  _ -> False
+  _                  -> False
 
 -- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
 rigidVars :: VarMap -> VarSet
 rigidVars = filterVarMap $ \case
-  VarOcc o _ -> o `elem` [ WeaklyRigid, Unguarded, StronglyRigid ]
+  VarOcc o _ -> case o of
+    WeaklyRigid   -> True
+    Unguarded     -> True
+    StronglyRigid -> True
+    _             -> False
 
 -- | Variables occuring in arguments of metas.
 --  These are only potentially free, depending how the meta variable is instantiated.
 --  The set contains the id's of the meta variables that this variable is an argument to.
 flexibleVars :: VarMap -> IntMap MetaSet
-flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
+flexibleVars (VarMap m) = flip IntMap.mapMaybe m $ \case
  VarOcc (Flexible ms) _ -> Just ms
- _ -> Nothing
-
----- | Variables in irrelevant arguments and under a @DontCare@, i.e.,
-----   in irrelevant positions.
---irrelevantVars :: VarMap -> VarSet
---irrelevantVars = filterVarMap isIrrelevant
+ _                      -> Nothing
 
 allVars :: VarMap -> VarSet
-allVars = VarSet.fromList . IntMap.keys . theVarMap
+allVars = filterVarMap (\_ -> True)
