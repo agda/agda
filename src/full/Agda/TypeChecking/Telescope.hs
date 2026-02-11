@@ -102,8 +102,7 @@ unflattenTel' !n xs tel = case (xs, tel) of
     where
     tel' = unflattenTel' (n - 1) xs tel
     a'   = applySubst rho a
-    rho  = parallelS $
-           replicate n (withCallerCallStack impossibleTerm)
+    rho  = strengthenS (withCallerCallStack Impossible) n
   ([],    _ : _) -> __IMPOSSIBLE__
   (_ : _, [])    -> __IMPOSSIBLE__
 
