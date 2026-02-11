@@ -1082,7 +1082,7 @@ applySubstLocalRewrite rho rew@(LocalRewriteRule gamma f ps rhs b) =
           rho'' = liftS (size gamma) rho'
 
       Just $ LocalRewriteRule (applySubst rho' gamma)
-                                 (applySubst rho'' f)
+                                 (applySubst rho' f)
                                  (applySubst rho'' ps)
                                   (applySubst rho'' rhs)
                                  (applySubst rho'' b)

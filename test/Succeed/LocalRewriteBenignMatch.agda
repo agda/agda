@@ -9,6 +9,6 @@ module LocalRewriteBenignMatch where
 postulate
   f : Nat → Nat
 
-module Foo (n : Nat) (m : Nat) (@rew p : f n ≡ 0)  where
-  foo : m ≡ 42 → Nat
-  foo refl = 0
+module Foo (n : Nat) (m : Nat) (@rew p : f n ≡ 0) (q : f m ≡ 0) where
+  foo : m ≡ 42 → f 42 ≡ 0
+  foo refl = q
