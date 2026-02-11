@@ -196,6 +196,7 @@ myUnSpine t = case t of
 instance Free Term where
   freeVars :: forall r. ComputeFree r => Term -> Reader r (Collect r)
   freeVars t = expand \ret ->
+
     let t' = case (underModality' @r, underFlexRig' @r) of
                (Nothing, Nothing) -> t
                _                  -> myUnSpine t
@@ -203,6 +204,38 @@ instance Free Term where
       Var n ts   -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
       Def _ ts   -> ret (underFlexRig WeaklyRigid $ freeVars ts)
       MetaV m ts -> ret (underFlexRig (Flexible (singleton m)) $ freeVars ts)
+
+    case t of
+      Var n ts   -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+      Def _ ts   -> ret (underFlexRig WeaklyRigid $ freeVars ts)
+      MetaV m ts -> ret (underFlexRig (Flexible (singleton m)) $ freeVars ts)
+
+      -- Var n ts -> case (underModality' @r, underFlexRig' @r) of
+      --   -- We don't need to adjust anything because of projections.
+      --   (Nothing, Nothing) -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+
+      --   -- #4484: avoid projected variables being treated as StronglyRigid
+      --   -- we compute freeVars as if on the result on "unSpine (Var n ts)"
+      --   _ -> case lastProjectionIx ts of
+      --     (-1#) -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
+      --     lasti -> ret (underFlexRig WeaklyRigid (   underModality defaultModality (variable n)
+      --                                             <> goProjectedElims lasti ts))
+
+      -- Def _ ts ->  case underModality' @r of
+      --   Nothing -> ret (underFlexRig WeaklyRigid $ freeVars ts)
+      --   _ -> case lastProjectionIx ts of
+      --     (-1#) -> ret (underFlexRig WeaklyRigid $ freeVars ts)
+      --     lasti -> ret (underFlexRig WeaklyRigid $ goProjectedElims lasti ts)
+
+      -- MetaV m ts ->
+      --   let !fr = Flexible (singleton m) in
+      --   case underModality' @r of
+      --     Nothing -> ret (underFlexRig fr $ freeVars ts)
+      --     _ -> case lastProjectionIx ts of
+      --       (-1#) -> ret (underFlexRig fr $ freeVars ts)
+      --       lasti -> ret (underFlexRig fr $ goProjectedElims lasti ts)
+
+
 
       -- λ is not considered guarding, as
       -- we cannot prove that x ≡ λy.x is impossible.
