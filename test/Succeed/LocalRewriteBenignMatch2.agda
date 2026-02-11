@@ -11,11 +11,11 @@ data Foo : Nat → Set where
 
 module Bar (f : ∀ {n} → Foo n → Foo n)
            (@rew p : ∀ {n} {x : Foo n} → f x ≡ x) where
-  test : ∀ {m} → Foo m → Foo m
-  test foo = foo
+  test : ∀ {m} (x : Foo m) → f x ≡ foo
+  test foo = refl
 
 
 module Baz (f : ∀ {n} → Foo n → Foo n) (k : Nat) (l : Nat)
            (@rew p : ∀ {n} {x : Foo n} → f x ≡ x) where
-  test : ∀ {m} → Foo m → Foo m
-  test foo = foo
+  test : ∀ {m} (x : Foo m) → f x ≡ foo
+  test foo = refl
