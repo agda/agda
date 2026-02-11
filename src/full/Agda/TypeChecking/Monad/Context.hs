@@ -416,6 +416,10 @@ instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
   addContext = flip (foldr addContext); {-# INLINABLE addContext #-}
   contextSize = sum . map contextSize
 
+instance {-# OVERLAPPING #-} AddContext Context where
+  addContext = flip $ foldl $ flip addContext; {-# INLINABLE addContext #-}
+  contextSize = sum . map contextSize
+
 instance AddContext ContextEntry where
   addContext (CtxVar x a) = addCtx x a
   {-# INLINE addContext #-}
