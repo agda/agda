@@ -812,7 +812,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
       reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
       reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (unwords (map (fst . unDom) $ telToList ptel)) -- only names
-      addSection' y sectionTel
+      ctxTel <- getContextTelescope
+      addSection' y (ctxTel `abstract` sectionTel)
       reportSDoc "tc.mod.apply" 80 $
         "finished copySec" <+> pretty x <+> "->" <+> pretty y
 
