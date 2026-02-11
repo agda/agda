@@ -38,47 +38,47 @@
 -- see, for example, 'VarCounts' or 'SingleFlexRig'.
 
 module Agda.TypeChecking.Free
-    ( VarCounts(..)
+    (
+      FlexRig
+    , FlexRig'(..)
     , Free
-    , IsVarSet(..)
     , IgnoreSorts(..)
-    -- , freeVars
-    -- , freeVars'
+    , IsVarSet(..)
+    , LensFlexRig(..)
+    , VarCounts(..)
+
+    , allVars
     , filterVarMap
     , filterVarMapToList
-    -- , runFree
+    , flexibleVars
+    , isFlexible
+    , isStronglyRigid
+    , isUnguarded
+    , isWeaklyRigid
     , rigidVars
     , stronglyRigidVars
     , unguardedVars
-    , allVars
-    , flexibleVars
-    -- , allFreeVars
-    , allRelevantVars
-    , allRelevantVarsIgnoring
-    , freeVarsIgnore
+
+    , MetaSet
+    , foldrMetaSet
+    , insertMetaSet
+    , metaSetToBlocker
+
+    , allFreeVar
+    , allFreeVarIgnoreAll
+    , anyFreeVar
+    , anyFreeVarIgnoreAll
+    , closed
+    , flexRigOccurrenceIn
     , freeIn
     , freeInIgnoringSorts
-    , isBinderUsed
-    , relevantIn
-    , relevantInIgnoringSortAnn
-    , FlexRig'(..), FlexRig
-    , LensFlexRig(..), isFlexible, isUnguarded, isStronglyRigid, isWeaklyRigid
-    , VarOcc'(..), VarOcc
-    , varOccurrenceIn
-    , flexRigOccurrenceIn
-    , closed
-    , MetaSet
-    , insertMetaSet, foldrMetaSet, metaSetToBlocker
-
-    , anyFreeVar
-    , allFreeVar
-    , anyFreeVarIgnoreAll
-    , allFreeVarIgnoreAll
+    , freeVarCounts
+    , freeVarList
     , freeVarMap
     , freeVarMapIgnoreAnn
-    , freeVarCounts
     , freeVarSet
-    , freeVarList
+    , isBinderUsed
+    , relevantInIgnoringSortAnn
     ) where
 
 import Prelude hiding (null)
@@ -114,283 +114,331 @@ type Free a = (FreeNew.Free a)
 freeIn :: Free t => Int -> t -> Bool
 freeIn x t =
   let
-    x' = FreeNew.freeIn x t
+    -- r = oldFreeIn x t
+    r' = FreeNew.freeIn x t
   in
-    x'
+    -- if r == r' then
+      r'
+    -- else
+    --   __IMPOSSIBLE__
+
+flexRigOccurrenceIn :: Free t => Int -> t -> Maybe FlexRig
+flexRigOccurrenceIn x t =
+  let
+    -- r = oldFlexRigOccurrenceIn x t
+    r' = FreeNew.flexRigOccurrenceIn x t
+  in
+    -- if r == r' then
+      r'
+    -- else
+    --   __IMPOSSIBLE__
+
+relevantInIgnoringSortAnn :: Free t => Nat -> t -> Bool
+relevantInIgnoringSortAnn x t =
+  let
+    -- r = oldRelevantInIgnoringSortAnn x t
+    r' = FreeNew.relevantInIgnoringSortAnn x t
+  in
+    -- if r == r' then
+      r'
+    -- else
+    --   __IMPOSSIBLE__
+
+freeInIgnoringSorts :: Free a => Nat -> a -> Bool
+freeInIgnoringSorts x t =
+  let
+    -- r = oldFreeInIgnoringSorts x t
+    r' = FreeNew.freeInIgnoringSorts x t
+  in
+    -- if r == r' then
+      r'
+    -- else
+    --   __IMPOSSIBLE__
 
 isBinderUsed :: Free a => Abs a -> Bool
 isBinderUsed NoAbs{}   = False
 isBinderUsed (Abs _ x) = 0 `freeIn` x
 
+closed :: Free t => t -> Bool
+closed t =
+  let
+    -- r  = oldClosed t
+    r' = FreeNew.closed t
+  in
+    -- if r == r' then
+      r'
+    -- else
+    --   __IMPOSSIBLE__
+
 anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
 anyFreeVar f t =
   let
-      -- x  = getAny $ runFree (Any . f) IgnoreNot t
-      x' = FreeNew.anyFreeVar f t
+      -- r  = getAny $ runFree (Any . f) IgnoreNot t
+      r' = FreeNew.anyFreeVar f t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
     --   __IMPOSSIBLE__
 
 allFreeVar :: Free t => (Int -> Bool) -> t -> Bool
 allFreeVar f t =
   let
-      -- x  = getAll $ runFree (All . f) IgnoreNot t
-      x' = FreeNew.allFreeVar f t
+      -- r  = getAll $ runFree (All . f) IgnoreNot t
+      r' = FreeNew.allFreeVar f t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
     --   __IMPOSSIBLE__
 
 anyFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
 anyFreeVarIgnoreAll f t =
   let
-      -- x = getAny $ runFree (Any . f) IgnoreAll t
-      x' = FreeNew.anyFreeVarIgnoreAll f t
+      -- r = getAny $ runFree (Any . f) IgnoreAll t
+      r' = FreeNew.anyFreeVarIgnoreAll f t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
     --   __IMPOSSIBLE__
 
 allFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
 allFreeVarIgnoreAll f t =
   let
-      -- x  = getAll $ runFree (All . f) IgnoreAll t
-      x' = FreeNew.allFreeVarIgnoreAll f t
+      -- r  = getAll $ runFree (All . f) IgnoreAll t
+      r' = FreeNew.allFreeVarIgnoreAll f t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
     --   __IMPOSSIBLE__
 
 freeVarMap :: Free t => t -> VarMap
 freeVarMap t =
   let
-      -- x :: VarMap
-      -- x  = freeVars t
-      x' :: VarMap
-      x' = FreeNew.freeVarMap t
+      -- r :: VarMap
+      -- r  = freeVars t
+      r' :: VarMap
+      r' = FreeNew.freeVarMap t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
-    --   trace ("FREEVARMAP\n" ++ show (killRange t) ++ "\n\n" ++ show x ++ "\n\n" ++ show x') __IMPOSSIBLE__
+    --   trace ("FREEVARMAP\n" ++ show (killRange t) ++ "\n\n" ++ show r ++ "\n\n" ++ show r') __IMPOSSIBLE__
 
 freeVarMapIgnoreAnn :: Free t => t -> VarMap
 freeVarMapIgnoreAnn t =
   let
-      -- x :: VarMap
-      -- x = freeVarsIgnore IgnoreInAnnotations t
-      x' :: VarMap
-      x' = FreeNew.freeVarMapIgnoreAnn t
+      -- r :: VarMap
+      -- r = freeVarsIgnore IgnoreInAnnotations t
+      r' :: VarMap
+      r' = FreeNew.freeVarMapIgnoreAnn t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
-    --   trace ("FREEVARMAPIGANN\n" ++ show (killRange t) ++ "\n\n" ++ show x ++ "\n\n" ++ show x') __IMPOSSIBLE__
+    --   trace ("FREEVARMAPIGANN\n" ++ show (killRange t) ++ "\n\n" ++ show r ++ "\n\n" ++ show r') __IMPOSSIBLE__
 
 freeVarCounts :: Free t => t -> VarCounts
 freeVarCounts t =
   let
-      -- x :: VarCounts
-      -- x  = freeVars t
-      x' :: VarCounts
-      x' = FreeNew.freeVarCounts t
+      -- r :: VarCounts
+      -- r  = freeVars t
+      r' :: VarCounts
+      r' = FreeNew.freeVarCounts t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
-    --   trace ("FREEVARCOUNTS\n" ++ show x ++ "\n\n" ++ show x') __IMPOSSIBLE__
+    --   trace ("FREEVARCOUNTS\n" ++ show r ++ "\n\n" ++ show r') __IMPOSSIBLE__
 
 freeVarSet :: Free t => t -> VarSet
 freeVarSet t =
   let
-      -- x  = freeVars t
-      x' = FreeNew.freeVarSet t
+      -- r  = freeVars t
+      r' = FreeNew.freeVarSet t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
     --   __IMPOSSIBLE__
 
 freeVarList :: Free t => t -> [Int]
 freeVarList t =
   let
-      -- x  = freeVars t
-      x' = FreeNew.freeVarList t
+      -- r  = freeVars t
+      r' = FreeNew.freeVarList t
   in
-    -- if x == x' then
-      x'
+    -- if r == r' then
+      r'
     -- else
     --   __IMPOSSIBLE__
 
----------------------------------------------------------------------------
--- * Simple variable set implementations.
+-- ---------------------------------------------------------------------------
+-- -- * Simple variable set implementations.
 
 
--- In most cases we don't care about the VarOcc.
+-- -- In most cases we don't care about the VarOcc.
 
-instance IsVarSet () VarSet where withVarOcc _ = id
-instance IsVarSet () [Int]  where withVarOcc _ = id
-instance IsVarSet () Any    where withVarOcc _ = id
-instance IsVarSet () All    where withVarOcc _ = id
+-- instance IsVarSet () VarSet where withVarOcc _ = id
+-- instance IsVarSet () [Int]  where withVarOcc _ = id
+-- instance IsVarSet () Any    where withVarOcc _ = id
+-- instance IsVarSet () All    where withVarOcc _ = id
 
----------------------------------------------------------------------------
--- * Collecting free variables (generic).
+-- ---------------------------------------------------------------------------
+-- -- * Collecting free variables (generic).
 
--- | Collect all free variables together with information about their occurrence.
---
--- Doesn't go inside solved metas, but collects the variables from a
--- metavariable application @X ts@ as @flexibleVars@.
-{-# SPECIALIZE freeVars :: FreeOld.Free a => a -> VarMap #-}
-freeVars :: (IsVarSet a c, Singleton Variable c, FreeOld.Free t) => t -> c
-freeVars = freeVarsIgnore IgnoreNot
+-- -- | Collect all free variables together with information about their occurrence.
+-- --
+-- -- Doesn't go inside solved metas, but collects the variables from a
+-- -- metavariable application @X ts@ as @flexibleVars@.
+-- {-# SPECIALIZE freeVars :: FreeOld.Free a => a -> VarMap #-}
+-- freeVars :: (IsVarSet a c, Singleton Variable c, FreeOld.Free t) => t -> c
+-- freeVars = freeVarsIgnore IgnoreNot
 
-freeVarsIgnore :: (IsVarSet a c, Singleton Variable c, FreeOld.Free t) =>
-                  IgnoreSorts -> t -> c
-freeVarsIgnore = runFree singleton
+-- freeVarsIgnore :: (IsVarSet a c, Singleton Variable c, FreeOld.Free t) =>
+--                   IgnoreSorts -> t -> c
+-- freeVarsIgnore = runFree singleton
 
--- Specialization to typical monoids
-{-# SPECIALIZE runFree :: FreeOld.Free a => SingleVar Any -> IgnoreSorts -> a -> Any #-}
--- Specialization to Term
-{-# SPECIALIZE runFree :: SingleVar Any -> IgnoreSorts -> Term -> Any #-}
+-- -- Specialization to typical monoids
+-- {-# SPECIALIZE runFree :: FreeOld.Free a => SingleVar Any -> IgnoreSorts -> a -> Any #-}
+-- -- Specialization to Term
+-- {-# SPECIALIZE runFree :: SingleVar Any -> IgnoreSorts -> Term -> Any #-}
 
--- | Compute free variables.
-runFree :: (IsVarSet a c, FreeOld.Free t) => SingleVar c -> IgnoreSorts -> t -> c
-runFree single i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
-  runFreeM single i (freeVars' t)
-  where
-  bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
+-- -- | Compute free variables.
+-- runFree :: (IsVarSet a c, FreeOld.Free t) => SingleVar c -> IgnoreSorts -> t -> c
+-- runFree single i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
+--   runFreeM single i (freeVars' t)
+--   where
+--   bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
 
----------------------------------------------------------------------------
--- * Occurrence computation for a single variable.
+-- ---------------------------------------------------------------------------
+-- -- * Occurrence computation for a single variable.
 
--- ** Full free occurrence info for a single variable.
+-- -- ** Full free occurrence info for a single variable.
 
--- | Get the full occurrence information of a free variable.
-varOccurrenceIn :: FreeOld.Free a => Nat -> a -> Maybe VarOcc
-varOccurrenceIn = varOccurrenceIn' IgnoreNot
+-- -- | Get the full occurrence information of a free variable.
+-- varOccurrenceIn :: FreeOld.Free a => Nat -> a -> Maybe VarOcc
+-- varOccurrenceIn = varOccurrenceIn' IgnoreNot
 
-varOccurrenceIn' :: FreeOld.Free a => IgnoreSorts -> Nat -> a -> Maybe VarOcc
-varOccurrenceIn' ig x t = theSingleVarOcc $ runFree sg ig t
-  where
-  sg y = if x == y then oneSingleVarOcc else mempty
+-- varOccurrenceIn' :: FreeOld.Free a => IgnoreSorts -> Nat -> a -> Maybe VarOcc
+-- varOccurrenceIn' ig x t = theSingleVarOcc $ runFree sg ig t
+--   where
+--   sg y = if x == y then oneSingleVarOcc else mempty
 
--- | "Collection" just keeping track of the occurrence of a single variable.
---   'Nothing' means variable does not occur freely.
-newtype SingleVarOcc = SingleVarOcc { theSingleVarOcc :: Maybe VarOcc }
+-- -- | "Collection" just keeping track of the occurrence of a single variable.
+-- --   'Nothing' means variable does not occur freely.
+-- newtype SingleVarOcc = SingleVarOcc { theSingleVarOcc :: Maybe VarOcc }
 
-oneSingleVarOcc :: SingleVarOcc
-oneSingleVarOcc = SingleVarOcc $ Just $ oneVarOcc
+-- oneSingleVarOcc :: SingleVarOcc
+-- oneSingleVarOcc = SingleVarOcc $ Just $ oneVarOcc
 
--- | Hereditary Semigroup instance for 'Maybe'.
---   (The default instance for 'Maybe' may not be the hereditary one.)
-instance Semigroup SingleVarOcc where
-  SingleVarOcc Nothing <> s = s
-  s <> SingleVarOcc Nothing = s
-  SingleVarOcc (Just o) <> SingleVarOcc (Just o') = SingleVarOcc $ Just $ o <> o'
+-- -- | Hereditary Semigroup instance for 'Maybe'.
+-- --   (The default instance for 'Maybe' may not be the hereditary one.)
+-- instance Semigroup SingleVarOcc where
+--   SingleVarOcc Nothing <> s = s
+--   s <> SingleVarOcc Nothing = s
+--   SingleVarOcc (Just o) <> SingleVarOcc (Just o') = SingleVarOcc $ Just $ o <> o'
 
-instance Monoid SingleVarOcc where
-  mempty = SingleVarOcc Nothing
-  mappend = (<>)
+-- instance Monoid SingleVarOcc where
+--   mempty = SingleVarOcc Nothing
+--   mappend = (<>)
 
-instance IsVarSet MetaSet SingleVarOcc where
-  withVarOcc o = SingleVarOcc . fmap (composeVarOcc o) . theSingleVarOcc
+-- instance IsVarSet MetaSet SingleVarOcc where
+--   withVarOcc o = SingleVarOcc . fmap (composeVarOcc o) . theSingleVarOcc
 
--- ** Flexible /rigid occurrence info for a single variable.
+-- -- ** Flexible /rigid occurrence info for a single variable.
 
--- | Get the full occurrence information of a free variable.
-flexRigOccurrenceIn :: FreeOld.Free a => Nat -> a -> Maybe FlexRig
-flexRigOccurrenceIn = flexRigOccurrenceIn' IgnoreNot
+-- -- | Get the full occurrence information of a free variable.
+-- oldFlexRigOccurrenceIn :: FreeOld.Free a => Nat -> a -> Maybe FlexRig
+-- oldFlexRigOccurrenceIn = flexRigOccurrenceIn' IgnoreNot
 
-flexRigOccurrenceIn' :: FreeOld.Free a => IgnoreSorts -> Nat -> a -> Maybe FlexRig
-flexRigOccurrenceIn' ig x t = theSingleFlexRig $ runFree sg ig t
-  where
-  sg y = if x == y then oneSingleFlexRig else mempty
+-- flexRigOccurrenceIn' :: FreeOld.Free a => IgnoreSorts -> Nat -> a -> Maybe FlexRig
+-- flexRigOccurrenceIn' ig x t = theSingleFlexRig $ runFree sg ig t
+--   where
+--   sg y = if x == y then oneSingleFlexRig else mempty
 
--- | "Collection" just keeping track of the occurrence of a single variable.
---   'Nothing' means variable does not occur freely.
-newtype SingleFlexRig = SingleFlexRig { theSingleFlexRig :: Maybe FlexRig }
+-- -- | "Collection" just keeping track of the occurrence of a single variable.
+-- --   'Nothing' means variable does not occur freely.
+-- newtype SingleFlexRig = SingleFlexRig { theSingleFlexRig :: Maybe FlexRig }
 
-oneSingleFlexRig :: SingleFlexRig
-oneSingleFlexRig = SingleFlexRig $ Just $ oneFlexRig
+-- oneSingleFlexRig :: SingleFlexRig
+-- oneSingleFlexRig = SingleFlexRig $ Just $ oneFlexRig
 
--- | Hereditary Semigroup instance for 'Maybe'.
---   (The default instance for 'Maybe' may not be the hereditary one.)
-instance Semigroup SingleFlexRig where
-  SingleFlexRig Nothing <> s = s
-  s <> SingleFlexRig Nothing = s
-  SingleFlexRig (Just o) <> SingleFlexRig (Just o') = SingleFlexRig $ Just $ addFlexRig o o'
+-- -- | Hereditary Semigroup instance for 'Maybe'.
+-- --   (The default instance for 'Maybe' may not be the hereditary one.)
+-- instance Semigroup SingleFlexRig where
+--   SingleFlexRig Nothing <> s = s
+--   s <> SingleFlexRig Nothing = s
+--   SingleFlexRig (Just o) <> SingleFlexRig (Just o') = SingleFlexRig $ Just $ addFlexRig o o'
 
-instance Monoid SingleFlexRig where
-  mempty = SingleFlexRig Nothing
-  mappend = (<>)
+-- instance Monoid SingleFlexRig where
+--   mempty = SingleFlexRig Nothing
+--   mappend = (<>)
 
-instance IsVarSet MetaSet SingleFlexRig where
-  withVarOcc o = SingleFlexRig . fmap (composeFlexRig $ varFlexRig o) . theSingleFlexRig
+-- instance IsVarSet MetaSet SingleFlexRig where
+--   withVarOcc o = SingleFlexRig . fmap (composeFlexRig $ varFlexRig o) . theSingleFlexRig
 
--- ** Plain free occurrence.
+-- -- ** Plain free occurrence.
 
--- | Check if a variable is free, possibly ignoring sorts.
-freeIn' :: FreeOld.Free a => IgnoreSorts -> Nat -> a -> Bool
-freeIn' ig x t = getAny $ runFree (Any . (x ==)) ig t
+-- -- | Check if a variable is free, possibly ignoring sorts.
+-- freeIn' :: FreeOld.Free a => IgnoreSorts -> Nat -> a -> Bool
+-- freeIn' ig x t = getAny $ runFree (Any . (x ==)) ig t
 
-{-# SPECIALIZE oldFreeIn :: Nat -> Term -> Bool #-}
-oldFreeIn :: FreeOld.Free a => Nat -> a -> Bool
-oldFreeIn = freeIn' IgnoreNot
+-- {-# SPECIALIZE oldFreeIn :: Nat -> Term -> Bool #-}
+-- oldFreeIn :: FreeOld.Free a => Nat -> a -> Bool
+-- oldFreeIn = freeIn' IgnoreNot
 
-freeInIgnoringSorts :: FreeOld.Free a => Nat -> a -> Bool
-freeInIgnoringSorts = freeIn' IgnoreAll
+-- oldFreeInIgnoringSorts :: FreeOld.Free a => Nat -> a -> Bool
+-- oldFreeInIgnoringSorts = freeIn' IgnoreAll
 
--- UNUSED Liang-Ting Chen 2019-07-16
---freeInIgnoringSortAnn :: FreeOld.Free a => Nat -> a -> Bool
---freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
+-- -- UNUSED Liang-Ting Chen 2019-07-16
+-- --freeInIgnoringSortAnn :: FreeOld.Free a => Nat -> a -> Bool
+-- --freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
 
--- | Is the variable bound by the abstraction actually used?
-oldIsBinderUsed :: FreeOld.Free a => Abs a -> Bool
-oldIsBinderUsed NoAbs{}   = False
-oldIsBinderUsed (Abs _ x) = 0 `oldFreeIn` x
+-- -- | Is the variable bound by the abstraction actually used?
+-- oldIsBinderUsed :: FreeOld.Free a => Abs a -> Bool
+-- oldIsBinderUsed NoAbs{}   = False
+-- oldIsBinderUsed (Abs _ x) = 0 `oldFreeIn` x
 
--- ** Relevant free occurrence.
+-- -- ** Relevant free occurrence.
 
-newtype RelevantIn c = RelevantIn {getRelevantIn :: c}
-  deriving (Semigroup, Monoid)
+-- newtype RelevantIn c = RelevantIn {getRelevantIn :: c}
+--   deriving (Semigroup, Monoid)
 
-instance IsVarSet a c => IsVarSet a (RelevantIn c) where  -- UndecidableInstances
-  withVarOcc o x
-    | isIrrelevant o = mempty
-    | otherwise = RelevantIn $ withVarOcc o $ getRelevantIn x
+-- instance IsVarSet a c => IsVarSet a (RelevantIn c) where  -- UndecidableInstances
+--   withVarOcc o x
+--     | isIrrelevant o = mempty
+--     | otherwise = RelevantIn $ withVarOcc o $ getRelevantIn x
 
-relevantIn' :: FreeOld.Free t => IgnoreSorts -> Nat -> t -> Bool
-relevantIn' ig x t = getAny . getRelevantIn $ runFree (RelevantIn . Any . (x ==)) ig t
+-- relevantIn' :: FreeOld.Free t => IgnoreSorts -> Nat -> t -> Bool
+-- relevantIn' ig x t = getAny . getRelevantIn $ runFree (RelevantIn . Any . (x ==)) ig t
 
-relevantInIgnoringSortAnn :: FreeOld.Free t => Nat -> t -> Bool
-relevantInIgnoringSortAnn = relevantIn' IgnoreInAnnotations
+-- oldRelevantInIgnoringSortAnn :: FreeOld.Free t => Nat -> t -> Bool
+-- oldRelevantInIgnoringSortAnn = relevantIn' IgnoreInAnnotations
 
-relevantIn :: FreeOld.Free t => Nat -> t -> Bool
-relevantIn = relevantIn' IgnoreAll
+-- relevantIn :: FreeOld.Free t => Nat -> t -> Bool
+-- relevantIn = relevantIn' IgnoreAll
 
----------------------------------------------------------------------------
--- * Occurrences of all free variables.
+-- ---------------------------------------------------------------------------
+-- -- * Occurrences of all free variables.
 
--- | Is the term entirely closed (no free variables)?
-closed :: FreeOld.Free t => t -> Bool
-closed t = getAll $ runFree (const $ All False) IgnoreNot t
+-- -- | Is the term entirely closed (no free variables)?
+-- oldClosed :: FreeOld.Free t => t -> Bool
+-- oldClosed t = getAll $ runFree (const $ All False) IgnoreNot t
 
--- | Collect all free variables.
-allFreeVars :: FreeOld.Free t => t -> VarSet
-allFreeVars = runFree singleton IgnoreNot
+-- -- | Collect all free variables.
+-- allFreeVars :: FreeOld.Free t => t -> VarSet
+-- allFreeVars = runFree singleton IgnoreNot
 
--- | Collect all relevant free variables, possibly ignoring sorts.
-allRelevantVarsIgnoring :: FreeOld.Free t => IgnoreSorts -> t -> VarSet
-allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . singleton) ig
+-- -- | Collect all relevant free variables, possibly ignoring sorts.
+-- allRelevantVarsIgnoring :: FreeOld.Free t => IgnoreSorts -> t -> VarSet
+-- allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . singleton) ig
 
--- | Collect all relevant free variables, excluding the "unused" ones.
-allRelevantVars :: FreeOld.Free t => t -> VarSet
-allRelevantVars = allRelevantVarsIgnoring IgnoreNot
+-- -- | Collect all relevant free variables, excluding the "unused" ones.
+-- allRelevantVars :: FreeOld.Free t => t -> VarSet
+-- allRelevantVars = allRelevantVarsIgnoring IgnoreNot
 
 
 ---------------------------------------------------------------------------

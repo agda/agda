@@ -1,4 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes, MagicHash #-}
+{-# LANGUAGE AllowAmbiguousTypes, MagicHash, UnboxedTuples, UnboxedSums #-}
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 
@@ -65,6 +65,7 @@ module Agda.TypeChecking.Free.LazyNew where
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader (MonadReader(..))
 import GHC.Exts
+import GHC.Word (Word64(..))
 
 import Agda.Utils.StrictReader
 import Agda.Utils.ExpandCase
@@ -152,23 +153,50 @@ variable x = variable' x <$!> ask
 class Free t where
   freeVars :: ComputeFree r => t -> Reader r (Collect r)
 
+--------------------------------------------------------------------------------
+
 hasProj :: Elims -> Bool
 hasProj = \case [] -> False; Proj{}:_ -> True; _:es -> hasProj es
 
-loop :: (Elims -> Term) -> Elims -> Elims -> Term
-loop h res es =
+type SpineHead = (# Int# | QName | (# Word64#, Word64# #) #)
+
+pattern SHVar :: Int -> SpineHead
+pattern SHVar x <- (# (I# -> x) | | #) where SHVar (I# x) = (# x | | #)
+{-# INLINE SHVar #-}
+
+pattern SHDef :: QName -> SpineHead
+pattern SHDef f = (# | f | #)
+{-# INLINE SHDef #-}
+
+pattern SHMetaV :: MetaId -> SpineHead
+pattern SHMetaV x <- (# | | ((\(# x, y #) -> MetaId (W64# x) (ModuleNameHash (W64# y))) -> x) #) where
+  SHMetaV (MetaId (W64# x) (ModuleNameHash (W64# y))) = (# | | (# x, y #) #)
+{-# INLINE SHMetaV #-}
+{-# COMPLETE SHVar, SHDef, SHMetaV #-}
+
+applySpineHead :: SpineHead -> Elims -> Term
+applySpineHead h es = case h of
+  SHVar x   -> Var x es
+  SHDef f   -> Def f es
+  SHMetaV x -> MetaV x es
+
+unSpineLoop :: SpineHead -> Elims -> Elims -> Term
+unSpineLoop h res es =
   case es of
-    []             -> h $! reverse res
-    Proj o f : es' -> let !v = defaultArg $! (h $! reverse res) in loop (Def f) [Apply v] es'
-    e        : es' -> loop h (e : res) es'
+    []             -> applySpineHead h $! reverse res
+    Proj o f : es' -> let !v = defaultArg $! (applySpineHead h $! reverse res) in
+                      unSpineLoop (SHDef f) [Apply v] es'
+    e        : es' -> unSpineLoop h (e : res) es'
 
 -- | Convert top-level postfix projections into prefix projections.
 myUnSpine :: Term -> Term
 myUnSpine t = case t of
-  Var i es   | hasProj es -> loop (Var i)   [] es
-  Def f es   | hasProj es -> loop (Def f)   [] es
-  MetaV x es | hasProj es -> loop (MetaV x) [] es
+  Var i es   | hasProj es -> unSpineLoop (SHVar i)   [] es
+  Def f es   | hasProj es -> unSpineLoop (SHDef f)   [] es
+  MetaV x es | hasProj es -> unSpineLoop (SHMetaV x) [] es
   t -> t
+
+--------------------------------------------------------------------------------
 
 -- -- | Compute freeVar on an Elims, but adjust all entries before the last projection.
 -- --   The `Int` argument is the index of the last projection.
@@ -201,11 +229,6 @@ instance Free Term where
                (Nothing, Nothing) -> t
                _                  -> myUnSpine t
     in case t' of
-      Var n ts   -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
-      Def _ ts   -> ret (underFlexRig WeaklyRigid $ freeVars ts)
-      MetaV m ts -> ret (underFlexRig (Flexible (singleton m)) $ freeVars ts)
-
-    case t of
       Var n ts   -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
       Def _ ts   -> ret (underFlexRig WeaklyRigid $ freeVars ts)
       MetaV m ts -> ret (underFlexRig (Flexible (singleton m)) $ freeVars ts)
