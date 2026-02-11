@@ -87,9 +87,8 @@ instance NamesIn a => NamesIn (Open a)
 instance NamesIn a => NamesIn (C.FieldAssignment' a)
 
 instance (NamesIn a, NamesIn b) => NamesIn (Dom' a b) where
-  namesAndMetasIn' sg (Dom _ _ _ t e) =
-    mappend (namesAndMetasIn' sg t) (namesAndMetasIn' sg e)
-
+  namesAndMetasIn' sg (Dom _ _ _ t r e) =
+    namesAndMetasIn' sg (t, r, e)
 
 -- Specific collections
 instance NamesIn a => NamesIn (Tele a)
@@ -142,6 +141,9 @@ instance NamesIn ConHead where
   namesAndMetasIn' sg h = namesAndMetasIn' sg (conName h)
 
 instance NamesIn Bool where
+  namesAndMetasIn' _ _ = mempty
+
+instance NamesIn Int where
   namesAndMetasIn' _ _ = mempty
 
 -- Andreas, 2017-07-27
@@ -198,10 +200,10 @@ instance NamesIn (Pattern' a) where
     ProjP _ f       -> namesAndMetasIn' sg f
     IApplyP _ t u _ -> namesAndMetasIn' sg (t, u)
 
-instance NamesIn a => NamesIn (Type' a) where
+instance (NamesIn a, NamesIn b) => NamesIn (Type'' a b) where
   namesAndMetasIn' sg (El s t) = namesAndMetasIn' sg (s, t)
 
-instance NamesIn Sort where
+instance NamesIn a => NamesIn (Sort' a) where
   namesAndMetasIn' sg = \case
     Univ _ l    -> namesAndMetasIn' sg l
     Inf _ _     -> mempty
@@ -230,10 +232,10 @@ instance NamesIn Term where
     DontCare v   -> namesAndMetasIn' sg v
     Dummy _ args -> namesAndMetasIn' sg args
 
-instance NamesIn Level where
+instance NamesIn a => NamesIn (Level' a) where
   namesAndMetasIn' sg (Max _ ls) = namesAndMetasIn' sg ls
 
-instance NamesIn PlusLevel where
+instance NamesIn a => NamesIn (PlusLevel' a) where
   namesAndMetasIn' sg (Plus _ l) = namesAndMetasIn' sg l
 
 -- For QName and Meta literals!
@@ -314,6 +316,21 @@ instance NamesIn RewriteRule where
   namesAndMetasIn' sg = \case
     RewriteRule a b c d e f _ _ ->
       namesAndMetasIn' sg (a, b, c, d, e, f)
+
+instance NamesIn a => NamesIn (LocalEquation' a) where
+  namesAndMetasIn' sg (LocalEquation a b c d) = namesAndMetasIn' sg (a, b, c, d)
+
+instance NamesIn LocalRewriteHead where
+  namesAndMetasIn' sg (RewVarHead a) = namesAndMetasIn' sg a
+  namesAndMetasIn' sg (RewDefHead a) = namesAndMetasIn' sg a
+
+instance NamesIn LocalRewriteRule where
+  namesAndMetasIn' sg (LocalRewriteRule a b c d e) =
+    namesAndMetasIn' sg (a, b, c, d, e)
+
+instance NamesIn a => NamesIn (RewDom' a) where
+  namesAndMetasIn' sg (RewDom a b) =
+    namesAndMetasIn' sg (a, b)
 
 instance (NamesIn b) => NamesIn (HashMap a b) where
   namesAndMetasIn' sg map = foldMap (namesAndMetasIn' sg) map

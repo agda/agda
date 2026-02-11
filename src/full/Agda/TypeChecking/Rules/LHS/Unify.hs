@@ -177,7 +177,6 @@ import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
-
 -- | Result of 'unifyIndices'.
 type UnificationResult = UnificationResult'
   ( Telescope                  -- @tel@
@@ -207,7 +206,7 @@ data UnificationResult' a
 --
 --   * @gamma@ is the telescope of free variables in @us@ and @vs@.
 --
---   * @flex@ is the set of flexible (instantiable) variabes in @us@ and @vs@.
+--   * @flex@ is the set of flexible (instantiable) variables in @us@ and @vs@.
 --
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
@@ -688,6 +687,10 @@ unifyStep s Cycle
 
 unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarParameters = pars } = do
   recd <- fromMaybe __IMPOSSIBLE__ <$> isRecord d
+  -- We don't eta-expand variables which occur in local rewrite rules
+  -- In principle, I think we could handle this safely, but it is tricky
+  if i `VarSet.member` rewVars (varTel s)
+  then return $ UnifyStuck [UnifyVarInRewriteEta (varTel s) i] else do
   let delta = _recTel recd `apply` pars
       c     = _recConHead recd
   let nfields         = size delta
@@ -736,7 +739,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
     expandKth us = do
       let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
       vs <- snd <$> etaExpandRecord d pars (unArg v)
-      vs <- reduce vs
+      vs <- addContext (varTel s) $ reduce vs
       return $ us1 ++ vs ++ us2
 
 unifyStep s LitConflict
@@ -831,6 +834,21 @@ solutionStep retry s
     , "p          =" <+> prettyTCM p
     , "bound      =" <+> pretty (IntMap.keys bound)
     , "dotSub     =" <+> pretty dotSub ]
+
+  -- Splitting on variables that occur in local rewrite rules is not allowed!
+  reportSDoc "tc.lhs.unify" 65 $ vcat
+    [ "Checking whether variable:" <+>
+      addContext (varTel s) (prettyTCM $ var i)
+    , "occurs in a local rewrite rule in" <+>
+      prettyTCM (varTel s)
+    , "i.e. is one of" <+>
+      addContext (varTel s) (prettyTCM $
+        fmap var $ VarSet.toAscList $ rewVars $ varTel s)
+    ]
+
+  if i `VarSet.member` rewVars (varTel s)
+  then return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
+  else do
 
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).

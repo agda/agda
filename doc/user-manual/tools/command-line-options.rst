@@ -1965,6 +1965,18 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Failed confluence checks while joining critical pairs.
 
+.. option:: LetBoundLocalRewrite
+
+     Let-binding annotated with '@rew'.
+
+.. option:: LocalRewriteOutsideTelescope
+
+     '@rew' arguments are (currently) only allowed in module telescopes.
+
+.. option:: LambdaBoundLocalRewrite
+
+     Binding '@rew' argument with a lambda.
+
 .. option:: SafeFlagEta
 
      :ref:`ETA <eta-pragma>` pragmas with the :option:`--safe` flag.

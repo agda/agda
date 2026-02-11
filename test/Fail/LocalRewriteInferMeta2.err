@@ -1,0 +1,6 @@
+LocalRewriteInferMeta2.agda:16.24-35: error: [UnequalTypes]
+The type
+  (@rew p : 0 ≡ 1) → Nat
+is not a subtype of
+  _10 → _12
+when checking that the expression foo λ n → n has type _10 → _12

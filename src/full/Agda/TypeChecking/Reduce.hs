@@ -281,8 +281,8 @@ instance Instantiate Sort where
       _            -> __IMPOSSIBLE__
     s -> return s
 
-instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
-    instantiate' (Dom i n b tac x) = Dom i n b <$> instantiate' tac <*> instantiate' x
+instance Instantiate e => Instantiate (Dom e) where
+    instantiate' (Dom i n b tac rew x) = Dom i n b <$> instantiate' tac <*> instantiate' rew <*> instantiate' x
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
@@ -339,6 +339,29 @@ instance Instantiate EqualityView where
     <*> instantiate' t
     <*> instantiate' a
     <*> instantiate' b
+
+instance Instantiate LocalEquation where
+  instantiate' (LocalEquation a b c d) =
+    LocalEquation
+      <$> instantiate' a
+      <*> instantiate' b
+      <*> instantiate' c
+      <*> instantiate' d
+
+instance Instantiate LocalRewriteRule where
+  instantiate' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
+      <$> instantiate' a
+      <*> pure b
+      <*> pure c
+      <*> instantiate' d
+      <*> instantiate' e
+
+instance Instantiate RewDom where
+  instantiate' (RewDom a b) =
+    RewDom
+      <$> instantiate' a
+      <*> instantiate' b
 
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
@@ -582,10 +605,10 @@ slowReduceTerm v = do
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
-      Pi _ _   -> done
-      Lit _    -> done
-      Var _ es  -> iapp es
-      Lam _ _  -> done
+      Pi _ _     -> done
+      Lit _      -> done
+      Var x es   -> reduceIApply (rewriteVarApp x es) es
+      Lam _ _    -> done
       DontCare _ -> done
       Dummy{}    -> done
     where
@@ -606,7 +629,23 @@ slowReduceTerm v = do
               w              -> Con c ci [Apply $ defaultArg w]
       reduceNat v = return v
 
--- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
+rewriteVarApp :: Nat -> Elims -> ReduceM (Blocked Term)
+rewriteVarApp x es = do
+  r <- rewriteVarAppStep x es
+  case r of
+    NoReduction v    -> return v
+    YesReduction _ v -> reduceB' v
+
+rewriteVarAppStep :: Nat -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewriteVarAppStep x es = do
+  rewr <- getAllRewriteRulesForVarHead x
+  when (not $ null rewr) $
+    reportSDoc "rewriting" 30 $
+      "Trying to rewrite variable application" <+> prettyTCM (Var x es)
+  rewrite (NotBlocked ReallyNotBlocked ())
+          (Var x) rewr es
+
+-- Andreas, 2013-03-20 recursive invocations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
 unfoldCorecursionE (Proj o p)           = notBlocked . Proj o <$> getOriginalProjection p
@@ -654,7 +693,7 @@ unfoldDefinitionStep v0 f es =
   {-# SCC "reduceDef" #-} do
   traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
   info <- getConstInfo f
-  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
+  rewr <- getAllRewriteRulesForDefHead f
   allowed <- asksTC envAllowedReductions
   prp <- runBlocked $ isPropM $ defType info
   defOk <- shouldReduceDef f
@@ -728,7 +767,7 @@ unfoldDefinitionStep v0 f es =
           mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
-    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
+    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> LocalRewriteRules -> ReduceM (Reduced (Blocked Term) Term)
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
       case (def,rewr) of
@@ -875,10 +914,10 @@ unfoldInlined v = do
 
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.
-appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> LocalRewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) args
 
-appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
   localTC (\ e -> e { envAppDef = Just f }) $
   maybe (appDefE'' v0 cls rewr args)
@@ -887,10 +926,10 @@ appDefE_ f v0 cls mcc rewr args =
 
 -- | Apply a defined function to it's arguments, using the compiled clauses.
 --   The original term is the first argument applied to the third.
-appDef :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef :: Term -> CompiledClauses -> LocalRewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef v cc rewr args = appDefE v cc rewr $ map (fmap Apply) args
 
-appDefE :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE :: Term -> CompiledClauses -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE v cc rewr es = do
   traceSDoc "tc.reduce" 90 ("appDefE v = " <+> pretty v) $ do
   r <- matchCompiledE cc es
@@ -899,16 +938,16 @@ appDefE v cc rewr es = do
     NoReduction es'      -> rewrite (void es') (applyE v) rewr (ignoreBlocking es')
 
 -- | Apply a defined function to it's arguments, using the original clauses.
-appDef' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef' :: QName -> Term -> [Clause] -> LocalRewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef' f v cls rewr args = appDefE' f v cls rewr $ map (fmap Apply) args
 
-appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE' :: QName -> Term -> [Clause] -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE' f v cls rewr es =
   localTC (\ e -> e { envAppDef = Just f }) $
   appDefE'' v cls rewr es
 
 -- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
-appDefE'' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE'' :: Term -> [Clause] -> LocalRewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
   goCls cls $ map ignoreReduced es
   where
@@ -1535,8 +1574,8 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
-instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
-    instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
+instance InstantiateFull e => InstantiateFull (Dom e) where
+    instantiateFull' (Dom i n b tac rew x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' rew <*> instantiateFull' x
 
 instance InstantiateFull ContextEntry where
   instantiateFull' (CtxVar x a) = CtxVar x <$> instantiateFull' a
@@ -1651,6 +1690,29 @@ instance InstantiateFull RewriteRule where
       <*> instantiateFull' t
       <*> pure c
       <*> pure top
+
+instance InstantiateFull LocalEquation where
+  instantiateFull' (LocalEquation a b c d) =
+    LocalEquation
+      <$> instantiateFull' a
+      <*> instantiateFull' b
+      <*> instantiateFull' c
+      <*> instantiateFull' d
+
+instance InstantiateFull LocalRewriteRule where
+  instantiateFull' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
+      <$> instantiateFull' a
+      <*> pure b
+      <*> instantiateFull' c
+      <*> instantiateFull' d
+      <*> instantiateFull' e
+
+instance InstantiateFull RewDom where
+  instantiateFull' (RewDom a b) =
+    RewDom
+      <$> instantiateFull' a
+      <*> instantiateFull' b
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)

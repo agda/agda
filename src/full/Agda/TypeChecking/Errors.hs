@@ -2139,6 +2139,15 @@ instance PrettyTCM UnificationFailure where
              , text $ verbalize $ getQuantity mod ] ++
       pwords "modality"
 
+    UnifyVarInRewrite tel a i u -> addContext tel $ fsep $
+      pwords "Cannot solve variable " ++ [prettyTCM (var i)] ++
+      pwords "of type " ++ [prettyTCM a] ++
+      pwords "with solution " ++ [prettyTCM u] ++
+      pwords "because the variable occurs in a local rewrite rule."
+
+    UnifyVarInRewriteEta tel i -> addContext tel $ fsep $
+      pwords "Cannot eta-expand variable " ++ [prettyTCM (var i)] ++
+      pwords "because the variable occurs in a local rewrite rule."
 
 
 explainWhyInScope :: forall m. MonadPretty m => WhyInScopeData -> m Doc

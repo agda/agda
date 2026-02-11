@@ -8,7 +8,7 @@ import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
 import Control.Monad.Writer          ( WriterT )
-import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Trans.Maybe     ( MaybeT (MaybeT), runMaybeT  )
 import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
 
@@ -79,6 +79,7 @@ import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
+import qualified Data.IntMap as IntMap
 
 -- | If the first argument is @'Erased' something@, then hard
 -- compile-time mode is enabled when the continuation is run.
@@ -286,6 +287,10 @@ markFirstOrder = setFunctionFlag FunFirstOrder True
 addSection :: ModuleName -> TCM ()
 addSection m = do
   tel <- getContextTelescope
+  addSection' m tel
+
+addSection' :: ModuleName -> Telescope -> TCM ()
+addSection' m tel = do
   let sec = Section tel
   -- Make sure we do not overwrite an existing section!
   whenJustM (getSection m) $ \ sec' -> do
@@ -587,15 +592,19 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
     copyDef ts x y = do
       def <- getConstInfo x
       np  <- argsToUse (qnameModule x)
+      -- Because of https://github.com/agda/agda/issues/892 we might have too
+      -- many arguments and need to drop some
+      origTel <- lookupSection (qnameModule x)
+      let ts' = drop (size ts - size origTel) ts
       -- Issue #3083: We need to use the hiding from the telescope of the
       -- original module. This can be different than the hiding for the common
       -- parent in the case of record modules.
-      hidings <- map getHiding . telToList <$> lookupSection (qnameModule x)
-      let ts' = zipWith setHiding hidings ts
+      let hidings = map getHiding $ telToList origTel
+      let ts'' = zipWith setHiding hidings ts'
       commonTel <- lookupSection (commonParentModule old $ qnameModule x)
       reportSDoc "tc.mod.apply" 80 $ vcat
         [ "copyDef" <+> pretty x <+> "->" <+> pretty y
-        , "ts' = " <+> pretty ts' ]
+        , "ts' = " <+> pretty ts'' ]
       -- The module telescope had been divided by some μ, so the corresponding
       -- top level definition had type μ \ Γ → B, so if we have a substitution
       -- Δ → Γ we actually want to apply μ \ - to it, so the new top-level
@@ -606,7 +615,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                            , modPolarity = getModalPolarity ai
                            }
       localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
-        copyDef' ts' np def
+        copyDef' ts'' np def
       reportSDoc "tc.mod.apply" 80 $
         "finished copyDef" <+> pretty x <+> "->" <+> pretty y
       where
@@ -795,12 +804,16 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
       reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
       totalArgs <- argsToUse x
       tel       <- lookupSection x
-      let sectionTel = apply tel $ take totalArgs ts
+      -- Because of https://github.com/agda/agda/issues/892 we might have too
+      -- many arguments and need to drop some
+      let ts' = drop (size ts - size tel) ts
+      let sectionTel = apply tel $ take totalArgs ts'
       reportSDoc "tc.mod.apply" 80 $ "  ts           = " <+> mconcat (List.intersperse "; " (map pretty ts))
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
       reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
       reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (unwords (map (fst . unDom) $ telToList ptel)) -- only names
-      addContext sectionTel $ addSection y
+      ctxTel <- getContextTelescope
+      addSection' y (ctxTel `abstract` sectionTel)
       reportSDoc "tc.mod.apply" 80 $
         "finished copySec" <+> pretty x <+> "->" <+> pretty y
 
@@ -963,12 +976,16 @@ class ( Functor m
   getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
-  -- | Return the rewrite rules for the given head symbol that could be tried.
-  --   Not categorically all rewrite rules are returned, in particular, none when
-  --   reduction of the head symbol is disabled.
-  --   Rewrite rules that only happen to be in the signature but are not in scope
-  --   are also not returned.
+  -- | Return the global rewrite rules for the given head symbol that could be
+  --   tried.
+  --   Not categorically all rewrite rules are returned, in particular, none
+  --   when reduction of the head symbol is disabled.
+  --   Rewrite rules that only happen to be in the signature but are not in
+  --   scope are also not returned.
   getRewriteRulesFor :: QName -> m RewriteRules
+
+  -- | Return the local rewrite rules for the given head symbol.
+  getLocalRewriteRulesFor :: LocalRewriteHead -> m (LocalRewriteRules)
 
   -- Lifting HasConstInfo through monad transformers:
 
@@ -982,7 +999,28 @@ class ( Functor m
     => QName -> m RewriteRules
   getRewriteRulesFor = lift . getRewriteRulesFor
 
+  default getLocalRewriteRulesFor
+    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    => LocalRewriteHead -> m (LocalRewriteRules)
+  getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
+
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
+
+getAllRewriteRulesForDefHead :: (HasConstInfo m, ReadTCState m)
+  => QName -> m (LocalRewriteRules)
+getAllRewriteRulesForDefHead f =
+  mappend <$> (catMaybes . fmap justTheRule <$>
+                (instantiateRewriteRules =<< getRewriteRulesFor f)) <*>
+              getLocalRewriteRulesFor (RewDefHead f)
+  where
+    justTheRule :: RewriteRule -> Maybe (LocalRewriteRule)
+    justTheRule (RewriteRule _ g q ps rhs t isClause _)
+      | isClause  = Nothing
+      | otherwise = pure $ LocalRewriteRule g (RewDefHead q)  ps rhs t
+
+getAllRewriteRulesForVarHead :: HasConstInfo m
+  => Nat -> m (LocalRewriteRules)
+getAllRewriteRulesForVarHead x = getLocalRewriteRulesFor $ RewVarHead x
 
 {-# SPECIALIZE getOriginalConstInfo :: HasCallStack => QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
@@ -1011,6 +1049,26 @@ defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m Rewrite
 defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   getFilteredRewriteRulesFor True q
 
+defaultGetLocalRewriteRulesFor ::
+  (ReadTCState m, MonadTCEnv m, MonadDebug m)
+  => LocalRewriteHead -> m (LocalRewriteRules)
+defaultGetLocalRewriteRulesFor h =
+  ifNotM (shouldReduceDef' h) (return []) $ do
+    m <- runMaybeT . lookup h =<< asksTC envLocalRewriteRules
+    pure $ fromMaybe [] m
+  where
+    shouldReduceDef' (RewDefHead f) = shouldReduceDef f
+    shouldReduceDef' (RewVarHead _) = pure True
+
+    lookup h m = do
+      rews  <- MaybeT $ pure $ lookup' h m
+      lift $ traverse (tryGetOpenRew fallback) rews
+
+    fallback = __IMPOSSIBLE_VERBOSE__ . show
+
+    lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
+    lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
+
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.
 getFilteredRewriteRulesFor :: (ReadTCState m)
@@ -1036,7 +1094,8 @@ getOriginalProjection :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo TCM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor
+  getRewriteRulesFor      = defaultGetRewriteRulesFor
+  getLocalRewriteRulesFor = defaultGetLocalRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
     env <- askTC
@@ -1395,6 +1454,7 @@ instantiateDef d = do
       fsep (map pretty $ zipWith (<$) ctx vs)
   return $ d `apply` vs
 
+-- | Instantiate a global rewrite rule
 instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
   => RewriteRule -> m RewriteRule
 instantiateRewriteRule rew = do
@@ -1405,6 +1465,7 @@ instantiateRewriteRule rew = do
   traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
+-- | Instantiate global rewrite rules
 instantiateRewriteRules :: (HasConstInfo m, ReadTCState m)
   => RewriteRules -> m RewriteRules
 instantiateRewriteRules = mapM instantiateRewriteRule

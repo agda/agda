@@ -58,6 +58,7 @@ module Agda.TypeChecking.Free
     , closed
     , MetaSet
     , insertMetaSet, foldrMetaSet, metaSetToBlocker
+    , rewVars
     ) where
 
 import Prelude hiding (null)
@@ -82,6 +83,9 @@ import Agda.TypeChecking.Free.Lazy
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Singleton
+import Agda.Utils.Maybe (fromMaybe)
+import Agda.Utils.Size (size)
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 ---------------------------------------------------------------------------
 -- * Simple variable set implementations.
@@ -318,3 +322,12 @@ flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
 
 allVars :: VarMap -> VarSet
 allVars = VarSet.fromList . IntMap.keys . theVarMap
+
+-- | Returns all variables that occur in local rewrite rules in the telescope
+rewVars :: Telescope -> VarSet
+rewVars EmptyTel        = VarSet.empty
+rewVars (ExtendTel a b) =
+  fromMaybe VarSet.empty
+    (VarSet.weaken (size b + 1) . allFreeVars . fromMaybe __IMPOSSIBLE__ .
+      rewDomRew <$> rewDom a)
+  <> (rewVars $ unAbs b)

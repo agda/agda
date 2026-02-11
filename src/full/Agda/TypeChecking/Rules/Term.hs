@@ -88,6 +88,8 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
+import Agda.TypeChecking.Rewriting (getEquation, checkLocalRewriteRule, checkRewConstraint)
+import Control.Monad.Trans.Maybe (runMaybeT)
 
 ---------------------------------------------------------------------------
 -- * Types
@@ -117,7 +119,7 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
+      a <- uncurry (defaultArgDomRew info) <$> checkPiDomain (info :| []) t
       b <- isType_ b
       s <- inferFunSort a b
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -306,15 +308,31 @@ checkTelescope' lamOrPi (b : tel) ret =
 
 -- | Check the domain of a function type.
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
-checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
+checkDomain :: (LensLock a, LensModality a, LensRewriteAnn a)
+            => LamOrPi -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkDomain lamOrPi xs e = do
-    -- Get cohesion and quantity of arguments, which should all be equal because
+    -- Get cohesion and quantity of arguments, as well as if they are local
+    -- rewrite rules. All of these properties should all be equal because
     -- they come from the same annotated Π-type.
     let (c :| cs) = fmap (getCohesion . getModality) xs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
     let (q :| qs) = fmap (getQuantity . getModality) xs
     unless (all (q ==) qs) $ __IMPOSSIBLE__
+
+    let (r :| rs) = fmap (getRewriteAnn) xs
+    unless (all (r ==) rs) $ __IMPOSSIBLE__
+
+  -- For now, we disallow '@rew' domains on pi types
+  -- In the future, this should be allowed only when the pi type is not in
+  -- higher-order position (checked syntactically)
+    r <- case lamOrPi of
+      PiNotLam | isRewrite r -> IsNotRewrite <$
+        runMaybeT (illegalRule LocalRewrite LocalRewriteOutsideTelescope)
+      _                      -> pure r
+
+    -- Also get whether the domain is a local rewrite rule. If it is, and there
+    -- are multiple arguments, we warn that this is unnecessary
 
     t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
@@ -328,7 +346,20 @@ checkDomain lamOrPi xs e = do
 
         equalSort (getSort t) LockUniv
 
-    return t
+    eq  <- getEquation r t
+    rew <- traverse checkLocalRewriteRule eq
+    -- We do not (currently) distinguish failing to elaborate to a LocalEquation
+    -- from failing to elaborate to a LocalRewriteRule. In the case we have
+    -- a valid LocalEquation, but failed to produce a LocalRewriteRule, we could
+    -- technically still store the LocalEquation and check the convertibility
+    -- constraint at call sites. I don't think this is super important, but
+    -- maybe worth trying in future.
+    let rDom = RewDom <$> eq <*> fmap pure (join rew)
+    whenJust rDom \rDom' -> reportSDoc "rewriting" 30 $
+      "Successfully elaborated: " <+> prettyTCM (rewDomEq rDom') <+>
+        " into a rewrite rule"
+
+    return (rDom, t)
   where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -337,7 +368,8 @@ checkDomain lamOrPi xs e = do
         modEnv (LamNotPi _) = workOnTypes
         modEnv PiNotLam     = id
 
-checkPiDomain :: (LensLock a, LensModality a) => List1 a -> A.Expr -> TCM Type
+checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a)
+              => List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkPiDomain = checkDomain PiNotLam
 
 -- | Check a typed binding and extends the context with the bound variables.
@@ -357,7 +389,8 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    t <- checkDomain lamOrPi xps e
+    (rew, t) <- checkDomain lamOrPi xps e
+    whenJust rew $ \r -> reportSDoc "rewriting" 30 $ "Checked local rewrite:" <+> prettyTCM (rewDomEq r)
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -372,15 +405,18 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         NoOutputTypeName -> setCurrentRange e $
           warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let setTac tac dom = dom { domTactic = tac }
-        setTacTel tac EmptyTel            = EmptyTel
-        setTacTel tac (ExtendTel dom tel) =
-          ExtendTel (setTac tac dom) $ setTacTel (raise 1 tac) <$> tel
-        -- We need to convert to Dom and set the domTactic field here in order
-        -- to not drop @tactic annotations
-        xs' = setTac tac . domNameFromNamedArgName . modMod lamOrPi experimental
+    let setTacRew tac rew dom = dom { domTactic = tac, rewDom = rew }
+        setTacRewTel tac rew EmptyTel            = EmptyTel
+        setTacRewTel tac rew (ExtendTel dom tel) =
+          ExtendTel (setTacRew tac rew dom) $
+            setTacRewTel (raise 1 tac) (raise 1 rew) <$> tel
+        -- We need to convert to Dom and set the domTactic and domRew fields
+        -- here in order to not drop @tactic and @rew annotations
+        xs' = setTacRew tac rew
+                . domNameFromNamedArgName
+                . modMod lamOrPi experimental
               <$> xs
-    let tel = setTacTel tac $ namedBindsToTel1 xs t
+    let tel = setTacRewTel tac rew $ namedBindsToTel1 xs t
 
     addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
@@ -616,6 +652,7 @@ checkLambda' cmp r tac xps typ body target = do
           unless (namedSame dom x) $
             setCurrentRange x $ typeError $ WrongHidingInLHS
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
+
         info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523
         -- Ensure we are not stepping under a possibly non-existing size.
@@ -656,9 +693,24 @@ userOmittedModalities xs = do
 -- | Check that modality info in lambda is compatible with modality
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
-lambdaModalityCheck :: (LensAnnotation dom, LensModality dom) => dom -> ArgInfo -> TCM ArgInfo
-lambdaModalityCheck dom = lambdaAnnotationCheck (getAnnotation dom) <=< lambdaPolarityCheck m <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+lambdaModalityCheck ::
+     (LensAnnotation dom, LensModality dom, LensRewriteAnn dom)
+  => dom -> ArgInfo -> TCM ArgInfo
+lambdaModalityCheck dom =
+  lambdaAnnotationCheck (getAnnotation dom) <=<
+  lambdaPolarityCheck m <=<
+  lambdaCohesionCheck m <=<
+  lambdaQuantityCheck m <=<
+  lambdaIrrelevanceCheck m <=<
+  lambdaRewCheck dom
   where m = getModality dom
+
+-- | Local rewrite rules cannot be bound in lambdas
+lambdaRewCheck :: LensRewriteAnn a => a -> ArgInfo -> TCM ArgInfo
+lambdaRewCheck x info = do
+  when (isRewrite (getRewriteAnn info) || isRewrite (getRewriteAnn x)) $
+    void $ runMaybeT $ illegalRule LocalRewrite LambdaBoundLocalRewrite
+  return $ setRewriteAnn IsNotRewrite info
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
 --   coming from the function type.
@@ -1424,6 +1476,16 @@ scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 scopedExpr (A.Qualified mod e)    = scopedExpr e
 scopedExpr e                      = return e
 
+-- | If we are checking an @rew application, the equational constraint must hold
+--   definitionally.
+checkLocalEquation :: TCM ()
+checkLocalEquation = do
+  eq <- viewTC eLocalEquation
+  whenJust eq \eq' -> do
+    reportSDoc "tc.term.expr.top" 15 $
+      "Checking @rew constraint " <+> prettyTCM eq'
+    checkRewConstraint eq'
+
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr = checkExpr' CmpLeq
@@ -1442,6 +1504,8 @@ checkExpr' cmp e t =
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
   traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
+    checkLocalEquation
+
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]
@@ -1452,6 +1516,7 @@ checkExpr' cmp e t =
     tReduced <- reduce t
     reportSDoc "tc.term.expr.top" 15 $
         "    --> " <+> prettyTCM tReduced
+
 
     e <- scopedExpr e
 
@@ -1542,7 +1607,8 @@ checkExpr' cmp e t =
         -- Application
         e -> do
           Application hd args <- appViewM e
-          checkApplication cmp hd args e t
+          e' <- checkApplication cmp hd args e t
+          pure e'
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.
@@ -1715,6 +1781,11 @@ checkOrInferMeta
   -> Maybe (Comparison , Type)
   -> TCM (Term, Type)
 checkOrInferMeta i newMeta mt = do
+  -- We still need to check equational constraints even when checking a meta
+  -- because definitions parameterised by a local rewrite rule do not block
+  -- on the corresponding argument
+  checkLocalEquation
+
   case A.metaNumber i of
     Nothing -> do
       unlessNull (A.metaScope i) setScope

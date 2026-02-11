@@ -246,7 +246,7 @@ instance Pretty a => Pretty (Binder' a) where
 
 instance Pretty NamedBinding where
   pretty (NamedBinding withH
-           x@(Arg (ArgInfo h (Modality r q c p) _o _fv (Annotation lock))
+           x@(Arg (ArgInfo h (Modality r q c p) _o _fv (Annotation lock rew))
                (Named _mn xb@(Binder _mp _ (BName _y _fix t _fin))))) =
     applyWhen withH prH $
     applyWhenJust (isLabeled x) (\ l -> (text l <+>) . (equals <+>)) (pretty xb)
@@ -260,11 +260,13 @@ instance Pretty NamedBinding where
         . (pol <+>)
         . (lck <+>)
         . (tac <+>)
+        . (rw  <+>)
     coh = pretty c
     qnt = pretty q
     pol = pretty p
     tac = pretty t
     lck = pretty lock
+    rw  = pretty rew
     -- Parentheses are needed when an attribute @... is printed
     mparens = applyUnless (null coh && null qnt && null lck && null tac && null pol) parens
 
@@ -284,7 +286,8 @@ instance Pretty TypedBinding where
         $ prettyQuantity y
         $ prettyLock y
         $ prettyPolarity y
-        $ prettyTactic (binderName $ namedArg y) $
+        $ prettyTactic (binderName $ namedArg y)
+        $ prettyRewriteAnn y $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , colon <+> pretty e ]
       | ys@(y : _) <- groupBinds $ List1.toList xs ]
@@ -380,7 +383,8 @@ instance Pretty Declaration where
   prettyList = vcat . map pretty
   pretty = \case
     TypeSig i tac x e ->
-      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $ pretty x <+> colon
+      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $
+              prettyQuantity i $ prettyPolarity i $ pretty x <+> colon
           , nest 2 $ pretty e
           ]
     FieldSig inst tac x (Arg i e) ->

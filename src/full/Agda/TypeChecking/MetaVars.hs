@@ -355,12 +355,12 @@ newArgsMetaCtx'' pref frozen condition (El s tm) tel perm ctx = do
                  map (mod `inverseApplyModalityButNotQuantity`) $
                  telToList tel
           ctx' = map (mod `inverseApplyModalityButNotQuantity`) ctx
-      (m, u) <- applyModalityToContext info $
+      (m, u) <- applyDomToContext dom $
                  newValueMetaCtx frozen RunMetaOccursCheck CmpLeq a tel' perm ctx'
       -- Jesper, 2021-05-05: When creating a metavariable from a
       -- generalizable variable, we must set the modality at which it
       -- will be generalized.  Don't do this for other metavariables,
-      -- as they should keep the defaul modality (see #5363).
+      -- as they should keep the default modality (see #5363).
       whenM ((== YesGeneralizeVar) <$> viewTC eGeneralizeMetas) $
         setMetaGeneralizableArgInfo m $ hideOrKeepInstance info
       setMetaNameSuggestion m (suffixNameSuggestion pref (absName codom))
@@ -774,6 +774,13 @@ etaExpandBlocked (Blocked b t)  = do
     Blocked b' _ | b /= b' -> etaExpandBlocked t
     _                      -> return t
 
+-- | Is the term an @rew function?
+isRewPi :: Term -> Bool
+isRewPi (Pi a b) = case getRewriteAnn a of
+  IsRewrite    -> True
+  IsNotRewrite -> isRewPi $ unEl $ unAbs b
+isRewPi _        = False
+
 {-# SPECIALIZE assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM () #-}
 assignWrapper :: (MonadMetaSolver m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
@@ -786,6 +793,23 @@ assignWrapper dir x es v doAssign = do
   where dontAssign = do
           reportSLn "tc.meta.assign" 10 "don't assign metas"
           patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
+
+-- | Gets the set of variables forced by local rewrite rules
+rewForced :: Tele (Dom a) -> VarSet
+rewForced EmptyTel        = VarSet.empty
+rewForced (ExtendTel a b) =
+  fromMaybe VarSet.empty
+    (VarSet.weaken (size b + 1) . rewForced' . fromMaybe __IMPOSSIBLE__ .
+      rewDomRew <$> rewDom a) <>
+    (rewForced $ unAbs b)
+  where
+    rewForced' :: LocalRewriteRule -> VarSet
+    rewForced' (LocalRewriteRule EmptyTel (RewVarHead x) [] _ _) =
+      VarSet.singleton x
+    rewForced' (LocalRewriteRule _ (RewVarHead x) [] _ _) =
+      __IMPOSSIBLE__
+    rewForced' _ =
+      VarSet.empty
 
 -- | Miller pattern unification:
 --
@@ -844,6 +868,12 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   case (v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
+
+  -- Instantiating metas with @rew functions is never allowed to ensure
+  -- quantification is always prenex
+  if isRewPi v
+    then patternViolation neverUnblock
+    else return ()
 
   -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
   -- we equate the sort of the solution with the sort of the
@@ -1041,9 +1071,14 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       reportSDoc "tc.meta.assign" 20 $
         "fvars rhs:" <+> sep (map (text . show) $ VarSet.toAscList fvs)
 
+      -- We need to identify arguments to the meta that are forced by local
+      -- rewrite rules
+      forced <- fmap (rewForced . theTel) $ telView $ jMetaType $
+        mvJudgement mvar
+
       -- Check that the arguments are variables
       mids <- do
-        res <- runExceptT $ inverseSubst' (const False) args
+        res <- runExceptT $ inverseSubst' (const False) forced args
         case res of
           -- all args are variables
           Right ids -> do
@@ -1512,7 +1547,11 @@ etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
     "trying to expand projected variable" <+> prettyTCM (var i)
-  caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
+  -- We don't eta-expand variables which occur in local rewrite rules
+  -- In principle, I think we could handle this safely, but it is tricky
+  tel <- getContextTelescope
+  if i `VarSet.member` rewVars tel then fail else
+    caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
     reportSDoc "tc.meta.assign.proj" 25 $
       "eta-expanding var " <+> prettyTCM (var i) <+>
       " in terms " <+> prettyTCM v
@@ -1661,8 +1700,8 @@ data InvertExcept
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-inverseSubst' :: (Term -> Bool) -> Args -> ExceptT InvertExcept TCM SubstCand
-inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
+inverseSubst' :: (Term -> Bool) -> VarSet -> Args -> ExceptT InvertExcept TCM SubstCand
+inverseSubst' skip rewForced args = map (first unArg) <$> loop (zip args terms)
   where
   loop  = foldM isVarOrIrrelevant []
   terms = map var (downFrom (size args))
@@ -1674,6 +1713,14 @@ inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
   neutralArg = throwError NeutralArg
 
   isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
+  isVarOrIrrelevant vars (Arg info v, Var x [])
+    | x `VarSet.member` rewForced = do
+    lift $ reportSDoc "tc.meta.assign" 60 $ vcat
+            [ "argument is forced by rewrite rule"
+            , "  arg = " <+> prettyTCM v
+            , "  var = " <+> prettyTCM (var x)
+            ]
+    return vars
   isVarOrIrrelevant vars (Arg info v, t) = do
     let irr | isIrrelevant info = True
             | DontCare{} <- v   = True
@@ -1735,9 +1782,9 @@ inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
         pure $ (Arg info i, Def qn [Apply (defaultArg t)]) `cons` vars
 
       Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
-      t@Lam{}    -> failure t
-      t@Lit{}    -> failure t
-      t@MetaV{}  -> failure t
+      tm@Lam{}   -> failure tm
+      tm@Lit{}   -> failure tm
+      tm@MetaV{} -> failure tm
       Pi{}       -> neutralArg
       Sort{}     -> neutralArg
       Level{}    -> neutralArg
@@ -1802,8 +1849,10 @@ isFaceConstraint mid args = runMaybeT $ do
   -- We must check the "face condition" (the relaxed pattern condition)
   -- and check linearity of the substitution candidate, otherwise the
   -- equation can't be inverted into a face constraint.
-  sub <- MaybeT $ either (const Nothing) Just <$> runExceptT (inverseSubst' isEndpoint args)
-  ids <- MaybeT $ either (const Nothing) Just <$> runExceptT (checkLinearity sub)
+  sub <- MaybeT $ either (const Nothing) Just <$> runExceptT
+    (inverseSubst' isEndpoint VarSet.empty args)
+  ids <- MaybeT $ either (const Nothing) Just <$> runExceptT
+    (checkLinearity sub)
 
   m           <- getContextSize
   TelV tel' _ <- telViewUpToPath n t

@@ -199,6 +199,9 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
+  , LetBoundLocalRewrite_
+  , LambdaBoundLocalRewrite_
+  , LocalRewriteOutsideTelescope_
   , TopLevelPolarity_
 
   -- Recoverable parse errors
@@ -367,6 +370,9 @@ data WarningName
   | RewriteAmbiguousRules_
   | RewriteMissingRule_
   | DuplicateRewriteRule_
+  | LetBoundLocalRewrite_
+  | LambdaBoundLocalRewrite_
+  | LocalRewriteOutsideTelescope_
   | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -618,6 +624,9 @@ warningNameDescription = \case
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
+  LetBoundLocalRewrite_            -> "Let-binding annotated with '@rew'."
+  LambdaBoundLocalRewrite_         -> "Binding '@rew' argument with a lambda."
+  LocalRewriteOutsideTelescope_    -> "'@rew' arguments are (currently) only allowed in module telescopes."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."

@@ -611,3 +611,41 @@ instance Free EqualityView where
     OtherType t -> freeVars' t
     IdiomType t -> freeVars' t
     EqualityType _r s _eq l t a b -> freeVars' (s, l, [t, a, b])
+
+-- | Only computes free variables that are not pattern variables (see
+--   'nlPatVars')
+--   i.e., those in a 'PTerm' or 'PBoundVar's from the local context.
+instance Free NLPat where
+  freeVars' = \case
+    PVar{}         -> mempty
+    PDef _ es      -> freeVars' es
+    PLam _ u       -> freeVars' u
+    PPi a b        -> freeVars' (a,b)
+    PSort s        -> freeVars' s
+    PBoundVar x es -> variable x <> freeVars' es
+    PTerm t        -> freeVars' t
+
+instance Free NLPType where
+  freeVars' (NLPType s a) =
+    ifM (asks ((IgnoreNot ==) . feIgnoreSorts))
+      {- then -} (freeVars' (s, a))
+      {- else -} (freeVars' a)
+
+instance Free NLPSort where
+  freeVars' = \case
+    PUniv _ l -> freeVars' l
+    PInf f n  -> mempty
+    PSizeUniv -> mempty
+    PLockUniv -> mempty
+    PLevelUniv -> mempty
+    PIntervalUniv -> mempty
+
+instance Free LocalRewriteHead where
+  freeVars' (RewDefHead f) = mempty
+  freeVars' (RewVarHead x) = variable x
+
+instance Free LocalRewriteRule where
+  freeVars' (LocalRewriteRule gamma h ps rhs b) =
+    freeVars' gamma <>
+    freeVars' h <>
+    underBinder' (size gamma) (freeVars' ps <> freeVars' rhs <> freeVars' b)

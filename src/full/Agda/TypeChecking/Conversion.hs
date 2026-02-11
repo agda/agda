@@ -849,6 +849,11 @@ compareDom cmp0
      | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> err
      | not $ samePolarity (getModalPolarity dom1) (getModalPolarity dom2) -> err
      | not $ domIsFinite dom1 == domIsFinite dom2 -> err
+     -- We compare both rewrite annotations AND the actual rewDoms to properly
+     -- handle the case where we have use a rewrite annotation outside of a
+     -- module telescope and continued trying to typecheck
+     | not $  getRewriteAnn dom1   == getRewriteAnn dom2
+           && isJust (rewDom dom1) == isJust (rewDom dom2) -> err
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
@@ -1033,7 +1038,7 @@ compareElims pols0 fors0 a v els01 els02 =
       a <- abortIfBlocked a
       reportSLn "tc.conv.elim" 40 $ "type is not blocked"
       case unEl a of
-        (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
+        (Pi dom@(Dom{domInfo = info, unDom = b}) codom) -> do
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
           mlvl <- tryMaybe primLevel
           let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
@@ -1048,7 +1053,7 @@ compareElims pols0 fors0 a v els01 els02 =
 
           -- compare arg1 and arg2
           pid <- addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
-            newProblem_ $ applyModalityToContext info
+            newProblem_ $ applyDomToContext dom
             if isForced for then
               reportSLn "tc.conv.elim" 40 $ "argument is forced"
             else if isIrrelevant info then do
@@ -1062,7 +1067,7 @@ compareElims pols0 fors0 a v els01 els02 =
           solved <- isProblemSolved pid
           reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
           arg <- if dependent && not solved
-                 then applyModalityToContext info $ do
+                 then applyDomToContext dom $ do
                   reportSDoc "tc.conv.elims" 50 $ vcat $
                     [ "Trying antiUnify:"
                     , nest 2 $ "b    =" <+> prettyTCM b

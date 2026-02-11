@@ -327,7 +327,7 @@ inferSpine action t hd es = loop t hd id es
         Apply (Arg ai v) -> do
           (a, b) <- shouldBePi t
           ai <- checkArgInfo action ai $ domInfo a
-          v' <- applyModalityToContext (getModality a) $ checkInternal' action v CmpLeq $ unDom a
+          v' <- applyDomToContext a $ checkInternal' action v CmpLeq $ unDom a
           let e' = Apply (Arg ai v')
           loop (b `absApp` v) (hd . (e:)) (acc . (e':)) es
         -- case: projection or projection-like

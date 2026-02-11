@@ -38,6 +38,7 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
+import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
 
 -- | Flatten telescope: @(Γ : Tel) -> [Type Γ]@.
 --
@@ -101,8 +102,7 @@ unflattenTel' !n xs tel = case (xs, tel) of
     where
     tel' = unflattenTel' (n - 1) xs tel
     a'   = applySubst rho a
-    rho  = parallelS $
-           replicate n (withCallerCallStack impossibleTerm)
+    rho  = strengthenS (withCallerCallStack Impossible) n
   ([],    _ : _) -> __IMPOSSIBLE__
   (_ : _, [])    -> __IMPOSSIBLE__
 
@@ -436,15 +436,25 @@ telViewUpTo n t = telViewUpTo' n (const True) t
 --   the first @n@ (or arbitrary many if @n < 0@) function domains
 --   as long as they satify @p@.
 telViewUpTo' :: (MonadReduce m, MonadAddContext m) => Int -> (Dom Type -> Bool) -> Type -> m TelView
-telViewUpTo' 0 p t = return $ TelV EmptyTel t
-telViewUpTo' n p t = do
+telViewUpTo' n p t = fromMaybe __IMPOSSIBLE__ <$>
+  (runMaybeT $ safeTelViewUpTo' n p t)
+
+-- | If there are @rew arguments in the type then trying to construct the
+--   telescope might fail.
+safeTelViewUpTo' :: (MonadReduce m, MonadAddContext m)
+  => Int -> (Dom Type -> Bool) -> Type -> MaybeT m TelView
+safeTelViewUpTo' 0 p t = return $ TelV EmptyTel t
+safeTelViewUpTo' n p t = do
   t <- reduce t
   case unEl t of
-    Pi a b | p a ->
-          -- Force the name to avoid retaining the rest of b.
-      let !bn = absName b in
-      absV a bn <$> do
-        underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
+    Pi a b | p a -> case rewDom a of
+      -- Domain of pi type is a substituted @rew argument
+      Just (RewDom _ Nothing) -> mzero
+      _                       -> do
+        -- Force the name to avoid retaining the rest of b.
+        let !bn = absName b
+        absV a bn <$> do
+          underAbstractionAbs a b $ \b -> safeTelViewUpTo' (n - 1) p b
     _ -> return $ TelV EmptyTel t
 
 {-# INLINE telViewPath #-}

@@ -27,7 +27,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom a c d e f) = icodeN' Dom a c d e f
+  icod_ (Dom a c d e f g) = icodeN' Dom a c d e f g
 
   value = valueN Dom
 
@@ -326,6 +326,30 @@ instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f g h) = icodeN' RewriteRule a b c d e f g h
 
   value = valueN RewriteRule
+
+instance EmbPrj LocalEquation where
+  icod_ (LocalEquation a b c d) = icodeN' LocalEquation a b c d
+
+  value = valueN LocalEquation
+
+instance EmbPrj LocalRewriteHead where
+  icod_ (RewDefHead a) = icodeN 0 RewDefHead a
+  icod_ (RewVarHead a) = icodeN 1 RewVarHead a
+
+  value = vcase valu where
+    valu (N2 0 a) = valuN RewDefHead a
+    valu (N2 1 a) = valuN RewVarHead a
+    valu _        = malformed
+
+instance EmbPrj LocalRewriteRule where
+  icod_ (LocalRewriteRule a b c d e) = icodeN' LocalRewriteRule a b c d e
+
+  value = valueN LocalRewriteRule
+
+instance EmbPrj RewDom where
+  icod_ (RewDom a b) = icodeN' RewDom a b
+
+  value = valueN RewDom
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icodeN' Projection a b c d e
