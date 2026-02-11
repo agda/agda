@@ -381,7 +381,7 @@ instance Match NLPat Term where
         -- are matching a locally bound variable outside gamma
         Var i' es |  (i < size k && i == i')
                   || (i >= size k && i == i' + size gamma) -> do
-          let ti = maybe __IMPOSSIBLE__ (unDom . ctxEntryDom) $ lookupBV_ i k
+          ti <- addContext gamma $ addContext k $ typeOfBV i
           match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
