@@ -4103,6 +4103,10 @@ data TCEnv =
             --   length, in the module dependency graph, of the shortest path
             --   from the top-level module; it depends on in which order Agda
             --   chooses to chase dependencies.
+          , envChasePrefix         :: Maybe String
+            -- ^ A string to be used as the prefix for module chasing
+            -- (Checking, Loading, etc.) messages. If unset, the length
+            -- of the import stack is used.
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
           , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
@@ -4255,6 +4259,7 @@ initEnv = TCEnv { envContext             = CxEmpty
                 , envCurrentPath         = Nothing
                 , envAnonymousModules    = []
                 , envImportStack         = []
+                , envChasePrefix         = Nothing
                 , envMutualBlock         = Nothing
                 , envTerminationCheck    = TerminationCheck
                 , envCoverageCheck       = YesCoverageCheck
@@ -4353,6 +4358,9 @@ eAnonymousModules f e = f (envAnonymousModules e) <&> \ x -> e { envAnonymousMod
 
 eImportStack :: Lens' TCEnv [TopLevelModuleName]
 eImportStack f e = f (envImportStack e) <&> \ x -> e { envImportStack = x }
+
+eChasePrefix :: Lens' TCEnv (Maybe String)
+eChasePrefix f e = f (envChasePrefix e) <&> \ x -> e { envChasePrefix = x }
 
 eMutualBlock :: Lens' TCEnv (Maybe MutualId)
 eMutualBlock f e = f (envMutualBlock e) <&> \ x -> e { envMutualBlock = x }
