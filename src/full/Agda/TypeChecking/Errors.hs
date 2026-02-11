@@ -691,6 +691,10 @@ instance PrettyTCM TypeError where
         pwords "No binding for builtin " ++ [pretty x <> comma] ++
         pwords ("use {-# BUILTIN " ++ getBuiltinId builtinNat ++ " name #-} to bind builtin natural " ++
                 "numbers to the type 'name'")
+      | x `elem` [builtinRefl] -> fsep $
+        pwords "No binding for builtin " ++ [pretty x <> comma] ++
+        pwords ("use {-# BUILTIN " ++ getBuiltinId builtinEquality ++ " name #-} to bind the builtin equality " ++
+                "type to 'name'")
       | otherwise -> fsep $
         pwords "No binding for builtin thing" ++ [pretty x <> comma] ++
         pwords ("use {-# BUILTIN " ++ getBuiltinId x ++ " name #-} to bind it to 'name'")
