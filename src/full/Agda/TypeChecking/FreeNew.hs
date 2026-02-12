@@ -1,6 +1,9 @@
+{-# LANGUAGE MagicHash, UnboxedSums, UnboxedTuples, CPP #-}
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
+
+#if  __GLASGOW_HASKELL__ > 920
 {-# OPTIONS_GHC -fworker-wrapper-cbv -fmax-worker-args=12 #-}
-{-# LANGUAGE MagicHash, UnboxedSums, UnboxedTuples #-}
+#endif
 
 -- | Computing the free variables of a term.
 --

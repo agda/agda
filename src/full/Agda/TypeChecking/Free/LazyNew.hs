@@ -1,6 +1,9 @@
-{-# LANGUAGE AllowAmbiguousTypes, MagicHash, UnboxedTuples, UnboxedSums #-}
+{-# LANGUAGE AllowAmbiguousTypes, MagicHash, UnboxedTuples, UnboxedSums, CPP #-}
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
+
+#if  __GLASGOW_HASKELL__ > 920
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
+#endif
 
 -- | Computing the free variables of a term lazily.
 --

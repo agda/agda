@@ -4,6 +4,8 @@ module Agda.Utils.StrictReader where
 
 import GHC.Exts (oneShot)
 import Control.Monad.Reader (MonadReader(..))
+import Control.Monad.State (MonadState(..))
+import Control.Monad.Trans.Class (MonadTrans(..))
 import Agda.Utils.ExpandCase
 
 newtype ReaderT r m a = ReaderT {runReaderT :: r -> m a}
@@ -62,6 +64,16 @@ instance (Semigroup a, Monad m) => Semigroup (ReaderT r m a) where
 instance (Monoid a, Monad m) => Monoid (ReaderT r m a) where
   {-# INLINE mempty #-}
   mempty = ReaderT (oneShot \r -> pure mempty)
+
+instance MonadTrans (ReaderT r) where
+  {-# INLINE lift #-}
+  lift = \ma -> ReaderT (\_ -> ma)
+
+instance MonadState s m => MonadState s (ReaderT r m) where
+  {-# INLINE get #-}
+  get = lift get
+  {-# INLINE put #-}
+  put = \s -> lift (put s)
 
 ----------------------------------------------------------------------------------------------------
 
