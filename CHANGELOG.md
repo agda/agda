@@ -352,8 +352,8 @@ Changes to type checker and other components defining the Agda language.
   [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
 
 
-* Module applications are no longer automatically eta-expanded. E.g.
-  previously, given the below three modules:
+* (**BREAKING**): Module applications are no longer automatically eta-expanded.
+  E.g. previously, given the below three modules:
   ```agda
   module A where
     postulate X : Set

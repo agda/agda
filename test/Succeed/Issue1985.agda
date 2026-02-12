@@ -17,12 +17,15 @@ module Par (X : Set₁) where
 module Fails where
   module RenP (X : Set₁) = Par X
   module Ren = Par
-  -- Like RenP, Ren should contain
-  --   A : (B : Set) → Set
-  --   A B = Par.A B
-  -- but it incorrectly contained
+  -- Like Par, Ren should contain
   --   A : Set
   --   A = Par.A
+  -- RenP, on the other hand contains
+  --   A : (X : Set₁) → Set
+  --   A X = Par.A
+
+  A₀ : Set
+  A₀ = Par.A
 
   A₁ B₁ B₂ : Set₁ → Set
   A₂ : Set
