@@ -1,7 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes, MagicHash, UnboxedTuples, UnboxedSums, CPP #-}
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
 
-#if  __GLASGOW_HASKELL__ > 920
+#if  __GLASGOW_HASKELL__ > 902
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 #endif
 
@@ -158,10 +158,14 @@ class Free t where
 
 --------------------------------------------------------------------------------
 
+#if  __GLASGOW_HASKELL__ <= 902
+type SpineHead = (# Int# | QName | (# Word#, Word# #) #)
+#else
+type SpineHead = (# Int# | QName | (# Word64#, Word64# #) #)
+#endif
+
 hasProj :: Elims -> Bool
 hasProj = \case [] -> False; Proj{}:_ -> True; _:es -> hasProj es
-
-type SpineHead = (# Int# | QName | (# Word64#, Word64# #) #)
 
 pattern SHVar :: Int -> SpineHead
 pattern SHVar x <- (# (I# -> x) | | #) where SHVar (I# x) = (# x | | #)
