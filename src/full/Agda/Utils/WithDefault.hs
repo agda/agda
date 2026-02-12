@@ -15,10 +15,13 @@ module Agda.Utils.WithDefault where
 
 import Control.DeepSeq
 
+import Prelude hiding (not)
+
 import Agda.Utils.Boolean
 import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.TypeLits
+import Agda.Utils.TypeLevel
 
 -- | We don't want to have to remember for each flag whether its default value
 -- is @True@ or @False@. So we bake it into the representation: the flag's type
@@ -53,12 +56,10 @@ setDefault b = \case
   Default -> Value b
   t -> t
 
--- | Only modify non-'Default' values.
---
-mapValue :: (a -> a) -> WithDefault' a b -> WithDefault' a b
-mapValue f = \case
+not' :: WithDefault b -> WithDefault (Not b)
+not' = \case
   Default -> Default
-  Value b -> Value (f b)
+  Value b -> Value (not b)
 
 -- | Provided that the default value is a known boolean (in practice we only use
 -- @True@ or @False@), we can collapse a potentially uninitialised value to a boolean.

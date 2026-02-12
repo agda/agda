@@ -37,6 +37,8 @@ type family If (b :: Bool) (l :: k) (r :: k) :: k where
   If 'True  l r = l
   If 'False l r = r
 
+type Not (b :: Bool) = If b 'False 'True
+
 -- | On Lists
 type family Foldr (c :: k -> l -> l) (n :: l) (as :: [k]) :: l where
   Foldr c n '[]       = n
