@@ -457,6 +457,12 @@ Backends
   such that the Agda name of the function is printed to `stderr`
   whenever a function is entered.
 
+* The JS backend now implements data types using tagged arrays instead of
+  Scott encoding. Constructors compile to `[tag, arg0, arg1, ...]` and
+  case splits compile to `switch` statements. Types with `{-# COMPILE JS #-}`
+  pragmas keep Scott encoding for backward compatibility with user-defined
+  FFI code.
+
 * The JS backend now explicitly lists all primitives that should compile
   to `undefined`. Primitives not in this list or the RTS trigger a new
   `UnknownJSPrimitive` warning
