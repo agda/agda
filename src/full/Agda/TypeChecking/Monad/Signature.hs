@@ -593,7 +593,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
       np  <- argsToUse (qnameModule x)
       -- Because of https://github.com/agda/agda/issues/892 we might have too
       -- many arguments and need to drop some
-      origTel <- lookupSection (qnameModule x)
+      origTel <- lookupSection $ qnameModule x
       let ts' = drop (size ts - size origTel) ts
       -- Issue #3083: We need to use the hiding from the telescope of the
       -- original module. This can be different than the hiding for the common
