@@ -64,14 +64,6 @@ runState (State f) s = case f s of (# !a, !s #) -> (a, s)
 evalState :: State s a -> s -> a
 evalState (State f) s = case f s of (# a, _ #) -> a
 
-{-# INLINE gets #-}
-gets :: (s -> a) -> State s a
-gets f = f <$> get
-
-{-# INLINE modify #-}
-modify :: (s -> s) -> State s ()
-modify f = State \s -> let s' = f s in (# (), s' #)
-
 instance MonadState s (State s) where
   {-# INLINE state #-}
   state = \f -> State (oneShot (\s -> case f s of (!a, !s) -> (# a, s #)))
@@ -80,9 +72,20 @@ instance MonadState s (State s) where
   {-# INLINE put #-}
   put = \s -> State \_ -> (# (), s #)
 
+{-# INLINE gets #-}
+gets :: MonadState s m => (s -> a) -> m a
+gets f = f <$> get
+
+{-# INLINE modify #-}
+modify :: MonadState s m => (s -> s) -> m ()
+modify f = do
+  s <- get
+  let s' = f s
+  put s'
+
 --------------------------------------------------------------------------------
 
-newtype StateT s m a = StateT {runStateT :: s -> m (Pair a s)}
+newtype StateT s m a = StateT {runStateT# :: s -> m (Pair a s)}
 
 instance Functor m => Functor (StateT s m) where
   {-# INLINE fmap #-}
@@ -116,7 +119,7 @@ instance Monad m => Monad (StateT s m) where
   {-# INLINE (>>=) #-}
   StateT ma >>= f = StateT (oneShot \s -> do
     a :!: s <- ma s
-    runStateT (f a) s)
+    runStateT# (f a) s)
   {-# INLINE (>>) #-}
   (>>) = (*>)
 
@@ -131,3 +134,15 @@ instance Monad m => MonadState s (StateT s m) where
   get = StateT (\s -> pure (s :!: s))
   {-# INLINE put #-}
   put s = StateT (\_ -> pure (() :!: s))
+
+{-# INLINE execStateT #-}
+execStateT :: Monad m => StateT s m a -> s -> m s
+execStateT (StateT f) s = do _ :!: s <- f s; pure s
+
+{-# INLINE runStateT #-}
+runStateT :: Monad m => StateT s m a -> s -> m (a, s)
+runStateT (StateT f) s = do a :!: s <- f s; pure (a, s)
+
+{-# INLINE evalStateT #-}
+evalStateT :: Monad m => StateT s m a -> s -> m a
+evalStateT (StateT f) s = do a :!: _ <- f s; pure a

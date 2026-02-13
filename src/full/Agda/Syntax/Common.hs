@@ -624,7 +624,13 @@ data Modality = Modality
       --   Currently only the comonad is implemented.
   , modPolarity :: !PolarityModality
       -- ^ Polarity annotations (strictly positive, ...)
-  } deriving (Eq, Ord, Show, Generic)
+  } deriving (Eq, Ord, Generic)
+
+instance Show Modality where
+  show _ = ""
+  -- show m | m == unitModality = "unityModality"
+  --        | otherwise = case m of
+  --            Modality r q c p -> show (r, q, c, p)
 
 -- | Dominance ordering.
 instance PartialOrd Modality where

@@ -1,6 +1,9 @@
 {-# LANGUAGE Strict, UndecidableInstances #-}
 
-module Agda.Utils.StrictReader where
+module Agda.Utils.StrictReader (
+    MonadReader(..)
+  , module Agda.Utils.StrictReader
+  ) where
 
 import GHC.Exts (oneShot)
 import Control.Monad.Reader (MonadReader(..))

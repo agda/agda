@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 {-# LANGUAGE NondecreasingIndentation  #-}
 
@@ -443,7 +444,7 @@ instance Occurs Term where
           nest 2 $ pretty v
         case v of
           Var i es   -> do
-            allowed <- getAll . ($ unitModality) <$> variable i
+            allowed <- getAll . ($ unitModality) <$> (variable i)
             if allowed then Var i <$> weakly (occurs es) else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
@@ -1013,9 +1014,9 @@ reallyNotFreeIn xs a = do
        -- occurrences so drop those and leave `a` untouched.
        return (VarSet.difference xs rigid, a)
     else do
-      -- If there are non-rigid occurrences we need to reduce a to see if
+      -- If there are non-rigid occurrences we need to reduce to see if
       -- we can get rid of them (#3177).
-      (fvs, a) <- forceNotFree (VarSet.difference xs rigid) a
+      (fvs, a) <- liftReduce $ forceNotFree (VarSet.difference xs rigid) a
       let xs = nonFreeVars fvs
       return (xs, a)
 

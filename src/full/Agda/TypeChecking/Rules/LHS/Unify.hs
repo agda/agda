@@ -368,7 +368,7 @@ dataStrategy k s = do
     ifOccursStronglyRigid i u ret = do
         -- Call forceNotFree to reduce u as far as possible
         -- around any occurrences of i
-        (_ , u) <- forceNotFree (singleton i) u
+        (_ , u) <- liftReduce $ forceNotFree (singleton i) u
         case flexRigOccurrenceIn i u of
           Just StronglyRigid -> ret
           _ -> mzero

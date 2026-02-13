@@ -742,6 +742,8 @@ library
       Agda.TypeChecking.Free.LazyNew
       Agda.TypeChecking.Free.Precompute
       Agda.TypeChecking.Free.Reduce
+      Agda.TypeChecking.Free.ReduceOld
+      Agda.TypeChecking.Free.ReduceNew
       Agda.TypeChecking.Functions
       Agda.TypeChecking.Generalize
       Agda.TypeChecking.IApplyConfluence
