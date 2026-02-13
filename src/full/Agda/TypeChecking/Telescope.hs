@@ -254,7 +254,6 @@ varDependents tel vs =
         [] -> deps
         (ti:tel) ->
           if anyFreeVar (`VarSet.member` work) ti then
-          -- if getAny $ runFree (Any . (`VarSet.member` work)) IgnoreNot ti then
             loop (VarSet.insert ix deps) tel (ix - 1) (VarSet.insert ix work)
           else
             loop deps tel (ix - 1) work
@@ -311,11 +310,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     checkDependencies soFar []     = True
     checkDependencies soFar (j:js) = ok && checkDependencies (IntSet.insert j soFar) js
       where
-        t   = indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)  -- ts0[n-1-j]
-        -- Skip the construction of intermediate @IntSet@s in the check @ok@.
-        -- ok  = (freeVarSet t `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ])
-        --       `IntSet.isSubsetOf` soFar
-        -- good i = All $ (i < n) `implies` (i `IntSet.member` soFar) where implies = (<=)
+        t = indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)  -- ts0[n-1-j]
         good i = (i < n) `implies` (i `IntSet.member` soFar) where implies = (<=)
         ok = allFreeVar good t
 
