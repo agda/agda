@@ -8,8 +8,7 @@ import Data.Traversable (Traversable)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free.Lazy qualified as FreeOld
-import Agda.TypeChecking.Free.LazyNew qualified as FreeNew
+import Agda.TypeChecking.Free
 
 import Agda.Utils.ExpandCase
 
@@ -257,11 +256,7 @@ instance Subst t => Subst (SingleLevel' t) where
   applySubst sub (SingleClosed m) = SingleClosed m
   applySubst sub (SinglePlus a)   = SinglePlus $ applySubst sub a
 
-instance FreeOld.Free t => FreeOld.Free (SingleLevel' t) where
-  freeVars' (SingleClosed m) = mempty
-  freeVars' (SinglePlus a)   = FreeOld.freeVars' a
-
-instance FreeNew.Free t => FreeNew.Free (SingleLevel' t) where
+instance Free t => Free (SingleLevel' t) where
   freeVars l = expand \ret -> case l of
     SingleClosed m -> ret mempty
-    SinglePlus a   -> ret $ FreeNew.freeVars a
+    SinglePlus a   -> ret $ freeVars a

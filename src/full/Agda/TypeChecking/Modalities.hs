@@ -15,7 +15,6 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute

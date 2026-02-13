@@ -10,16 +10,12 @@ module Agda.TypeChecking.Rewriting.NonLinPattern where
 
 import Prelude hiding ( null )
 
-import Control.Monad.Reader ( asks )
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
 import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy qualified as FreeOld
 import Agda.TypeChecking.Irrelevance ( isDefSing )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
@@ -361,34 +357,6 @@ instance GetMatchables Term where
 instance GetMatchables RewriteRule where
   getMatchables = getMatchables . rewPats
 
--- | Only computes free variables that are not bound (see 'nlPatVars'),
---   i.e., those in a 'PTerm'.
-
-instance FreeOld.Free NLPat where
-  freeVars' = \case
-    PVar{}         -> mempty
-    PDef _ es      -> FreeOld.freeVars' es
-    PLam _ u       -> FreeOld.freeVars' u
-    PPi a b        -> FreeOld.freeVars' (a,b)
-    PSort s        -> FreeOld.freeVars' s
-    PBoundVar _ es -> FreeOld.freeVars' es
-    PTerm t        -> FreeOld.freeVars' t
-
-instance FreeOld.Free NLPType where
-  freeVars' (NLPType s a) =
-    ifM (asks ((IgnoreNot ==) . FreeOld.feIgnoreSorts))
-      {- then -} (FreeOld.freeVars' (s, a))
-      {- else -} (FreeOld.freeVars' a)
-
-instance FreeOld.Free NLPSort where
-  freeVars' = \case
-    PUniv _ l -> FreeOld.freeVars' l
-    PInf f n  -> mempty
-    PSizeUniv -> mempty
-    PLockUniv -> mempty
-    PLevelUniv -> mempty
-    PIntervalUniv -> mempty
-
 -- Throws a pattern violation if the given term contains any
 -- metavariables.
 blockOnMetasIn :: (MonadBlock m, AllMetas t) => t -> m ()
@@ -397,8 +365,6 @@ blockOnMetasIn t = case unblockOnAllMetasIn t of
   b -> patternViolation b
 
 -- Helper functions
-
-
 assertPi :: Type -> TCM (Dom Type, Abs Type)
 assertPi t = abortIfBlocked t >>= \case
   El _ (Pi a b) -> return (a,b)

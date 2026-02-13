@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 #if  __GLASGOW_HASKELL__ > 902

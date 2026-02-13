@@ -1,5 +1,5 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
-{-# OPTIONS_GHC -Wunused-matches #-}
+{-# LANGUAGE MagicHash, UnboxedTuples, UnboxedSums, CPP #-}
+{-# OPTIONS_GHC -Wunused-imports -Wunused-matches #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -14,9 +14,10 @@ import Prelude hiding (null)
 
 import Control.Monad.Identity
 import Control.DeepSeq
+import GHC.Exts
+import GHC.Word
 
 import qualified Data.List as List
-import Data.String
 import Data.Maybe
 import Data.Semigroup ( Sum(..) )
 import System.IO.Unsafe (unsafePerformIO)
@@ -1092,9 +1093,50 @@ suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
 -- * Eliminations.
 ---------------------------------------------------------------------------
 
+#if  __GLASGOW_HASKELL__ <= 902
+type SpineHead = (# Int# | QName | (# Word#, Word# #) #)
+#else
+type SpineHead = (# Int# | QName | (# Word64#, Word64# #) #)
+#endif
+
+hasProj :: Elims -> Bool
+hasProj = \case [] -> False; Proj{}:_ -> True; _:es -> hasProj es
+
+pattern SHVar :: Int -> SpineHead
+pattern SHVar x <- (# (I# -> x) | | #) where SHVar (I# x) = (# x | | #)
+{-# INLINE SHVar #-}
+
+pattern SHDef :: QName -> SpineHead
+pattern SHDef f = (# | f | #)
+{-# INLINE SHDef #-}
+
+pattern SHMetaV :: MetaId -> SpineHead
+pattern SHMetaV x <- (# | | ((\(# x, y #) -> MetaId (W64# x) (ModuleNameHash (W64# y))) -> x) #) where
+  SHMetaV (MetaId (W64# x) (ModuleNameHash (W64# y))) = (# | | (# x, y #) #)
+{-# INLINE SHMetaV #-}
+{-# COMPLETE SHVar, SHDef, SHMetaV #-}
+
+applySpineHead :: SpineHead -> Elims -> Term
+applySpineHead h es = case h of
+  SHVar x   -> Var x es
+  SHDef f   -> Def f es
+  SHMetaV x -> MetaV x es
+
+unSpineLoop :: SpineHead -> Elims -> Elims -> Term
+unSpineLoop h res es =
+  case es of
+    []             -> applySpineHead h $! reverse res
+    Proj _ f : es' -> let !v = defaultArg $! (applySpineHead h $! reverse res) in
+                      unSpineLoop (SHDef f) [Apply v] es'
+    e        : es' -> unSpineLoop h (e : res) es'
+
 -- | Convert top-level postfix projections into prefix projections.
 unSpine :: Term -> Term
-unSpine = unSpine' $ \_ _ -> True
+unSpine t = case t of
+  Var i es   | hasProj es -> unSpineLoop (SHVar i)   [] es
+  Def f es   | hasProj es -> unSpineLoop (SHDef f)   [] es
+  MetaV x es | hasProj es -> unSpineLoop (SHMetaV x) [] es
+  t -> t
 
 -- | Convert 'Proj' projection eliminations
 --   according to their 'ProjOrigin' into
@@ -1108,10 +1150,9 @@ unSpine' p v =
     loop :: (Elims -> Term) -> Elims -> Elims -> Term
     loop h res es =
       case es of
-        []                     -> v
-        Proj o f : es' | p o f -> loop (Def f) [Apply (defaultArg v)] es'
+        []                     -> h $! reverse res
+        Proj o f : es' | p o f -> let !v = defaultArg (h $! reverse res) in loop (Def f) [Apply v] es'
         e        : es'         -> loop h (e : res) es'
-      where v = h $ reverse res
 
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which
 --   can be projected.

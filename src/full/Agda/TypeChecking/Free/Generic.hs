@@ -1,115 +1,109 @@
-{-# LANGUAGE AllowAmbiguousTypes, MagicHash, UnboxedTuples, UnboxedSums, CPP #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
+{-# LANGUAGE AllowAmbiguousTypes, CPP #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 #if  __GLASGOW_HASKELL__ > 902
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 #endif
 
--- | Computing the free variables of a term lazily.
---
--- We implement a reduce (traversal into monoid) over internal syntax
--- for a generic collection (monoid with singletons).  This should allow
--- a more efficient test for the presence of a particular variable.
---
--- Worst-case complexity does not change (i.e. the case when a variable
--- does not occur), but best case-complexity does matter.  For instance,
--- see 'Agda.TypeChecking.Substitute.mkAbs': each time we construct
--- a dependent function type, we check whether it is actually dependent.
---
--- The distinction between rigid and strongly rigid occurrences comes from:
---   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
---
--- The main idea is that x = t(x) is unsolvable if x occurs strongly rigidly
--- in t.  It might have a solution if the occurrence is not strongly rigid, e.g.
---
---   x = \f -> suc (f (x (\ y -> k)))  has  x = \f -> suc (f (suc k))
---
--- [Jason C. Reed, PhD thesis, page 106]
---
--- Under coinductive constructors, occurrences are never strongly rigid.
--- Also, function types and lambdas do not establish strong rigidity.
--- Only inductive constructors do so.
--- (See issue 1271).
---
--- For further reading on semirings and semimodules for variable occurrence,
--- see e.g. Conor McBrides "I got plenty of nuttin'" (Wadlerfest 2016).
--- There, he treats the "quantity" dimension of variable occurrences.
---
--- The semiring has an additive operation for combining occurrences of subterms,
--- and a multiplicative operation of representing function composition.  E.g.
--- if variable @x@ appears @o@ in term @u@, but @u@ appears in context @q@ in
--- term @t@ then occurrence of variable @x@ coming from @u@ is accounted for
--- as @q o@ in @t@.
---
--- Consider example @(λ{ x → (x,x)}) y@:
---
---   * Variable @x@ occurs once unguarded in @x@.
---
---   * It occurs twice unguarded in the aggregation @x@ @x@
---
---   * Inductive constructor @,@ turns this into two strictly rigid occurrences.
---
---     If @,@ is a record constructor, then we stay unguarded.
---
---   * The function @({λ x → (x,x)})@ provides a context for variable @y@.
---     This context can be described as weakly rigid with quantity two.
---
---   * The final occurrence of @y@ is obtained as composing the context with
---     the occurrence of @y@ in itself (which is the unit for composition).
---     Thus, @y@ occurs weakly rigid with quantity two.
---
--- It is not a given that the context can be described in the same way
--- as the variable occurrence.  However, for quantity it is the case
--- and we obtain a semiring of occurrences with 0, 1, and even ω, which
--- is an absorptive element for addition.
+{- |
+Computing free variables of a term generically. Different queries can be specialized to the
+appropriate short-circuiting behavior and to only pass around the necessary data. A query can be
+written as an instance to the 'ComputeFree' class which bundles all parameters of the generic
+traversal. The traversal itself is defined in the instance of the 'Free' class. See
+Agda.TypeChecking.Free for examples of queries.
 
-module Agda.TypeChecking.Free.LazyNew where
+Background notes:
 
-import Control.Applicative hiding (empty)
-import Control.Monad.Reader (MonadReader(..))
-import GHC.Exts
-import GHC.Word (Word64(..))
+The distinction between rigid and strongly rigid occurrences comes from: Jason C. Reed, PhD thesis,
+  2009, page 96 (see also his LFMTP 2009 paper)
 
-import Agda.Utils.StrictReader
-import Agda.Utils.ExpandCase
+The main idea is that x = t(x) is unsolvable if x occurs strongly rigidly in t. It might have a
+solution if the occurrence is not strongly rigid, e.g.
 
-import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as VarSet
+  x = \f -> suc (f (x (\ y -> k)))  has  x = \f -> suc (f (suc k))
 
-import Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as IntMap
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HashSet
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Semigroup ( Any(..), All(..) )
+[Jason C. Reed, PhD thesis, page 106]
 
-import Agda.TypeChecking.Free.Base
+Under coinductive constructors, occurrences are never strongly rigid.  Also, function types and
+lambdas do not establish strong rigidity.  Only inductive constructors do so.  (See issue 1271).
+
+For further reading on semirings and semimodules for variable occurrence, see e.g. Conor McBrides "I
+got plenty of nuttin'" (Wadlerfest 2016).  There, he treats the "quantity" dimension of variable
+occurrences.
+
+The semiring has an additive operation for combining occurrences of subterms, and a
+multiplicative operation of representing function composition. E.g.  if variable @x@ appears @o@
+in term @u@, but @u@ appears in context @q@ in term @t@ then occurrence of variable @x@ coming
+from @u@ is accounted for as @q o@ in @t@.
+
+Consider the example @(λ{ x → (x,x)}) y@:
+
+  * Variable @x@ occurs once unguarded in @x@.
+
+  * It occurs twice unguarded in the aggregation @x@ @x@
+
+  * Inductive constructor @,@ turns this into two strictly rigid occurrences.
+
+    If @,@ is a record constructor, then we stay unguarded.
+
+  * The function @({λ x → (x,x)})@ provides a context for variable @y@.
+    This context can be described as weakly rigid with quantity two.
+
+  * The final occurrence of @y@ is obtained as composing the context with
+    the occurrence of @y@ in itself (which is the unit for composition).
+    Thus, @y@ occurs weakly rigid with quantity two.
+
+It is not a given that the context can be described in the same way as the variable occurrence.
+However, for the purpose of quantity it is the case and we obtain a semiring of occurrences with 0,
+1, and even ω, which is an absorptive element for addition.
+-}
+
+module Agda.TypeChecking.Free.Generic where
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.TypeChecking.Free.Base
 
-import Agda.Utils.Functor
+import Agda.Utils.ExpandCase
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.Monad
-import Agda.Utils.Null
-import Agda.Utils.Semigroup
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.StrictReader
 
 --------------------------------------------------------------------------------
 
+-- | Instances of 'ComputeFree' are inputs to the generic traveral implemented by 'Free' instances.
+--   The @r@ type parameter denotes the 'Reader' environment of the traversal.
 class (ExpandCase (Collect r), Monoid (Collect r)) => ComputeFree r where
   type Collect r
-
+  -- ^ The result type of the traversal. Most commonly, this is either a newtype wrapper on 'Bool'
+  --   or some instantiation of 'StrictEndo' from 'Agda.Utils.StrictEndo'. The latter is used to
+  --   efficiently accummulate sets or maps.
   underBinders'     :: Int -> r -> r
+  -- ^ Update the environment when going under some number of binders.
   underConstructor' :: ConHead -> Elims -> r -> r
+  -- ^ Update the environment when descending into the spine of a constructor.
   underModality'    :: Maybe (Modality -> r -> r)
+  -- ^ Update the environment when going under a modality. 'Nothing' has the identity action.
   underFlexRig'     :: Maybe (FlexRig -> r -> r)
+  -- ^ Update the environment when the rigidity of the current position changes, e.g. we switch to
+  --   flexible mode when going into the spine of an unsolved metavariable. See the 'Free' instances
+  --   for details. 'Nothing' has the identity action. NOTE: since 'Modality' contains 'FlexRig'
+  --   information, if you implement a non-trivial 'FlexRig' update, you must also implement a
+  --   non-trivial modality update, in order to handle the 'FlexRig'-s there!
   underRelevance'   :: Maybe (Relevance -> r -> r)
+  -- ^ Update the environment with relevance information. 'Nothing' has the identity action. NOTE:
+  --   since 'Modality' contains relevances, if you implement non-trivial 'Relevance' update, you
+  --   must also implement a non-trivial modality update, to handle the relevances there!
   variable'         :: Int -> r -> Collect r
+  -- ^ Evaluating a single variable. NOTE: you have to disambiguate bound and free variables yourself!
+  --   For example, when we collect all free variables in a set, we need to store an 'Int' in the reader
+  --   environment to keep track of the size of the local scope, which allows us to distinguish bound and
+  --   free vars.
   ignoreSorts'      :: IgnoreSorts
+  -- ^ Do we want to skip over sorts of types?
 
   ignoreSorts'            = IgnoreNot; {-# INLINE ignoreSorts' #-}
   underConstructor' _ _ r = r;         {-# INLINE underConstructor' #-}
@@ -158,121 +152,24 @@ class Free t where
 
 --------------------------------------------------------------------------------
 
-#if  __GLASGOW_HASKELL__ <= 902
-type SpineHead = (# Int# | QName | (# Word#, Word# #) #)
-#else
-type SpineHead = (# Int# | QName | (# Word64#, Word64# #) #)
-#endif
-
-hasProj :: Elims -> Bool
-hasProj = \case [] -> False; Proj{}:_ -> True; _:es -> hasProj es
-
-pattern SHVar :: Int -> SpineHead
-pattern SHVar x <- (# (I# -> x) | | #) where SHVar (I# x) = (# x | | #)
-{-# INLINE SHVar #-}
-
-pattern SHDef :: QName -> SpineHead
-pattern SHDef f = (# | f | #)
-{-# INLINE SHDef #-}
-
-pattern SHMetaV :: MetaId -> SpineHead
-pattern SHMetaV x <- (# | | ((\(# x, y #) -> MetaId (W64# x) (ModuleNameHash (W64# y))) -> x) #) where
-  SHMetaV (MetaId (W64# x) (ModuleNameHash (W64# y))) = (# | | (# x, y #) #)
-{-# INLINE SHMetaV #-}
-{-# COMPLETE SHVar, SHDef, SHMetaV #-}
-
-applySpineHead :: SpineHead -> Elims -> Term
-applySpineHead h es = case h of
-  SHVar x   -> Var x es
-  SHDef f   -> Def f es
-  SHMetaV x -> MetaV x es
-
-unSpineLoop :: SpineHead -> Elims -> Elims -> Term
-unSpineLoop h res es =
-  case es of
-    []             -> applySpineHead h $! reverse res
-    Proj o f : es' -> let !v = defaultArg $! (applySpineHead h $! reverse res) in
-                      unSpineLoop (SHDef f) [Apply v] es'
-    e        : es' -> unSpineLoop h (e : res) es'
-
--- | Convert top-level postfix projections into prefix projections.
-myUnSpine :: Term -> Term
-myUnSpine t = case t of
-  Var i es   | hasProj es -> unSpineLoop (SHVar i)   [] es
-  Def f es   | hasProj es -> unSpineLoop (SHDef f)   [] es
-  MetaV x es | hasProj es -> unSpineLoop (SHMetaV x) [] es
-  t -> t
-
---------------------------------------------------------------------------------
-
--- -- | Compute freeVar on an Elims, but adjust all entries before the last projection.
--- --   The `Int` argument is the index of the last projection.
--- goProjectedElims :: forall r. ComputeFree r => Int# -> Elims -> Reader r (Collect r)
--- goProjectedElims lasti ts = expand \ret ->
---   let goPE :: Int# -> Int# -> Elims -> Reader r (Collect r)
---       goPE lasti i es = expand \ret -> case es of
---         [] -> ret mempty
---         e:es | isTrue# (i <=# lasti) ->
---                 ret (underModality defaultModality (freeVars e) <> goPE lasti (i +# 1#) es )
---              | otherwise ->
---                 ret (freeVars e <> goPE lasti (i +# 1#) es)
---   in ret $ goPE lasti 0# ts
-
--- -- | Find the index of the last projection in the spine if there's any.
--- --   Oterwise return (-1).
--- lastProjectionIx :: Elims -> Int#
--- lastProjectionIx = goPIx 0# where
---   goPIx :: Int# -> Elims -> Int#
---   goPIx i = \case
---     []        -> (-1#)
---     Proj{}:es -> case goPIx (i +# 1#) es of (-1#) -> i; i -> i
---     _:es      -> goPIx (i +# 1#) es
-
 instance Free Term where
   freeVars :: forall r. ComputeFree r => Term -> Reader r (Collect r)
   freeVars t = expand \ret ->
 
     let t' = case (underModality' @r, underFlexRig' @r) of
                (Nothing, Nothing) -> t
-               _                  -> myUnSpine t
+               _                  -> unSpine t
     in case t' of
       Var n ts   -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
       Def _ ts   -> ret (underFlexRig WeaklyRigid $ freeVars ts)
       MetaV m ts -> ret (underFlexRig (Flexible (singleton m)) $ freeVars ts)
-
-      -- Var n ts -> case (underModality' @r, underFlexRig' @r) of
-      --   -- We don't need to adjust anything because of projections.
-      --   (Nothing, Nothing) -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
-
-      --   -- #4484: avoid projected variables being treated as StronglyRigid
-      --   -- we compute freeVars as if on the result on "unSpine (Var n ts)"
-      --   _ -> case lastProjectionIx ts of
-      --     (-1#) -> ret (variable n <> underFlexRig WeaklyRigid (freeVars ts))
-      --     lasti -> ret (underFlexRig WeaklyRigid (   underModality defaultModality (variable n)
-      --                                             <> goProjectedElims lasti ts))
-
-      -- Def _ ts ->  case underModality' @r of
-      --   Nothing -> ret (underFlexRig WeaklyRigid $ freeVars ts)
-      --   _ -> case lastProjectionIx ts of
-      --     (-1#) -> ret (underFlexRig WeaklyRigid $ freeVars ts)
-      --     lasti -> ret (underFlexRig WeaklyRigid $ goProjectedElims lasti ts)
-
-      -- MetaV m ts ->
-      --   let !fr = Flexible (singleton m) in
-      --   case underModality' @r of
-      --     Nothing -> ret (underFlexRig fr $ freeVars ts)
-      --     _ -> case lastProjectionIx ts of
-      --       (-1#) -> ret (underFlexRig fr $ freeVars ts)
-      --       lasti -> ret (underFlexRig fr $ goProjectedElims lasti ts)
-
-
 
       -- λ is not considered guarding, as
       -- we cannot prove that x ≡ λy.x is impossible.
       Lam _ t      -> ret (underFlexRig WeaklyRigid $ freeVars t)
       Lit _        -> ret mempty
 
-        -- because we are not in TCM
+        -- Because we are not in TCM
         -- we cannot query whether we are dealing with a data/record (strongly r.)
         -- or a definition by pattern matching (weakly rigid)
         -- thus, we approximate, losing that x = List x is unsolvable
@@ -282,9 +179,8 @@ instance Free Term where
       -- we cannot prove their absence (as Set is not inductive).
       -- Also, this is incompatible with univalence (HoTT).
 
-      -- András 2026-01-22: the above comment sounds wrong to me. Pi very much has to be definitionally
-      -- injective.
-      Pi a b       -> ret $ freeVars (a, b) -- TODO: test with "underConstructor"
+      -- András 2026-01-22: the above comment is wrong if we use occurrence computation in RHS unification
+      Pi a b       -> ret $ freeVars (a, b)
       Sort s       -> ret $ underRelevance shapeIrrelevant (freeVars s)
       Level l      -> ret $ freeVars l
       DontCare mt  -> ret $ underModality (Modality irrelevant unitQuantity unitCohesion unitPolarity) $ freeVars mt
@@ -379,8 +275,8 @@ instance Free t => Free (Abs t) where
 
 instance Free t => Free (Tele t) where
   freeVars tel = expand \ret -> case tel of
-    EmptyTel          -> ret $ mempty
-    (ExtendTel t tel) -> ret $ freeVars (t, tel)
+    EmptyTel        -> ret $ mempty
+    ExtendTel t tel -> ret $ freeVars (t, tel)
 
 instance Free Clause where
   freeVars cl = expand \ret ->

@@ -96,9 +96,7 @@ import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Free.Lazy qualified as FreeOld
-import Agda.TypeChecking.Free.LazyNew qualified as FreeNew
-import Agda.TypeChecking.Free qualified as Free
+import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.DiscrimTree.Types
 
@@ -1624,53 +1622,30 @@ instance HasRange Constraint where
   getRange CheckLockedVars{}     = noRange
   getRange UsableAtModality{}    = noRange
 
-instance FreeOld.Free Constraint where
-  freeVars' c =
-    case c of
-      ValueCmp _ t u v      -> FreeOld.freeVars' (t, (u, v))
-      ValueCmpOnFace _ p t u v -> FreeOld.freeVars' (p, (t, (u, v)))
-      ElimCmp _ _ t u es es'  -> FreeOld.freeVars' ((t, u), (es, es'))
-      SortCmp _ s s'        -> FreeOld.freeVars' (s, s')
-      LevelCmp _ l l'       -> FreeOld.freeVars' (l, l')
-      UnBlock _             -> mempty
-      IsEmpty _ t           -> FreeOld.freeVars' t
-      CheckSizeLtSat u      -> FreeOld.freeVars' u
-      FindInstance _ _ cs   -> FreeOld.freeVars' cs
-      ResolveInstanceHead q -> mempty
-      CheckFunDef{}         -> mempty
-      HasBiggerSort s       -> FreeOld.freeVars' s
-      HasPTSRule a s        -> FreeOld.freeVars' (a , s)
-      CheckLockedVars a b c d -> FreeOld.freeVars' ((a,b),(c,d))
-      UnquoteTactic t h g   -> FreeOld.freeVars' (t, (h, g))
-      CheckDataSort _ s     -> FreeOld.freeVars' s
-      CheckMetaInst m       -> mempty
-      CheckType t           -> FreeOld.freeVars' t
-      UsableAtModality _ ms mod t -> FreeOld.freeVars' (ms, t)
-
-instance FreeNew.Free Constraint where
+instance Free Constraint where
   freeVars c = expand \ret -> case c of
-    ValueCmp _ t u v            -> ret $ FreeNew.freeVars (t, u, v)
-    ValueCmpOnFace _ p t u v    -> ret $ FreeNew.freeVars (p, t, u, v)
-    ElimCmp _ _ t u es es'      -> ret $ FreeNew.freeVars (t, u, es, es')
-    SortCmp _ s s'              -> ret $ FreeNew.freeVars (s, s')
-    LevelCmp _ l l'             -> ret $ FreeNew.freeVars (l, l')
+    ValueCmp _ t u v            -> ret $ freeVars (t, u, v)
+    ValueCmpOnFace _ p t u v    -> ret $ freeVars (p, t, u, v)
+    ElimCmp _ _ t u es es'      -> ret $ freeVars (t, u, es, es')
+    SortCmp _ s s'              -> ret $ freeVars (s, s')
+    LevelCmp _ l l'             -> ret $ freeVars (l, l')
     UnBlock _                   -> ret $ mempty
-    IsEmpty _ t                 -> ret $ FreeNew.freeVars t
-    CheckSizeLtSat u            -> ret $ FreeNew.freeVars u
-    FindInstance _ _ cs         -> ret $ FreeNew.freeVars cs
+    IsEmpty _ t                 -> ret $ freeVars t
+    CheckSizeLtSat u            -> ret $ freeVars u
+    FindInstance _ _ cs         -> ret $ freeVars cs
     ResolveInstanceHead q       -> ret $ mempty
     CheckFunDef{}               -> ret $ mempty
-    HasBiggerSort s             -> ret $ FreeNew.freeVars s
-    HasPTSRule a s              -> ret $ FreeNew.freeVars (a , s)
-    CheckLockedVars a b c d     -> ret $ FreeNew.freeVars (a, b, c, d)
-    UnquoteTactic t h g         -> ret $ FreeNew.freeVars (t, h, g)
-    CheckDataSort _ s           -> ret $ FreeNew.freeVars s
+    HasBiggerSort s             -> ret $ freeVars s
+    HasPTSRule a s              -> ret $ freeVars (a , s)
+    CheckLockedVars a b c d     -> ret $ freeVars (a, b, c, d)
+    UnquoteTactic t h g         -> ret $ freeVars (t, h, g)
+    CheckDataSort _ s           -> ret $ freeVars s
     CheckMetaInst m             -> ret $ mempty
-    CheckType t                 -> ret $ FreeNew.freeVars t
-    UsableAtModality _ ms mod t -> ret $ FreeNew.freeVars (ms, t)
+    CheckType t                 -> ret $ freeVars t
+    UsableAtModality _ ms mod t -> ret $ freeVars (ms, t)
 
-{-# SPECIALIZE Free.closed :: Constraint -> Bool #-}
-{-# SPECIALIZE Free.freeVarSet :: Constraint -> VarSet #-}
+{-# SPECIALIZE closed :: Constraint -> Bool #-}
+{-# SPECIALIZE freeVarSet :: Constraint -> VarSet #-}
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1740,14 +1715,9 @@ data CompareAs
   | AsTypes
   deriving (Show, Generic)
 
-instance FreeOld.Free CompareAs where
-  freeVars' (AsTermsOf a) = FreeOld.freeVars' a
-  freeVars' AsSizes       = mempty
-  freeVars' AsTypes       = mempty
-
-instance FreeNew.Free CompareAs where
+instance Free CompareAs where
   freeVars ca = expand \ret -> case ca of
-    (AsTermsOf a) -> ret $ FreeNew.freeVars a
+    (AsTermsOf a) -> ret $ freeVars a
     AsSizes       -> ret $ mempty
     AsTypes       -> ret $ mempty
 
@@ -2316,17 +2286,17 @@ pattern DDot v = DDot' v []
 pattern DTerm :: Term -> DisplayTerm
 pattern DTerm v = DTerm' v []
 
-instance FreeOld.Free DisplayForm where
-  freeVars' (Display n ps t) =
-              FreeOld.underBinder (FreeOld.freeVars' ps)
-    `mappend` FreeOld.underBinder' n (FreeOld.freeVars' t)
+-- instance FreeOld.Free DisplayForm where
+--   freeVars' (Display n ps t) =
+--               FreeOld.underBinder (FreeOld.freeVars' ps)
+--     `mappend` FreeOld.underBinder' n (FreeOld.freeVars' t)
 
-instance FreeOld.Free DisplayTerm where
-  freeVars' (DWithApp t ws es) = FreeOld.freeVars' (t, (ws, es))
-  freeVars' (DCon _ _ vs)      = FreeOld.freeVars' vs
-  freeVars' (DDef _ es)        = FreeOld.freeVars' es
-  freeVars' (DDot' v es)       = FreeOld.freeVars' (v, es)
-  freeVars' (DTerm' v es)      = FreeOld.freeVars' (v, es)
+-- instance FreeOld.Free DisplayTerm where
+--   freeVars' (DWithApp t ws es) = FreeOld.freeVars' (t, (ws, es))
+--   freeVars' (DCon _ _ vs)      = FreeOld.freeVars' vs
+--   freeVars' (DDef _ es)        = FreeOld.freeVars' es
+--   freeVars' (DDot' v es)       = FreeOld.freeVars' (v, es)
+--   freeVars' (DTerm' v es)      = FreeOld.freeVars' (v, es)
 
 instance Pretty DisplayTerm where
   prettyPrec p v =
@@ -4682,12 +4652,9 @@ data Candidate  = Candidate
   }
   deriving (Show, Generic)
 
-instance FreeOld.Free Candidate where
-  freeVars' (Candidate _ t u _) = FreeOld.freeVars' (t, u)
-
-instance FreeNew.Free Candidate where
+instance Free Candidate where
   freeVars c = expand \ret -> case c of
-    Candidate _ t u _ -> ret $ FreeNew.freeVars (t, u)
+    Candidate _ t u _ -> ret $ freeVars (t, u)
 
 instance HasOverlapMode Candidate where
   lensOverlapMode f x = f (candidateOverlap x) <&> \m -> x{ candidateOverlap = m }

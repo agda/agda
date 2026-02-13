@@ -736,14 +736,10 @@ library
       Agda.TypeChecking.EtaContract
       Agda.TypeChecking.Forcing
       Agda.TypeChecking.Free
-      Agda.TypeChecking.FreeNew
       Agda.TypeChecking.Free.Base
-      Agda.TypeChecking.Free.Lazy
-      Agda.TypeChecking.Free.LazyNew
+      Agda.TypeChecking.Free.Generic
       Agda.TypeChecking.Free.Precompute
       Agda.TypeChecking.Free.Reduce
-      Agda.TypeChecking.Free.ReduceOld
-      Agda.TypeChecking.Free.ReduceNew
       Agda.TypeChecking.Functions
       Agda.TypeChecking.Generalize
       Agda.TypeChecking.IApplyConfluence
