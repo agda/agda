@@ -1,4 +1,5 @@
-{-# LANGUAGE Strict, UndecidableInstances #-}
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.Utils.StrictReader (
     MonadReader(..)

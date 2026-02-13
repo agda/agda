@@ -112,37 +112,37 @@ class (ExpandCase (Collect r), Monoid (Collect r)) => ComputeFree r where
   underRelevance'         = Nothing;   {-# INLINE underRelevance'   #-}
 
 {-# INLINE underBinders #-}
-underBinders :: MonadReader r m => ComputeFree r => Int -> m a -> m a
+underBinders :: ComputeFree r => Int -> Reader r (Collect r) -> Reader r (Collect r)
 underBinders = local . underBinders'
 
 {-# INLINE underBinder #-}
-underBinder :: MonadReader r m => ComputeFree r => m a -> m a
+underBinder :: ComputeFree r => Reader r (Collect r) -> Reader r (Collect r)
 underBinder = underBinders 1
 
 {-# INLINE underConstructor #-}
-underConstructor :: MonadReader r m => ComputeFree r => ConHead -> Elims -> m a -> m a
+underConstructor :: ComputeFree r => ConHead -> Elims -> Reader r (Collect r) -> Reader r (Collect r)
 underConstructor hd es = local (underConstructor' hd es)
 
 {-# INLINE underModality #-}
-underModality :: MonadReader r m => ComputeFree r => Modality -> m a -> m a
+underModality :: ComputeFree r => Modality -> Reader r (Collect r) -> Reader r (Collect r)
 underModality m act = case underModality' of
   Nothing -> act
   Just f  -> local (f m) act
 
 {-# INLINE underRelevance #-}
-underRelevance :: MonadReader r m => ComputeFree r => Relevance -> m a -> m a
+underRelevance :: ComputeFree r => Relevance -> Reader r (Collect r) -> Reader r (Collect r)
 underRelevance rel act = case underRelevance' of
   Nothing -> act
   Just f  -> local (f rel) act
 
 {-# INLINE underFlexRig #-}
-underFlexRig :: MonadReader r m => ComputeFree r => FlexRig -> m a -> m a
+underFlexRig :: ComputeFree r => FlexRig -> Reader r (Collect r) -> Reader r (Collect r)
 underFlexRig fr act = case underFlexRig' of
   Nothing -> act
   Just f  -> local (f fr) act
 
 {-# INLINE variable #-}
-variable :: MonadReader r m => ComputeFree r => Int -> m (Collect r)
+variable :: ComputeFree r => Int -> Reader r (Collect r)
 variable x = variable' x <$!> ask
 
 --------------------------------------------------------------------------------
