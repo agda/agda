@@ -214,7 +214,7 @@ Warnings
   - Unlike the other warnings about problematic rewrite rules, Agda will still
     try its best to apply rewrites which trigger this warning.
     This is because some very useful rewrite rules unfortunately do not preserve
-    subject reduction in the presense of definitional singletons.
+    subject reduction in the presence of definitional singletons.
 
 Syntax
 ------
@@ -351,6 +351,19 @@ Changes to type checker and other components defining the Agda language.
   For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
   [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
 
+* (**BREAKING**): Module applications are no longer automatically eta-expanded.
+  E.g. previously, given the below three modules:
+  ```agda
+  module A where
+    postulate X : Set
+
+  module B (Y : Set) where
+    open A public
+
+  module C = B
+  ```
+  `B.X` would have type `Set` while `C.X` would have type `Set → Set` (as if
+  the user wrote `module C Y = B Y`). After this change, `C.X : Set` instead.
 
 
 Reflection
