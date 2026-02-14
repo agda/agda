@@ -581,12 +581,12 @@ instance PrettyTCM TypeError where
 
     TooManyFields r missing xs -> prettyTooManyFields r missing xs
 
-    DuplicateConstructors xs -> fsep $ concat
+    DuplicateConstructors xs -> (fsep . concat)
       [ [ "Duplicate" ]
       , [ pluralS xs "constructor" ]
-      , punctuate comma $ fmap pretty xs
-      , pwords "in datatype"
+      , pwords "in datatype:"
       ]
+      <?> fsep (fmap pretty xs)
 
     DuplicateFields xs -> prettyDuplicateFields xs
 
@@ -981,9 +981,10 @@ instance PrettyTCM TypeError where
       pwords "The modules" ++ [prettyTCM m1, "and", prettyTCM m2]
       ++ pwords "clash."
 
-    DuplicateImports m xs -> fsep $
-      pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for" ++
-      punctuate comma (fmap pretty xs)
+    DuplicateImports m xs ->
+      fsep (pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for identifiers:")
+      <?> fsep (punctuate ";" $ fmap pretty xs)
+        -- Andreas, 2026-02-14 punctuate with semicolon since xs may contain "module M" or even ","
 
     DefinitionInDifferentModule _x -> fsep $
       pwords "Definition in different module than its type signature"
@@ -1005,13 +1006,13 @@ instance PrettyTCM TypeError where
     RepeatedVariablesInPattern xs -> fsep $
       pwords "Repeated variables in pattern:" ++ map pretty (List1.toList xs)
 
-    RepeatedNamesInImportDirective yss -> fsep
-      [ fsep $ concat
+    RepeatedNamesInImportDirective yss ->
+      (fsep . concat)
          [ [ "Repeated" , pluralS yss "name" ]
          , pwords "in import directive:"
          ]
-      , fsep $ punctuate comma $ fmap (prettyTCM . List2.head) yss
-      ]
+      <?> fsep (punctuate ";" $ fmap (prettyTCM . List2.head) yss)
+        -- Andreas, 2026-02-14 punctuate with semicolon since list may contain "module M" or even ","
 
     DeclarationsAfterTopLevelModule -> fwords $ "No declarations allowed after top-level module."
 
@@ -1321,8 +1322,8 @@ instance PrettyTCM TypeError where
           NoAbs (P.prettyShow x) $ nameCxt xs
 
     MissingBindingsForTelescopeVariables xs -> vcat
-      [ fsep [ "Missing", pluralS xs "binding", "for", "telescope", pluralS xs "variable" ]
-        <?> (fsep (punctuate ", " $ fmap (text . Text.unpack) xs) <> ".")
+      [ fsep [ "Missing", pluralS xs "binding", "for", "telescope", pluralS xs "variable" <> colon ]
+        <?> (fsep (fmap (text . Text.unpack) xs))
       , "All variables in the clause telescope must be bound in the left-hand side."
       ]
 
@@ -1520,12 +1521,12 @@ instance PrettyTCM TypeError where
             ]
           | explain
           ]
-        , [ fsep $ concat
+        , [ (fsep . concat)
             [ pwords "The following"
             , P.singPlural rest (pwords "variable is") (pwords "variables are")
             , pwords "not allowed here, either:"
-            , punctuate comma $ map (prettyTCM <=< nameOfBV) rest
             ]
+            <?> fsep (map (prettyTCM <=< nameOfBV) rest)
           | not (null rest)
           ]
         ]

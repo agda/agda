@@ -5,9 +5,17 @@ postulate
   A B : Set
 
 module A where
-  X = A
-  Y = B
+  X = A;  X' = A
+  Y = B;  Y' = B
+  module M where
+  module N where
 
-open A renaming (X to C; Y to C)
+open A renaming (X  to C; Y  to C)
+       renaming (X' to D; Y' to D)
+       renaming (module M to ,; module N to ,)
 
--- open A using (X) renaming (Y to X)
+-- Expected error: [DuplicateImports]
+-- Ambiguous imports from module A for identifiers: module ,; C; D
+-- when scope checking the declaration
+--   open A renaming (X to C; Y to C; X' to D; Y' to D; module M to ,;
+--                    module N to ,)

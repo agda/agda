@@ -1,4 +1,5 @@
-Issue249.agda:11.1-33: error: [DuplicateImports]
-Ambiguous imports from module A for C
+Issue249.agda:13.1-15.47: error: [DuplicateImports]
+Ambiguous imports from module A for identifiers: module ,; C; D
 when scope checking the declaration
-  open A renaming (X to C; Y to C)
+  open A renaming (X to C; Y to C; X' to D; Y' to D; module M to ,;
+                   module N to ,)
