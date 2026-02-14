@@ -338,6 +338,11 @@ instance EmbPrj DeclarationWarning where
 
 instance EmbPrj DeclarationWarning' where
   icod_ = \case
+    -- Andreas, 2026-02-14:
+    -- UnknownNamesInFixityDecl and UnknownNamesInPolarityPragmas are now error warnings,
+    -- so the following two cases are impossible.
+    -- We leave them in as long as they are not a nuisance for maintenance,
+    -- should we decide in the future to revert them to non-error-warnings.
     UnknownNamesInFixityDecl a        -> icodeN 0 UnknownNamesInFixityDecl a
     UnknownNamesInPolarityPragmas a   -> icodeN 1 UnknownNamesInPolarityPragmas a
     PolarityPragmasButNotPostulates a -> icodeN 2 PolarityPragmasButNotPostulates a

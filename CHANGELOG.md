@@ -216,6 +216,8 @@ Warnings
     This is because some very useful rewrite rules unfortunately do not preserve
     subject reduction in the presence of definitional singletons.
 
+* `UnknownNamesInFixityDecl` and `UnknownNamesInPolarityPragmas` are now error warnings.
+
 Syntax
 ------
 

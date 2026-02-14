@@ -609,8 +609,8 @@ warningHighlighting' b w = case tcWarning w of
     PragmaNoTerminationCheck{}        -> mempty
     PragmaCompiled{}                  -> errorWarningHighlighting w
     UnknownFixityInMixfixDecl{}       -> mempty
-    UnknownNamesInFixityDecl{}        -> mempty
-    UnknownNamesInPolarityPragmas{}   -> mempty
+    UnknownNamesInFixityDecl{}        -> errorWarningHighlighting w
+    UnknownNamesInPolarityPragmas{}   -> errorWarningHighlighting w
 
   -- Backends
   CustomBackendWarning{} -> mempty
