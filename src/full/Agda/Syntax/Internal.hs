@@ -1103,13 +1103,19 @@ hasProj = \case
   Proj{}:_ -> True
   _:es     -> hasProj es
 
-{-
-We define an unboxed sum type that's isomorphic to the following
+{- |
+We define an unboxed sum type that's isomorphic to the following.
 
+@
    data SpineHead = SHVar !Int | SHDef !QName | SHMetaV {-# UNPACK #-} !MetaId
+@
 
-Below, the noise with pattern synonyms and unboxed types is just the necessary
-boilerplate to produce the above type with correct memory layout.
+The noise with pattern synonyms and unboxed types is just the necessary boilerplate to produce the
+above type with correct memory layout.
+
+The reason for the unboxing is that 'unSpine' is a hot function in 'Agda.TypeChecking.Free.Generic',
+and we'd like to avoid heap allocating either a closure or a boxed sum type just for the purpose
+of rebuilding a 'Term' from an 'Elims'.
 -}
 
 #if  __GLASGOW_HASKELL__ <= 902
