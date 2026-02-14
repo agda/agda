@@ -647,6 +647,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
     , "u"  <+> addContext gamma (prettyTCM u)
     , "v"  <+> addContext gamma (prettyTCM v)
     , "rho" <+> addContext gamma' (prettyTCM rho)
+    , "tau" <+> pretty tau
     ]
 
   Constructor{conSrcCon = chead} <- theDef <$> getConstInfo c

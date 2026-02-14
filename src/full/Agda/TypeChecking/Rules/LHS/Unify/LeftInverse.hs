@@ -2,6 +2,9 @@
 
 {-# LANGUAGE NondecreasingIndentation #-}
 
+{-| Functions for building the left inverse part of a 'UnifyEquiv'.
+ -}
+
 module Agda.TypeChecking.Rules.LHS.Unify.LeftInverse where
 
 import Prelude hiding ((!!), null)
@@ -33,6 +36,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -91,6 +95,7 @@ data NoLeftInv
   | CantTransport' (Closure Type)
   deriving Show
 
+-- | Build the left inverse part of a 'UnifyEquiv' (@τ@, @leftInv@).
 buildLeftInverse :: UnifyState -> UnifyLog -> TCM (Either NoLeftInv (Substitution, Substitution))
 buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInversion] $ case digestUnifyLog log of
   Left no -> do
@@ -265,6 +270,7 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
           reportSDoc "tc.lhs.unify.inv" 40 $ "leftInvSub :" <+> pretty sigma
       return $ Right (prob, rho, tau, sigma)
 
+-- | Build the left inverse corresponding to a single unification step.
 buildEquiv :: DigestedUnifyLogEntry -> UnifyState -> TCM (Either NoLeftInv (Retract,Term))
 buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = runExceptT $ do
         let
@@ -279,64 +285,69 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
         cxt <- getContextTelescope
         reportSDoc "tc.lhs.unify.inv" 20 $ "context:" <+> prettyTCM cxt
         let
-          -- k counds in eqs from the left
           m = varCount st
           gamma = varTel st
           eqs = eqTel st
+          -- k counts in eqs from the left
           u = eqLHS st !! k
           v = eqRHS st !! k
-          x = flexVar fx
+          -- Γ ⊢ perm : Γ' is a reordering used by instantiateTelescope to ensure the
+          -- resulting context is well-formed. Works on de Bruijn levels.
+          perm = fromMaybe __IMPOSSIBLE__ $ unifySolutionPerm output
+          -- The new de Bruijn index of fx in Γ'. The target context for τ is obtained by dropping
+          -- x from Γ' (and the kth equation from the equation telescope) and instantiating
+          -- it with u (resp. refl).
+          x = fromMaybe __IMPOSSIBLE__ $ lookupRP (reverseP perm) (flexVar fx)
           neqs = size eqs
-          phis = 1 -- neqs
+          phis = 1
         interval <- lift $ primIntervalType
-         -- Γ, φs : I^phis
+         -- Γ, φ : I
         let gamma_phis = abstract gamma $ telFromList $
               map (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
+        -- working_tel = Γ, φ : I, eqs : lhs ≡ rhs
         working_tel <- abstract gamma_phis <$>
           cantTransport' (pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st))
+        -- working_tel' = Γ'           , φ : I, eqs : lhs ≡ rhs
+        --              = Γ₁, x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
+        let permw = liftP (size working_tel - size gamma) perm
+        working_tel' <- pure $ permuteTel permw working_tel
         reportSDoc "tc.lhs.unify.inv" 20 $ vcat
           [ "working tel:" <+> prettyTCM (working_tel :: Telescope)
           , addContext working_tel $ "working tel args:" <+> prettyTCM (teleArgs working_tel :: [Arg Term])
+          , "perm:" <+> prettyTCM perm
           ]
         (tau,leftInv,phi) <- addContext working_tel $ runNamesT [] $ do
-          let raiseFrom tel x = raise (size working_tel - size tel) x
+          let
+            raiseFrom :: Subst a => Telescope -> a -> a
+            raiseFrom tel x = raise (size working_tel - size tel) x
+            bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
           u <- open . raiseFrom gamma . unArg $ u
           v <- open . raiseFrom gamma . unArg $ v
           -- φ
           let phi = raiseFrom gamma_phis $ var 0
-          -- working_tel ⊢ γ₁,x,γ₂,φ,eqs
-          let all_args = teleArgs working_tel
-          -- Γ₁,x : A,Γ₂
---          gamma <- open $ raiseFrom EmptyTel gamma
-          -- -- γ₁,x,γ₂,φ,eqs : W
-          -- working_tel <- open $ raiseFrom EmptyTel working_tel
+          -- working_tel ⊢ γ₁,x,γ₂,φ,eqs : working_tel'
+          let all_args = permute permw $ teleArgs working_tel
 
-          -- eq_tel <- open $ raiseFrom gamma (eqTel st)
-
-          -- [lhs,rhs] <- mapM (open . raiseFrom gamma) [eqLHS st,eqRHS st]
-          let bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
-          -- . ⊢ Γ₁  ,  γ₁. (x : A),Γ₂,φ : I,[lhs ≡ rhs]
-          let (gamma1, xxi) = bindSplit $ splitTelescopeAt (size gamma - x - 1) working_tel
-          let (gamma1_args,xxi_args) = splitAt (size gamma1) all_args
+          -- . ⊢ Γ₁  ,  γ₁. x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
+          let (gamma1, xxi) = bindSplit $ splitTelescopeAt (size gamma - x - 1) working_tel'
+              (gamma1_args,xxi_args) = splitAt (size gamma1) all_args
               (_x_arg:xi_args) = xxi_args
-              (x_arg:xi0,k_arg:xi1) = splitAt ((size gamma - size gamma1) + phis + k) xxi_args
-              -- W ⊢ (x : A),Γ₂,φ : I,[lhs ≡ rhs]
-          let
-            xxi_here :: Telescope
-            xxi_here = absAppN xxi $ map unArg gamma1_args
-          --                                                      x:A,Γ₂                φ
-          let (xpre,krest) = bindSplit $ splitTelescopeAt ((size gamma - size gamma1) + phis + k) xxi_here
+              (x_arg:xi0,k_arg:xi1) = splitAt (size gamma - size gamma1 + phis + k) xxi_args
+              -- working_tel ⊢ x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
+              xxi_here = absAppN xxi $ map unArg gamma1_args
+              --                                                  x:A, Γ₂               φ
+              (xpre,krest) = bindSplit $ splitTelescopeAt ((size gamma - size gamma1) + phis + k) xxi_here
           k_arg <- open $ unArg k_arg
           xpre <- open xpre
           krest <- open krest
+          -- Δ₀ = Γ₁, Γ₂
+          -- Δ  = x eq. Δ₀, φ : I, eqs-k : lhs-k ≡ rhs-k
           delta <- bindN ["x","eq"] $ \ [x,eq] -> do
                      let pre = apply1 <$> xpre <*> x
                      abstractN pre $ \ args ->
                        apply1 <$> applyN krest (x:args) <*> eq
---          let delta_zero = absAppN delta $ map unArg [x_arg,k_arg]
-          let d_zero_args = xi0 ++ xi1
-          reportSDoc "tc.lhs.unify.inv" 20 $ "size delta:" <+> text (show $ size $ unAbsN delta)
-          reportSDoc "tc.lhs.unify.inv" 20 $ "size d0args:" <+> text (show $ size d_zero_args)
+          -- working_tel ⊢ delta0_args : Δ₀
+          let delta0_args = xi0 ++ xi1
           let appSide = case side of
                           Left{} -> id
                           Right{} -> unview . INeg . argN
@@ -356,6 +367,7 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
               dropAt n xs = xs0 ++ xs1
                 where (xs0,_:xs1) = splitAt n xs
           delta <- open delta
+          -- d = i. Δ (k i) (λ j → k (i ∧ j))
           d <- bind "i" $ \ i -> applyN delta (csingl' i)
 
           -- Andrea 06/06/2018
@@ -364,13 +376,11 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
           -- whose types do not depend on "x" are left alone, in
           -- particular those the solution "t" depends on.
           --
-          -- We might want to instead use the info discovered by the
-          -- solver when checking if "t" depends on "x" to decide what
+          -- We might want to instead use the info discovered by instantiateTelescope
+          -- when checking if "t" depends on "x" to decide what
           -- to transp and what not to.
           let flag = True
-                 {-   φ -}
-          tau <- {-dropAt (size gamma - 1 + k) .-} (gamma1_args ++) <$>
-                                                   lift (cantTransport (transpTel' flag d phi d_zero_args))
+          tau <- (gamma1_args ++) <$> lift (cantTransport (transpTel' flag d phi delta0_args))
           reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM (map (setHiding NotHidden) tau)
           leftInv <- do
             gamma1_args <- open gamma1_args
@@ -405,7 +415,6 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
             fmap absBody $ bind "i" $ \ i' -> do
               let (+++) m = liftM2 (++) m
                   i = cl (lift primINeg) <@> i'
---              replaceAt (size gamma + k) <$> (fmap defaultArg $ cl primIMax <@> phi <@> i) <*> do
               do
                 gamma1_args +++ (take 1 `fmap` csingl i +++ ((lazyAbsApp <$> xi0f <*> i) +++ (drop 1 `fmap` csingl i +++ (lazyAbsApp <$> xi1f <*> i))))
           return (tau,leftInv,phi)
@@ -418,9 +427,8 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv[0]:" <+> (prettyTCM =<< reduce (subst 0 iz $ map (setHiding NotHidden) leftInv))
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv[1]:" <+> (prettyTCM =<< reduce  (subst 0 io $ map (setHiding NotHidden) leftInv))
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "[rho]tau :" <+>
-                                                                                  -- k   φ
           prettyTCM (applySubst (termsS __IMPOSSIBLE__ $ map unArg tau) $ fromPatternSubstitution
-                                                                      $ raise (size (eqTel st) - 1{-k-} + phis {-neqs{-φs-} - 1{-φ0-}-})
+                                                                      $ raise (size (eqTel st) - 1 + phis)
                                                                       $ unifySubst output)
         reportSDoc "tc.lhs.unify.inv" 20 $ "."
         let rho0 = fromPatternSubstitution $ unifySubst output
@@ -430,11 +438,9 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
         let c = liftS (size $ eqTel next) (raiseS 1) `applySubst` c0
         addContext (varTel next) $ addContext ("φ" :: String, __DUMMY_DOM__) $ addContext (raise 1 $ eqTel next) $
           reportSDoc "tc.lhs.unify.inv" 20 $ "c :" <+> prettyTCM c
---        let rho = liftS (neqs - k - 1) $ consS (raise (1 + k) c) $ liftS (1 + k) rho0
         let rho = singletonS (neqs - k - 1) c  `composeS` liftS (1 + neqs) rho0
         reportSDoc "tc.lhs.unify.inv" 20 $ text "old_sizes: " <+> pretty (size $ varTel st, size $ eqTel st)
         reportSDoc "tc.lhs.unify.inv" 20 $ text "new_sizes: " <+> pretty (size $ varTel next, size $ eqTel next)
---        addContext (abstract (varTel next) $ ExtendTel __DUMMY_DOM__ (Abs "φ" $ raise 1 $ eqTel next)) $
         addContext (varTel next) $ addContext ("φ" :: String, __DUMMY_DOM__) $ addContext (raise 1 $ eqTel next) $
           reportSDoc "tc.lhs.unify.inv" 20 $ "rho   :" <+> prettyTCM rho
         return $ ((working_tel
