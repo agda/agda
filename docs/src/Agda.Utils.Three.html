@@ -1,0 +1,387 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621681692596"><span id="local-6989586621681692597"></span></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Tools for 3-way partitioning.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Three.html"><span class="hs-identifier">Agda.Utils.Three</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- | Enum type with 3 elements.</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">data</span><span> </span><span id="Three"><span class="annot"><a href="Agda.Utils.Three.html#Three"><span class="hs-identifier hs-var">Three</span></a></span></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="One"><span class="annot"><a href="Agda.Utils.Three.html#One"><span class="hs-identifier hs-var">One</span></a></span></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Two"><span class="annot"><a href="Agda.Utils.Three.html#Two"><span class="hs-identifier hs-var">Two</span></a></span></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Three"><span class="annot"><a href="Agda.Utils.Three.html#Three"><span class="hs-identifier hs-var">Three</span></a></span></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681692602"><span id="local-6989586621681692607"><span class="annot"><span class="annottext">Three -&gt; Three -&gt; Bool
+(Three -&gt; Three -&gt; Bool) -&gt; (Three -&gt; Three -&gt; Bool) -&gt; Eq Three
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Three -&gt; Three -&gt; Bool
+== :: Three -&gt; Three -&gt; Bool
+$c/= :: Three -&gt; Three -&gt; Bool
+/= :: Three -&gt; Three -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692614"><span id="local-6989586621681692618"><span id="local-6989586621681692622"><span id="local-6989586621681692626"><span id="local-6989586621681692629"><span id="local-6989586621681692632"><span id="local-6989586621681692635"><span class="annot"><span class="annottext">Eq Three
+Eq Three =&gt;
+(Three -&gt; Three -&gt; Ordering)
+-&gt; (Three -&gt; Three -&gt; Bool)
+-&gt; (Three -&gt; Three -&gt; Bool)
+-&gt; (Three -&gt; Three -&gt; Bool)
+-&gt; (Three -&gt; Three -&gt; Bool)
+-&gt; (Three -&gt; Three -&gt; Three)
+-&gt; (Three -&gt; Three -&gt; Three)
+-&gt; Ord Three
+Three -&gt; Three -&gt; Bool
+Three -&gt; Three -&gt; Ordering
+Three -&gt; Three -&gt; Three
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: Three -&gt; Three -&gt; Ordering
+compare :: Three -&gt; Three -&gt; Ordering
+$c&lt; :: Three -&gt; Three -&gt; Bool
+&lt; :: Three -&gt; Three -&gt; Bool
+$c&lt;= :: Three -&gt; Three -&gt; Bool
+&lt;= :: Three -&gt; Three -&gt; Bool
+$c&gt; :: Three -&gt; Three -&gt; Bool
+&gt; :: Three -&gt; Three -&gt; Bool
+$c&gt;= :: Three -&gt; Three -&gt; Bool
+&gt;= :: Three -&gt; Three -&gt; Bool
+$cmax :: Three -&gt; Three -&gt; Three
+max :: Three -&gt; Three -&gt; Three
+$cmin :: Three -&gt; Three -&gt; Three
+min :: Three -&gt; Three -&gt; Three
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692643"><span id="local-6989586621681692645"><span id="local-6989586621681692649"><span class="annot"><span class="annottext">Int -&gt; Three -&gt; ShowS
+[Three] -&gt; ShowS
+Three -&gt; String
+(Int -&gt; Three -&gt; ShowS)
+-&gt; (Three -&gt; String) -&gt; ([Three] -&gt; ShowS) -&gt; Show Three
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Three -&gt; ShowS
+showsPrec :: Int -&gt; Three -&gt; ShowS
+$cshow :: Three -&gt; String
+show :: Three -&gt; String
+$cshowList :: [Three] -&gt; ShowS
+showList :: [Three] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692654"><span id="local-6989586621681692656"><span class="annot"><span class="annottext">Three
+Three -&gt; Three -&gt; Bounded Three
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: Three
+minBound :: Three
+$cmaxBound :: Three
+maxBound :: Three
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692662"><span id="local-6989586621681692669"><span id="local-6989586621681692674"><span id="local-6989586621681692680"><span id="local-6989586621681692683"><span id="local-6989586621681692688"><span id="local-6989586621681692695"><span id="local-6989586621681692699"><span class="annot"><span class="annottext">Int -&gt; Three
+Three -&gt; Int
+Three -&gt; [Three]
+Three -&gt; Three
+Three -&gt; Three -&gt; [Three]
+Three -&gt; Three -&gt; Three -&gt; [Three]
+(Three -&gt; Three)
+-&gt; (Three -&gt; Three)
+-&gt; (Int -&gt; Three)
+-&gt; (Three -&gt; Int)
+-&gt; (Three -&gt; [Three])
+-&gt; (Three -&gt; Three -&gt; [Three])
+-&gt; (Three -&gt; Three -&gt; [Three])
+-&gt; (Three -&gt; Three -&gt; Three -&gt; [Three])
+-&gt; Enum Three
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: Three -&gt; Three
+succ :: Three -&gt; Three
+$cpred :: Three -&gt; Three
+pred :: Three -&gt; Three
+$ctoEnum :: Int -&gt; Three
+toEnum :: Int -&gt; Three
+$cfromEnum :: Three -&gt; Int
+fromEnum :: Three -&gt; Int
+$cenumFrom :: Three -&gt; [Three]
+enumFrom :: Three -&gt; [Three]
+$cenumFromThen :: Three -&gt; Three -&gt; [Three]
+enumFromThen :: Three -&gt; Three -&gt; [Three]
+$cenumFromTo :: Three -&gt; Three -&gt; [Three]
+enumFromTo :: Three -&gt; Three -&gt; [Three]
+$cenumFromThenTo :: Three -&gt; Three -&gt; Three -&gt; [Three]
+enumFromThenTo :: Three -&gt; Three -&gt; Three -&gt; [Three]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- | Partition a list into 3 groups.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--   Preserves the relative order or elements.</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span id="local-6989586621681692518"><span class="annot"><a href="Agda.Utils.Three.html#partition3"><span class="hs-identifier hs-type">partition3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681692518"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Three.html#Three"><span class="hs-identifier hs-type">Three</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692518"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692518"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692518"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692518"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span><span>
+</span><span id="line-20"></span><span id="partition3"><span class="annot"><span class="annottext">partition3 :: forall a. (a -&gt; Three) -&gt; [a] -&gt; ([a], [a], [a])
+</span><a href="Agda.Utils.Three.html#partition3"><span class="hs-identifier hs-var hs-var">partition3</span></a></span></span><span>  </span><span id="local-6989586621681692707"><span class="annot"><span class="annottext">a -&gt; Three
+</span><a href="#local-6989586621681692707"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; ([a], [a], [a])
+</span><a href="#local-6989586621681692708"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>  </span><span id="local-6989586621681692708"><span class="annot"><span class="annottext">loop :: [a] -&gt; ([a], [a], [a])
+</span><a href="#local-6989586621681692708"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>  </span><span class="annot"><a href="#local-6989586621681692708"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681692709"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692709"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681692710"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692710"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">a -&gt; Three
+</span><a href="#local-6989586621681692707"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692709"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-23"></span><span>      </span><span class="annot"><span class="annottext">Three
+</span><a href="Agda.Utils.Three.html#One"><span class="hs-identifier hs-var">One</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692709"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692711"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692712"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692713"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>      </span><span class="annot"><span class="annottext">Three
+</span><a href="Agda.Utils.Three.html#Two"><span class="hs-identifier hs-var">Two</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692711"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692709"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692712"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692713"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>      </span><span class="annot"><span class="annottext">Three
+</span><a href="Agda.Utils.Three.html#Three"><span class="hs-identifier hs-var">Three</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692711"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692712"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692709"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692713"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681692711"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692711"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692712"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692712"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692713"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692713"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; ([a], [a], [a])
+</span><a href="#local-6989586621681692708"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692710"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- | Disjoint sum of three.</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">data</span><span> </span><span id="Either3"><span class="annot"><a href="Agda.Utils.Three.html#Either3"><span class="hs-identifier hs-var">Either3</span></a></span></span><span> </span><span id="local-6989586621681692593"><span class="annot"><a href="#local-6989586621681692593"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681692594"><span class="annot"><a href="#local-6989586621681692594"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span id="local-6989586621681692595"><span class="annot"><a href="#local-6989586621681692595"><span class="hs-identifier hs-type">c</span></a></span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="In1"><span class="annot"><a href="Agda.Utils.Three.html#In1"><span class="hs-identifier hs-var">In1</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681692593"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="In2"><span class="annot"><a href="Agda.Utils.Three.html#In2"><span class="hs-identifier hs-var">In2</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681692594"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="In3"><span class="annot"><a href="Agda.Utils.Three.html#In3"><span class="hs-identifier hs-var">In3</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681692595"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681692721"><span id="local-6989586621681692728"><span class="annot"><span class="annottext">Either3 a b c -&gt; Either3 a b c -&gt; Bool
+(Either3 a b c -&gt; Either3 a b c -&gt; Bool)
+-&gt; (Either3 a b c -&gt; Either3 a b c -&gt; Bool) -&gt; Eq (Either3 a b c)
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+forall a b c.
+(Eq a, Eq b, Eq c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+$c== :: forall a b c.
+(Eq a, Eq b, Eq c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+== :: Either3 a b c -&gt; Either3 a b c -&gt; Bool
+$c/= :: forall a b c.
+(Eq a, Eq b, Eq c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+/= :: Either3 a b c -&gt; Either3 a b c -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692740"><span id="local-6989586621681692745"><span id="local-6989586621681692750"><span id="local-6989586621681692754"><span id="local-6989586621681692757"><span id="local-6989586621681692760"><span id="local-6989586621681692763"><span class="annot"><span class="annottext">Eq (Either3 a b c)
+Eq (Either3 a b c) =&gt;
+(Either3 a b c -&gt; Either3 a b c -&gt; Ordering)
+-&gt; (Either3 a b c -&gt; Either3 a b c -&gt; Bool)
+-&gt; (Either3 a b c -&gt; Either3 a b c -&gt; Bool)
+-&gt; (Either3 a b c -&gt; Either3 a b c -&gt; Bool)
+-&gt; (Either3 a b c -&gt; Either3 a b c -&gt; Bool)
+-&gt; (Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c)
+-&gt; (Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c)
+-&gt; Ord (Either3 a b c)
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+Either3 a b c -&gt; Either3 a b c -&gt; Ordering
+Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall a b c. (Ord a, Ord b, Ord c) =&gt; Eq (Either3 a b c)
+forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Ordering
+forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c
+$ccompare :: forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Ordering
+compare :: Either3 a b c -&gt; Either3 a b c -&gt; Ordering
+$c&lt; :: forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+&lt; :: Either3 a b c -&gt; Either3 a b c -&gt; Bool
+$c&lt;= :: forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+&lt;= :: Either3 a b c -&gt; Either3 a b c -&gt; Bool
+$c&gt; :: forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+&gt; :: Either3 a b c -&gt; Either3 a b c -&gt; Bool
+$c&gt;= :: forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Bool
+&gt;= :: Either3 a b c -&gt; Either3 a b c -&gt; Bool
+$cmax :: forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c
+max :: Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c
+$cmin :: forall a b c.
+(Ord a, Ord b, Ord c) =&gt;
+Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c
+min :: Either3 a b c -&gt; Either3 a b c -&gt; Either3 a b c
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692770"><span id="local-6989586621681692778"><span id="local-6989586621681692782"><span class="annot"><span class="annottext">Int -&gt; Either3 a b c -&gt; ShowS
+[Either3 a b c] -&gt; ShowS
+Either3 a b c -&gt; String
+(Int -&gt; Either3 a b c -&gt; ShowS)
+-&gt; (Either3 a b c -&gt; String)
+-&gt; ([Either3 a b c] -&gt; ShowS)
+-&gt; Show (Either3 a b c)
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+forall a b c.
+(Show a, Show b, Show c) =&gt;
+Int -&gt; Either3 a b c -&gt; ShowS
+forall a b c. (Show a, Show b, Show c) =&gt; [Either3 a b c] -&gt; ShowS
+forall a b c. (Show a, Show b, Show c) =&gt; Either3 a b c -&gt; String
+$cshowsPrec :: forall a b c.
+(Show a, Show b, Show c) =&gt;
+Int -&gt; Either3 a b c -&gt; ShowS
+showsPrec :: Int -&gt; Either3 a b c -&gt; ShowS
+$cshow :: forall a b c. (Show a, Show b, Show c) =&gt; Either3 a b c -&gt; String
+show :: Either3 a b c -&gt; String
+$cshowList :: forall a b c. (Show a, Show b, Show c) =&gt; [Either3 a b c] -&gt; ShowS
+showList :: [Either3 a b c] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- | Partition a list into 3 groups.</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--</span><span>
+</span><span id="line-38"></span><span class="hs-comment">--   Preserves the relative order or elements.</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--</span><span>
+</span><span id="line-40"></span><span id="local-6989586621681692540"><span id="local-6989586621681692541"><span id="local-6989586621681692542"><span class="annot"><a href="Agda.Utils.Three.html#partitionEithers3"><span class="hs-identifier hs-type">partitionEithers3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Three.html#Either3"><span class="hs-identifier hs-type">Either3</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692540"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692541"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692542"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692540"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692541"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692542"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-41"></span><span id="partitionEithers3"><span class="annot"><span class="annottext">partitionEithers3 :: forall a b c. [Either3 a b c] -&gt; ([a], [b], [c])
+</span><a href="Agda.Utils.Three.html#partitionEithers3"><span class="hs-identifier hs-var hs-var">partitionEithers3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681692785"><span class="annot"><span class="annottext">Either3 a b c
+</span><a href="#local-6989586621681692785"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681692786"><span class="annot"><span class="annottext">[Either3 a b c]
+</span><a href="#local-6989586621681692786"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either3 a b c
+</span><a href="#local-6989586621681692785"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-44"></span><span>      </span><span class="annot"><a href="Agda.Utils.Three.html#In1"><span class="hs-identifier hs-type">In1</span></a></span><span> </span><span id="local-6989586621681692787"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692787"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692787"><span class="hs-identifier hs-var">a</span></a></span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692788"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681692789"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[c]
+</span><a href="#local-6989586621681692790"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>      </span><span class="annot"><a href="Agda.Utils.Three.html#In2"><span class="hs-identifier hs-type">In2</span></a></span><span> </span><span id="local-6989586621681692791"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681692791"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692788"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681692791"><span class="hs-identifier hs-var">b</span></a></span><span class="annot"><span class="annottext">b -&gt; [b] -&gt; [b]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681692789"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[c]
+</span><a href="#local-6989586621681692790"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>      </span><span class="annot"><a href="Agda.Utils.Three.html#In3"><span class="hs-identifier hs-type">In3</span></a></span><span> </span><span id="local-6989586621681692792"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681692792"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692788"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681692789"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681692792"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; [c]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[c]
+</span><a href="#local-6989586621681692790"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681692788"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692788"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692789"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681692789"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692790"><span class="annot"><span class="annottext">[c]
+</span><a href="#local-6989586621681692790"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either3 a b c] -&gt; ([a], [b], [c])
+forall a b c. [Either3 a b c] -&gt; ([a], [b], [c])
+</span><a href="Agda.Utils.Three.html#partitionEithers3"><span class="hs-identifier hs-var">partitionEithers3</span></a></span><span> </span><span class="annot"><span class="annottext">[Either3 a b c]
+</span><a href="#local-6989586621681692786"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span id="local-6989586621681692546"><span id="local-6989586621681692547"><span id="local-6989586621681692548"><span id="local-6989586621681692549"><span class="annot"><a href="Agda.Utils.Three.html#mapEither3"><span class="hs-identifier hs-type">mapEither3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681692546"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Three.html#Either3"><span class="hs-identifier hs-type">Either3</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692547"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692548"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692549"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692546"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692547"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692548"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692549"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-50"></span><span id="mapEither3"><span class="annot"><span class="annottext">mapEither3 :: forall a b c d. (a -&gt; Either3 b c d) -&gt; [a] -&gt; ([b], [c], [d])
+</span><a href="Agda.Utils.Three.html#mapEither3"><span class="hs-identifier hs-var hs-var">mapEither3</span></a></span></span><span> </span><span id="local-6989586621681692794"><span class="annot"><span class="annottext">a -&gt; Either3 b c d
+</span><a href="#local-6989586621681692794"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either3 b c d] -&gt; ([b], [c], [d])
+forall a b c. [Either3 a b c] -&gt; ([a], [b], [c])
+</span><a href="Agda.Utils.Three.html#partitionEithers3"><span class="hs-identifier hs-var">partitionEithers3</span></a></span><span> </span><span class="annot"><span class="annottext">([Either3 b c d] -&gt; ([b], [c], [d]))
+-&gt; ([a] -&gt; [Either3 b c d]) -&gt; [a] -&gt; ([b], [c], [d])
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Either3 b c d) -&gt; [a] -&gt; [Either3 b c d]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Either3 b c d
+</span><a href="#local-6989586621681692794"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span id="local-6989586621681692559"><span id="local-6989586621681692560"><span id="local-6989586621681692561"><span id="local-6989586621681692562"><span id="local-6989586621681692563"><span class="annot"><a href="Agda.Utils.Three.html#mapEither3M"><span class="hs-identifier hs-type">mapEither3M</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621681692559"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681692560"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692559"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Three.html#Either3"><span class="hs-identifier hs-type">Either3</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692561"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692562"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692563"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692560"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692559"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692561"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692562"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692563"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span></span></span></span></span><span>
+</span><span id="line-53"></span><span id="mapEither3M"><span class="annot"><span class="annottext">mapEither3M :: forall (m :: * -&gt; *) a b c d.
+Applicative m =&gt;
+(a -&gt; m (Either3 b c d)) -&gt; [a] -&gt; m ([b], [c], [d])
+</span><a href="Agda.Utils.Three.html#mapEither3M"><span class="hs-identifier hs-var hs-var">mapEither3M</span></a></span></span><span> </span><span id="local-6989586621681692804"><span class="annot"><span class="annottext">a -&gt; m (Either3 b c d)
+</span><a href="#local-6989586621681692804"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681692805"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692805"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either3 b c d] -&gt; ([b], [c], [d])
+forall a b c. [Either3 a b c] -&gt; ([a], [b], [c])
+</span><a href="Agda.Utils.Three.html#partitionEithers3"><span class="hs-identifier hs-var">partitionEithers3</span></a></span><span> </span><span class="annot"><span class="annottext">([Either3 b c d] -&gt; ([b], [c], [d]))
+-&gt; m [Either3 b c d] -&gt; m ([b], [c], [d])
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m (Either3 b c d)) -&gt; [a] -&gt; m [Either3 b c d]
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; [a] -&gt; f [b]
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m (Either3 b c d)
+</span><a href="#local-6989586621681692804"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681692805"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span id="local-6989586621681692577"><span id="local-6989586621681692578"><span id="local-6989586621681692579"><span id="local-6989586621681692580"><span id="local-6989586621681692581"><span class="annot"><a href="Agda.Utils.Three.html#forEither3M"><span class="hs-identifier hs-type">forEither3M</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621681692577"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692578"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681692578"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692577"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Three.html#Either3"><span class="hs-identifier hs-type">Either3</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692579"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692580"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692581"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681692577"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692579"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692580"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681692581"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span></span></span></span></span><span>
+</span><span id="line-56"></span><span id="forEither3M"><span class="annot"><span class="annottext">forEither3M :: forall (m :: * -&gt; *) a b c d.
+Applicative m =&gt;
+[a] -&gt; (a -&gt; m (Either3 b c d)) -&gt; m ([b], [c], [d])
+</span><a href="Agda.Utils.Three.html#forEither3M"><span class="hs-identifier hs-var hs-var">forEither3M</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; m (Either3 b c d)) -&gt; [a] -&gt; m ([b], [c], [d]))
+-&gt; [a] -&gt; (a -&gt; m (Either3 b c d)) -&gt; m ([b], [c], [d])
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m (Either3 b c d)) -&gt; [a] -&gt; m ([b], [c], [d])
+forall (m :: * -&gt; *) a b c d.
+Applicative m =&gt;
+(a -&gt; m (Either3 b c d)) -&gt; [a] -&gt; m ([b], [c], [d])
+</span><a href="Agda.Utils.Three.html#mapEither3M"><span class="hs-identifier hs-var">mapEither3M</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="annot"><span class="hs-comment">-- | Convert a 'Three' tagged thing into an 'Either3'.</span></span><span>
+</span><span id="line-59"></span><span id="local-6989586621681692591"><span class="annot"><a href="Agda.Utils.Three.html#mkEither3"><span class="hs-identifier hs-type">mkEither3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Three.html#Three"><span class="hs-identifier hs-type">Three</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681692591"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Three.html#Either3"><span class="hs-identifier hs-type">Either3</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692591"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692591"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681692591"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-60"></span><span id="mkEither3"><span class="annot"><span class="annottext">mkEither3 :: forall a. (Three, a) -&gt; Either3 a a a
+</span><a href="Agda.Utils.Three.html#mkEither3"><span class="hs-identifier hs-var hs-var">mkEither3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Three
+</span><a href="Agda.Utils.Three.html#One"><span class="hs-identifier hs-var">One</span></a></span><span>  </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692813"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692813"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Either3 a a a
+forall a b c. a -&gt; Either3 a b c
+</span><a href="Agda.Utils.Three.html#In1"><span class="hs-identifier hs-var">In1</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692813"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Three
+</span><a href="Agda.Utils.Three.html#Two"><span class="hs-identifier hs-var">Two</span></a></span><span>  </span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692814"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692814"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Either3 a a a
+forall a b c. b -&gt; Either3 a b c
+</span><a href="Agda.Utils.Three.html#In2"><span class="hs-identifier hs-var">In2</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692814"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Three
+</span><a href="Agda.Utils.Three.html#Three"><span class="hs-identifier hs-var">Three</span></a></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681692815"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692815"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Either3 a a a
+forall a b c. c -&gt; Either3 a b c
+</span><a href="Agda.Utils.Three.html#In3"><span class="hs-identifier hs-var">In3</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681692815"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-64"></span></pre></body></html>
