@@ -1,8 +1,8 @@
 UnknownNameInFixityDecl.agda:8.10-13.9: error: [UnknownNamesInFixityDecl]
 The following names are not declared in the same scope as their
 syntax or fixity declaration (i.e., either not in scope at all,
-imported from another module, or declared in a super module): _*_,
-_+_, Σ
+imported from another module, or declared in a super module):
+_*_ _+_ Σ
 
 UnknownNameInFixityDecl.agda:18.9-10: error: [NotInScope]
 Not in scope:
