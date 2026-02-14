@@ -51,7 +51,7 @@ matchLeq (a :=< b) (c :=< d)
   | otherwise              = False
   where
     free :: Free a => a -> [Int]
-    free = nubOn id . runFree (:[]) IgnoreNot  -- Note: use a list to preserve order of variables
+    free = nubOn id . freeVarList  -- Note: use a list to preserve order of variables
     xs  = free (a, b)
     ys  = free (c, d)
     rho = mkSub $ List.sort $ zip ys xs

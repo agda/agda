@@ -611,18 +611,18 @@ instance Applicative UnderComposition where
 -- | We have a tuple of modalities, which might not be fully orthogonal.
 --   For example, irrelevant stuff is also run-time irrelevant.
 data Modality = Modality
-  { modRelevance :: Relevance
+  { modRelevance :: !Relevance
       -- ^ Legacy irrelevance.
       --   See Pfenning, LiCS 2001; Abel, Vezzosi and Winterhalter, ICFP 2017.
-  , modQuantity  :: Quantity
+  , modQuantity  :: !Quantity
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
       --   See Bob Atkey, Syntax and Semantics of Quantitative Type Theory, LiCS 2018.
-  , modCohesion :: Cohesion
+  , modCohesion :: !Cohesion
       -- ^ Cohesion/what was in Agda-flat.
       --   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
       --   Currently only the comonad is implemented.
-  , modPolarity :: PolarityModality
+  , modPolarity :: !PolarityModality
       -- ^ Polarity annotations (strictly positive, ...)
   } deriving (Eq, Ord, Show, Generic)
 
@@ -1541,9 +1541,9 @@ instance Pretty OriginShapeIrrelevant where
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
-  = Relevant OriginRelevant
+  = Relevant !OriginRelevant
       -- ^ The argument is (possibly) relevant at compile-time.
-  | ShapeIrrelevant OriginShapeIrrelevant
+  | ShapeIrrelevant !OriginShapeIrrelevant
       -- ^ Like 'Quantity0', the argument may never flow into evaluation position.
       --   So it is irrelevant at run-time,
       --   yet treated relevantly during equality checking.
@@ -1556,7 +1556,7 @@ data Relevance
       --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
       --   - <https://dl.acm.org/doi/10.1145/3110277>
       --   - <https://doi.org/10.1145/3209108.3209119>
-  | Irrelevant OriginIrrelevant
+  | Irrelevant !OriginIrrelevant
       -- ^ The argument is irrelevant at compile- and runtime.
     deriving (Show, Generic)
 

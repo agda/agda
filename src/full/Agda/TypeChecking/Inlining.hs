@@ -26,5 +26,5 @@ shouldInline _ = False
 -- is used more than once, and some variables are not used at all.
 shouldInline' :: CompiledClauses -> Bool
 shouldInline' (Done _ _ xs body) = all (< 2) counts && length counts < length xs
-  where counts = IntMap.elems $ varCounts $ freeVars body
+  where counts = IntMap.elems $ varCounts $ freeVarCounts body
 shouldInline' _ = False

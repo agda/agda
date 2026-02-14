@@ -691,7 +691,7 @@ checkArgumentsE'
 
                   -- The free variables less than visiblePis in tgt.
                   freeInTgt =
-                    fst $ VarSet.split visiblePis $ freeVars tgt
+                    fst $ VarSet.split visiblePis $ freeVarSet tgt
 
               rigid <- isRigid s tgt
               -- The target must be rigid.
