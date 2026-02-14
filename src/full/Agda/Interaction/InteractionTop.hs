@@ -223,7 +223,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 
         unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
-        modFile <- lift $ useTC stModuleToSource
+        modFile <- lift $ useSession lensModuleToSource
         method  <- case method of
           Nothing -> lift $ viewTC eHighlightingMethod
           Just m  -> return m
@@ -595,7 +595,7 @@ interpret (Cmd_load_highlighting_info source) = do
                 Just mi ->
                   if hashText (Imp.srcText src) == iSourceHash (miInterface mi)
                     then do
-                      modFile <- useTC stModuleToSource
+                      modFile <- useSession lensModuleToSource
                       method  <- viewTC eHighlightingMethod
                       return $ Just (iHighlighting $ miInterface mi, method, modFile)
                     else
@@ -942,7 +942,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
     opts0 <- gets optionsOnReload
-    backends <- useTC stBackends
+    backends <- useSession lensBackends
     let (z, warns) = runOptM $ parseBackendOptions backends argv opts0
     mapM_ (lift . warning . OptionWarning) warns
     case z of

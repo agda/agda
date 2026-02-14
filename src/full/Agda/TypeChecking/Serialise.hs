@@ -163,15 +163,14 @@ encode a = do
 
 -- | Decode a hash-consed value. The result depends on the include path.
 decode :: EmbPrj a => Encoded -> MaybeT TCM a
-decode enc = do
-  mf       <- lift $ useTC stModuleToSource
+decode enc = stateSessionLensM lensModuleToSource \mf -> do
   includes <- lift $ getIncludeDirs
   arena    <- liftIO $ Compact.new (2 ^ 12) -- 4 KB blocks
 
   let compactElems :: AL.Array a -> IO (AL.Array a)
       compactElems = AL.traverseIO' (Compact.add arena)
 
-  (mf, res) <- tryDecode $ do
+  tryDecode $ do
     let (r, nodeA, stringA, lTextA, sTextA, integerA, varSetA, doubleA) = enc
 
     stringA      <- compactElems stringA
@@ -187,10 +186,7 @@ decode enc = do
                      doubleA filePathMemo modFile includes
     res <- runReaderT (value r) dec
     mf  <- readIORef modFile
-    pure (mf, res)
-
-  lift $ setTCLens stModuleToSource mf
-  pure res
+    pure (res, mf)
   -- -- "Compact" the interfaces (without breaking sharing) to
   -- -- reduce the amount of memory that is traversed by the
   -- -- garbage collector.

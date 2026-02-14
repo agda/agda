@@ -655,10 +655,10 @@ filterResettingState m cands f = do
   result'' <- dropSameCandidates m overlap result'
   case result'' of
 
-    -- Have to use 'putTCPreservingSession' here otherwise the stats
+    -- Have to use 'putTCPreservingStats' here otherwise the stats
     -- accumulated from checking other candidates and from
     -- 'dropSameCandidates' are lost.
-    [(c, v, s)] -> ([], [(c, v)]) <$ putTCPreservingSession s
+    [(c, v, s)] -> ([], [(c, v)]) <$ putTCPreservingStats s
 
     _           -> do
       let bad  = [ (c, err) | (c, (NoBecause err, _)) <- result ]
