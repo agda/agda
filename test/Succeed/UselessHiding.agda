@@ -7,5 +7,7 @@ module _ where
 module M where
   postulate A B C : Set
   data D : Set where
+    , : D
+  module , where
 
-open M using (A) hiding (B; module D)
+open M using (A) hiding (B; module D; module ,; ,)

@@ -118,16 +118,16 @@ prettyWarning = \case
       let (guardednessHelps, guardednessHelpsNot) =
             List.partition (toBool . termErrGuardednessHelps) errs
       let report hint because = if null because then empty else do
+            let
+              fs = concatMap termErrFunctions because
+              calls = concatMap termErrCalls because
             vcat
-              [ fwords "Termination checking failed for the following functions:"
+              [ fsep $ pwords "Termination checking failed for the following" ++ [ pluralS fs "function" <> colon ]
               , fwords hint
-              , nest 2 $ fsep $ punctuate comma $
-                  map (prettyTCM . dropTopLevel) $
-                    concatMap termErrFunctions because
-              , fwords "Problematic calls:"
+              , nest 2 $ fsep $ map (prettyTCM . dropTopLevel) fs
+              , fsep [ "Problematic", pluralS calls "call" <> colon ]
               , nest 2 $ fmap (P.vcat . List.nub) $
-                  mapM prettyTCM $ List.sortOn getRange $
-                    concatMap termErrCalls because
+                  mapM prettyTCM $ List.sortOn getRange calls
               ]
       -- Andreas, 2025-04-01, issue #6657
       -- Hint towards --guardedness where appropriate, but not when --sized-types is on.
@@ -280,10 +280,10 @@ prettyWarning = \case
          UselessPublicAnonymousModule
            -> fwords $ "Ignoring `public'; cannot reexport from unopened anonymous module"
 
-    UselessHiding xs -> fsep $ concat
-      [ pwords "Ignoring names in `hiding' directive:"
-      , punctuate "," $ fmap pretty xs
-      ]
+    UselessHiding xs ->
+      fwords "Ignoring names in `hiding' directive:"
+      <?> fsep (punctuate ";" $ fmap pretty xs)
+        -- Andreas, 2026-02-14 punctuate with semicolon since xs may contain "module M" or even ","
 
     UselessInline q -> fsep $
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
@@ -726,28 +726,32 @@ prettyRecordFieldWarning = \case
   W.TooManyFields q ys xrs -> prettyTooManyFields q ys $ fmap fst xrs
 
 prettyDuplicateFields :: MonadPretty m => List1 C.Name -> m Doc
-prettyDuplicateFields xs = fsep $ concat
+prettyDuplicateFields xs =
+  (fsep . concat)
     [ [ "Duplicate", pluralS xs "field" ]
-    , punctuate comma (fmap pretty xs)
-    , pwords "in record"
+    , pwords "in record:"
     ]
+  <?> fsep (fmap pretty xs)
 
 {-# SPECIALIZE prettyTooManyFields :: QName -> [C.Name] -> List1 C.Name -> TCM Doc  #-}
 prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> List1 C.Name -> m Doc
-prettyTooManyFields r missing xs = fsep $ concat
+prettyTooManyFields r missing xs =
+  (fsep . concat)
     [ pwords "The record type"
     , [prettyTCM r]
     , pwords "does not have the"
     , fields xs
-    , punctuate comma (fmap pretty xs)
-    , if null missing then [] else concat
+    ]
+  <?> fsep (fmap pretty xs)
+  $$
+  if null missing then empty else
+    (fsep . concat)
       [ pwords "but it would have the"
       , fields missing
-      , punctuate comma (map pretty missing)
       ]
-    ]
+    <?> fsep (map pretty missing)
   where
-    fields ys = [ pluralS ys "field" ]
+    fields ys = [ pluralS ys "field" <> colon ]
 
 {-# SPECIALIZE prettyNotInScopeNames :: (Pretty a, HasRange a) => Bool -> (a -> TCM Doc) -> [a] -> TCM Doc #-}
 -- | Report a number of names that are not in scope.

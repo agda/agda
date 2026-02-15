@@ -1,6 +1,6 @@
 TerminationFailureSlowerWithHigherCutoff.agda:24.1-43.18: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  f, g
+  f g
 Problematic calls:
   g x x
     (at TerminationFailureSlowerWithHigherCutoff.agda:38.9-10)

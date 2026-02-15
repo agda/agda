@@ -1,6 +1,6 @@
 Issue787.agda:13.1-15.56: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bad
-Problematic calls:
+Problematic call:
   bad (x ∷ xs) acc (cons p)
     (at Issue787.agda:15.2-5)

@@ -1,7 +1,7 @@
 Issue3394.agda:11.1-17.33: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   loop
-Problematic calls:
+Problematic call:
   loop a b
     (at Issue3394.agda:13.14-18)
 

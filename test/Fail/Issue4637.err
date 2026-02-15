@@ -1,5 +1,5 @@
 Issue4637.agda:13.1-16.41: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   test
 Problematic calls:
   test r | bar r

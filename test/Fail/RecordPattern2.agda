@@ -1,10 +1,10 @@
 postulate A : Set
 
 record R : Set where
-  field f : A
+  field f f' : A
 
 record S : Set where
-  field g : A
+  field g g' : A
 
 test : R → A
-test record{g = a} = a
+test record{g = a; g' = a'} = a
