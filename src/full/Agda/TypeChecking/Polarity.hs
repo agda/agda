@@ -215,24 +215,9 @@ usagePolarity def = case def of
 --
 --   Precondition: the "phantom" polarity list has the same length as the polarity list.
 dependentPolarity :: Type -> [Polarity] -> [Polarity] -> ReduceM [Polarity]
-dependentPolarity t qs ps = do
-  newDependentPolarity t qs ps
-
-  -- res  <- oldDependentPolarity t qs ps
-  -- res' <- newDependentPolarity t qs ps
-  -- if res == res' then
-  --   pure res'
-  -- else do
-  --   traceM ("\nINPUT")
-  --   traceShowM $ killRange t
-  --   traceShowM qs
-  --   traceShowM ps
-  --   traceM ("\nOUTPUT")
-  --   traceShowM (res, res')
-  --   __IMPOSSIBLE__
-
-newDependentPolarity :: Type -> [Polarity] -> [Polarity] -> ReduceM [Polarity]
-newDependentPolarity t qs ps = evalStateT (go t qs ps) mempty where
+dependentPolarity t qs ps
+  | all (== Invariant) qs && all (== Invariant) ps = pure ps -- Nothing can be possibly adjusted
+  | otherwise = evalStateT (go t qs ps) mempty where
   -- Andreas, 2014-04-11 see Issue 1099
   -- Free variable analysis is not in the monad,
   -- hence metas must have been instantiated before!
@@ -244,8 +229,8 @@ newDependentPolarity t qs ps = evalStateT (go t qs ps) mempty where
     ([], _:_) ->
       __IMPOSSIBLE__
     (q:qs, pols@(p:ps)) -> do
-      lift $ reportSDoc "tc.polarity.dep" 20 $ "oldDependentPolarity t = " <+> prettyTCM t
-      lift $ reportSDoc "tc.polarity.dep" 70 $ "oldDependentPolarity t = " <+> (text . show) t
+      lift $ reportSDoc "tc.polarity.dep" 20 $ "dependentPolarity t = " <+> prettyTCM t
+      lift $ reportSDoc "tc.polarity.dep" 70 $ "dependentPolarity t = " <+> (text . show) t
       lift (reduce (unEl t)) >>= \case
         Pi dom b -> do
           let phantom | p /= q = ifM (lift (isJust <$> isSizeType (unDom dom)))
@@ -280,48 +265,6 @@ newDependentPolarity t qs ps = evalStateT (go t qs ps) mempty where
         t -> do
           modify (`setRelInIgnoring` t)
           pure pols
-
--- | Make arguments 'Invariant' if the type of a not-'Nonvariant'
---   later argument depends on it.
---   Also, enable phantom types by turning 'Nonvariant' into something
---   else if it is a data/record parameter but not a size argument. [See issue 1596]
---
---   Precondition: the "phantom" polarity list has the same length as the polarity list.
-oldDependentPolarity :: Type -> [Polarity] -> [Polarity] -> ReduceM [Polarity]
-oldDependentPolarity t _      []          = return []  -- all remaining are 'Invariant'
-oldDependentPolarity t []     (_ : _)     = __IMPOSSIBLE__
-oldDependentPolarity t (q:qs) pols@(p:ps) = do
-  t <- reduce $ unEl t
-  reportSDoc "tc.polarity.dep" 20 $ "oldDependentPolarity t = " <+> prettyTCM t
-  reportSDoc "tc.polarity.dep" 70 $ "oldDependentPolarity t = " <+> (text . show) t
-  case t of
-    Pi dom b -> do
-      ps <- underAbstraction dom b $ \ c -> oldDependentPolarity c qs ps
-      let fallback | p /= q    = ifM (isJust <$> isSizeType (unDom dom)) (pure p) (pure q)
-                   | otherwise = pure p
-      p <- case b of
-        Abs{} | p /= Invariant  ->
-          -- Andreas, 2014-04-11 see Issue 1099
-          -- Free variable analysis is not in the monad,
-          -- hence metas must have been instantiated before!
-          ifM (relevantInIgnoringNonvariant 0 (absBody b) ps)
-            {- then -} (return Invariant)
-            {- else -} fallback
-        _ -> fallback
-      return $ p : ps
-    _ -> return pols
-
--- | Check whether a variable is relevant in a type expression,
---   ignoring domains of non-variant arguments.
-relevantInIgnoringNonvariant :: Nat -> Type -> [Polarity] -> ReduceM Bool
-relevantInIgnoringNonvariant i t []     = return $! i `relevantInIgnoringSortAnn` t
-relevantInIgnoringNonvariant i t (p:ps) =
-  ifNotPiType t
-    {-then-} (\ t -> return $! i `relevantInIgnoringSortAnn` t) $
-    {-else-} \ a b ->
-      if p /= Nonvariant && i `relevantInIgnoringSortAnn` a
-        then return True
-        else relevantInIgnoringNonvariant (i + 1) (absBody b) ps
 
 ------------------------------------------------------------------------
 -- * Sized types

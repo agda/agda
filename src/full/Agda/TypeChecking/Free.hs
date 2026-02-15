@@ -407,8 +407,8 @@ instance ComputeFree SetRelInIgnoring where
     SetRelInIgnoring x (composeRelevance (getRelevance m) r)
   underRelevance' = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
-{-# SPECIALIZE setRelInIgnoring :: VarSet -> Dom Type -> VarSet #-}
-{-# SPECIALIZE setRelInIgnoring :: VarSet -> Type -> VarSet #-}
+{-# SPECIALIZE NOINLINE setRelInIgnoring :: VarSet -> Dom Type -> VarSet #-}
+{-# SPECIALIZE NOINLINE setRelInIgnoring :: VarSet -> Type -> VarSet #-}
 -- | Test for a set of variables whether each variable occurs relevantly and outside of sort annotations.
 --   Return the set of variables that __don't__ occur.
 setRelInIgnoring :: Free t => VarSet -> t -> VarSet
