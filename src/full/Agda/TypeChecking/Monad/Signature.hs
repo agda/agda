@@ -1186,6 +1186,13 @@ modifyArgOccurrences :: MonadTCState m => QName -> ([Occurrence] -> [Occurrence]
 modifyArgOccurrences d f =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 
+getArgOccurrences :: ReadTCState m => QName -> m [Occurrence]
+getArgOccurrences q = do
+  sig <- getSignature
+  case lookupDefinition q sig of
+    Nothing  -> __IMPOSSIBLE__
+    Just def -> pure (defArgOccurrences def)
+
 setTreeless :: QName -> TTerm -> TCM ()
 setTreeless q t =
   modifyGlobalDefinition q $ updateTheDef $ \case

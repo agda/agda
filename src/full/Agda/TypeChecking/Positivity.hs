@@ -244,7 +244,9 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
         -- The list args can take a long time to compute, but contains
         -- small elements, and is stored in the interface, so
         -- it is computed deep-strictly.
-        deepseq args `seq` modifyArgOccurrences q (mergeOccs args)
+        !oldOccs <- getArgOccurrences q
+        let !newOccs = let x = mergeOccs args oldOccs in deepseq x x
+        setArgOccurrences q newOccs
 
       where
       mergeOccs :: [Occurrence] -> [Occurrence] -> [Occurrence]
