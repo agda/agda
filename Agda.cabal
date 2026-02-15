@@ -934,6 +934,7 @@ library
       Agda.Utils.Size
       Agda.Utils.SmallSet
       Agda.Utils.StrictEndo
+      Agda.Utils.StrictFlipEndo
       Agda.Utils.StrictReader
       Agda.Utils.StrictState
       Agda.Utils.StrictState2

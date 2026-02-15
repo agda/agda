@@ -1,7 +1,8 @@
 
-{-# LANGUAGE GeneralizedNewtypeDeriving, UndecidableInstances, MagicHash, UnboxedTuples #-}
-
-{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.Utils.MinimalArray.Lifted where
 

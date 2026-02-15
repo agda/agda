@@ -1,5 +1,6 @@
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
 
 {- |
 Computing the free variables of a term.
@@ -81,10 +82,11 @@ module Agda.TypeChecking.Free
     , freeVarSet
     , isBinderUsed
     , relevantInIgnoringSortAnn
+    , setRelInIgnoring
     ) where
 
 import Prelude hiding (null)
-import GHC.Exts (Int(..), Int#, (-#))
+import GHC.Exts (Int(..), Int#, (-#), oneShot)
 
 import Data.Semigroup (Any(..), All(..))
 import Data.IntMap (IntMap)
@@ -99,7 +101,9 @@ import Agda.TypeChecking.Free.Generic
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.StrictReader
-import Agda.Utils.StrictEndo
+import Agda.Utils.StrictFlipEndo
+import Agda.Utils.StrictEndo qualified as NonFlip
+import Agda.Utils.ExpandCase
 
 -- ** All free variables together with information about their occurrence.
 --------------------------------------------------------------------------------
@@ -353,6 +357,52 @@ instance ComputeFree Closed where
 closed :: Free t => t -> Bool
 closed t = getAll (runReader (freeVars t) (Closed 0))
 
+-- ** Test free occurrence for a set of variables
+--------------------------------------------------------------------------------
+
+data SetRelInIgnoring = SetRelInIgnoring !Int !Relevance
+
+instance LensRelevance SetRelInIgnoring where
+  getRelevance (SetRelInIgnoring _ r) = r
+  mapRelevance f (SetRelInIgnoring x r) = SetRelInIgnoring x (f r)
+
+newtype CollectSFII = CollectSFII {appCSFII :: VarSet -> VarSet}
+
+instance Semigroup CollectSFII where
+  {-# INLINE (<>) #-}
+  CollectSFII f <> CollectSFII g = CollectSFII (oneShot \xs -> case f xs of
+    xs | VarSet.null xs -> xs
+       | otherwise      -> g xs)
+
+instance Monoid CollectSFII where
+  {-# INLINE mempty #-}
+  mempty = CollectSFII \xs -> xs
+
+instance ExpandCase CollectSFII where
+  type Result CollectSFII = VarSet
+  {-# INLINE expand #-}
+  expand k = CollectSFII (oneShot \a -> k (oneShot \act -> appCSFII act a))
+
+instance ComputeFree SetRelInIgnoring where
+  type Collect SetRelInIgnoring = CollectSFII
+  {-# INLINE underBinders' #-}
+  underBinders' n (SetRelInIgnoring x r) = SetRelInIgnoring (n + x) r
+  {-# INLINE variable' #-}
+  variable' x' (SetRelInIgnoring x r) = CollectSFII \xs ->
+    if x' < x && not (isIrrelevant r) && VarSet.member (x' - x) xs
+      then VarSet.delete (x' - x) xs
+      else xs
+  ignoreSorts' = IgnoreInAnnotations; {-# INLINE ignoreSorts' #-}
+  underModality' = Just \m (SetRelInIgnoring x r) ->
+    SetRelInIgnoring x (composeRelevance (getRelevance m) r)
+  underRelevance' = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
+
+{-# SPECIALIZE setRelInIgnoring :: VarSet -> Term -> VarSet #-}
+-- | Test for a set of variables whether each occurs relevantly and outside of sort annotations.
+--   Return the set of variables that __don't__ occur.
+setRelInIgnoring :: Free t => VarSet -> t -> VarSet
+setRelInIgnoring xs t = appCSFII (runReader (freeVars t) (SetRelInIgnoring 0 unitRelevance)) xs
+
 -- ** Collect free variables
 --------------------------------------------------------------------------------
 
@@ -373,17 +423,18 @@ freeVarSet t = appEndo (runReader (freeVars t) (FreeVarSet 0)) mempty
 newtype FreeVarList = FreeVarList Int
 
 instance ComputeFree FreeVarList where
-  type Collect FreeVarList = Endo [Int]
+  -- Need the non-flipped endo to get left-right element order
+  type Collect FreeVarList = NonFlip.Endo [Int]
   {-# INLINE underBinders' #-}
   underBinders' n (FreeVarList x) = FreeVarList (n + x)
   {-# INLINE variable' #-}
-  variable' x' (FreeVarList x) = Endo \xs ->
+  variable' x' (FreeVarList x) = NonFlip.Endo \xs ->
     if x' < x then xs else let !v = x' - x in v : xs
 
 {-# SPECIALIZE freeVarList :: Term -> [Int] #-}
 -- | Compute a (possibly non-unique) list of free variables, in preorder traversal order.
 freeVarList :: Free t => t -> [Int]
-freeVarList t = appEndo (runReader (freeVars t) (FreeVarList 0)) []
+freeVarList t = NonFlip.appEndo (runReader (freeVars t) (FreeVarList 0)) []
 
 -- ** Backwards-compatible interface, for extracting information from a 'VarMap'.
 ---------------------------------------------------------------------------

@@ -1,6 +1,11 @@
+
 {-# LANGUAGE Strict #-}
 
-module Agda.Utils.StrictEndo where
+{-|
+Strict endomorphism monoid with flipped function composition order
+-}
+
+module Agda.Utils.StrictFlipEndo where
 
 import Agda.Utils.ExpandCase
 import GHC.Exts (oneShot)
@@ -9,7 +14,7 @@ newtype Endo a = Endo {appEndo :: a -> a}
 
 instance Semigroup (Endo a) where
   {-# INLINE (<>) #-}
-  Endo f <> Endo g = Endo (oneShot (\a -> case g a of b -> f b))
+  Endo f <> Endo g = Endo (oneShot (\a -> case f a of a -> g a))
 
 instance Monoid (Endo a) where
   {-# INLINE mempty #-}
