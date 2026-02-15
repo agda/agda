@@ -311,6 +311,7 @@ castConstraintToCurrentContext' cl = do
           Just k | -n < k -> pure $ raise n c
                  | otherwise -> mzero
 
+{-# SPECIALIZE allFreeVarIgnoreAll :: (Int -> Bool) -> TCM.Constraint -> Bool #-}
 
 -- | A hazardous hack, may the Gods have mercy on us.
 --

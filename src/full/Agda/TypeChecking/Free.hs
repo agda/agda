@@ -136,6 +136,7 @@ instance ComputeFree FreeVarMap where
   underRelevance'   = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
 {-# SPECIALIZE freeVarMap :: Term -> VarMap #-}
+{-# SPECIALIZE freeVarMap :: Type -> VarMap #-}
 -- | Return information about every free variable.
 freeVarMap :: Free t => t -> VarMap
 freeVarMap t =
@@ -165,6 +166,7 @@ instance ComputeFree FreeVarMapIgnoreAnn where
   underRelevance'   = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
 {-# SPECIALIZE freeVarMapIgnoreAnn :: Term -> VarMap #-}
+{-# SPECIALIZE freeVarMapIgnoreAnn :: (Term,Type) -> VarMap #-}
 -- | Return information about every free variable, but ignore occurrences
 --   in sorts of types.
 freeVarMapIgnoreAnn :: Free t => t -> VarMap
@@ -202,7 +204,7 @@ instance ComputeFree AnyFreeVar where
   {-# INLINE variable' #-}
   variable' (I# x') (AnyFreeVar (I# x) f) = if I# x' < I# x then mempty else Any (f (x' -# x))
 
-{-# SPECIALIZE anyFreeVar# :: (Int# -> Bool) -> Term -> Bool #-}
+{-# SPECIALIZE anyFreeVar# :: (Int# -> Bool) -> Dom' Term Type -> Bool #-}
 anyFreeVar# :: Free t => (Int# -> Bool) -> t -> Bool
 anyFreeVar# f t = getAny (runReader (freeVars t) (AnyFreeVar 0 f))
 
@@ -211,6 +213,7 @@ anyFreeVar# f t = getAny (runReader (freeVars t) (AnyFreeVar 0 f))
 anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
 anyFreeVar f = anyFreeVar# (\n -> f (I# n))
 
+{-# SPECIALIZE allFreeVar# :: (Int# -> Bool) -> Dom' Term Type -> Bool #-}
 allFreeVar# :: Free t => (Int# -> Bool) -> t -> Bool
 allFreeVar# f t = not (getAny (runReader (freeVars t) (AnyFreeVar 0 (\n -> not (f n)))))
 
@@ -231,14 +234,16 @@ instance ComputeFree AnyFreeVarIgnoreAll where
   {-# INLINE ignoreSorts' #-}
   ignoreSorts' = IgnoreAll
 
-{-# SPECIALIZE anyFreeVarIgnoreAll :: (Int -> Bool) -> Term -> Bool #-}
+{-# SPECIALIZE anyFreeVarIgnoreAll# :: (Int# -> Bool) -> Term -> Bool #-}
 anyFreeVarIgnoreAll# :: Free t => (Int# -> Bool) -> t -> Bool
 anyFreeVarIgnoreAll# f t = getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 f))
 
+{-# INLINE anyFreeVarIgnoreAll #-}
 -- | Same as 'anyFreeVar' except occurrences in sorts of types are ignored.
-anyFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
+anyFreeVarIgnoreAll :: (Int -> Bool) -> Term -> Bool
 anyFreeVarIgnoreAll f = anyFreeVarIgnoreAll# (\n -> f (I# n))
 
+-- SPECIALIZED to TCM.Constraint in SizedTypes.Solve
 allFreeVarIgnoreAll# :: Free t => (Int# -> Bool) -> t -> Bool
 allFreeVarIgnoreAll# f t =
   not (getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 (\n -> not (f n)))))
@@ -274,6 +279,7 @@ instance ComputeFree SingleFR where
   underFlexRig'     = defaultUnderFlexRig; {-# INLINE underFlexRig' #-}
 
 {-# SPECIALIZE flexRigOccurrenceIn :: Nat -> Term -> Maybe FlexRig #-}
+{-# SPECIALIZE flexRigOccurrenceIn :: Nat -> Sort' Term -> Maybe FlexRig #-}
 -- | Compute 'FlexRig' for a single variable.
 flexRigOccurrenceIn :: Free a => Nat -> a -> Maybe FlexRig
 flexRigOccurrenceIn x a = case appEndo (runReader (freeVars a) (SingleFR x Unguarded)) CSFRNothing of
@@ -291,8 +297,9 @@ instance ComputeFree FreeIn where
   variable' x' (FreeIn x) = Any (x == x'); {-# INLINE variable' #-}
 
 {-# SPECIALIZE freeIn :: Nat -> Term -> Bool #-}
+{-# SPECIALIZE freeIn :: Nat -> Type -> Bool #-}
 -- | Check if single variable occurs freely.
-freeIn :: Free a => Nat -> a -> Bool
+freeIn :: Free t => Nat -> t -> Bool
 freeIn x a = getAny (runReader (freeVars a) (FreeIn x))
 
 newtype FreeInIgnoringSorts = FreeInIgnoringSorts Int
@@ -304,6 +311,7 @@ instance ComputeFree FreeInIgnoringSorts where
   ignoreSorts' = IgnoreAll; {-# INLINE ignoreSorts' #-}
 
 {-# SPECIALIZE freeInIgnoringSorts :: Nat -> Term -> Bool #-}
+{-# SPECIALIZE freeInIgnoringSorts :: Nat -> Type -> Bool #-}
 -- | Check if a single variable occurs freely outside of sorts of types.
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts x a = getAny (runReader (freeVars a) (FreeInIgnoringSorts x))
@@ -337,6 +345,8 @@ instance ComputeFree RelevantInIgnoringSortAnn where
   underRelevance' = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
 {-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Term -> Bool #-}
+{-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Type -> Bool #-}
+{-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Dom' Term Type -> Bool #-}
 -- | Does a variable occur relevantly and outside of sorts of types?
 relevantInIgnoringSortAnn :: Free t => Nat -> t -> Bool
 relevantInIgnoringSortAnn x t =
@@ -353,6 +363,7 @@ instance ComputeFree Closed where
   variable' x' (Closed x) = All (x' < x); {-# INLINE variable' #-}
 
 {-# SPECIALIZE closed :: Term -> Bool #-}
+{-# SPECIALIZE closed :: Dom' Term Type -> Bool #-}
 -- | Is a term closed?
 closed :: Free t => t -> Bool
 closed t = getAll (runReader (freeVars t) (Closed 0))
@@ -371,8 +382,7 @@ newtype CollectSFII = CollectSFII {appCSFII :: VarSet -> VarSet}
 instance Semigroup CollectSFII where
   {-# INLINE (<>) #-}
   CollectSFII f <> CollectSFII g = CollectSFII (oneShot \xs -> case f xs of
-    xs | VarSet.null xs -> xs
-       | otherwise      -> g xs)
+    xs -> if VarSet.null xs then xs else g xs)
 
 instance Monoid CollectSFII where
   {-# INLINE mempty #-}
@@ -389,7 +399,7 @@ instance ComputeFree SetRelInIgnoring where
   underBinders' n (SetRelInIgnoring x r) = SetRelInIgnoring (n + x) r
   {-# INLINE variable' #-}
   variable' x' (SetRelInIgnoring x r) = CollectSFII \xs ->
-    if x' < x && not (isIrrelevant r) && VarSet.member (x' - x) xs
+    if x' >= x && not (isIrrelevant r)
       then VarSet.delete (x' - x) xs
       else xs
   ignoreSorts' = IgnoreInAnnotations; {-# INLINE ignoreSorts' #-}
@@ -397,11 +407,15 @@ instance ComputeFree SetRelInIgnoring where
     SetRelInIgnoring x (composeRelevance (getRelevance m) r)
   underRelevance' = defaultUnderRelevance;   {-# INLINE underRelevance' #-}
 
-{-# SPECIALIZE setRelInIgnoring :: VarSet -> Term -> VarSet #-}
--- | Test for a set of variables whether each occurs relevantly and outside of sort annotations.
+{-# SPECIALIZE setRelInIgnoring :: VarSet -> Dom Type -> VarSet #-}
+{-# SPECIALIZE setRelInIgnoring :: VarSet -> Type -> VarSet #-}
+-- | Test for a set of variables whether each variable occurs relevantly and outside of sort annotations.
 --   Return the set of variables that __don't__ occur.
 setRelInIgnoring :: Free t => VarSet -> t -> VarSet
-setRelInIgnoring xs t = appCSFII (runReader (freeVars t) (SetRelInIgnoring 0 unitRelevance)) xs
+setRelInIgnoring xs t
+  | VarSet.null xs = xs
+  | otherwise      = appCSFII (runReader (freeVars t) (SetRelInIgnoring 0 unitRelevance)) xs
+
 
 -- ** Collect free variables
 --------------------------------------------------------------------------------
@@ -416,6 +430,7 @@ instance ComputeFree FreeVarSet where
   variable' x' (FreeVarSet x) = Endo \xs -> if x' < x then xs else VarSet.insert (x' - x) xs
 
 {-# SPECIALIZE freeVarSet :: Term -> VarSet #-}
+{-# SPECIALIZE freeVarSet :: Dom' Term Type -> VarSet #-}
 -- | Compute the set of free variables.
 freeVarSet :: Free t => t -> VarSet
 freeVarSet t = appEndo (runReader (freeVars t) (FreeVarSet 0)) mempty
@@ -432,6 +447,7 @@ instance ComputeFree FreeVarList where
     if x' < x then xs else let !v = x' - x in v : xs
 
 {-# SPECIALIZE freeVarList :: Term -> [Int] #-}
+{-# SPECIALIZE freeVarList :: Maybe Term -> [Int] #-}
 -- | Compute a (possibly non-unique) list of free variables, in preorder traversal order.
 freeVarList :: Free t => t -> [Int]
 freeVarList t = NonFlip.appEndo (runReader (freeVars t) (FreeVarList 0)) []

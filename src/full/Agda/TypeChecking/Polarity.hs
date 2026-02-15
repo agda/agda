@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
+
 -- | Computing the polarity (variance) of function arguments,
 --   for the sake of subtyping.
 
@@ -43,8 +45,12 @@ import Agda.Utils.Size
 import Agda.Utils.Zip
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
+import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
+
+import Agda.Syntax.Position
+import Debug.Trace
 
 ------------------------------------------------------------------------
 -- * Polarity lattice.
@@ -201,21 +207,79 @@ usagePolarity def = case def of
     usagePat LitP{} = Invariant
 -}
 
+
+-- | Make arguments 'Invariant' if the type of a not-'Nonvariant'
+--   later argument depends on it.
+--   Also, enable phantom types by turning 'Nonvariant' into something
+--   else if it is a data/record parameter but not a size argument. [See issue 1596]
+--
+--   Precondition: the "phantom" polarity list has the same length as the polarity list.
 dependentPolarity :: Type -> [Polarity] -> [Polarity] -> ReduceM [Polarity]
-dependentPolarity = oldDependentPolarity
+dependentPolarity t qs ps = do
+  newDependentPolarity t qs ps
 
--- newDependentPolarity :: Nat -> Type -> [Polarity] -> [Polarity] -> ReduceM ([Polarity], VarSet)
--- newDependentPolarity locals t qs ps = case (qs, ps) of
---   (_, []) -> pure ([], mempty)
---   ([], _:_) -> __IMPOSSIBLE__
---   (q:qs, pols@(p:ps)) -> reduce (unEl t) >>= \case
---     Pi dom b -> do
---       (!ps, !vars) <- case b of Abs b   -> _
---                                 NoAbs b -> _
---     _ ->
---       pure (pols, mempty)
+  -- res  <- oldDependentPolarity t qs ps
+  -- res' <- newDependentPolarity t qs ps
+  -- if res == res' then
+  --   pure res'
+  -- else do
+  --   traceM ("\nINPUT")
+  --   traceShowM $ killRange t
+  --   traceShowM qs
+  --   traceShowM ps
+  --   traceM ("\nOUTPUT")
+  --   traceShowM (res, res')
+  --   __IMPOSSIBLE__
 
-
+newDependentPolarity :: Type -> [Polarity] -> [Polarity] -> ReduceM [Polarity]
+newDependentPolarity t qs ps = evalStateT (go t qs ps) mempty where
+  -- Andreas, 2014-04-11 see Issue 1099
+  -- Free variable analysis is not in the monad,
+  -- hence metas must have been instantiated before!
+  go :: Type -> [Polarity] -> [Polarity] -> StateT VarSet ReduceM [Polarity]
+  go t qs ps = case (qs, ps) of
+    (_, []) -> do
+      modify (`setRelInIgnoring` t)
+      pure []
+    ([], _:_) ->
+      __IMPOSSIBLE__
+    (q:qs, pols@(p:ps)) -> do
+      lift $ reportSDoc "tc.polarity.dep" 20 $ "oldDependentPolarity t = " <+> prettyTCM t
+      lift $ reportSDoc "tc.polarity.dep" 70 $ "oldDependentPolarity t = " <+> (text . show) t
+      lift (reduce (unEl t)) >>= \case
+        Pi dom b -> do
+          let phantom | p /= q = ifM (lift (isJust <$> isSizeType (unDom dom)))
+                                     (pure p) (pure q)
+                      | otherwise = pure p
+              finish p ps = do
+                when (p /= Nonvariant) (modify (`setRelInIgnoring` dom))
+                pure (p:ps)
+          case b of
+            Abs _ t -> do
+              modify (VarSet.weaken 1)
+              case p of
+                Invariant -> do
+                  !ps <- go t qs ps
+                  !p  <- phantom
+                  modify (VarSet.strengthen 1)
+                  finish p ps
+                _ -> do
+                  modify (VarSet.insert 0)
+                  !ps <- go t qs ps
+                  !p <- gets (VarSet.member 0) >>= \case
+                    -- binder doesn't occur in the rest
+                    True -> phantom
+                    -- binder occurs in the rest
+                    False -> pure Invariant
+                  modify (VarSet.strengthen 1)
+                  finish p ps
+            NoAbs _ t -> do
+              !ps <- go t qs ps
+              !p  <- phantom
+              finish p ps
+        t -> do
+          modify (`setRelInIgnoring` t)
+          pure pols
 
 -- | Make arguments 'Invariant' if the type of a not-'Nonvariant'
 --   later argument depends on it.

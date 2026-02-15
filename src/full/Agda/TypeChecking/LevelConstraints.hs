@@ -44,16 +44,16 @@ simplifyLevelConstraint c others = do
 data Leq = SingleLevel :=< SingleLevel
   deriving (Show, Eq)
 
+{-# SPECIALIZE freeVarList :: (SingleLevel, SingleLevel) -> [Int] #-}
+
 -- | Check if two inequality constraints are the same up to variable renaming.
 matchLeq :: Leq -> Leq -> Bool
 matchLeq (a :=< b) (c :=< d)
   | length xs == length ys = (a, b) == applySubst rho (c, d)
   | otherwise              = False
   where
-    free :: Free a => a -> [Int]
-    free = nubOn id . freeVarList  -- Note: use a list to preserve order of variables
-    xs  = free (a, b)
-    ys  = free (c, d)
+    xs  = nubOn id . freeVarList $ (a, b) -- Note: use a list to preserve order of variables
+    ys  = nubOn id . freeVarList $ (c, d)
     rho = mkSub $ List.sort $ zip ys xs
     mkSub = go 0
       where
