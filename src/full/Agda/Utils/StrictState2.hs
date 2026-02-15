@@ -1,5 +1,7 @@
 
-{-# LANGUAGE MagicHash, UnboxedTuples, Strict #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
 {-|

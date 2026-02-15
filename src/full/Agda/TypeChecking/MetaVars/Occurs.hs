@@ -1,5 +1,6 @@
 
-{-# OPTIONS_GHC -Wunused-imports -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.

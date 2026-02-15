@@ -1,5 +1,9 @@
-{-# LANGUAGE MagicHash, UnboxedTuples, UnboxedSums, CPP #-}
-{-# OPTIONS_GHC -Wunused-imports -Wunused-matches #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UnboxedSums #-}
+{-# LANGUAGE MagicHash #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -1093,14 +1097,32 @@ suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
 -- * Eliminations.
 ---------------------------------------------------------------------------
 
+hasProj :: Elims -> Bool
+hasProj = \case
+  []       -> False
+  Proj{}:_ -> True
+  _:es     -> hasProj es
+
+{- |
+We define an unboxed sum type that's isomorphic to the following.
+
+@
+   data SpineHead = SHVar !Int | SHDef !QName | SHMetaV {-# UNPACK #-} !MetaId
+@
+
+The noise with pattern synonyms and unboxed types is just the necessary boilerplate to produce the
+above type with correct memory layout.
+
+The reason for the unboxing is that 'unSpine' is a hot function in 'Agda.TypeChecking.Free.Generic',
+and we'd like to avoid heap allocating either a closure or a boxed sum type just for the purpose
+of rebuilding a 'Term' from an 'Elims'.
+-}
+
 #if  __GLASGOW_HASKELL__ <= 902
 type SpineHead = (# Int# | QName | (# Word#, Word# #) #)
 #else
 type SpineHead = (# Int# | QName | (# Word64#, Word64# #) #)
 #endif
-
-hasProj :: Elims -> Bool
-hasProj = \case [] -> False; Proj{}:_ -> True; _:es -> hasProj es
 
 pattern SHVar :: Int -> SpineHead
 pattern SHVar x <- (# (I# -> x) | | #) where SHVar (I# x) = (# x | | #)
@@ -1151,7 +1173,8 @@ unSpine' p v =
     loop h res es =
       case es of
         []                     -> h $! reverse res
-        Proj o f : es' | p o f -> let !v = defaultArg (h $! reverse res) in loop (Def f) [Apply v] es'
+        Proj o f : es' | p o f -> let !v = defaultArg $! (h $! reverse res) in
+                                  loop (Def f) [Apply v] es'
         e        : es'         -> loop h (e : res) es'
 
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which

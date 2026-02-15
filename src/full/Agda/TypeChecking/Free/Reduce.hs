@@ -1,5 +1,8 @@
-{-# LANGUAGE CPP, Strict, MagicHash #-}
-{-# OPTIONS_GHC -Wunused-imports -Wno-redundant-bang-patterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE MagicHash #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
 #if  __GLASGOW_HASKELL__ > 902
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
@@ -173,7 +176,7 @@ instance (Reduce a, ForceNotFree a) => ForceNotFree (Elim' a) where
     (IApply x y r) -> IApply <$> forceNotFreeR x <*> forceNotFreeR y <*> forceNotFreeR r
 
 instance ForceNotFree Type where
-  forceNotFree' = \(El s t) -> El <$> forceNotFree' s <*> forceNotFree' t
+  forceNotFree' (El s t) = El <$> forceNotFree' s <*> forceNotFree' t
 
 instance ForceNotFree Term where
   forceNotFree' t = do

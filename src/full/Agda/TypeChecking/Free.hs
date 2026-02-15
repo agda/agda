@@ -1,3 +1,4 @@
+{-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {- |
@@ -83,8 +84,9 @@ module Agda.TypeChecking.Free
     ) where
 
 import Prelude hiding (null)
+import GHC.Exts (Int(..), Int#, (-#))
 
-import Data.Semigroup ( Any(..), All(..) )
+import Data.Semigroup (Any(..), All(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 
@@ -187,45 +189,60 @@ freeVarCounts t =
 -- ** Testing that a predicate holds on any free variable
 --------------------------------------------------------------------------------
 
-data AnyFreeVar = AnyFreeVar !Int !(Int -> Bool)
+data AnyFreeVar = AnyFreeVar !Int !(Int# -> Bool)
 
 instance ComputeFree AnyFreeVar where
   type Collect AnyFreeVar = Any
   {-# INLINE underBinders' #-}
   underBinders' n (AnyFreeVar x f) = AnyFreeVar (n + x) f
   {-# INLINE variable' #-}
-  variable' x' (AnyFreeVar x f) = if x' < x then mempty else Any (f (x' - x))
+  variable' (I# x') (AnyFreeVar (I# x) f) = if I# x' < I# x then mempty else Any (f (x' -# x))
 
-{-# SPECIALIZE anyFreeVar :: (Int -> Bool) -> Term -> Bool #-}
+{-# SPECIALIZE anyFreeVar# :: (Int# -> Bool) -> Term -> Bool #-}
+anyFreeVar# :: Free t => (Int# -> Bool) -> t -> Bool
+anyFreeVar# f t = getAny (runReader (freeVars t) (AnyFreeVar 0 f))
+
+{-# INLINE anyFreeVar #-}
 -- | Compute the disjunction of a predicate on free variables.
 anyFreeVar :: Free t => (Int -> Bool) -> t -> Bool
-anyFreeVar f t = getAny (runReader (freeVars t) (AnyFreeVar 0 f))
+anyFreeVar f = anyFreeVar# (\n -> f (I# n))
 
+allFreeVar# :: Free t => (Int# -> Bool) -> t -> Bool
+allFreeVar# f t = not (getAny (runReader (freeVars t) (AnyFreeVar 0 (\n -> not (f n)))))
+
+{-# INLINE allFreeVar #-}
 -- | Compute the conjunction of a predicate on free variables.
 allFreeVar :: Free t => (Int -> Bool) -> t -> Bool
-allFreeVar f t = not (getAny (runReader (freeVars t) (AnyFreeVar 0 (not . f))))
+allFreeVar f = allFreeVar# (\n -> f (I# n))
 
-data AnyFreeVarIgnoreAll = AnyFreeVarIgnoreAll !Int !(Int -> Bool)
+data AnyFreeVarIgnoreAll = AnyFreeVarIgnoreAll !Int !(Int# -> Bool)
 
 instance ComputeFree AnyFreeVarIgnoreAll where
   type Collect AnyFreeVarIgnoreAll = Any
   {-# INLINE underBinders' #-}
   underBinders' n (AnyFreeVarIgnoreAll x f) = AnyFreeVarIgnoreAll (n + x) f
   {-# INLINE variable' #-}
-  variable' x' (AnyFreeVarIgnoreAll x f) = if x' < x then mempty else Any (f (x' - x))
+  variable' (I# x') (AnyFreeVarIgnoreAll (I# x) f) =
+    if I# x' < I# x then mempty else Any (f (x' -# x))
   {-# INLINE ignoreSorts' #-}
   ignoreSorts' = IgnoreAll
 
 {-# SPECIALIZE anyFreeVarIgnoreAll :: (Int -> Bool) -> Term -> Bool #-}
+anyFreeVarIgnoreAll# :: Free t => (Int# -> Bool) -> t -> Bool
+anyFreeVarIgnoreAll# f t = getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 f))
+
 -- | Same as 'anyFreeVar' except occurrences in sorts of types are ignored.
 anyFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
-anyFreeVarIgnoreAll f t = getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 f))
+anyFreeVarIgnoreAll f = anyFreeVarIgnoreAll# (\n -> f (I# n))
 
+allFreeVarIgnoreAll# :: Free t => (Int# -> Bool) -> t -> Bool
+allFreeVarIgnoreAll# f t =
+  not (getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 (\n -> not (f n)))))
+
+{-# INLINE allFreeVarIgnoreAll #-}
 -- | Same as 'allFreeVar' except occurrences in sorts of types are ignored.
 allFreeVarIgnoreAll :: Free t => (Int -> Bool) -> t -> Bool
-allFreeVarIgnoreAll f t =
-  not (getAny (runReader (freeVars t) (AnyFreeVarIgnoreAll 0 (not . f))))
-
+allFreeVarIgnoreAll f = allFreeVarIgnoreAll# (\n -> f (I# n))
 
 -- ** Flex-rigid occurrence for a single variable
 --------------------------------------------------------------------------------
