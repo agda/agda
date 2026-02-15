@@ -478,17 +478,20 @@ instance Pretty DeclarationWarning' where
       , pwords "of the function"
       ]
 
-    UnknownNamesInFixityDecl xs -> fsep $
-      pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
-      ++ punctuate comma (fmap pretty $ Set1.toList xs)
+    UnknownNamesInFixityDecl xs ->
+      fwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
+        <?>
+      fsep (fmap pretty $ Set1.toList xs)
 
-    UnknownFixityInMixfixDecl xs -> fsep $
-      pwords "The following mixfix names do not have an associated fixity declaration:"
-      ++ punctuate comma (fmap pretty $ Set1.toList xs)
+    UnknownFixityInMixfixDecl xs ->
+      fwords "The following mixfix names lack an associated fixity declaration:"
+        <?>
+      fsep (fmap pretty $ Set1.toList xs)
 
-    UnknownNamesInPolarityPragmas xs -> fsep $
-      pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
-      ++ punctuate comma (fmap pretty $ Set1.toList xs)
+    UnknownNamesInPolarityPragmas xs ->
+      fwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
+        <?>
+      fsep (fmap pretty $ Set1.toList xs)
 
     MissingDataDeclaration x -> fsep $ concat
       [ pwords "Data definition"
@@ -496,16 +499,18 @@ instance Pretty DeclarationWarning' where
       , pwords "misses a data declaration"
       ]
 
-    MissingDefinitions xs -> fsep $
-     pwords "The following names are declared but not accompanied by a definition:"
-     ++ punctuate comma (fmap (pretty . fst) xs)
+    MissingDefinitions xs ->
+     fwords "The following names are declared but lack a definition:"
+       <?>
+     fsep (fmap (pretty . fst) xs)
 
     NotAllowedInMutual _r nd -> fsep $
       text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
 
-    PolarityPragmasButNotPostulates xs -> fsep $
-      pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
-      ++ punctuate comma (fmap pretty $ Set1.toList xs)
+    PolarityPragmasButNotPostulates xs ->
+      fwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
+        <?>
+      fsep (fmap pretty $ Set1.toList xs)
 
     UselessPrivate _ -> fsep $
       pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures except for constructors, and data, record, and module declarations"
@@ -593,9 +598,10 @@ instance Pretty DeclarationWarning' where
       , pwords "so better place this statement outside of the private block"
       ]
 
-    ShadowingInTelescope nrs -> fsep $
-      pwords "Shadowing in telescope, repeated variable names:"
-      ++ punctuate comma (fmap (pretty . fst) nrs)
+    ShadowingInTelescope nrs ->
+      fwords "Shadowing in telescope, repeated variable names:"
+        <?>
+      fsep (fmap (pretty . fst) nrs)
 
     SafeFlagEta               _ -> unsafePragma "ETA"
     SafeFlagInjective         _ -> unsafePragma "INJECTIVE"

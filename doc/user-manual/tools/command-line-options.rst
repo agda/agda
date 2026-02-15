@@ -1776,15 +1776,6 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      A primitive compiled to ``Undefined`` by the JS backend because it
      is not in the list of known primitives.
 
-.. option:: UnknownNamesInFixityDecl
-
-     Names not declared in the same scope as their syntax or fixity
-     declaration.
-
-.. option:: UnknownNamesInPolarityPragmas
-
-     Names not declared in the same scope as their polarity pragmas.
-
 .. option:: UnknownPolarity
 
      Unknown polarities.
@@ -2016,6 +2007,15 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 .. option:: TopLevelPolarity
 
      Declaring definitions with an explicit polarity annotation.
+
+.. option:: UnknownNamesInFixityDecl
+
+     Names not declared in the same scope as their syntax or fixity
+     declaration.
+
+.. option:: UnknownNamesInPolarityPragmas
+
+     Names not declared in the same scope as their polarity pragmas.
 
 .. option:: UnsolvedConstraints
 

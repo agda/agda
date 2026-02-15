@@ -13,8 +13,8 @@ repeat x .head = x
 repeat x .tail = repeat x
 
 -- Expected error: [TerminationIssue]
--- Termination checking failed for the following functions:
+-- Termination checking failed for the following function:
 -- (Option --guardedness might fix this problem.)
 --   repeat
--- Problematic calls:
+-- Problematic call:
 --   repeat x

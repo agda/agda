@@ -1,6 +1,6 @@
 MissingDefinitionsDeferred.agda:3.1-7.13: error: [MissingDefinitions]
-The following names are declared but not accompanied by a
-definition: A, B, C
+The following names are declared but lack a definition:
+A B C
 
 MissingDefinitionsDeferred.agda:10.5-8: error: [UnequalTypes]
 The types

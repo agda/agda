@@ -1,5 +1,5 @@
 Issue2985.agda:22.1-23.44: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   u
 Problematic calls:
   λ { .Unit.force j → u j }

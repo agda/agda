@@ -1,7 +1,7 @@
 Issue7751c.agda:10.1-12.9: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   Bad
-Problematic calls:
+Problematic call:
   Bad
     (at Issue7751c.agda:11.8-11)
 

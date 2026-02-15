@@ -1,6 +1,6 @@
 Issue801.agda:15.1-17.43: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   lem
-Problematic calls:
+Problematic call:
   lem (suc n)
     (at Issue801.agda:17.31-34)

@@ -210,6 +210,8 @@ errorWarnings = Set.fromList
   , MacroInLetBindings_
   , AbstractInLetBindings_
   , IllegalDeclarationInDataDefinition_
+  , UnknownNamesInFixityDecl_              -- This may lead to subsequent scope or operator parse errors.
+  , UnknownNamesInPolarityPragmas_         -- This may lead to subsequent type-checking errors.
   ]
 
 allWarnings :: Set WarningName

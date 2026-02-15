@@ -1,6 +1,6 @@
 Issue5592-safe.agda:3.1-13: error: [MissingDefinitions]
-The following names are declared but not accompanied by a
-definition: A
+The following names are declared but lack a definition:
+A
 
 Issue5592-safe.agda:5.6-13: error: [ClashingDefinition]
 Multiple definitions of A. Previous definition

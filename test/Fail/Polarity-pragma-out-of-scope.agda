@@ -1,4 +1,4 @@
-{-# OPTIONS --warning=error #-}
+
 
 postulate
   F : Set → Set
