@@ -43,6 +43,7 @@ import Agda.Utils.CallStack
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.Size
 import qualified Agda.Utils.CompactRegion as Compact
@@ -151,6 +152,8 @@ defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrig
 --
 type Args       = [Arg Term]
 type NamedArgs  = [NamedArg Term]
+type Args1      = List1 (Arg Term)
+type NamedArgs1 = List1 (NamedArg Term)
 
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.

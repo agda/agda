@@ -1,5 +1,8 @@
+
 Issue6006.agda:21.13-14: warning: -W[no]RewriteContainsUnsolvedMetaVariables
-r  is not a legal rewrite rule, since it contains the unsolved meta variable(s) _10
+r  is not a legal rewrite rule, since it contains the unsolved
+meta variable:
+  _10
 when checking the pragma REWRITE r
 Issue6006.agda:16.7-8: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

@@ -5699,7 +5699,7 @@ data IllegalRewriteRuleReason
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolIsTypeConstructor QName
   | HeadSymbolContainsMetas QName
-  | ConstructorParametersNotGeneral ConHead Args
+  | ConstructorParametersNotGeneral ConHead Args1
   | ContainsUnsolvedMetaVariables (Set1 MetaId)
   | BlockedOnProblems (Set1 ProblemId)
   | RequiresDefinitions (Set1 QName)

@@ -394,86 +394,149 @@ prettyWarning = \case
             NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
         ]
 
-    IllegalRewriteRule q reason -> case reason of
-      LHSNotDefinitionOrConstructor -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
-      VariablesNotBoundByLHS xs -> hsep
-        [ prettyTCM q
-        , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: "
-        , prettyList_ (map (prettyTCM . var) $ VarSet.toAscList xs)
-        ]
-      VariablesBoundMoreThanOnce xs -> do
-        (prettyTCM q
-          <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
-          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ VarSet.toAscList xs))
-          <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
-      VariablesBoundInSingleton xs -> do
-        -- This warning is motivated in #8238. If #6636 is implemented, then
-        -- this warning should be disabled.
-        vcat ["I am not certain that the rewrite rule: " <+> prettyTCM q
-          <+> " is safe because it appears that the following variables: "
-          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ VarSet.toAscList xs)
-          <+> " are only bound in contexts which might become definitionally singular."
-          , "This warning can be silenced with -WnoRewriteVariablesBoundInSingleton, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields."]
-      LHSReduces v v' -> fsep
-        [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
-        , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
-      HeadSymbolIsProjectionLikeFunction f -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-        , hd , "is a projection-like function."
-        , "You can turn off the projection-like optimization for", hd
-        , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
-        , "or globally with the flag --no-projection-like"
-        ]
-        where hd = prettyTCM f
-      HeadSymbolIsTypeConstructor f -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-        , prettyTCM f , "is a type constructor."
-        ]
-      HeadSymbolContainsMetas f -> hsep
-        [ prettyTCM q , "is not a legal rewrite rule, since the definition of the head symbol"
-        , prettyTCM f , "contains unsolved metavariables and confluence checking is enabled."
-        ]
-      ConstructorParametersNotGeneral c vs -> vcat
-        [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
-        , nest 2 $ text "Constructor: " <+> prettyTCM c
-        , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
-        ]
-      ContainsUnsolvedMetaVariables ms -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it contains the unsolved meta variable(s)", prettyList_ (fmap prettyTCM $ Set1.toList ms)
-        ]
-      BlockedOnProblems ps -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it is blocked on problem(s)", prettyList_ (fmap prettyTCM $ Set1.toList ps)
-        ]
-      RequiresDefinitions qs -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it requires the definition(s) of", prettyList_ (fmap prettyTCM $ Set1.toList qs)
-        ]
-      DoesNotTargetRewriteRelation -> hsep
-        [ prettyTCM q , " does not target rewrite relation" ]
-      BeforeFunctionDefinition -> hsep
-        [ "Rewrite rule from function "
-        , prettyTCM q
-        , " cannot be added before the function definition"
-        ]
-      BeforeMutualFunctionDefinition r -> hsep
-        [ "Rewrite rule from function "
-        , prettyTCM q
-        , " cannot be added before the definition of mutually defined"
-        , prettyTCM r
-        ]
-      DuplicateRewriteRule ->
-        "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+    IllegalRewriteRule q reason -> do
+      let illegalSince q = [ prettyTCM q, "" ] ++ pwords "is not a legal rewrite rule, since"
+      case reason of
 
-    ConfluenceCheckingIncompleteBecauseOfMeta f -> fsep
-      [ "Confluence checking incomplete because the definition of"
-      , prettyTCM f
-      , text "contains unsolved metavariables."
+        LHSNotDefinitionOrConstructor -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the left-hand side is neither a defined symbol nor a constructor"
+            ]
+
+        VariablesNotBoundByLHS xs -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the following"
+            , pwords $ singPlural ys "variable is" "variables are"
+            , pwords "not bound by the left hand side:"
+            ]
+          <?> fsep (map (prettyTCM . var) ys)
+          where ys = VarSet.toAscList xs
+
+        VariablesBoundMoreThanOnce xs -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the following"
+            , pwords $ singPlural ys "parameter is" "parameters are"
+            , pwords "bound more than once on the left hand side:"
+            ]
+          <?> fsep (map (prettyTCM . var) ys)
+          $$ fwords "(Perhaps you can use a postulate instead of a constructor as the head symbol?)"
+          where ys = VarSet.toAscList xs
+
+        VariablesBoundInSingleton xs -> do
+          -- This warning is motivated in #8238. If #6636 is implemented, then
+          -- this warning should be disabled.
+          (fsep . concat)
+            [ pwords "I am not certain that the rewrite rule"
+            , [ "", prettyTCM q, "" ]
+            , pwords "is safe because it appears that the following"
+            , pwords $ singPlural ys "variable is" "variables are"
+            , pwords "only bound in contexts which might become definitionally singular:"
+            ]
+          <?> fsep (map (prettyTCM . var) ys)
+          $$ fwords "This warning can be silenced with"
+          <?> hcat [ "-Wno", text (warningNameToString RewriteVariablesBoundInSingleton_) ]
+          $$ fwords "but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields"
+          where ys = VarSet.toAscList xs
+
+        LHSReduces v v' -> vcat
+          [ (fsep . concat) [ illegalSince q, pwords "the left-hand side" ]
+          , nest 2 $ prettyTCM v
+          , fwords "reduces to"
+          , nest 2 $ prettyTCM v'
+          ]
+
+        HeadSymbolIsProjectionLikeFunction f -> vcat
+          [ (fsep . concat)
+            [ illegalSince q , pwords "the head symbol"
+            , [ "", hd, ""]
+            , pwords "is a projection-like function."
+            ]
+          , (fsep . concat)
+            [ pwords "You can turn off the projection-like optimization for"
+            , [ hd ]
+            , pwords "with the pragma"
+            ]
+          , nest 2 $ fsep [ "{-# NOT_PROJECTION_LIKE", hd, "#-}" ]
+          , fwords "or globally with the flag --no-projection-like"
+          ]
+          where hd = prettyTCM f
+
+        HeadSymbolIsTypeConstructor f -> (fsep . concat)
+          [ illegalSince q
+          , pwords "the head symbol"
+          , [ prettyTCM f ]
+          , pwords "is a type constructor."
+          ]
+
+        HeadSymbolContainsMetas f -> (fsep . concat)
+          [ illegalSince q
+          , pwords "the definition of the head symbol"
+          , [ prettyTCM f ]
+          , pwords "contains unsolved metavariables and confluence checking is enabled."
+          ]
+
+        ConstructorParametersNotGeneral c vs -> vcat
+          [ (fsep . concat) [ illegalSince q, pwords "the constructor parameters are not fully general:" ]
+          , nest 2 $ text "Constructor: " <+> prettyTCM c
+          , nest 2 $ (pluralS vs "Parameter" <> ": ") <+> fsep (punctuate ";" $ fmap prettyTCM vs)
+          ]
+
+        ContainsUnsolvedMetaVariables ms -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "it contains the unsolved meta"
+            , [ pluralS ms "variable" <> colon ]
+            ]
+          <?> fsep (fmap prettyTCM $ Set1.toList ms)
+
+        BlockedOnProblems ps -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "it is blocked on"
+            , [ pluralS ps "problem" <> colon]
+            ]
+          <?> fsep (fmap prettyTCM $ Set1.toList ps)
+
+        RequiresDefinitions qs -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "it requires the"
+            , [ pluralS qs "definition", "of" <> colon]
+            ]
+          <?> fsep (fmap prettyTCM $ Set1.toList qs)
+
+        DoesNotTargetRewriteRelation -> (fsep . concat)
+          [ [ prettyTCM q, "" ], pwords "does not target rewrite relation" ]
+
+        BeforeFunctionDefinition -> (fsep . concat)
+          [ pwords "Rewrite rule from function"
+          , [ "", prettyTCM q, ""]
+          , pwords "cannot be added before the function definition"
+          ]
+
+        BeforeMutualFunctionDefinition r -> (fsep . concat)
+          [ pwords "Rewrite rule from function"
+          , [ "", prettyTCM q, ""]
+          , pwords "cannot be added before the definition of mutually defined"
+          , [ prettyTCM r ]
+          ]
+
+        DuplicateRewriteRule -> (fsep . concat)
+          [ pwords "Rewrite rule"
+          , [ "", prettyTCM q, ""]
+          , pwords "has already been added"
+          ]
+
+    ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)
+      [ pwords "Confluence checking incomplete because the definition of"
+      , [ prettyTCM f ]
+      , pwords "contains unsolved metavariables."
       ]
 
-    ConfluenceForCubicalNotSupported -> fsep $ pwords $
+    ConfluenceForCubicalNotSupported -> fwords $
       "Confluence checking for --cubical is not yet supported, confluence checking might be incomplete"
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
