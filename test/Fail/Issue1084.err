@@ -1,6 +1,6 @@
 Issue1084.agda:5.1-13.10: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  f, g
+  f g
 Problematic calls:
   g x
     (at Issue1084.agda:8.7-8)

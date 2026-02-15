@@ -69,25 +69,25 @@ when scope checking the declaration
         o' = o'
 Issue6795.agda:10.1-15.8: error: [TerminationIssue]
 Termination checking failed for the following functions:
-Problematic calls:
+Problematic call:
   e (at Issue6795.agda:15.7-8)
 
 Issue6795.agda:35.1-38.8: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   i
-Problematic calls:
+Problematic call:
   i (at Issue6795.agda:38.7-8)
 
 Issue6795.agda:58.1-62.10: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   m
-Problematic calls:
+Problematic call:
   m (at Issue6795.agda:62.9-10)
 
 Issue6795.agda:64.1-68.10: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   n
-Problematic calls:
+Problematic call:
   n (at Issue6795.agda:68.9-10)
 
 Issue6795.agda:70.1-80.12: error: [TerminationIssue]

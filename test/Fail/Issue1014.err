@@ -1,5 +1,5 @@
 Issue1014.agda:19.3-23.83: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bar
 Problematic calls:
   Issue1014.NoWith.♯-0
@@ -8,7 +8,7 @@ Problematic calls:
     (at Issue1014.agda:23.31-34)
 
 Issue1014.agda:30.3-34.82: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bar'
 Problematic calls:
   bar' A h n An | h n An
@@ -18,7 +18,7 @@ Problematic calls:
     (at Issue1014.agda:34.64-68)
 
 Issue1014.agda:41.3-43.63: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bar
 Problematic calls:
   bar n An | h n An
@@ -28,7 +28,7 @@ Problematic calls:
     (at Issue1014.agda:43.50-53)
 
 Issue1014.agda:48.3-52.81: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bar
 Problematic calls:
   bar A n h An | h n An
@@ -38,7 +38,7 @@ Problematic calls:
     (at Issue1014.agda:52.64-67)
 
 Issue1014.agda:63.1-65.63: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bar
 Problematic calls:
   bar n h An | h n An

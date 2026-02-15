@@ -1,7 +1,7 @@
 Issue970.agda:42.1-46.53: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bug
-Problematic calls:
+Problematic call:
   bug
   (subst (λ _ → proj₁ (update tt (nothing , tt)) ≡ nothing) refl
    (cong (λ r → proj₁ r) (lem-upd tt (nothing , tt))))

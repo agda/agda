@@ -1,8 +1,8 @@
 GuardednessHintSizedTypes.agda:13.1-15.26: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
 (Option --guardedness might fix this problem, but it is not --safe
 to use with --sized-types.)
   repeat
-Problematic calls:
+Problematic call:
   repeat x
     (at GuardednessHintSizedTypes.agda:15.18-24)

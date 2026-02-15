@@ -1,5 +1,5 @@
 Issue217.agda:4.1-6.8: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   ⊥
-Problematic calls:
+Problematic call:
   ⊥ (at Issue217.agda:6.7-8)
