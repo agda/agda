@@ -26,6 +26,7 @@ import Agda.Interaction.Highlighting.JSON
 import Agda.Syntax.Abstract.Pretty
          ( prettyATop )
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name
          ( NameInScope(..), Name )
@@ -176,6 +177,12 @@ instance ToJSON CPUTime where toJSON = encodePretty
 instance EncodeTCM ComputeMode where
 instance ToJSON ComputeMode where toJSON = encodeShow
 
+instance EncodeTCM C.Expr where
+instance ToJSON C.Expr where toJSON = encodePretty
+
+instance EncodeTCM A.Expr where
+  encodeTCM e = encodeShow <$> prettyATop e
+
 encodeOCCmp :: (a -> TCM Value)
   -> Comparison -> a -> a -> T.Text
   -> TCM Value
@@ -279,7 +286,7 @@ instance EncodeTCM (OutputForm C.Expr C.Expr) where
     [ "range"      @= range
     , "problems"   @= problems
     , "unblocker"  @= unblock
-    , "constraint" #= encodeOC (pure . encodePretty) (pure . encodePretty) oc
+    , "constraint" #= encodeOC encodeTCM encodeTCM oc
     ]
 
 instance EncodeTCM Blocker where
@@ -306,8 +313,8 @@ instance EncodeTCM DisplayInfo where
     ws <- filterTCWarnings (tcWarnings wes)
     es <- filterTCWarnings (nonFatalErrors wes)
     kind "AllGoalsWarnings"
-      [ "visibleGoals"      #= forM vis (\i -> withInteractionId (B.outputFormId $ OutputForm noRange [] alwaysUnblock i) $ encodeOC encodeTCM encodePrettyTCM i)
-      , "invisibleGoals"    #= forM invis (encodeOC encodeTCM encodePrettyTCM)
+      [ "visibleGoals"      #= forM vis (\i -> withInteractionId (B.outputFormId $ OutputForm noRange [] alwaysUnblock i) $ encodeOC encodeTCM encodeTCM i)
+      , "invisibleGoals"    #= forM invis (\i -> encodeOC encodeTCM encodeTCM i)
       , "warnings"          #= encodeTCM ws
       , "errors"            #= encodeTCM es
       ]
