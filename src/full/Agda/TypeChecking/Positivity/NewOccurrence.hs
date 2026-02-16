@@ -2,7 +2,7 @@
 {-# LANGUAGE Strict #-}
 -- {-# OPTIONS_GHC -Wunused-imports #-}
 
-module Agda.TypeChecking.Positivity.NewOccurrence
+module Agda.TypeChecking.Positivity.NewOccurrence where
 
 import Prelude hiding ( null, (!!) )
 
