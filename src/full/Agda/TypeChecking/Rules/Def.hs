@@ -215,7 +215,7 @@ checkAlias t ai i name e mc =
   -- Andreas, 2017-01-01, issue #2372:
   -- Add the definition to the instance table, if needed, to update its type.
   case Info.defInstance i of
-    InstanceDef _r -> setCurrentRange name $ readdTypedInstance name t
+    InstanceDef kwr -> setCurrentRange name $ readdTypedInstance kwr name t
       -- Put highlighting on the name only;
       -- @(getRange (r, name))@ does not give good results.
     NotInstanceDef -> pure ()

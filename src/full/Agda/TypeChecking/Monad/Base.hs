@@ -1585,8 +1585,9 @@ data Constraint
   | FindInstance Range MetaId (Maybe [Candidate])
     -- ^ the second argument is the instance argument and the third one is dhe list of candidates
     --   (or Nothing if we haven’t determined the list of candidates yet)
-  | ResolveInstanceHead QName
+  | ResolveInstanceHead KwRange QName
     -- ^ Resolve the head symbol of the type that the given instance targets
+    --   The 'KwRange' is the range of the @instance@ keyword.
   | CheckFunDef A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type
@@ -1599,7 +1600,7 @@ data Constraint
   deriving (Show, Generic)
 
 -- It's important to have a proper range for constraints that can remain unsolved
--- without a corresponding unsolved to point to the location of the constraint.
+-- without a corresponding unsolved meta to point to the location of the constraint.
 instance HasRange Constraint where
   getRange (IsEmpty r t)         = r
   getRange (FindInstance r _ _)  = r
@@ -1633,7 +1634,7 @@ instance Free Constraint where
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInstance _ _ cs   -> freeVars' cs
-      ResolveInstanceHead q -> mempty
+      ResolveInstanceHead _ q -> mempty
       CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
@@ -1657,7 +1658,7 @@ instance TermLike Constraint where
       UnBlock _              -> mempty
       CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       FindInstance _ _ _     -> mempty
-      ResolveInstanceHead q  -> mempty
+      ResolveInstanceHead _ _  -> mempty
       CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)
@@ -4761,10 +4762,12 @@ data Warning
   | UselessInline            QName
   | UselessTactic
     -- ^ A tactic attribute applied to a non-hidden (visible or instance) argument.
-  | WrongInstanceDeclaration
-  | InstanceWithExplicitArg  QName
-  -- ^ An instance was declared with an implicit argument, which means it
-  --   will never actually be considered by instance search.
+  | WrongInstanceDeclaration KwRange
+    -- ^ The 'KwRange' is the range of the @instance@ keyword.
+  | InstanceWithExplicitArg  KwRange QName
+    -- ^ An instance was declared with an implicit argument, which means it
+    --   will never actually be considered by instance search.
+    --   The 'KwRange' is the range of the @instance@ keyword.
   | InstanceNoOutputTypeName Doc
   -- ^ The type of an instance argument doesn't end in a named or
   -- variable type, so it will never be considered by instance search.

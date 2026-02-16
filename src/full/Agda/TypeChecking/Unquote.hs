@@ -1008,7 +1008,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           Left _    -> pure ()
           Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (ClashingQName $ defName def) Nothing
         addConstant' x i a defn
-        when (isInstance i) $ addTypedInstance x a
+        when (isInstance i) $ addTypedInstance empty x a
         primUnitUnit
 
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term

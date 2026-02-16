@@ -344,13 +344,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
         -- Add the constructor to the instance table, if needed
         case Info.defInstance i of
-          InstanceDef _r -> setCurrentRange c $ do
+          InstanceDef kwr -> setCurrentRange c $ do
             -- Including the range of the @instance@ keyword, like
             -- @(getRange (r,c))@, does not produce good results.
             -- Andreas, 2020-01-28, issue #4360:
             -- Use addTypedInstance instead of addNamedInstance
             -- to detect unusable instances.
-            addTypedInstance c t
+            addTypedInstance kwr c t
             -- addNamedInstance c d
           NotInstanceDef -> pure ()
 

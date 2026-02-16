@@ -291,11 +291,11 @@ prettyWarning = \case
 
     UselessTactic -> fwords $ "Ignoring `tactic' attribute for non-hidden (explicit or instance) binder"
 
-    WrongInstanceDeclaration -> fwords $
+    WrongInstanceDeclaration _kwr -> fwords $
       "Instances should be of type {Γ} → C, where C evaluates to a postulated name or the name of " ++
       "a data or record type, so `instance' is ignored here."
 
-    InstanceWithExplicitArg q -> fsep $
+    InstanceWithExplicitArg _kwr q -> fsep $
       pwords "Instance declarations with explicit arguments are never considered by instance search," ++
       pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
 

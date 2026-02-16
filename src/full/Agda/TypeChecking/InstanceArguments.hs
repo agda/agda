@@ -1126,16 +1126,18 @@ getOutputTypeName t = ignoreAbstractMode $ do
 -- | Register the definition with the given type as an instance.
 --   Issue warnings if instance is unusable.
 addTypedInstance ::
-     QName  -- ^ Name of instance.
-  -> Type   -- ^ Type of instance.
+     KwRange  -- ^ Range of the @instance@ keyword.
+  -> QName    -- ^ Name of instance.
+  -> Type     -- ^ Type of instance.
   -> TCM ()
 addTypedInstance = addTypedInstance' True False Nothing
 
 -- | Like 'addTypedInstance', but delete any existing entries for the
 -- given name from the discrimination tree.
 readdTypedInstance ::
-     QName  -- ^ Name of instance.
-  -> Type   -- ^ Type of instance.
+     KwRange  -- ^ Range of the @instance@ keyword.
+  -> QName    -- ^ Name of instance.
+  -> Type     -- ^ Type of instance.
   -> TCM ()
 readdTypedInstance = addTypedInstance' True True Nothing
 
@@ -1144,10 +1146,11 @@ addTypedInstance'
   :: Bool               -- ^ Should we print warnings for unusable instance declarations?
   -> Bool               -- ^ Is this the second time we're adding this QName as an instance?
   -> Maybe InstanceInfo -- ^ Is this instance a copy?
+  -> KwRange            -- ^ Range of the @instance@ keyword.
   -> QName              -- ^ Name of instance.
   -> Type               -- ^ Type of instance.
   -> TCM ()
-addTypedInstance' w readd orig inst t = do
+addTypedInstance' w readd orig kwr inst t = do
   reportSDoc "tc.instance.add" 30 $ vcat
     [ "adding typed instance" <+> prettyTCM inst <+> "with type"
     , prettyTCM =<< flip abstract t <$> getContextTelescope
@@ -1203,18 +1206,20 @@ addTypedInstance' w readd orig inst t = do
 
     OutputTypeNameNotYetKnown b -> do
       addUnknownInstance inst
-      addConstraint b $ ResolveInstanceHead inst
+      addConstraint b $ ResolveInstanceHead kwr inst
 
-    NoOutputTypeName    -> when w $ warning $ WrongInstanceDeclaration
-    OutputTypeVar       -> when w $ warning $ WrongInstanceDeclaration
-    OutputTypeVisiblePi -> when w $ warning $ InstanceWithExplicitArg inst
+    NoOutputTypeName    -> when w $ warning $ WrongInstanceDeclaration kwr
+    OutputTypeVar       -> when w $ warning $ WrongInstanceDeclaration kwr
+    OutputTypeVisiblePi -> when w $ warning $ InstanceWithExplicitArg kwr inst
 
-resolveInstanceHead :: QName -> TCM ()
-resolveInstanceHead q = do
+resolveInstanceHead ::
+     KwRange  -- ^ The range of the @instance@ keyword.
+  -> QName -> TCM ()
+resolveInstanceHead kwr q = do
   clearUnknownInstance q
   -- Andreas, 2022-12-04, issue #6380:
   -- Do not warn about unusable instances here.
-  addTypedInstance' False True Nothing q =<< typeOfConst q
+  addTypedInstance' False True Nothing kwr q =<< typeOfConst q
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.

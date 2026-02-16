@@ -474,7 +474,7 @@ instance Reify Constraint where
     <*> (reify =<< getMetaType m)
     <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
           (,,) <$> reify tm <*> reify tm <*> reify ty)
-  reify (ResolveInstanceHead q) = return $ ResolveInstanceOF q
+  reify (ResolveInstanceHead kwr q) = return $ ResolveInstanceOF q
   reify (IsEmpty r a) = IsEmptyType <$> reify a
   reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
   reify (CheckFunDef i q cs err) = do

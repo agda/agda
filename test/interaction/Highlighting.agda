@@ -279,3 +279,15 @@ module MissingRecordFields where
     -- ; B = _   -- this missing field produces an unsolved meta
     ; C = Set
     }
+
+module Issue8400 where
+
+  data Foo : Nat → Set where
+    instance                                -- should be highlighted
+      ze : Foo zero
+      su : {n : Nat} → Foo n → Foo (suc n)  -- su should be highlighted
+
+  -- warning: -W[no]InstanceWithExplicitArg
+  -- Instance declarations with explicit arguments are never considered
+  -- by instance search, so making su into an instance has no effect.
+  -- when checking the constructor su in the declaration of Foo

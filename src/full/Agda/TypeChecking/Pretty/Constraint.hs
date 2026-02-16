@@ -146,7 +146,7 @@ instance PrettyTCM Constraint where
                 | c <- cnds
                 ]
 
-        ResolveInstanceHead q ->
+        ResolveInstanceHead _kwr q ->
             "Resolve target type of instance: " <?> prettyTCM q
         IsEmpty r t ->
             "Is empty:" <?> prettyTCMCtx TopCtx t

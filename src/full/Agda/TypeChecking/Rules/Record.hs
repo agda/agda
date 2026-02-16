@@ -262,7 +262,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- Andreas, 2020-01-28, issue #4360:
           -- Use addTypedInstance instead of addNamedInstance
           -- to detect unusable instances.
-          addTypedInstance conName contype
+          addTypedInstance r conName contype
           -- addNamedInstance conName name
         NotInstanceDef -> pure ()
 
@@ -620,8 +620,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           -- local variable" (i.e. the type you'd get were you to open
           -- the record module), but this type has to be treated in the
           -- context ftel1 otherwise it's nonsense
-          InstanceDef _r -> addTypedInstance projname t
-          NotInstanceDef -> pure ()
+          InstanceDef kwr -> addTypedInstance kwr projname t
+          NotInstanceDef  -> pure ()
 
         recurse
 
