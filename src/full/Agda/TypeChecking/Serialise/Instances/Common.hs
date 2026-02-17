@@ -427,11 +427,13 @@ instance EmbPrj Quantity where
 instance EmbPrj Cohesion where
   icod_ Flat       = return 0
   icod_ Continuous = return 1
-  icod_ Squash     = return 2
+  icod_ Sharp      = return 2
+  icod_ Squash     = return 3
 
   value 0 = return Flat
   value 1 = return Continuous
-  value 2 = return Squash
+  value 2 = return Continuous
+  value 3 = return Squash
   value _ = malformed
 
 instance EmbPrj ModalPolarity where

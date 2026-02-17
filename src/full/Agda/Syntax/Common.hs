@@ -1904,7 +1904,7 @@ prettyLock a = (pretty (getLock a) <+>)
 data Cohesion
   = Flat        -- ^ same points, discrete topology, idempotent comonad, box-like.
   | Continuous  -- ^ identity modality.
-  -- | Sharp    -- ^ same points, codiscrete topology, idempotent monad, diamond-like.
+  | Sharp       -- ^ same points, codiscrete topology, idempotent monad, diamond-like.
   | Squash      -- ^ single point space, artificially added for Flat left-composition.
     deriving (Show, Eq, Enum, Bounded, Generic)
 
@@ -1923,11 +1923,13 @@ instance KillRange Cohesion where
 instance NFData Cohesion where
   rnf Flat       = ()
   rnf Continuous = ()
+  rnf Sharp      = ()
   rnf Squash     = ()
 
 instance Pretty Cohesion where
   pretty Flat   = "@♭"
   pretty Continuous = mempty
+  pretty Sharp   = "@♯"
   pretty Squash  = "@⊤"
 
 -- | A lens to access the 'Cohesion' attribute in data structures.
@@ -1974,11 +1976,15 @@ instance Ord Cohesion where
     -- top
     (_, Squash) -> LT
     (Squash, _) -> GT
+    -- id < ♯
+    (Sharp,Continuous) -> GT
+    (Continuous,Sharp) -> LT
     -- bottom
     (Flat, _) -> LT
     (_, Flat) -> GT
-    -- redundant case
+    -- redundant cases
     (Continuous,Continuous) -> EQ
+    (Sharp,Sharp)           -> EQ
 
 -- | Flatter is smaller.
 instance PartialOrd Cohesion where
@@ -1995,8 +2001,10 @@ composeCohesion r r' =
   case (r, r') of
     (Squash, _) -> Squash
     (_, Squash) -> Squash
-    (Flat, _)  -> Flat
-    (_, Flat)  -> Flat
+    (Sharp, _)  -> Sharp
+    (Flat, _)   -> Flat
+    (_, Flat)   -> Flat
+    (_, Sharp)  -> Sharp
     (Continuous, Continuous) -> Continuous
 
 -- | Compose with cohesion flag from the left.
@@ -2019,6 +2027,8 @@ inverseComposeCohesion r x =
     (Squash, _)       -> Flat       -- in squash position everything is usable
     (Flat , Flat)     -> Flat       -- otherwise: Flat things remain Flat
     (Flat , _)        -> Squash     -- but everything else becomes unusable.
+    (Sharp, Squash)   -> Squash     -- in sharp everything is usable apart from
+    (Sharp, _)        -> Flat       -- squash
 
 -- | Left division by a 'Cohesion'.
 --   Used e.g. to modify context when going into a @rel@ argument.
