@@ -26,6 +26,7 @@ module Agda.TypeChecking.Reduce
 
 import Control.Monad.Except ( MonadError(..) )
 
+import qualified Data.IntMap as IntMap
 import Data.List ( intercalate )
 import Data.Maybe
 import Data.Map (Map)
@@ -46,6 +47,8 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
+import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
@@ -66,6 +69,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -430,17 +434,37 @@ instance Reduce Sort where
       let done | MetaS x _ <- s = return $ blocked x s
                | otherwise      = return $ notBlocked s
       case s of
-        PiSort a s1 s2 -> reduceB' (s1 , s2) >>= \case
-          Blocked b (s1',s2') -> return $ Blocked b $ PiSort a s1' s2'
-          NotBlocked _ (s1',s2') -> do
-            -- Jesper, 2022-10-12: do instantiateFull here because
-            -- `piSort'` does checking of free variables, and if we
-            -- don't instantiate we might end up blocking on a solved
-            -- metavariable.
-            s2' <- instantiateFull s2'
-            case piSort' a s1' s2' of
-              Left b -> return $ Blocked b $ PiSort a s1' s2'
-              Right s -> reduceB' s
+        -- In theory we should just reduce the sort arguments of PiSort
+        -- and then call piSort'. However, we also want to reduce the
+        -- codomain sort to make it non-dependent when possible.
+        -- So we first call forceNoAbs and in case we are dealing with a
+        -- proper Abs we call piSortAbs directly.
+        PiSort a s1 s2Abs -> do
+          let dom = El s1 <$> a
+          forceNoAbs dom s2Abs >>= \case
+            -- If the codomain sort is non-dependent, we reduce to a FunSort
+            Right s2 -> reduceB' $ FunSort s1 s2
+            Left (s2Abs, flexRig) -> do
+              -- For a (possibly) properly dependent PiSort, we call piSortAbs.
+              -- It does not reduce the sorts, so we do that first.
+              bs1 <- reduceB' s1
+              bs2Abs <- mapAbstraction dom reduceB' s2Abs
+              let -- reduced domain and codomain sorts
+                  s1 = ignoreBlocking bs1
+                  s2Abs = fmap ignoreBlocking bs2Abs
+                  -- blocker from free variable occurrence check
+                  blockOcc = flexRigToBlocker flexRig
+                  -- blocker from reducing sort arguments
+                  blockRed = getBlocker $ void bs1 <> void (unAbs bs2Abs)
+                  -- we unblock when either of these might let us make progress
+                  block = unblockOnEither blockOcc blockRed
+              case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
+                -- We already have all blocking information from reduction,
+                -- so we discard the blocking tag from piSortAbs.
+                Left _ -> return $ blockedOn block $ PiSort a s1 s2Abs
+                -- The only sort that piSortAbs can reduce is Inf,
+                -- so there is no need to try reducing it further.
+                Right s -> return $ notBlocked s
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
           NotBlocked _ (s1',s2') -> funSortM' s1' s2' >>= \case
