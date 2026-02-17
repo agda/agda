@@ -207,6 +207,11 @@ composeFlexRig = curry $ \case
 oneFlexRig :: FlexRig' a
 oneFlexRig = Unguarded
 
+-- | Extract a blocker from an occurrence
+flexRigToBlocker :: FlexRig -> Blocker
+flexRigToBlocker (Flexible ms) = metaSetToBlocker ms
+flexRigToBlocker _ = neverUnblock
+
 ---------------------------------------------------------------------------
 -- * Multi-dimensional feature vector for variable occurrence (semigroup)
 

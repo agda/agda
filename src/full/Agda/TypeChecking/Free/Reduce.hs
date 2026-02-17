@@ -6,6 +6,7 @@ module Agda.TypeChecking.Free.Reduce
   ( ForceNotFree
   , forceNotFree
   , reallyFree
+  , forceNoAbs
   , IsFree(..)
   , nonFreeVars
   ) where
@@ -22,12 +23,13 @@ import Data.Maybe
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce
+import {-# SOURCE #-} Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Free.Precompute
 
+import Agda.Utils.Impossible
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
@@ -77,6 +79,20 @@ reallyFree xs v = do
     pickFree (MaybeFree ms1) (MaybeFree ms2) = MaybeFree (ms1 `addFlexRig` ms2)
     pickFree f1 NotFree = f1
     pickFree NotFree f2 = f2
+
+-- | Try to force a binder to be a NoAbs by reducing the body as needed
+--   to get rid of the bound variable. Returns either the reduced abstraction
+--   and the occurrence of the variable (if removing it failed) or else
+--   the strengthened body.
+forceNoAbs :: (MonadReduce m, MonadAddContext m, Reduce a, ForceNotFree a)
+           => Dom Type -> Abs a -> m (Either (Abs a, FlexRig) a)
+forceNoAbs dom (NoAbs _ x) = return $ Right x
+forceNoAbs dom abs@(Abs n _) = underAbstractionAbs dom abs $ \x -> do
+  (fvm, x) <- forceNotFree (singleton 0) x
+  case fromMaybe __IMPOSSIBLE__ (IntMap.lookup 0 fvm) of
+    NotFree -> return $ Right $ noabsApp __IMPOSSIBLE__ (Abs n x)
+    MaybeFree flexRig -> return $ Left (Abs n x , flexRig)
+
 
 type MonadFreeRed m =
   ( MonadReader FlexRig m
