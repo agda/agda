@@ -28,7 +28,7 @@ variable
   A B : Set
   _≈_ : A → A → Set
 
-record Quotient : Set₁ where
+record Quotients : Set₁ where
   field
     Quot  : (A : Set) → (A → A → Set) → Set
     mk    : (_≈_ : A → A → Set) → A → Quot A _≈_
@@ -40,11 +40,11 @@ record Quotient : Set₁ where
   lift-mk≡ = ∀ {A _≈_ B} {f : A → B} {p : ∀ {x y} → x ≈ y → f x ≡ f y} {x}
            → lift f p (mk _≈_ x) ≡ f x
 
-open Quotient using (lift-mk≡)
+open Quotients using (lift-mk≡)
 
-module UsingQuotients (ℚ : Quotient)
-                      (@rew lift-mk : lift-mk≡ ℚ) where
-  open Quotient ℚ
+module UsingQuotients (𝒬 : Quotients)
+                      (@rew lift-mk : lift-mk≡ 𝒬) where
+  open Quotients 𝒬
 
   record PreInt : Set where
     constructor _-_
@@ -83,16 +83,19 @@ module UsingQuotients (ℚ : Quotient)
   test₁ : ∀ {n k} → negate (mk _ (n - k)) ≡ mk _ (k - n)
   test₁ = refl
 
-open Quotient
+open Quotients
 
-fakeQuotient : Quotient
-fakeQuotient .Quot  A _≈_ = A
-fakeQuotient .mk    _≈_ x = x
-fakeQuotient .lift  f p x = f x
-fakeQuotient .sound       = cheat
+fakeQuotients : Quotients
+fakeQuotients .Quot  A _≈_ = A
+fakeQuotients .mk    _≈_ x = x
+fakeQuotients .lift  f p x = f x
+fakeQuotients .sound       = cheat
   where postulate cheat : _
 
-open UsingQuotients fakeQuotient refl
+open UsingQuotients fakeQuotients refl
 
 test₂ : ∀ {n k} → negate (n - k) ≡ k - n
 test₂ = refl
+
+-- If we wanted to be really fancy, we could enable --cubical and open
+-- UsingQuotients with a quotient HIT...
