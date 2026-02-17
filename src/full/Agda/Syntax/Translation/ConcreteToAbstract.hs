@@ -3218,6 +3218,10 @@ instance ToAbstract C.Pragma where
     stWarningOnImport `setTCLens` Just str
     pure []
 
+  toAbstract (C.ModalOpPragma _ x) = do
+    map A.ModalOpPragma . maybeToList <$> do
+      scopeCheckDef (PragmaExpectsDefinedSymbol "MODALOP") x
+
   -- Termination, Coverage, Positivity, Universe, and Catchall
   -- pragmes are handled by the nicifier
   toAbstract C.TerminationCheckPragma{}  = __IMPOSSIBLE__
@@ -3421,6 +3425,7 @@ checkNoTerminationPragma b ds =
       C.NoUniverseCheckPragma _     -> []
       C.NotProjectionLikePragma _ _ -> []
       C.OverlapPragma _ _ _         -> []
+      C.ModalOpPragma _ _           -> []
 
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.BindName A.Pattern A.Expr]

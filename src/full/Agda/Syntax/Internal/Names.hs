@@ -164,7 +164,7 @@ instance NamesIn Defn where
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
     Function cl cc _ _ _ _ _ _ _ _ el _ _ _
       -> namesAndMetasIn' sg (cl, cc, el)
-    Datatype _ _ cl cs s _ _ _ trX trD
+    Datatype _ _ cl cs s _ _ _ _ trX trD
       -> namesAndMetasIn' sg (cl, cs, s, trX, trD)
     Record _ cl c _ fs recTel _ _ _ _ _ _ comp
       -> namesAndMetasIn' sg (cl, c, fs, recTel, comp)

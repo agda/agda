@@ -332,6 +332,10 @@ modifyRecEta :: MonadTCState m => QName -> (EtaEquality -> EtaEquality) -> m ()
 modifyRecEta q f =
   modifySignature $ updateDefinition q $ over (lensTheDef . lensRecord . lensRecEta) f
 
+modifyDataMod :: MonadTCState m => QName -> (IsModality -> IsModality) -> m ()
+modifyDataMod q f =
+  modifySignature $ updateDefinition q $ over (lensTheDef . lensData . lensDataIsModality) f
+
 -- ** Modifiers for parts of the signature
 
 lookupDefinition :: QName -> Signature -> Maybe Definition

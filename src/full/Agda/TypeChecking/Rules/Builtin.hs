@@ -1009,6 +1009,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataCons       = []     -- Constructors are added later
               , dataSort       = getSort t
               , dataAbstr      = ConcreteDef
+              , dataIsModality = NoModality
               , dataMutual     = Nothing
               , dataPathCons   = []
               , dataTranspIx   = Nothing -- Id has custom transp def.

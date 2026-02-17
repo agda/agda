@@ -695,6 +695,8 @@ data Pragma
   | OverlapPragma             Range [QName] OverlapMode
     -- ^ Applies to the given name(s), which must be instance names
     -- (checked by the type checker).
+  | ModalOpPragma              Range QName
+    -- ^ Mark an inductive definition as a splittable under any modality
   deriving Eq
 
 ---------------------------------------------------------------------------
@@ -1130,6 +1132,7 @@ instance HasRange Pragma where
   getRange (NoUniverseCheckPragma r)         = r
   getRange (NotProjectionLikePragma r _)     = r
   getRange (OverlapPragma r _ _)             = r
+  getRange (ModalOpPragma r _)              = r
 
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
@@ -1352,6 +1355,7 @@ instance KillRange Pragma where
   killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
   killRange (NotProjectionLikePragma _ q)     = NotProjectionLikePragma noRange q
   killRange (OverlapPragma _ q i)             = OverlapPragma noRange q i
+  killRange (ModalOpPragma _ q)               = ModalOpPragma noRange q
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -1505,6 +1509,7 @@ instance NFData Pragma where
   rnf (NoUniverseCheckPragma _)         = ()
   rnf (NotProjectionLikePragma _ q)     = rnf q
   rnf (OverlapPragma _ q i)             = rnf q `seq` rnf i
+  rnf (ModalOpPragma _ q)               = rnf q
 
 -- | Ranges are not forced.
 
