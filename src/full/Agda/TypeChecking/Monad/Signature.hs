@@ -613,7 +613,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
           m = unitModality { modCohesion = getCohesion ai
                            , modPolarity = getModalPolarity ai
                            }
-      localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
+      localTC (over eContext (fmap (mapModality (m `inverseComposeModality`)))) $
         copyDef' ts'' np def
       reportSDoc "tc.mod.apply" 80 $
         "finished copyDef" <+> pretty x <+> "->" <+> pretty y

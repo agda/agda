@@ -41,7 +41,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Lens
-import Agda.Utils.List (headWithDefault)
 import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -356,8 +355,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- do
-            r <- headWithDefault __IMPOSSIBLE__ <$> getContext
-            return $ contextToTel $ r : params
+            r <- fromMaybe __IMPOSSIBLE__ . cxLookup 0 <$> getContext
+            return $ contextToTel $ CxExtend r params
           cp <- viewTC eCurrentCheckpoint
           setModuleCheckpoint m cp
           checkRecordProjections m name hasNamedCon con tel' ftel fields

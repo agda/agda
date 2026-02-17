@@ -68,12 +68,12 @@ flattenRevTel tel = loop (size tel) [] tel
 --    (Γ : Context) -> [Type Γ]
 -- @
 flattenContext :: Context -> [ContextEntry]
-flattenContext = loop 1 []
+flattenContext = loop 1 [] . cxEntries
   where
     loop n tel []       = tel
     loop n tel (ce:ctx) = loop (n + 1) (raise n ce : tel) ctx
 
--- | Order a flattened telescope in the correct dependeny order: Γ ->
+-- | Order a flattened telescope in the correct dependency order: Γ ->
 --   Permutation (Γ -> Γ~)
 --
 --   Since @reorderTel tel@ uses free variable analysis of type in @tel@,

@@ -870,7 +870,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcGetContext = liftTCM $ do
       r <- isReconstructed
       let getVar (CtxVar x a) = (nameToArgName x, a)
-      as <- map getVar <$> getContext
+      as <- map getVar . cxEntries <$> getContext
       as <- etaContract =<< process as
       if r then do
         as <- recons (reverse as)

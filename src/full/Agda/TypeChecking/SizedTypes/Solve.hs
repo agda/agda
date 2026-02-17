@@ -332,9 +332,9 @@ castConstraintToCurrentContext c = do
             let findInGamma ce =
                   -- match by name (hazardous)
                   -- This is one of the seven deadly sins (not respecting alpha).
-                  List.findIndex (((==) `on` ctxEntryName) ce) gamma
+                  List.findIndex (((==) `on` ctxEntryName) ce) (cxEntries gamma)
             let delta = envContext $ clEnv cl
-                cand  = map findInGamma delta
+                cand  = map findInGamma $ cxEntries delta
             -- The domain of our substitution
             let coveredVars = VarSet.fromList $ catMaybes $ zipWith ($>) cand [0..]
             -- Check that all the free variables of the constraint are contained in
@@ -574,7 +574,7 @@ getSizeHypotheses gamma = unsafeModifyContext (const gamma) $ do
   caseMaybe msizelt (return []) $ \ sizelt -> do
     -- Traverse the context from newest to oldest de Bruijn Index
     catMaybes <$> do
-      forM (zip [0..] gamma) $ \case
+      forM (cxWithIndex (,) gamma) $ \case
         (i, CtxVar x a) -> do
           -- Get name and type of variable i.
           let s = prettyShow x

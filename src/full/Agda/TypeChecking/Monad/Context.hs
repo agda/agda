@@ -59,14 +59,14 @@ unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 {-# INLINE modifyContextInfo #-}
 -- | Modify the 'Dom' part of context entries.
 modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
-modifyContextInfo f = unsafeModifyContext $ map $ \case
+modifyContextInfo f = unsafeModifyContext $ fmap $ \case
     (CtxVar x a)   -> CtxVar x (f a)
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
 inTopContext cont =
-  unsafeModifyContext (const [])
+  unsafeModifyContext (const CxEmpty)
         $ locallyTC eCurrentCheckpoint (const 0)
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
         $ locallyScope scopeLocals (const [])
@@ -80,7 +80,7 @@ inTopContext cont =
 unsafeInTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
 unsafeInTopContext cont =
   locallyScope scopeLocals (const []) $
-    unsafeModifyContext (const []) cont
+    unsafeModifyContext (const CxEmpty) cont
 
 -- | Delete the last @n@ bindings from the context.
 --
@@ -88,13 +88,13 @@ unsafeInTopContext cont =
 --   rho (drop n)` instead, for an appropriate substitution `rho`.
 {-# SPECIALIZE unsafeEscapeContext :: Int -> TCM a -> TCM a #-}
 unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
-unsafeEscapeContext n = unsafeModifyContext $ drop n
+unsafeEscapeContext n = unsafeModifyContext $ cxDrop n
 
 {-# SPECIALIZE escapeContext :: Impossible -> Int -> TCM a -> TCM a #-}
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 -- these variables are replaced with the given @err@.
 escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
-escapeContext err n = updateContext (strengthenS err n) $ drop n
+escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
 -- * Manipulating checkpoints --
 
@@ -283,7 +283,7 @@ class MonadTCEnv m => MonadAddContext m where
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret =
-  updateContext (raiseS 1) (CtxVar x a :) ret
+  updateContext (raiseS 1) (CxExtendVar x a) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
@@ -370,6 +370,10 @@ newtype KeepNames a = KeepNames a
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
   addContext = flip (foldr addContext); {-# INLINABLE addContext #-}
   contextSize = sum . map contextSize
+
+instance AddContext Context where
+  addContext = flip (foldl $ flip addContext); {-# INLINABLE addContext #-}
+  contextSize = sum . map contextSize . cxEntries
 
 instance AddContext ContextEntry where
   addContext (CtxVar x a) = addCtx x a
@@ -566,7 +570,7 @@ getContext = asksTC envContext
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
 getContextSize :: (MonadTCEnv m) => m Nat
-getContextSize = length <$> getContext
+getContextSize = size <$> getContext
 
 {-# SPECIALIZE getContextVars :: TCM [(Int, Dom Name)] #-}
 getContextVars :: (MonadTCEnv m) => m [(Int, Dom Name)]
@@ -580,7 +584,7 @@ contextVars :: Context -> [(Int, Dom Name)]
 contextVars = reverse . contextVars'
 
 contextVars' :: Context -> [(Int, Dom Name)]
-contextVars' = zipWith mkVar [0..]
+contextVars' = cxWithIndex mkVar
   where
     mkVar i (CtxVar x a) = (i, a $> x)
 
@@ -606,10 +610,10 @@ getContextTelescope :: (MonadTCEnv m) => m Telescope
 getContextTelescope = contextToTel <$> getContext
 
 contextToTel :: Context -> Telescope
-contextToTel = go . reverse
+contextToTel = go EmptyTel
   where
-    go [] = EmptyTel
-    go (CtxVar x a   : ctx) = ExtendTel a $ Abs (nameToArgName x) (go ctx)
+    go tel CxEmpty               = tel
+    go tel (CxExtendVar x a ctx) = go (ExtendTel a $ Abs (nameToArgName x) tel) ctx
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
@@ -629,7 +633,7 @@ contextNames' = map (unDom . snd) . contextVars'
 -- | get type of bound variable (i.e. deBruijn index)
 --
 lookupBV_ :: Nat -> Context -> Maybe ContextEntry
-lookupBV_ n ctx = raise (n + 1) <$> ctx !!! n
+lookupBV_ n ctx = raise (n + 1) <$> cxLookup n ctx
 
 {-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe ContextEntry) #-}
 lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
@@ -642,7 +646,7 @@ lookupBV n = do
         ctx <- getContext
         __IMPOSSIBLE_VERBOSE__ $ unwords
           [ "de Bruijn index out of scope:", show n
-          , "in context", prettyShow $ map ctxEntryName ctx
+          , "in context", prettyShow $ map ctxEntryName $ cxEntries ctx
           ]
   caseMaybeM (lookupBV' n) failure return
 

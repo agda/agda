@@ -81,7 +81,7 @@ checkLockedVars t ty lk lk_ty = do
     earlierVars = VarSet.range i (size cxt)
   if termVars `VarSet.isSubsetOf` earlierVars then return () else do
 
-  let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
+  let toCheck = zip [0..] $ zipWith raise [1..] $ cxTake i cxt
   checked <- fmap catMaybes . forM toCheck $ \ (j,ce) -> do
     ifM (isTimeless (ctxEntryType ce))
         (return $ Just j)

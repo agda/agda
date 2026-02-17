@@ -198,7 +198,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
           let s = fst $ unDom dom
           name <- maybe (setNotInScope <$> freshName_ s) return mname
           return $ CtxVar name (snd <$> dom)
-      dropCxt err = updateContext (strengthenS err 1) (drop 1)
+      dropCxt err = updateContext (strengthenS err 1) (cxDrop 1)
   genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelVars $ telToList genTel
 
   -- For the explicit module telescope we get the names from the typecheck
@@ -220,8 +220,8 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
   let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
 
-  updateContext sub ((genTelCxt ++) . drop 1) $
-    updateContext (raiseS (size tel')) (newTelCxt ++) $
+  updateContext sub (cxAppend genTelCxt . cxDrop 1) $
+    updateContext (raiseS (size tel')) (cxAppend newTelCxt) $
       foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
 
 
@@ -416,7 +416,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     dependencySortMetas (generalizeOver ++ reallyDontGeneralize ++ map fst openSortMetas)
   let sortedMetas = filter shouldGeneralize allSortedMetas
 
-  let dropCxt err = updateContext (strengthenS err 1) (drop 1)
+  let dropCxt err = updateContext (strengthenS err 1) (cxDrop 1)
 
   -- Create the pre-record type (we don't yet know the types of the fields)
   (genRecName, genRecCon, genRecFields) <- dropCxt __IMPOSSIBLE__ $
@@ -644,13 +644,13 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- When updating the context we also need to pick names for the variables. Get them from the
         -- current context and generate fresh ones for the generalized variables in Θ.
         (newCxt, rΘ) <- do
-          (rΔ, _ : rΓ) <- splitAt i <$> getContext
+          (rΔ, CxExtend _ rΓ) <- cxSplitAt i <$> getContext
           let setName dom@(Dom {unDom = (s,ty)}) = CtxVar <$> freshName_ s <*> (pure $ dom $> ty)
           rΘ <- mapM setName $ reverse $ telToList _Θγ
           let rΔσ = zipWith (\ name dom -> CtxVar name (snd <$> dom))
                             (map ctxEntryName rΔ)
                             (reverse $ telToList _Δσ)
-          return (rΔσ ++ rΘ ++ rΓ, rΘ)
+          return (cxAppend rΔσ  $ cxAppend rΘ rΓ, rΘ)
 
         -- Now we can enter the new context and create our meta variable.
         (y, u) <- updateContext ρ (const newCxt) $ localScope $ do
@@ -700,7 +700,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                       permute (takeP n $ mvPermutation mv) $
                       downFrom n
       case [ i
-           | (i, CtxVar _ (Dom{unDom = (El _ (Def q _))})) <- zip [0..] cxt
+           | (i, CtxVar _ (Dom{unDom = (El _ (Def q _))})) <-
+             cxWithIndex (,) cxt
            , q == genRecName
            , i `VarSet.member` notPruned
            ] of
@@ -787,7 +788,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                          [ nest 2 $ "-" <+> sep [ fwords "The dependency error is", prettyTCM err' ] ]
         ]
 
-    addNamedVariablesToScope :: Context -> TCM ()
+    addNamedVariablesToScope :: [ContextEntry] -> TCM ()
     addNamedVariablesToScope cxt =
       forM_ cxt $ \ (CtxVar x _) -> do
         -- Recognize named variables by lack of '.' (TODO: hacky!)

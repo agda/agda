@@ -284,6 +284,7 @@ instance PrettyTCM (Arg A.Expr)       where prettyTCM = prettyA <=< reify       
 instance PrettyTCM (NamedArg A.Expr)  where prettyTCM = prettyA <=< reify         ; {-# SPECIALIZE prettyTCM :: (NamedArg A.Expr) -> TCM Doc #-}
 instance PrettyTCM (NamedArg Term)    where prettyTCM = prettyA <=< reify         ; {-# SPECIALIZE prettyTCM :: (NamedArg Term)   -> TCM Doc #-}
 instance PrettyTCM (Dom Type)         where prettyTCM = prettyA <=< reify         ; {-# SPECIALIZE prettyTCM :: (Dom Type)        -> TCM Doc #-}
+instance PrettyTCM Context            where prettyTCM = prettyA <=< reify         ; {-# SPECIALISE prettyTCM :: Context           -> TCM Doc #-}
 instance PrettyTCM ContextEntry       where prettyTCM = prettyA <=< reify         ; {-# SPECIALIZE prettyTCM :: ContextEntry      -> TCM Doc #-}
 
 instance PrettyTCM Permutation        where prettyTCM = text . show               ; {-# SPECIALIZE prettyTCM :: Permutation       -> TCM Doc #-}

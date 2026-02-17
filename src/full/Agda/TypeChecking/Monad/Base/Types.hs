@@ -17,7 +17,7 @@ import Data.Map                       ( Map )
 import GHC.Generics                   ( Generic )
 
 import Agda.Syntax.Common
-  ( LensArgInfo(..), LensCohesion, LensHiding, LensModality, LensOrigin, LensQuantity, LensRelevance, LensModalPolarity )
+  ( LensArgInfo(..), LensCohesion, LensHiding, LensModality, LensOrigin, LensQuantity, LensRelevance, LensModalPolarity, Nat )
 
 import Agda.Syntax.Info               ( MetaNameSuggestion )
 import Agda.Syntax.Internal           ( Dom, MetaId, Name, Type )
@@ -27,6 +27,9 @@ import Agda.Utils.FileId              as X ( FileId, FileDictBuilder )
 import Agda.Utils.FileName            as X ( AbsolutePath )
 import Agda.Utils.Lens                ( Lens', (&&&), iso )
 import Agda.Utils.Null                ( Null(..) )
+import Agda.Utils.Size                ( Sized )
+import Agda.Utils.List                ( (!!!) )
+import Agda.Utils.Tuple               ( second )
 
 
 ---------------------------------------------------------------------------
@@ -34,7 +37,25 @@ import Agda.Utils.Null                ( Null(..) )
 ---------------------------------------------------------------------------
 
 -- | The @Context@ is a stack of 'ContextEntry's.
-type Context = [ContextEntry]
+--   Unlike telescopes, later context entries are bound in earlier ones.
+newtype Context' a = Context
+  { cxEntries :: [a]
+  }
+  deriving (Show, Generic, Sized, Functor, Foldable, Null, Traversable)
+
+type Context = Context' ContextEntry
+
+pattern CxEmpty     :: Context
+pattern CxExtendVar :: Name -> Dom Type -> Context -> Context
+pattern CxExtend    :: ContextEntry -> Context -> Context
+
+pattern CxEmpty = Context []
+pattern CxExtend x g <- Context (x : (Context -> g)) where
+  CxExtend x (Context g) = Context (x : g)
+pattern CxExtendVar x a g = CxExtend (CtxVar x a) g
+
+{-# COMPLETE CxEmpty, CxExtend #-}
+{-# COMPLETE CxEmpty, CxExtendVar #-}
 
 data ContextEntry
   = CtxVar
@@ -43,6 +64,30 @@ data ContextEntry
     }
   -- N.B. 2024-11-29 there might be CtxLet in the future.
   deriving (Show, Generic)
+
+cxLookup :: Nat -> Context -> Maybe ContextEntry
+cxLookup i g = cxEntries g !!! i
+
+cxDrop :: Nat -> Context -> Context
+cxDrop n (Context es) = Context $ drop n es
+
+-- | The returned list of context entries follows the context ordering
+--   convention (earlier entries depend on later ones)
+cxTake :: Nat -> Context -> [ContextEntry]
+cxTake n (Context es) = take n es
+
+-- | Assumes the list of entries to be prepended follows the context ordering
+--   convention (earlier entries depend on later ones)
+cxAppend :: [ContextEntry] -> Context -> Context
+cxAppend es' (Context es) = Context $ es' ++ es
+
+-- | The returned prefix follows the context ordering convention (earlier
+--   entries depend on later ones)
+cxSplitAt :: Nat -> Context -> ([ContextEntry], Context)
+cxSplitAt n (Context es) = second Context (splitAt n es)
+
+cxWithIndex :: (Nat -> ContextEntry -> a) -> Context -> [a]
+cxWithIndex f (Context es) = zipWith f [0..] es
 
 instance LensArgInfo ContextEntry where
   getArgInfo (CtxVar _ a) = getArgInfo a
@@ -204,6 +249,7 @@ data NamedMeta = NamedMeta
 
 -- NFData instances
 
+instance NFData Context
 instance NFData ContextEntry
 instance NFData FileDictWithBuiltins
 instance NFData SourceFile
