@@ -1642,7 +1642,7 @@ instance Reify i => Reify (Dom i) where
 instance Reify Context where
   type ReifiesTo Context = [A.TypedBinding]
 
-  reify (Context es) = reify es
+  reify = reify . contextToTel
 
 instance Reify ContextEntry where
   type ReifiesTo ContextEntry = A.TypedBinding
