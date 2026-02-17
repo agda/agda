@@ -373,7 +373,7 @@ instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
 
 instance AddContext Context where
   addContext = flip (foldl $ flip addContext); {-# INLINABLE addContext #-}
-  contextSize = sum . map contextSize . cxEntries
+  contextSize = size
 
 instance AddContext ContextEntry where
   addContext (CtxVar x a) = addCtx x a

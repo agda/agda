@@ -65,8 +65,9 @@ data ContextEntry
   -- N.B. 2024-11-29 there might be CtxLet in the future.
   deriving (Show, Generic)
 
+-- | Does not raise the retrieved entry!
 cxLookup :: Nat -> Context -> Maybe ContextEntry
-cxLookup i g = cxEntries g !!! i
+cxLookup i (Context es) = es !!! i
 
 cxDrop :: Nat -> Context -> Context
 cxDrop n (Context es) = Context $ drop n es
@@ -78,13 +79,13 @@ cxTake n (Context es) = take n es
 
 -- | Assumes the list of entries to be prepended follows the context ordering
 --   convention (earlier entries depend on later ones)
-cxAppend :: [ContextEntry] -> Context -> Context
-cxAppend es' (Context es) = Context $ es' ++ es
+cxPrepend :: [ContextEntry] -> Context -> Context
+cxPrepend es' (Context es) = Context $ es' ++ es
 
 -- | The returned prefix follows the context ordering convention (earlier
 --   entries depend on later ones)
 cxSplitAt :: Nat -> Context -> ([ContextEntry], Context)
-cxSplitAt n (Context es) = second Context (splitAt n es)
+cxSplitAt n (Context es) = second Context $ splitAt n es
 
 cxWithIndex :: (Nat -> ContextEntry -> a) -> Context -> [a]
 cxWithIndex f (Context es) = zipWith f [0..] es

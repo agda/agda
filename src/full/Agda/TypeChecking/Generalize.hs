@@ -220,8 +220,8 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
   let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
 
-  updateContext sub (cxAppend genTelCxt . cxDrop 1) $
-    updateContext (raiseS (size tel')) (cxAppend newTelCxt) $
+  updateContext sub (cxPrepend genTelCxt . cxDrop 1) $
+    updateContext (raiseS (size tel')) (cxPrepend newTelCxt) $
       foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
 
 
@@ -650,7 +650,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           let rΔσ = zipWith (\ name dom -> CtxVar name (snd <$> dom))
                             (map ctxEntryName rΔ)
                             (reverse $ telToList _Δσ)
-          return (cxAppend rΔσ  $ cxAppend rΘ rΓ, rΘ)
+          return (cxPrepend rΔσ  $ cxPrepend rΘ rΓ, rΘ)
 
         -- Now we can enter the new context and create our meta variable.
         (y, u) <- updateContext ρ (const newCxt) $ localScope $ do
