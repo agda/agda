@@ -644,8 +644,9 @@ postponeTypeCheckingProblem p unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   Instantiable i normalMetaPriority (idP (size tel))
          $ HasType () CmpLeq $ telePi_ tel t
-  inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
-    [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM (telePi_ tel t)
+  reportSDoc "tc.meta.postponed" 20 $ vcat
+    [ "new meta" <+> inTopContext (prettyTCM m) <+>
+      ":" <+> inTopContext (prettyTCM $ telePi_ tel t)
     , "for postponed typechecking problem" <+> prettyTCM p
     ]
 

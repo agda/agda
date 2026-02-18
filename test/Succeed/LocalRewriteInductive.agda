@@ -46,7 +46,7 @@ module UsingNaturals (𝒩 : Naturals)
   +ass {n = n} {m = m} {l = l}
     = elim (λ □ → (□ + m) + l ≡ □ + (m + l)) refl (λ _ → ap su) n
 
-module Test1 where
+module PrimNaturals where
   open import Agda.Builtin.Nat renaming (zero to ze; suc to su)
 
   primNaturals : Naturals
@@ -62,7 +62,7 @@ module Test1 where
   test₂ : 2 N.+ 1 ≡ 3
   test₂ = refl
 
-module W-encoding where
+module WNaturals where
   open import Agda.Builtin.Nat renaming (zero to ze; suc to su)
 
   private variable
