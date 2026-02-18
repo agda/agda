@@ -1,76 +1,46 @@
 
 {-# LANGUAGE Strict #-}
--- {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
-{-# OPTIONS_GHC -fmax-valid-hole-fits=0 #-}
+{-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
 
 module Agda.TypeChecking.Positivity.NewOccurrence where
 
 import Prelude hiding ( null, (!!) )
 
-import Control.Applicative hiding (empty)
-import Control.DeepSeq
-
-import Data.Either
-import qualified Data.Foldable as Fold
-import Data.Function (on)
-import Data.Graph (SCC(..))
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-import qualified Data.List as List
+import Data.Foldable
 import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Sequence (Seq)
-import qualified Data.Sequence as DS
+import Data.Map qualified as Map
 import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Strict.These
+import Data.Set qualified as Set
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
-import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position (HasRange(..), noRange)
-import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad hiding (getOccurrencesFromType)
-import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
-import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Patterns.Match ( properlyMatching )
-import Agda.TypeChecking.Records
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), modalPolarityToOccurrence)
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Warnings
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), modalPolarityToOccurrence)
 
-import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Utils.Function (applyUnless)
-import Agda.Utils.Functor
-import Agda.Utils.List
-import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
-import Agda.Utils.Null
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Common.Pretty as P
-import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
+import Agda.Utils.Impossible
+import Agda.Utils.List
+import Agda.Utils.Map qualified as Map
+import Agda.Utils.Maybe
 import Agda.Utils.SemiRing
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.StrictReader
 import Agda.Utils.StrictState
-import Agda.Utils.Map qualified as Map
-
-import Agda.Utils.Impossible
-
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 
 --------------------------------------------------------------------------------
 {-
 TODO:
+handle Inf occurrence
+
 mutable hashtable Graph
   (only need one SCC implementation and one BFS for positivity+error msg)
 
@@ -78,6 +48,7 @@ Possible issues in old impl:
 - lack of Path/Occ handling in record constructors.
 - In no-occurrence-analysis mode we only look at the first clause of functions to
   match the args
+- computeDefOccurrences tel1' : why addContext?
 -}
 
 
@@ -203,7 +174,8 @@ instance ComputeOccurrences Term where
     Var x es -> do
       locals <- asks locals
 
-      -- it's a locally bound variable, all args are Mixed occurrence
+      -- it's a locally bound variable, all args are Mixed occurrence,
+      -- we don't record an occurrence for the variable
       if x < locals then do
         let elims i []     = pure ()
             elims i (e:es) = underPath (`VarArg` i) (occurrences e) >> elims (i + 1) es
@@ -367,9 +339,13 @@ instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, 
   {-# INLINE occurrences #-}
   occurrences (x, y) = occurrences x >> occurrences y
 
+instance ComputeOccurrences Int where
+  {-# INLINE occurrences #-}
+  occurrences _ = pure ()
+
 -- | Compute occurrences in a given definition.
-computeDefOccurences :: QName -> OccM ()
-computeDefOccurences q = inConcreteOrAbstractMode q \def -> do
+computeDefOccurrences :: QName -> OccM ()
+computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
   reportSDoc "tc.pos" 25 do
     let a = defAbstract def
     m   <- asksTC envAbstractMode
@@ -377,6 +353,12 @@ computeDefOccurences q = inConcreteOrAbstractMode q \def -> do
     o   <- asksTC envCurrentOpaqueId
     "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show o) <+> text (show m)
       <+> prettyTCM cur
+
+  let paramsToDefArgs :: Telescope -> TCM [DefArgInEnv]
+      paramsToDefArgs tel = go 0 (telToList tel) [] where
+        go i []     acc = pure acc
+        go i (a:as) acc = do occs <- getOccurrencesFromType (snd (unDom a))
+                             go (i + 1) as (DefArgInEnv i occs : acc)
 
   underPath (`InDefOf` q) $ case theDef def of
 
@@ -414,95 +396,90 @@ computeDefOccurences q = inConcreteOrAbstractMode q \def -> do
 
 
       -- Then, we compute the occurrences in the constructor types.
-      undefined
---       let conOcc c = do
---             -- Andreas, 2020-02-15, issue #4447:
---             -- Allow UnconfimedReductions here to make sure we get the constructor type
---             -- in same way as it was obtained when the data types was checked.
---             (TelV tel t, bnd) <- putAllowedReductions allReductions $
---               telViewPathBoundary . defType =<< getConstInfo c
---             let (tel0,tel1) = splitTelescopeAt np tel
---             -- Do not collect occurrences in the data parameters.
---             -- Normalization needed e.g. for test/succeed/Bush.agda.
---             -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
---             tel1' <- addContext tel0 $ normalise $ tel1
+      --------------------------------------------------------------------------------
 
---             -- Make parameters into context items, with polarity info
---             pvars <- parametersToItems tel0 np
---             let telvars = replicate (size tel1') Nothing ++ pvars
+      -- If the data type has a transport constructor (i.e. it's an
+      -- indexed family in cubical mode) we should also consider it for
+      -- positivity.
+      forM_ (maybeToList trx ++ cs) \c -> do
+         -- Andreas, 2020-02-15, issue #4447:
+         -- Allow UnconfimedReductions here to make sure we get the constructor type
+         -- in same way as it was obtained when the data types was checked.
+        (TelV tel t, bnd) <- liftTCM $ putAllowedReductions allReductions $
+                                        telViewPathBoundary . defType =<< getConstInfo c
+        let (tel0,tel1) = splitTelescopeAt np tel
+        -- Do not collect occurrences in the data parameters.
+        -- Normalization needed e.g. for test/succeed/Bush.agda.
+        -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
+        tel1' <- liftTCM $ addContext tel0 $ normalise tel1 -- András 2026-02-18: why addContext?
 
---             reportSLn "tc.pos.params" 50 $ "Adding datatypes parameters in context " ++ prettyShow pvars
+        pvars <- liftTCM $ paramsToDefArgs tel0
+        local (\env -> env {topDefArgs = pvars, locals = np}) do
 
---             -- Occurrences in the types of the constructor arguments.
---             (OccursAs (ConArgType c) <$> getOccurrences pvars tel1') <>
---               (OccursAs (ConEndpoint c) <$> getOccurrences telvars bnd) <> do
---               -- Occurrences in the indices of the data type the constructor targets.
---               -- Andreas, 2020-02-15, issue #4447:
---               -- WAS: @t@ is not necessarily a data type, but it could be something
---               -- that reduces to a data type once UnconfirmedReductions are confirmed
---               -- as safe by the termination checker.
---               -- In any case, if @t@ is not showing itself as the data type, we need to
---               -- do something conservative.  We will just collect *all* occurrences
---               -- and flip their sign (variance) using 'LeftOfArrow'.
---               case unEl t of
---                 Def q' vs
---                   | q == q' -> do
---                       let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
---                       OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences telvars indices
---                   | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
---                 Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
---                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
---                 Var{}      -> __IMPOSSIBLE__  -- not a constructor target
---                 Sort{}     -> __IMPOSSIBLE__  -- not a constructor target
---                 Lam{}      -> __IMPOSSIBLE__  -- not a type
---                 Lit{}      -> __IMPOSSIBLE__  -- not a type
---                 Con{}      -> __IMPOSSIBLE__  -- not a type
---                 Level{}    -> __IMPOSSIBLE__  -- not a type
---                 DontCare{} -> __IMPOSSIBLE__  -- not a type
---                 Dummy{}    -> __IMPOSSIBLE__
+          -- edges in the types of constructor arguments
+          underPath (`ConArgType`  c) $ occurrences tel1'
+          underPath (`ConEndpoint` c) $ occurrences bnd
 
---       -- If the data type has a transport constructor (i.e. it's an
---       -- indexed family in cubical mode) we should also consider it for
---       -- positivity.
---       mconcat $ pure ioccs : map conOcc (cs ++ maybeToList trx)
+          -- Occurrences in the indices of the data type the constructor targets.
+          -- Andreas, 2020-02-15, issue #4447:
+          -- WAS: @t@ is not necessarily a data type, but it could be something
+          -- that reduces to a data type once UnconfirmedReductions are confirmed
+          -- as safe by the termination checker.
+          -- In any case, if @t@ is not showing itself as the data type, we need to
+          -- do something conservative.  We will just collect *all* occurrences
+          -- and flip their sign (variance) using 'LeftOfArrow'.
+          case unEl t of
+            Def q' vs
+              | q == q' -> do
+                  let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
+                  -- TODO: in the original code, we have
+                  -- OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences telvars indices
+                  -- The OnlyVarsUpTo seems to be pointless, but we'll see
+                  underPath (`IndArgType` c) $ occurrences indices
 
---     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
---     Record{recPars = np, recTel = tel} -> do
---       let (tel0,tel1) = splitTelescopeAt np tel
---       pvars <- parametersToItems tel0 np
---       getOccurrences pvars =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
+              | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
+            Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
+            MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
+            Var{}      -> __IMPOSSIBLE__  -- not a constructor target
+            Sort{}     -> __IMPOSSIBLE__  -- not a constructor target
+            Lam{}      -> __IMPOSSIBLE__  -- not a type
+            Lit{}      -> __IMPOSSIBLE__  -- not a type
+            Con{}      -> __IMPOSSIBLE__  -- not a type
+            Level{}    -> __IMPOSSIBLE__  -- not a type
+            DontCare{} -> __IMPOSSIBLE__  -- not a type
+            Dummy{}    -> __IMPOSSIBLE__
 
---     -- Arguments to other kinds of definitions are hard-wired.
---     Constructor{}      -> mempty
---     Axiom{}            -> mempty
---     DataOrRecSig{}     -> mempty
---     Primitive{}        -> mempty
---     PrimitiveSort{}    -> mempty
---     GeneralizableVar{} -> mempty
---     AbstractDefn{}     -> __IMPOSSIBLE__
---   where
---     parametersToItems :: Telescope -> Nat -> TCM [Maybe Item]
---     parametersToItems tel n = reverse <$>
---       zipWithM (\i -> fmap (Just . AnArg i) . getOccurrencesFromType)
---         [0 .. n -1]
---         (snd . unDom <$> telToList tel)
+    Record{recClause = Just c} ->
+      occurrences =<< liftTCM (instantiateFull c)
 
+    Record{recPars = np, recTel = tel} -> do
+      let (tel0, tel1) = splitTelescopeAt np tel
+      pvars <- liftTCM $ paramsToDefArgs tel0
+      local (\env -> env {topDefArgs = pvars, locals = np}) do
+        occurrences =<< liftTCM (addContext tel0 (normalise tel1))
+        -- Andreas, 2017-01-01, issue #1899, treat like data types
 
+    -- Arguments to other kinds of definitions are hard-wired.
+    Constructor{}      -> mempty
+    Axiom{}            -> mempty
+    DataOrRecSig{}     -> mempty
+    Primitive{}        -> mempty
+    PrimitiveSort{}    -> mempty
+    GeneralizableVar{} -> mempty
+    AbstractDefn{}     -> __IMPOSSIBLE__
 
+buildOccurrenceGraph :: Set QName -> TCM OccGraph
+buildOccurrenceGraph topQs = do
 
+  inf <- fmap nameOfInf <$> coinductionKit
 
+  -- TODO: if we want to preserve old debug printing behavior,
+  -- we can collect graphs separately here and then merge them
+  let go :: [QName] -> OccGraph -> TCM OccGraph
+      go []     acc = pure acc
+      go (q:qs) acc = do
+        let env = OccEnv q [] inf 0 topQs (DefNode q) Root StrictPos
+        acc <- execStateT (runReaderT (computeDefOccurrences q) env) acc
+        go qs acc
 
-
-
-
-
-
-
-
-
-
-
-
-
-
---------------------------------------------------------------------------------
+  go (Set.toList topQs) mempty
