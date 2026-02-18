@@ -155,6 +155,7 @@ import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.Atomic
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictState qualified as Strict
+import Agda.Utils.ExpandCase
 
 
 import Agda.Utils.Impossible
@@ -5920,6 +5921,13 @@ bindReduce :: ReduceM a -> (a -> ReduceM b) -> ReduceM b
 bindReduce (ReduceM m) f = ReduceM $ \ e -> unReduceM (f $! m e) e
 {-# INLINE bindReduce #-}
 
+instance ExpandCase a => ExpandCase (ReduceM a) where
+  type Result (ReduceM a) = Result a
+  {-# INLINE expand #-}
+  expand k =
+   ReduceM (oneShot \ ~e ->
+     expand @a (oneShot \ret -> let !e' = e in k (oneShot \act -> ret (unReduceM act e'))))
+
 instance Functor ReduceM where
   fmap = fmapReduce
 
@@ -6341,6 +6349,13 @@ instance Functor m => Functor (TCMT m) where
 fmapTCMT :: Functor m => (a -> b) -> TCMT m a -> TCMT m b
 fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
 {-# INLINE fmapTCMT #-}
+
+instance ExpandCase (m a) => ExpandCase (TCMT m a) where
+  type Result (TCMT m a) = Result (m a)
+  {-# INLINE expand #-}
+  expand k =
+   TCM (oneShot \ ~st -> oneShot \ ~e ->
+     expand @(m a) (oneShot \ret -> let !st' = st; !e' = e in k (oneShot \act -> ret (unTCM act st' e'))))
 
 instance Applicative m => Applicative (TCMT m) where
   pure  = returnTCMT; {-# INLINE pure #-}

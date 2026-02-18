@@ -79,7 +79,6 @@ class ExpandCase a where
   default expand :: (Result a ~ a) => ((a -> Result a) -> Result a) -> a
   expand k = k id
 
-
 instance ExpandCase Any        where type Result Any        = Any
 instance ExpandCase All        where type Result All        = All
 instance ExpandCase ()         where type Result ()         = ()

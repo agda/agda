@@ -68,6 +68,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.ExpandCase
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
@@ -1337,8 +1338,9 @@ instance Normalise a => Normalise (Closure a) where
         return $ cl { clValue = x }
 
 instance (Subst a, Normalise a) => Normalise (Tele a) where
-  normalise' EmptyTel        = return EmptyTel
-  normalise' (ExtendTel a b) = uncurry ExtendTel <$> normalise' (a, b)
+  normalise' tel = expand \ret -> case tel of
+    EmptyTel      -> ret $ return EmptyTel
+    ExtendTel a b -> ret $ uncurry ExtendTel <$> normalise' (a, b)
 
 instance Normalise ProblemConstraint where
   normalise' (PConstr pid unblock c) = PConstr pid unblock <$> normalise' c

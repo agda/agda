@@ -1459,44 +1459,47 @@ alwaysMakeAbstract d =
     makeAbs AbstractDefn{} = __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
-{-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
+{-# INLINE inAbstractMode #-}
 inAbstractMode :: MonadTCEnv m => m a -> m a
 inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode }
 
 -- | Not in abstract mode. All abstract definitions are opaque.
-{-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
+{-# INLINE inConcreteMode #-}
 inConcreteMode :: MonadTCEnv m => m a -> m a
 inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
 
+{-# INLINE ignoreAbstractMode#-}
 -- | Ignore abstract mode. All abstract definitions are transparent.
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
 ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
 -- | Go under the given opaque block. The unfolding set will turn opaque
 -- definitions transparent.
-{-# SPECIALIZE underOpaqueId :: OpaqueId -> TCM a -> TCM a #-}
+{-# INLINE underOpaqueId #-}
 underOpaqueId :: MonadTCEnv m => OpaqueId -> m a -> m a
 underOpaqueId i = localTC $ \e -> e { envCurrentOpaqueId = Just i }
 
 -- | Outside of any opaque blocks.
-{-# SPECIALIZE notUnderOpaque :: TCM a -> TCM a #-}
+{-# INLINE notUnderOpaque #-}
 notUnderOpaque :: MonadTCEnv m => m a -> m a
 notUnderOpaque = localTC $ \e -> e { envCurrentOpaqueId = Nothing }
 
 -- | Enter the reducibility environment associated with a definition:
 -- The environment will have the same concreteness as the name, and we
 -- will be in the opaque block enclosing the name, if any.
-{-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
+{-# INLINE inConcreteOrAbstractMode #-}
 inConcreteOrAbstractMode :: (HasConstInfo m) => QName -> (Definition -> m a) -> m a
 inConcreteOrAbstractMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
   def <- ignoreAbstractMode $ getConstInfo q
   let
+    {-# INLINE k1 #-}
     k1 = case defAbstract def of
       AbstractDef -> inAbstractMode
       ConcreteDef -> inConcreteMode
 
+    {-# INLINE k2 #-}
     k2 = case defOpaque def of
       OpaqueDef i    -> underOpaqueId i
       TransparentDef -> notUnderOpaque

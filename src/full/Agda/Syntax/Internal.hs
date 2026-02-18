@@ -51,6 +51,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.Size
+import Agda.Utils.ExpandCase
 import qualified Agda.Utils.CompactRegion as Compact
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 
@@ -348,6 +349,8 @@ instance LensSort a => LensSort (Arg a) where
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
   deriving (Show, Functor, Foldable, Traversable, Generic)
+
+instance ExpandCase (Tele a) where type Result (Tele a) = Tele a
 
 type Telescope = Tele (Dom Type)
 

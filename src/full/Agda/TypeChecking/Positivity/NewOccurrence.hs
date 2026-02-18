@@ -1,14 +1,20 @@
-
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE Strict #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
+{-# OPTIONS_GHC -fmax-worker-args=20 #-}
 {-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
+
+#if __GLASGOW_HASKELL__ > 902
+{-# OPTIONS_GHC -fworker-wrapper-cbv #-}
+#endif
 
 module Agda.TypeChecking.Positivity.NewOccurrence where
 
 import Prelude hiding ( null, (!!) )
 
-import Data.Foldable
+-- import Data.Foldable
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -27,14 +33,17 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Syntax.Common
+-- import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
 import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.Map qualified as Map
 import Agda.Utils.Maybe
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
+import Agda.Utils.Monad
 import Agda.Utils.StrictReader
 import Agda.Utils.StrictState
+import Agda.Utils.ExpandCase
 
 --------------------------------------------------------------------------------
 {-
@@ -68,7 +77,7 @@ data Path
   | Matched Path                  -- ^ matched against in a clause of a defined function
   | IsIndex Path                  -- ^ is an index of an inductive family
   | InDefOf Path QName            -- ^ in the definition of a constant
-  deriving (Eq, Ord, Show)
+  deriving (Show)
 
 data Node = DefNode QName | ArgNode QName Nat
   deriving (Eq, Ord)
@@ -141,20 +150,21 @@ addEdge src = do
   occ    <- asks occ
   let e = Edge occ path
   modify $ Map.insertWithGood
-    (\_ -> Map.insertWithGood mergeEdges target e)
+    (\(!e,!target) _ m -> Map.insertWithGood (\_ -> mergeEdges) () target e m)
+    (e,target)
     src
     (Map.singleton target e)
 
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
-occurrencesInDefArg d p i e =
+occurrencesInDefArg d p i e = expand \ret -> ret do
   underOcc p $ underPath (\p -> DefArg p d i) $ occurrences e
 
 occurrencesInDefArgArg :: Occurrence -> Int -> Elim -> OccM ()
-occurrencesInDefArgArg p i e =
+occurrencesInDefArgArg p i e = expand \ret -> ret do
   underOcc p $ underPath (`VarArg` i) $ occurrences e
 
 occurrencesInMutDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
-occurrencesInMutDefArg d p i e =
+occurrencesInMutDefArg d p i e = expand \ret -> ret do
   underOcc p $ underPath (\p -> DefArg p d i) $ do
     let newNode = ArgNode d i
     addEdge newNode  -- add edge from argument node to target
@@ -177,15 +187,19 @@ instance ComputeOccurrences Term where
       -- it's a locally bound variable, all args are Mixed occurrence,
       -- we don't record an occurrence for the variable
       if x < locals then do
-        let elims i []     = pure ()
-            elims i (e:es) = underPath (`VarArg` i) (occurrences e) >> elims (i + 1) es
+        let elims i es = expand \ret -> case es of
+              []   -> ret $ pure ()
+              e:es -> ret $ underPath (`VarArg` i) (occurrences e) >> elims (i + 1) es
+
         underOcc Mixed $ elims 0 es
 
       -- it's bound in a top-level definition argument
       else do
-        let elims i _      []     = pure ()
-            elims i []     (e:es) = occurrencesInDefArgArg Mixed i e >> elims (i + 1) [] es
-            elims i (p:ps) (e:es) = occurrencesInDefArgArg p i e     >> elims (i + 1) ps es
+        let elims i ps es = expand \ret -> case (ps, es) of
+              (_   , []  ) -> ret $ pure ()
+              ([]  , e:es) -> ret $ occurrencesInDefArgArg Mixed i e >> elims (i + 1) [] es
+              (p:ps, e:es) -> ret $ occurrencesInDefArgArg p i e     >> elims (i + 1) ps es
+
         topDefArgs <- asks topDefArgs
         topDef     <- asks topDef
         let DefArgInEnv argix ps = topDefArgs !! (x - locals)
@@ -206,24 +220,27 @@ instance ComputeOccurrences Term where
           addEdge (DefNode d)
           case theDef def of
             Constructor{} -> do
-              let elims i []     = pure ()
-                  elims i (e:es) = do occurrencesInMutDefArg d StrictPos i e
-                                      elims (i + 1) es
+              let elims i es = expand \ret -> case es of
+                    []   -> ret $ pure ()
+                    e:es -> ret do occurrencesInMutDefArg d StrictPos i e
+                                   elims (i + 1) es
               elims 0 es
 
             _ -> do
               let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims' d i _      []     = pure ()
-                  elims' d i (p:ps) (e:es) = do occurrencesInMutDefArg d p i e
-                                                elims' d (i + 1) ps es
-                  elims' _ _ _      _      = __IMPOSSIBLE__
+                  elims' d i ps es = expand \ret -> case (ps, es) of
+                    (_   , []  ) -> ret $ pure ()
+                    (p:ps, e:es) -> ret do occurrencesInMutDefArg d p i e
+                                           elims' d (i + 1) ps es
+                    _            -> __IMPOSSIBLE__
 
               let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims d a i _      []     = pure ()
-                  elims d a i (p:ps) (e:es) = do occurrencesInMutDefArg d p i e
-                                                 elims d a (i + 1) ps es
-                  elims d a i []     (e:es) = do ps <- liftTCM $ getOccurrencesFromType a
-                                                 elims' d i (drop i ps) (e:es)
+                  elims d a i ps es = expand \ret -> case (ps, es) of
+                    (_   , []   ) -> ret $ pure ()
+                    (p:ps,  e:es) -> ret do occurrencesInMutDefArg d p i e
+                                            elims d a (i + 1) ps es
+                    ([]  ,  e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
+                                            elims' d i (drop i ps) (e:es)
 
               elims d (defType def) 0 (defArgOccurrences def) es
 
@@ -231,24 +248,27 @@ instance ComputeOccurrences Term where
         else case theDef def of
 
           Constructor{} -> do
-            let elims i []     = pure ()
-                elims i (e:es) = do occurrencesInDefArg d StrictPos i e
-                                    elims (i + 1) es
+            let elims i es = expand \ret -> case es of
+                  []   -> ret $ pure ()
+                  e:es -> ret do occurrencesInDefArg d StrictPos i e
+                                 elims (i + 1) es
             elims 0 es
 
           _ -> do
             let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
-                elims' d i _      []     = pure ()
-                elims' d i (p:ps) (e:es) = do occurrencesInMutDefArg d p i e
-                                              elims' d (i + 1) ps es
-                elims' _ _ _      _      = __IMPOSSIBLE__
+                elims' d i ps es = expand \ret -> case (ps, es) of
+                  (_   , []  ) -> ret $ pure ()
+                  (p:ps, e:es) -> ret do occurrencesInMutDefArg d p i e
+                                         elims' d (i + 1) ps es
+                  _            -> __IMPOSSIBLE__
 
             let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
-                elims d a i _      []     = pure ()
-                elims d a i (p:ps) (e:es) = do occurrencesInMutDefArg d p i e
-                                               elims d a (i + 1) ps es
-                elims d a i []     (e:es) = do ps <- liftTCM $ getOccurrencesFromType a
-                                               elims' d i (drop i ps) (e:es)
+                elims d a i ps es = expand \ret -> case (ps, es) of
+                  (_   , []  ) -> ret $ pure ()
+                  (p:ps, e:es) -> ret do occurrencesInMutDefArg d p i e
+                                         elims d a (i + 1) ps es
+                  ([]  , e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
+                                         elims' d i (drop i ps) (e:es)
 
             elims d (defType def) 0 (defArgOccurrences def) es
 
@@ -266,13 +286,15 @@ instance ComputeOccurrences Term where
 
 addClauseArgMatches :: NAPs -> OccM ()
 addClauseArgMatches = go 0 where
-  go i []     = pure ()
-  go i (p:ps) = do
-    liftTCM (properlyMatching (namedThing $ unArg p)) >>= \case
-      True  -> do topDef <- asks topDef
-                  underPathOcc Matched Mixed $ addEdge (ArgNode topDef i)
-      False -> pure ()
-    go (i + 1) ps
+  go :: Int -> NAPs -> OccM ()
+  go i ps = expand \ret -> case ps of
+    []   -> ret $ pure ()
+    p:ps -> ret do
+      liftTCM (properlyMatching (namedThing $ unArg p)) >>= \case
+        True  -> do topDef <- asks topDef
+                    underPathOcc Matched Mixed $ addEdge (ArgNode topDef i)
+        False -> pure ()
+      go (i + 1) ps
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
@@ -288,6 +310,7 @@ instance ComputeOccurrences Clause where
       let collectArgs :: Int -> NAPs -> [DefArgInEnv] -> [DefArgInEnv]
           collectArgs i []     acc = acc
           collectArgs i (p:ps) acc =
+            -- TODO: shit Core for Pattern foldl'
             let acc' = foldl' (\acc _ -> DefArgInEnv i [] : acc) acc
                               (namedThing $ unArg p)
             in collectArgs (i + 1) ps acc'
@@ -356,9 +379,10 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
 
   let paramsToDefArgs :: Telescope -> TCM [DefArgInEnv]
       paramsToDefArgs tel = go 0 (telToList tel) [] where
-        go i []     acc = pure acc
-        go i (a:as) acc = do occs <- getOccurrencesFromType (snd (unDom a))
-                             go (i + 1) as (DefArgInEnv i occs : acc)
+        go i as acc = expand \ret -> case as of
+          []   -> ret $ pure acc
+          a:as -> ret do occs <- getOccurrencesFromType (snd (unDom a))
+                         go (i + 1) as (DefArgInEnv i occs : acc)
 
   underPath (`InDefOf` q) $ case theDef def of
 
@@ -366,8 +390,9 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
       cs <- liftTCM $ mapM etaExpandClause =<< instantiateFull cs
       performAnalysis <- liftTCM $ optOccurrence <$> pragmaOptions
       if performAnalysis then do
-        let clauses i []     = pure ()
-            clauses i (c:cs) = underPath (`InClause` i) (occurrences c) >> clauses (i + 1) cs
+        let clauses i cs = expand \ret -> case cs of
+              []   -> ret $ pure ()
+              c:cs -> ret $ underPath (`InClause` i) (occurrences c) >> clauses (i + 1) cs
         clauses 0 cs
       else case cs of
         []   -> __IMPOSSIBLE__
@@ -389,10 +414,10 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
       let np = np0 + sizeIndex -- number of parameters
 
       -- add edges for parameters
-      forM_ [np0 .. np - 1] \i -> addEdge (ArgNode q i)
+      rangeM_ np0 (np - 1) \i -> addEdge (ArgNode q i)
 
       -- add edges for indices
-      underPath IsIndex $ forM_ [np .. size telD - 1] \i -> addEdge (ArgNode q i)
+      underPath IsIndex $ rangeM_ np (size telD - 1) \i -> addEdge (ArgNode q i)
 
 
       -- Then, we compute the occurrences in the constructor types.
@@ -401,7 +426,7 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
       -- If the data type has a transport constructor (i.e. it's an
       -- indexed family in cubical mode) we should also consider it for
       -- positivity.
-      forM_ (maybeToList trx ++ cs) \c -> do
+      forMGood_ (maybeToList trx ++ cs) \c -> do
          -- Andreas, 2020-02-15, issue #4447:
          -- Allow UnconfimedReductions here to make sure we get the constructor type
          -- in same way as it was obtained when the data types was checked.
@@ -476,10 +501,10 @@ buildOccurrenceGraph topQs = do
   -- TODO: if we want to preserve old debug printing behavior,
   -- we can collect graphs separately here and then merge them
   let go :: [QName] -> OccGraph -> TCM OccGraph
-      go []     acc = pure acc
-      go (q:qs) acc = do
-        let env = OccEnv q [] inf 0 topQs (DefNode q) Root StrictPos
-        acc <- execStateT (runReaderT (computeDefOccurrences q) env) acc
-        go qs acc
+      go qs acc = expand \ret -> case qs of
+        []   -> ret $ pure acc
+        q:qs -> ret do let env = OccEnv q [] inf 0 topQs (DefNode q) Root StrictPos
+                       acc <- execStateT (runReaderT (computeDefOccurrences q) env) acc
+                       go qs acc
 
   go (Set.toList topQs) mempty
