@@ -1,11 +1,13 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --cubical #-}
 
-open import Agda.Builtin.Equality
-open import Agda.Builtin.Equality.Rewrite
+open import Agda.Builtin.Cubical.Path
+open import Agda.Primitive.Cubical
 open import Agda.Builtin.Nat renaming (zero to ze; suc to su) hiding (_-_)
 
 -- Based on 7.4: Quotients from https://hal.science/hal-05160846/document
 module LocalRewriteQuotient where
+
+{-# BUILTIN REWRITE _≡_ #-}
 
 module Utils where
   infixr 5 _∙_
@@ -14,14 +16,20 @@ module Utils where
     A B C : Set _
     x y z : A
 
+  refl : x ≡ x
+  refl {x = x} i = x
+
   sym : x ≡ y → y ≡ x
-  sym refl = refl
+  sym p i = p (primINeg i)
 
   _∙_ : x ≡ y → y ≡ z → x ≡ z
-  refl ∙ q = q
+  _∙_ {z = z} p q i
+    = primHComp (λ where j (i = i0) → p (primINeg j)
+                         j (i = i1) → z)
+                (q i)
 
   ap : (f : A → B) → x ≡ y → f x ≡ f y
-  ap f refl = refl
+  ap f p i = f (p i)
 open Utils
 
 variable
@@ -42,15 +50,18 @@ record Quotients : Set₁ where
 
 open Quotients using (lift-mk≡)
 
+-- We define this outside of 'UsingQuotients' because of an incompatibility
+-- between '--cubical' and datatypes with '@rew' arguments in their telescope.
+-- Specifically, what should the generated type for 'transp' be?
+record PreInt : Set where
+  constructor _-_
+  field
+    pos : Nat
+    neg : Nat
+
 module UsingQuotients (𝒬 : Quotients)
                       (@rew lift-mk : lift-mk≡ 𝒬) where
   open Quotients 𝒬
-
-  record PreInt : Set where
-    constructor _-_
-    field
-      pos : Nat
-      neg : Nat
 
   _≈Int_ : PreInt → PreInt → Set
   (n₁ - k₁) ≈Int (n₂ - k₂) = n₁ + k₂ ≡ n₂ + k₁
@@ -92,10 +103,27 @@ fakeQuotients .lift  f p x = f x
 fakeQuotients .sound       = cheat
   where postulate cheat : _
 
-open UsingQuotients fakeQuotients refl
+module F = UsingQuotients fakeQuotients refl
 
-test₂ : ∀ {n k} → negate (n - k) ≡ k - n
+test₂ : ∀ {n k} → F.negate (n - k) ≡ k - n
 test₂ = refl
 
--- If we wanted to be really fancy, we could enable --cubical and open
--- UsingQuotients with a quotient HIT...
+-- In Cubical Agda, we don't *have* to fake quotients. We can also implement
+-- them with HITs.
+
+-- Non-truncated quotient ("type quotient")
+data QuotHIT (A : Set) (_≈_ : A → A → Set) : Set where
+  mkHIT    : A → QuotHIT A _≈_
+  soundHIT : ∀ {x y} → x ≈ y → mkHIT x ≡ mkHIT y
+
+hitQuotients : Quotients
+hitQuotients .Quot   = QuotHIT
+hitQuotients .mk _≈_ = mkHIT
+hitQuotients .lift  f p (mkHIT x)      = f x
+hitQuotients .lift  f p (soundHIT q i) = p q i
+hitQuotients .sound = soundHIT
+
+module H = UsingQuotients hitQuotients refl
+
+test₃ : ∀ {n k} → H.negate (mkHIT (n - k)) ≡ mkHIT (k - n)
+test₃ = refl

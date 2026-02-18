@@ -140,6 +140,9 @@ assignTerm x tel v = do
 -- | Skip frozen check.  Used for eta expanding frozen metas.
 assignTermTCM' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTermTCM' x tel v = do
+    -- TODO: The 'prettyTCM v' here can hit impossible because we are not in the
+    -- right context. Really, we should abstract over 'tel' but this is not
+    -- so easy because we only have the names.
     reportSDoc "tc.meta.assign" 70 $ vcat
       [ "assignTerm" <+> prettyTCM x <+> " := " <+> prettyTCM v
       , nest 2 $ "tel =" <+> prettyList_ (map (text . unArg) tel)
