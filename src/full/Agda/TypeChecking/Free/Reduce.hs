@@ -25,10 +25,11 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Free.Precompute
 
 import Agda.Utils.Monad
-import Agda.Utils.Null
+import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
 
@@ -36,7 +37,7 @@ import Agda.Utils.VarSet (VarSet)
 --   (`MaybeFree`).  In the latter case, the occurrence may disappear
 --   depending on the instantiation of some set of metas.
 data IsFree
-  = MaybeFree MetaSet
+  = MaybeFree FlexRig
   | NotFree
   deriving (Eq, Show)
 
@@ -50,7 +51,7 @@ forceNotFree xs a = do
   -- Initially, all variables are marked as `NotFree`. This is changed
   -- to `MaybeFree` when we find an occurrence.
   let mxs = IntMap.fromDistinctAscList $ fmap (, NotFree) $ VarSet.toAscList xs
-  (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) mempty) mxs
+  (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) oneFlexRig) mxs
   return (mxs, a)
 
 -- | Checks if the given term contains any free variables that are in
@@ -64,26 +65,21 @@ reallyFree :: (MonadReduce m, Reduce a, ForceNotFree a)
 reallyFree xs v = do
   (mxs , v') <- forceNotFree xs v
   case IntMap.foldr pickFree NotFree mxs of
-    MaybeFree ms
-      | null ms   -> return $ Right Nothing
-      | otherwise -> return $ Left $ Blocked blocker ()
-      where blocker = metaSetToBlocker ms
+    MaybeFree (Flexible ms) -> do
+      let blocker = metaSetToBlocker ms
+      return $ Left $ Blocked blocker ()
+    MaybeFree _ -> return $ Right Nothing
     NotFree -> return $ Right (Just v')
 
   where
     -- Check if any of the variables occur freely.
-    -- Prefer occurrences that do not depend on any metas.
     pickFree :: IsFree -> IsFree -> IsFree
-    pickFree f1@(MaybeFree ms1) f2
-      | null ms1  = f1
-    pickFree f1@(MaybeFree ms1) f2@(MaybeFree ms2)
-      | null ms2  = f2
-      | otherwise = f1
-    pickFree f1@(MaybeFree ms1) NotFree = f1
+    pickFree (MaybeFree ms1) (MaybeFree ms2) = MaybeFree (ms1 `addFlexRig` ms2)
+    pickFree f1 NotFree = f1
     pickFree NotFree f2 = f2
 
 type MonadFreeRed m =
-  ( MonadReader MetaSet m
+  ( MonadReader FlexRig m
   , MonadState (IntMap IsFree) m
   , MonadReduce m
   )
@@ -162,12 +158,15 @@ instance ForceNotFree Term where
     Var x es   -> do
       metas <- ask
       modify $ IntMap.adjust (const $ MaybeFree metas) x
-      Var x <$> forceNotFree' es
-    Def f es   -> Def f    <$> forceNotFree' es
-    Con c h es -> Con c h  <$> forceNotFree' es
-    MetaV x es -> local (insertMetaSet x) $
+      underFlexRig WeaklyRigid $ Var x <$> forceNotFree' es
+    Def f es   -> underFlexRig WeaklyRigid $
+                  Def f    <$> forceNotFree' es
+    Con c h es -> underConstructor c es $
+                  Con c h  <$> forceNotFree' es
+    MetaV x es -> underFlexRig (Flexible $ singleton x) $
                   MetaV x  <$> forceNotFree' es
-    Lam h b    -> Lam h    <$> forceNotFree' b
+    Lam h b    -> underFlexRig WeaklyRigid $
+                  Lam h    <$> forceNotFree' b
     Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
@@ -186,11 +185,17 @@ instance ForceNotFree Sort where
   -- away without forceNotFreeR here.
   forceNotFree' = \case
     Univ u l     -> Univ u <$> forceNotFree' l
-    PiSort a b c -> PiSort <$> forceNotFree' a <*> forceNotFree' b <*> forceNotFree' c
+    PiSort a b c -> PiSort
+                    <$> underFlexRig (Flexible mempty) (forceNotFree' a)
+                    <*> underFlexRig WeaklyRigid (forceNotFree' b)
+                    <*> underFlexRig WeaklyRigid (forceNotFree' c)
     FunSort a b -> FunSort <$> forceNotFree' a <*> forceNotFree' b
-    UnivSort s -> UnivSort <$> forceNotFree' s
-    MetaS x es -> MetaS x  <$> forceNotFree' es
-    DefS d es  -> DefS d   <$> forceNotFree' es
+    UnivSort s -> underFlexRig WeaklyRigid $
+                  UnivSort <$> forceNotFree' s
+    MetaS x es -> underFlexRig (Flexible $ singleton x) $
+                  MetaS x  <$> forceNotFree' es
+    DefS d es  -> underFlexRig WeaklyRigid $
+                  DefS d   <$> forceNotFree' es
     s@(Inf _ _)-> return s
     s@SizeUniv -> return s
     s@LockUniv -> return s
