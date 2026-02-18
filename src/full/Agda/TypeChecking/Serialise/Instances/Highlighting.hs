@@ -85,7 +85,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.DottedPattern        = pure 2
   icod_ HP.UnsolvedMeta         = pure 3
   icod_ HP.TerminationProblem   = pure 4
-  icod_ HP.IncompletePattern    = pure 5
+  -- 5 is unused
   icod_ HP.TypeChecks           = pure 6
   icod_ HP.UnsolvedConstraint   = pure 7
   icod_ HP.PositivityProblem    = pure 8
@@ -104,7 +104,7 @@ instance EmbPrj HP.OtherAspect where
     2  -> pure HP.DottedPattern
     3  -> pure HP.UnsolvedMeta
     4  -> pure HP.TerminationProblem
-    5  -> pure HP.IncompletePattern
+    -- 5 is unused
     6  -> pure HP.TypeChecks
     7  -> pure HP.UnsolvedConstraint
     8  -> pure HP.PositivityProblem

@@ -496,7 +496,28 @@ processCode toks' = do
     -- Translation from OtherAspect to command strings. So far it happens
     -- to correspond to @show@ but it does not have to (cf. fromAspect)
     fromOtherAspect :: OtherAspect -> Text
-    fromOtherAspect = T.pack . show
+    fromOtherAspect a = let s = T.pack (show a) in
+      -- Andreas, 2026-02-17, issue #8402
+      -- Expand OtherAspect into all of its cases
+      -- such that a developer adding to OtherAspect gets alerted here.
+      -- All ASPECTs need a corresponding @\AgdaASPECT@ command in agda.sty.
+      case a of
+        Error                -> s
+        ErrorWarning         -> s
+        DottedPattern        -> s
+        UnsolvedMeta         -> s
+        UnsolvedConstraint   -> s
+        TerminationProblem   -> s
+        PositivityProblem    -> s
+        Deadcode             -> s
+        ShadowingInTelescope -> s
+        CoverageProblem      -> s
+        TypeChecks           -> s
+        MissingDefinition    -> s
+        InstanceProblem      -> s
+        CosmeticProblem      -> s
+        CatchallClause       -> s
+        ConfluenceProblem    -> s
 
     fromAspect :: Aspect -> [Text]
     fromAspect a = let s = [T.pack $ show a] in case a of

@@ -1276,12 +1276,6 @@ instance PrettyTCM TypeError where
       ) $$ nest 2 (vcat $ map pretty ps)
 -}
 
-{- UNUSED
-    IncompletePatternMatching v args -> fsep $
-      pwords "Incomplete pattern matching for" ++ [prettyTCM v <> "."] ++
-      pwords "No match for" ++ map prettyTCM args
--}
-
     SplitError e -> prettyTCM e
 
     ImpossibleConstructor c neg -> fsep $

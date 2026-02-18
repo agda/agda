@@ -5421,7 +5421,6 @@ data TypeError
     -- Modality errors
         | UnusableAtModality WhyCheckModality Modality Term
     -- Coverage errors
--- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
         | ImpossibleConstructor QName NegativeUnification
     -- Positivity and polarity errors
