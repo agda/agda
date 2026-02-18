@@ -731,13 +731,15 @@ prepareCommonAssets dir = do
      unlessM (pure dirExisted `and2M` liftIO (doesFileExist agdaSty)) $ do
        -- It is safe now to create the default style file in @dir@ without overwriting
        -- a possibly user-edited copy there.
-       logLaTeX $ LogMessage FileSystem
-         (T.pack $ unwords [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir])
-         []
+       logFileSystem $ unwords $
+         [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir]
        liftIO $ do
          styFile <- getDataFileName $
            latexDataDir </> defaultStyFile
          copyFile styFile agdaSty
+
+logFileSystem :: (MonadLogLaTeX m) => String -> m ()
+logFileSystem s = logLaTeX $ LogMessage FileSystem (T.pack s) []
 
 -- | Generates a LaTeX file for the given interface.
 generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> m ()
@@ -751,6 +753,7 @@ generateLaTeXIO opts i = do
               (latexOptSourceFileName opts)
               (iSource i)
               (iHighlighting i)
+  logFileSystem $ unwords [ "writing", outPath ]
   liftIO $ do
     createDirectoryIfMissing True (takeDirectory outPath)
     BS.writeFile outPath latex
