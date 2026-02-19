@@ -177,7 +177,7 @@ data ExprKind = IsExpr | IsPattern DisplayLHS
 isKindPattern :: ExprKind -> Bool
 isKindPattern (IsPattern _) = True
 isKindPattern IsExpr        = False
- 
+
 -- | Is this data type a modality
 data IsModality
   = YesModality

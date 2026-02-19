@@ -5,7 +5,7 @@ module _ where
 data Sharp (@♯ A : Set) : Set where
   con : (@♯ x : A) → Sharp A
 
-{-# MODALOP Sharp #-}
+{-# MODALOP Sharp #-}
 
 unit : {A : Set} → A → Sharp A
 unit x = con x

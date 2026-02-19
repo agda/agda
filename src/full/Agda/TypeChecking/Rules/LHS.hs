@@ -1594,7 +1594,7 @@ checkLHS mf = updateModality checkLHS_ where
             ]
           return st'
 
--- | Checks if data is a splittable modality 
+-- | Checks if data is a splittable modality
 isModSplitDatatype :: (MonadTCError m, HasConstInfo m)
   => QName        -- ^ The name of the data or record type the constructor belongs to.
   -> m Bool
