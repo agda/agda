@@ -799,14 +799,13 @@ assignWrapper dir x es v doAssign = do
           reportSLn "tc.meta.assign" 10 "don't assign metas"
           patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
 
+allRewDoms :: Tele (Dom Type) -> [RewDom]
+allRewDoms = mapMaybe rewDom . flattenTel
+
 -- | Gets the set of variables forced by local rewrite rules
-rewForced :: Tele (Dom a) -> VarSet
-rewForced EmptyTel        = VarSet.empty
-rewForced (ExtendTel a b) =
-  fromMaybe VarSet.empty
-    (VarSet.weaken (size b + 1) . rewForced' . fromMaybe __IMPOSSIBLE__ .
-      rewDomRew <$> rewDom a) <>
-    (rewForced $ unAbs b)
+rewForced :: Tele (Dom Type) -> VarSet
+rewForced =
+  foldMap (rewForced' . fromMaybe __IMPOSSIBLE__ . rewDomRew) . allRewDoms
   where
     rewForced' :: LocalRewriteRule -> VarSet
     rewForced' (LocalRewriteRule EmptyTel (RewVarHead x) [] _ _) =
@@ -1076,10 +1075,12 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       reportSDoc "tc.meta.assign" 20 $
         "fvars rhs:" <+> sep (map (text . show) $ VarSet.toAscList fvs)
 
+      let n = length args
+      TelV mTel _ <- telViewUpToPath n t
+
       -- We need to identify arguments to the meta that are forced by local
       -- rewrite rules
-      forced <- fmap (rewForced . theTel) $ telView $ jMetaType $
-        mvJudgement mvar
+      let forced = rewForced mTel
 
       -- Check that the arguments are variables
       mids <- do
@@ -1126,7 +1127,6 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
             let idvars = map (second freeVarSet) ids
             -- earlierThan α v := v "arrives" before α
             let earlierThan l j = j > l
-            TelV tel' _ <- telViewUpToPath (length args) t
             forM_ ids $ \(i,u) -> do
               d <- domOfBV i
               case getLock (getArgInfo d) of
@@ -1134,12 +1134,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
                 IsLock{} -> do
                 let us = VarSet.unions $ map snd $ filter (earlierThan i . fst) idvars
                 -- us Earlier than u
-                unlessM (addContext tel' $ checkEarlierThan u us) $
+                unlessM (addContext mTel $ checkEarlierThan u us) $
                   patternViolation (unblockOnMeta x)  -- If the earlier check hard-fails we need to
                                                       -- solve this meta in some other way.
-
-          let n = length args
-          TelV tel' _ <- telViewUpToPath n t
 
           -- Check subtyping constraints on the context variables.
 
@@ -1156,7 +1153,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           hasSubtyping <- optCumulativity <$> pragmaOptions
           when hasSubtyping $ forM_ ids $ \(i , u) -> do
             -- @u@ is a (projected) variable, so we can infer its type
-            a  <- applySubst sigma <$> addContext tel' (infer u)
+            a  <- applySubst sigma <$> addContext mTel (infer u)
             a' <- typeOfBV i
             checkSubtypeIsEqual a' a
               `catchError` \case
@@ -1361,21 +1358,52 @@ assignMeta' m x t n ids v = do
       rho = prependS impossible ivs $ raiseS n
       v'  = applySubst rho v
 
+  -- Variables corresponding to local rewrite rules
+  eqVars <- catMaybes <$> forM [0..m - 1] \i -> do
+    d <- domOfBV i
+    pure $ boolToMaybe (isJust $ rewDom d) i
+
+  -- Variables not strengthened away
+  let notDropped = VarSet.fromList $ fmap fst ids
+
   -- Metas are top-level so we do the assignment at top-level.
   inTopContext $ do
+
     -- Andreas, 2011-04-18 to work with irrelevant parameters
     -- we need to construct tel' from the type of the meta variable
     -- (no longer from ids which may not be the complete variable list
     -- any more)
     reportSDoc "tc.meta.assign" 15 $ "type of meta =" <+> prettyTCM t
 
-    (telv@(TelV tel' a), bs) <- telViewUpToPathBoundary n t
-    reportSDoc "tc.meta.assign" 30 $ "tel'  =" <+> prettyTCM tel'
+    (telv@(TelV mTel a), bs) <- telViewUpToPathBoundary n t
+    reportSDoc "tc.meta.assign" 30 $ "tel'  =" <+> prettyTCM mTel
     reportSDoc "tc.meta.assign" 30 $ "#args =" <+> text (show n)
+
+    -- Solving metas in contexts with extra local rewrite rules is
+    -- problematic because solutions that appear unique locally may not be
+    -- globally unique.
+    -- We fix this by checking that every local rewrite rule in the solution
+    -- context is mapped to a local rewrite rule in the meta's context.
+    -- This is conservative, but should at least be pretty fast.
+    --
+    -- One especially awkward consequence is that pruning might prune away a
+    -- dependency of a local rewrite rule and then cause this check to fail.
+    -- Perhaps pruning should never prune local rewrite rules...
+
+    stillRews <- addContext mTel $ forM eqVars \i -> do
+      if not $ VarSet.member i notDropped then pure False else do
+      case deBruijnView $ lookupS rho i of
+        Just i' -> isJust . rewDom <$> domOfBV i'
+        Nothing -> pure False
+
+    -- The current context has a rewrite rule which does not appear to be
+    -- in the meta's
+    unless (and stillRews) $ patternViolation neverUnblock
+
     -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
     -- types for the arguments, it might be blocked by a meta;
     -- then we give up. (Issue 903)
-    when (size tel' < n) $ do
+    when (size mTel < n) $ do
       a <- abortIfBlocked a
       reportSDoc "impossible" 10 $ "not enough pis, but not blocked?" <?> pretty a
       __IMPOSSIBLE__   -- If we get here it was _not_ blocked by a meta!
@@ -1389,12 +1417,12 @@ assignMeta' m x t n ids v = do
       m <- lookupLocalMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
       catchConstraint (CheckMetaInst x) $
-        addContext tel' $ checkSolutionForMeta x m v' a
+        addContext mTel $ checkSolutionForMeta x m v' a
 
     reportSDoc "tc.meta.assign" 10 $
-      "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM (abstract tel' v')
+      "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM (abstract mTel v')
 
-    assignTerm x (telToArgs tel') v'
+    assignTerm x (telToArgs mTel) v'
   where
     blockOnBoundary :: TelView -> Boundary -> Term -> TCM Term
     blockOnBoundary telv         (Boundary []) v = return v
