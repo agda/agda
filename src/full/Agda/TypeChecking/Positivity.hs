@@ -112,14 +112,15 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
   reportSDoc "tc.pos.tick" 100 $ "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
-  reportSDoc "tc.pos.graph" 1 $ vcat
+
+  reportSDoc "tc.pos.graph" 5 $ vcat
     [ "positivity graph for" <+> fsep (map prettyTCM qs)
     , nest 2 $ prettyTCM filteredg
     , text ""
     , text (show g')
     , text ""
     ]
-  reportSDoc "tc.pos.graph" 1 $ vcat
+  reportSDoc "tc.pos.graph" 5 $ vcat
     [ "new occurrence graph"
     , nest 2 $ prettyTCM gnew
     , text ""
@@ -127,6 +128,24 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
     , "COMPARISON" <+> text (show (g' == gnew'))
     , text ""
     ]
+
+  when (g' /= gnew') do
+    reportSDoc "tc.pos.graph" 1 $ vcat
+      [ "positivity graph for" <+> fsep (map prettyTCM qs)
+      , nest 2 $ prettyTCM filteredg
+      , text ""
+      , text (show g')
+      , text ""
+      ]
+    reportSDoc "tc.pos.graph" 1 $ vcat
+      [ "new occurrence graph"
+      , nest 2 $ prettyTCM gnew
+      , text ""
+      , text (show gnew')
+      , "COMPARISON" <+> text (show (g' == gnew'))
+      , text ""
+      ]
+    error "OCCURRENCE GRAPH MISMATCH"
 
   reportSLn "tc.pos.graph" 5 $
     "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)

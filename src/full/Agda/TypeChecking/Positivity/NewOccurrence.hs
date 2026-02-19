@@ -51,7 +51,9 @@ import Agda.Utils.ExpandCase
 TODO:
 - TRANSPOSE graph + use bfs!
 
-- Use new sane telView in data constructor processing
+- Don't recurse into Unused non-mut def args!
+
+- Pure telView-s as much as possible
 
 - handle Inf occurrence
 
@@ -59,12 +61,21 @@ TODO:
   (only need one SCC implementation and one BFS for positivity+error msg)
 
 Possible issues in old impl:
-- lack of Path/Occ handling in record constructors.
+- lack of Path/Occ handling in record constructors?
+
 - In no-occurrence-analysis mode we only look at the first clause of functions to
   match the args
+
 - computeDefOccurrences tel1' : why addContext?
-- For function definitions, old implementation puts a Def --> <empty map> edge
-  into the graph. Looks redundant.
+
+- The graph library requires that every target of an edge appears as a source node.
+
+- We don't record unused edges in the graph.
+  The Unused value only appears when we set occurrences in the signature.
+  Imprecise representation in occ analysis.
+
+- The eta expansion of every clause body does a "raise n", which is Not Good
+
 -}
 
 
@@ -189,17 +200,23 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
           _ -> pure []
     liftReduce (go a)
 
+addEdgeToGraph :: Node -> Node -> Edge -> OccGraph -> OccGraph
+addEdgeToGraph src target e g =
+  Map.insertWithGood
+    (\(!e,!target) _ m -> Map.insertWithGood (\_ -> mergeEdges) () target e m)
+    (e,target)
+    src
+    (Map.singleton target e)
+    g
+
 addEdge :: Node -> OccM ()
 addEdge src = do
   target <- asks target
   path   <- asks path
   occ    <- asks occ
-  let e = Edge occ path
-  modify $ Map.insertWithGood
-    (\(!e,!target) _ m -> Map.insertWithGood (\_ -> mergeEdges) () target e m)
-    (e,target)
-    src
-    (Map.singleton target e)
+  expand \ret -> case occ of
+    Unused -> ret $ pure ()
+    occ    -> ret $ modify $ addEdgeToGraph src target (Edge occ path)
 
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArg d p i e = expand \ret -> ret do
@@ -251,8 +268,12 @@ instance ComputeOccurrences Term where
 
     Def d es -> asks inf >>= \case
 
-      Just inf | d == inf -> do
-        error "TODO: handle inf in occurrence"
+      -- ∞ application
+      Just inf | d == inf -> case es of
+        []     -> pure ()
+        [_]    -> pure () -- unused arg
+        [_, e] -> underPathOcc UnderInf GuardPos $ occurrences e
+        _      -> __IMPOSSIBLE__
 
       _ -> do
         mutuals <- asks mutuals
@@ -480,45 +501,45 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         -- Normalization needed e.g. for test/succeed/Bush.agda.
         -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
         tel1' <- liftTCM $ addContext tel0 $ normalise tel1 -- András 2026-02-18: why addContext?
-
         pvars <- liftTCM $ paramsToDefArgs tel0
 
-        reportSLn "" 1 $ "CONPARAMS " ++ show (P.prettyShow c, np, P.prettyShow tel0, pvars)
+        -- o <- asks occ
+        -- ls <- asks locals
+        -- reportSLn "" 1 $ "CONARGTY " ++ show (P.prettyShow tel1', o, pvars,ls)
 
         local (\env -> env {topDefArgs = pvars}) do
           -- edges in the types of constructor arguments
-          underPath (`ConArgType`  c) $ occurrences tel1'
-          underPath (`ConEndpoint` c) $ occurrences bnd
+          underPath (`ConArgType` c) $ occurrences tel1'
 
-          -- Occurrences in the indices of the data type the constructor targets.
-          -- Andreas, 2020-02-15, issue #4447:
-          -- WAS: @t@ is not necessarily a data type, but it could be something
-          -- that reduces to a data type once UnconfirmedReductions are confirmed
-          -- as safe by the termination checker.
-          -- In any case, if @t@ is not showing itself as the data type, we need to
-          -- do something conservative.  We will just collect *all* occurrences
-          -- and flip their sign (variance) using 'LeftOfArrow'.
-          case unEl t of
-            Def q' vs
-              | q == q' -> do
-                  let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
-                  -- TODO: in the original code, we have
-                  -- OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences telvars indices
-                  -- The OnlyVarsUpTo seems to be pointless, but we'll see
-                  reportSLn "" 1 $ "INDICES " ++ P.prettyShow indices
-                  underPathOcc (`IndArgType` c) Mixed $ occurrences indices
+          local (\env -> env {locals = size tel - np}) do
 
-              | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
-            Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
-            MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
-            Var{}      -> __IMPOSSIBLE__  -- not a constructor target
-            Sort{}     -> __IMPOSSIBLE__  -- not a constructor target
-            Lam{}      -> __IMPOSSIBLE__  -- not a type
-            Lit{}      -> __IMPOSSIBLE__  -- not a type
-            Con{}      -> __IMPOSSIBLE__  -- not a type
-            Level{}    -> __IMPOSSIBLE__  -- not a type
-            DontCare{} -> __IMPOSSIBLE__  -- not a type
-            Dummy{}    -> __IMPOSSIBLE__
+            -- edges in path boundary
+            underPath (`ConEndpoint` c) $ occurrences bnd
+
+            -- Occurrences in the indices of the data type the constructor targets.
+            -- Andreas, 2020-02-15, issue #4447:
+            -- WAS: @t@ is not necessarily a data type, but it could be something
+            -- that reduces to a data type once UnconfirmedReductions are confirmed
+            -- as safe by the termination checker.
+            -- In any case, if @t@ is not showing itself as the data type, we need to
+            -- do something conservative.  We will just collect *all* occurrences
+            -- and flip their sign (variance) using 'LeftOfArrow'.
+            case unEl t of
+              Def q' vs
+                | q == q' -> do
+                    let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
+                    underPathOcc (`IndArgType` c) Mixed $ occurrences indices
+                | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
+              Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
+              MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
+              Var{}      -> __IMPOSSIBLE__  -- not a constructor target
+              Sort{}     -> __IMPOSSIBLE__  -- not a constructor target
+              Lam{}      -> __IMPOSSIBLE__  -- not a type
+              Lit{}      -> __IMPOSSIBLE__  -- not a type
+              Con{}      -> __IMPOSSIBLE__  -- not a type
+              Level{}    -> __IMPOSSIBLE__  -- not a type
+              DontCare{} -> __IMPOSSIBLE__  -- not a type
+              Dummy{}    -> __IMPOSSIBLE__
 
     Record{recClause = Just c} ->
       occurrences =<< liftTCM (instantiateFull c)
@@ -538,6 +559,13 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
     PrimitiveSort{}    -> mempty
     GeneralizableVar{} -> mempty
     AbstractDefn{}     -> __IMPOSSIBLE__
+
+
+transposeGraph :: OccGraph -> OccGraph
+transposeGraph m = foldl' ins mempty assocs where
+  assocs = [(i, j, e) | (i, m) <- Map.toList m, (j, e) <- Map.toList m]
+  ins acc (i, j, e) = addEdgeToGraph j i e acc
+
 
 buildOccurrenceGraph :: Set QName -> TCM OccGraph
 buildOccurrenceGraph topQs = do
