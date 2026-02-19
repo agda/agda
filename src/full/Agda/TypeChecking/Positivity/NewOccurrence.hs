@@ -23,9 +23,10 @@ import Data.Set qualified as Set
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad hiding (getOccurrencesFromType)
-import Agda.TypeChecking.Patterns.Match ( properlyMatching )
+import Agda.TypeChecking.Patterns.Match (properlyMatching)
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), modalPolarityToOccurrence)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -33,7 +34,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Syntax.Common
--- import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
+import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.Map qualified as Map
@@ -48,9 +49,13 @@ import Agda.Utils.ExpandCase
 --------------------------------------------------------------------------------
 {-
 TODO:
-handle Inf occurrence
+- TRANSPOSE graph + use bfs!
 
-mutable hashtable Graph
+- Use new sane telView in data constructor processing
+
+- handle Inf occurrence
+
+- mutable hashtable Graph
   (only need one SCC implementation and one BFS for positivity+error msg)
 
 Possible issues in old impl:
@@ -58,6 +63,8 @@ Possible issues in old impl:
 - In no-occurrence-analysis mode we only look at the first clause of functions to
   match the args
 - computeDefOccurrences tel1' : why addContext?
+- For function definitions, old implementation puts a Def --> <empty map> edge
+  into the graph. Looks redundant.
 -}
 
 
@@ -67,6 +74,7 @@ data Path
   = Root
   | LeftOfArrow Path
   | DefArg Path QName Nat         -- ^ in the nth argument of a defined constant
+  | MutDefArg Path QName Nat      -- ^ in the nth argument of a def in the current mutual block
   | UnderInf Path                 -- ^ in the principal argument of built-in ∞
   | VarArg Path Nat               -- ^ as an argument to a bound variable.
   | MetaArg Path                  -- ^ as an argument of a metavariable
@@ -77,13 +85,45 @@ data Path
   | Matched Path                  -- ^ matched against in a clause of a defined function
   | IsIndex Path                  -- ^ is an index of an inductive family
   | InDefOf Path QName            -- ^ in the definition of a constant
-  deriving (Show)
+  deriving Eq
+
+instance Show Path where
+  show = \case
+    Root            -> ""
+    LeftOfArrow p   -> show p ++ " InLeftOfArrow"
+    DefArg p q i    -> show p ++ " InDefArg "      ++ P.prettyShow q ++ " " ++ P.prettyShow i
+    MutDefArg p q i -> show p ++ " InMutDefArg "   ++ P.prettyShow q ++ " " ++ P.prettyShow i
+    UnderInf p      -> show p ++ " InUnderInf"
+    VarArg p i      -> show p ++ " InVarArg "      ++ P.prettyShow i
+    MetaArg p       -> show p ++ " InMetaArg"
+    ConArgType p q  -> show p ++ " InConArgType "  ++ P.prettyShow q
+    IndArgType p q  -> show p ++ " InIndArgType "  ++ P.prettyShow q
+    ConEndpoint p q -> show p ++ " InConEndpoint " ++ P.prettyShow q
+    InClause p i    -> show p ++ " InClause "    ++ P.prettyShow i
+    Matched p       -> show p ++ " Matched"
+    IsIndex p       -> show p ++ " IsIndex"
+    InDefOf p q     -> show p ++ " InDefOf "     ++ P.prettyShow q
+
+instance P.Pretty Path where
+  pretty = P.text . show
+
+instance PrettyTCM Path where
+  prettyTCM = return . P.pretty
 
 data Node = DefNode QName | ArgNode QName Nat
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
+
+instance P.Pretty Node where
+  pretty = \case
+    DefNode q   -> P.pretty q
+    ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
+
+instance PrettyTCM Node where
+  prettyTCM = return . P.pretty
 
 -- | Top-level arg index that a local variable was bound in, arg polarity of the var itself.
 data DefArgInEnv = DefArgInEnv Int [Occurrence]
+  deriving Show
 
 data OccEnv = OccEnv {
     topDef     :: QName         -- ^ The definition we're working under.
@@ -96,9 +136,15 @@ data OccEnv = OccEnv {
   , occ        :: Occurrence    -- ^ Occurence of current position.
   }
 
-data Edge     = Edge Occurrence Path
+data Edge     = Edge Occurrence Path deriving (Eq, Show)
 type OccGraph = Map Node (Map Node Edge)
 type OccM     = ReaderT OccEnv (StateT OccGraph TCM)
+
+instance PrettyTCMWithNode Edge where
+  prettyTCMWithNode (WithNode n (Edge o w)) = vcat
+    [ prettyTCM o <+> prettyTCM n
+    , nest 2 $ return $ P.pretty w
+    ]
 
 mergeEdges :: Edge -> Edge -> Edge
 mergeEdges _                    e@(Edge Mixed _)     = e -- dominant
@@ -157,19 +203,16 @@ addEdge src = do
 
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArg d p i e = expand \ret -> ret do
-  underOcc p $ underPath (\p -> DefArg p d i) $ occurrences e
+  underPathOcc (\p -> DefArg p d i) p $ occurrences e
 
 occurrencesInDefArgArg :: Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArgArg p i e = expand \ret -> ret do
-  underOcc p $ underPath (`VarArg` i) $ occurrences e
+  underPathOcc (`VarArg` i) p $ occurrences e
 
 occurrencesInMutDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
-occurrencesInMutDefArg d p i e = expand \ret -> ret do
-  underOcc p $ underPath (\p -> DefArg p d i) $ do
-    let newNode = ArgNode d i
-    addEdge newNode  -- add edge from argument node to target
-    local (\e -> e {path = Root, target = newNode}) do -- retarget to argument node
-      occurrences e
+occurrencesInMutDefArg d p i e = expand \ret -> ret $
+  local (\e -> e {path = MutDefArg (path e) d i, target = ArgNode d i, occ = p}) $
+    occurrences e
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM ()
@@ -213,36 +256,21 @@ instance ComputeOccurrences Term where
 
       _ -> do
         mutuals <- asks mutuals
-        def <- liftTCM $ getConstInfo d
+        def     <- liftTCM $ getConstInfo d
 
         -- it's a mutual definition
         if Set.member d mutuals then do
           addEdge (DefNode d)
-          case theDef def of
-            Constructor{} -> do
-              let elims i es = expand \ret -> case es of
+          expand \ret -> case es of
+            [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
+            es -> ret do
+              let elims d p i es = expand \ret -> case es of
                     []   -> ret $ pure ()
-                    e:es -> ret do occurrencesInMutDefArg d StrictPos i e
-                                   elims (i + 1) es
-              elims 0 es
+                    e:es -> ret do occurrencesInMutDefArg d p i e
+                                   elims d p (i + 1) es
 
-            _ -> do
-              let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims' d i ps es = expand \ret -> case (ps, es) of
-                    (_   , []  ) -> ret $ pure ()
-                    (p:ps, e:es) -> ret do occurrencesInMutDefArg d p i e
-                                           elims' d (i + 1) ps es
-                    _            -> __IMPOSSIBLE__
-
-              let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims d a i ps es = expand \ret -> case (ps, es) of
-                    (_   , []   ) -> ret $ pure ()
-                    (p:ps,  e:es) -> ret do occurrencesInMutDefArg d p i e
-                                            elims d a (i + 1) ps es
-                    ([]  ,  e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
-                                            elims' d i (drop i ps) (e:es)
-
-              elims d (defType def) 0 (defArgOccurrences def) es
+              defOcc <- liftTCM $ mutualDefOcc d
+              elims d defOcc 0 es
 
         -- not a mutual definition
         else case theDef def of
@@ -258,14 +286,15 @@ instance ComputeOccurrences Term where
             let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
                 elims' d i ps es = expand \ret -> case (ps, es) of
                   (_   , []  ) -> ret $ pure ()
-                  (p:ps, e:es) -> ret do occurrencesInMutDefArg d p i e
+                  (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
                                          elims' d (i + 1) ps es
-                  _            -> __IMPOSSIBLE__
+                  ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
+                                         elims' d (i + 1) ps es
 
             let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
                 elims d a i ps es = expand \ret -> case (ps, es) of
                   (_   , []  ) -> ret $ pure ()
-                  (p:ps, e:es) -> ret do occurrencesInMutDefArg d p i e
+                  (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
                                          elims d a (i + 1) ps es
                   ([]  , e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
                                          elims' d i (drop i ps) (e:es)
@@ -366,6 +395,16 @@ instance ComputeOccurrences Int where
   {-# INLINE occurrences #-}
   occurrences _ = pure ()
 
+mutualDefOcc :: QName -> TCM Occurrence
+mutualDefOcc d = isDataOrRecordType d >>= \case
+  Just IsData -> pure GuardPos
+  _           -> pure StrictPos
+
+-- | Backwards compatibility: add graph node with empty target map if it doesn't already exist.
+--   TODO: this is probably a bug in the old code.
+initNode :: Node -> OccM ()
+initNode n = modify \m -> if Map.member n m then m else Map.insert n mempty m
+
 -- | Compute occurrences in a given definition.
 computeDefOccurrences :: QName -> OccM ()
 computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
@@ -384,9 +423,11 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
           a:as -> ret do occs <- getOccurrencesFromType (snd (unDom a))
                          go (i + 1) as (DefArgInEnv i occs : acc)
 
-  underPath (`InDefOf` q) $ case theDef def of
+  defOcc <- liftTCM $ mutualDefOcc q
+  underPathOcc (`InDefOf` q) defOcc $ case theDef def of
 
     Function{funClauses = cs} -> do
+
       cs <- liftTCM $ mapM etaExpandClause =<< instantiateFull cs
       performAnalysis <- liftTCM $ optOccurrence <$> pragmaOptions
       if performAnalysis then do
@@ -413,11 +454,13 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
 
       let np = np0 + sizeIndex -- number of parameters
 
-      -- add edges for parameters
-      rangeM_ np0 (np - 1) \i -> addEdge (ArgNode q i)
+      -- add edge for size index, if it exists
+      expand \ret -> case sizeIndex of
+        1 -> ret $ addEdge (ArgNode q np0)
+        _ -> ret $ pure ()
 
       -- add edges for indices
-      underPath IsIndex $ rangeM_ np (size telD - 1) \i -> addEdge (ArgNode q i)
+      underPathOcc IsIndex Mixed $ rangeM_ np (size telD - 1) \i -> addEdge (ArgNode q i)
 
 
       -- Then, we compute the occurrences in the constructor types.
@@ -439,8 +482,10 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         tel1' <- liftTCM $ addContext tel0 $ normalise tel1 -- András 2026-02-18: why addContext?
 
         pvars <- liftTCM $ paramsToDefArgs tel0
-        local (\env -> env {topDefArgs = pvars, locals = np}) do
 
+        reportSLn "" 1 $ "CONPARAMS " ++ show (P.prettyShow c, np, P.prettyShow tel0, pvars)
+
+        local (\env -> env {topDefArgs = pvars}) do
           -- edges in the types of constructor arguments
           underPath (`ConArgType`  c) $ occurrences tel1'
           underPath (`ConEndpoint` c) $ occurrences bnd
@@ -460,7 +505,8 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
                   -- TODO: in the original code, we have
                   -- OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences telvars indices
                   -- The OnlyVarsUpTo seems to be pointless, but we'll see
-                  underPath (`IndArgType` c) $ occurrences indices
+                  reportSLn "" 1 $ "INDICES " ++ P.prettyShow indices
+                  underPathOcc (`IndArgType` c) Mixed $ occurrences indices
 
               | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
             Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
@@ -480,7 +526,7 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
     Record{recPars = np, recTel = tel} -> do
       let (tel0, tel1) = splitTelescopeAt np tel
       pvars <- liftTCM $ paramsToDefArgs tel0
-      local (\env -> env {topDefArgs = pvars, locals = np}) do
+      local (\env -> env {topDefArgs = pvars}) do
         occurrences =<< liftTCM (addContext tel0 (normalise tel1))
         -- Andreas, 2017-01-01, issue #1899, treat like data types
 

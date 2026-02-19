@@ -39,6 +39,7 @@ import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Patterns.Match ( properlyMatching )
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.NewOccurrence qualified as New
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -62,7 +63,29 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+
 type Graph n e = Graph.Graph n e
+
+data TrimNode = ArgN String Int | DefN String deriving (Eq, Ord, Show)
+
+type TrimGraph = Map TrimNode (Map TrimNode Occurrence)
+
+-- | Bring old and new graphs to same representation, ignoring paths
+--   Also filter out useless nodes (with no associated edges)
+trimGraphs :: Graph Node (Edge OccursWhere)
+              -> Graph New.Node New.Edge
+              -> (TrimGraph, TrimGraph)
+trimGraphs (Graph.Graph m) (Graph.Graph m') =
+  let convnode = Map.mapKeys \case ArgNode x i -> ArgN (prettyShow x) i
+                                   DefNode x   -> DefN (prettyShow x)
+      convnode' = Map.mapKeys \case New.ArgNode x i -> ArgN (prettyShow x) i
+                                    New.DefNode x   -> DefN (prettyShow x)
+      convedge  = fmap \(Edge p _) -> p
+      convedge' = fmap \(New.Edge p _) -> p
+  in
+  ( fmap (convedge . convnode) (convnode (Map.filter (not . null) m))
+  , fmap (convedge' . convnode') (convnode' m')
+  )
 
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
@@ -71,22 +94,40 @@ type Graph n e = Graph.Graph n e
 --
 --   Also add information about positivity and recursivity of records
 --   to the signature.
---
+  --
 checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
 checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
-  g <- buildOccurrenceGraph qset
+
+  g@(Graph.Graph gmap) <- buildOccurrenceGraph qset
+  filteredg <- pure $ Graph.Graph $ Map.filter (not . null) gmap
+
+  gnew <- Graph.Graph <$> New.buildOccurrenceGraph qset
+  let (g', gnew') = trimGraphs g gnew
+
   let (gstar, sccs) =
         Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
-  reportSDoc "tc.pos.graph" 10 $ vcat
+  reportSDoc "tc.pos.graph" 1 $ vcat
     [ "positivity graph for" <+> fsep (map prettyTCM qs)
-    , nest 2 $ prettyTCM g
+    , nest 2 $ prettyTCM filteredg
+    , text ""
+    , text (show g')
+    , text ""
     ]
+  reportSDoc "tc.pos.graph" 1 $ vcat
+    [ "new occurrence graph"
+    , nest 2 $ prettyTCM gnew
+    , text ""
+    , text (show gnew')
+    , "COMPARISON" <+> text (show (g' == gnew'))
+    , text ""
+    ]
+
   reportSLn "tc.pos.graph" 5 $
     "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
   reportSDoc "tc.pos.graph" 50 $ vcat
@@ -653,9 +694,9 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
 -- Building the occurrence graph ------------------------------------------
 
-data Node = DefNode !QName
-          | ArgNode !QName !Nat
-  deriving (Eq, Ord)
+data Node = DefNode QName
+          | ArgNode QName Nat
+  deriving (Eq, Ord, Show)
 
 -- | Edge labels for the positivity graph.
 data Edge a = Edge !Occurrence a
@@ -741,7 +782,7 @@ buildOccurrenceGraph qs =
 --
 -- * @'OccursWhere' _ 'DS.empty' ('DS.fromList' ['InDefOf' "F", 'InClause' 0])@,
 --
--- * @'OccursWhere' _ 'DS.empty' ('DS.fromList' ['InDefOf' "F", 'InClause' 0, 'LeftOfArrow'])@,
+  -- * @'OccursWhere' _ 'DS.empty' ('DS.fromList' ['InDefOf' "F", 'InClause' 0, 'LeftOfArrow'])@,
 --
 -- * @'OccursWhere' _ 'DS.empty' ('DS.fromList' ['InDefOf' "F", 'InClause' 0, 'LeftOfArrow', 'LeftOfArrow'])@,
 --
