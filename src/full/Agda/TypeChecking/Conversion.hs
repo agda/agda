@@ -2161,19 +2161,19 @@ forallFaceMaps t kb k = do
     -- assumes the term can be typed in the shorter telescope
     -- the terms we get from toFaceMaps are closed.
     substContext :: MonadConversion m => Int -> Term -> Context -> m (Context , Substitution)
-    substContext i t [] = __IMPOSSIBLE__
-    substContext i t (x:xs) | i == 0 = return $ (xs , singletonS 0 t)
-    substContext i t (x:xs) | i > 0 = do
-                                  reportSDoc "conv.forall" 20 $
-                                    fsep ["substContext"
-                                        , text (show (i-1))
-                                        , prettyTCM t
-                                        , prettyTCM xs
-                                        ]
-                                  (c,sigma) <- substContext (i-1) t xs
-                                  let e = applySubst sigma x
-                                  return (e:c, liftS 1 sigma)
-    substContext i t (x:xs) = __IMPOSSIBLE__
+    substContext i t CxEmpty = __IMPOSSIBLE__
+    substContext i t (CxExtend x xs) | i == 0 = return $ (xs , singletonS 0 t)
+    substContext i t (CxExtend x xs) | i > 0 = do
+      reportSDoc "conv.forall" 20 $
+        fsep ["substContext"
+            , text (show (i-1))
+            , prettyTCM t
+            , prettyTCM xs
+            ]
+      (c,sigma) <- substContext (i-1) t xs
+      let e = applySubst sigma x
+      return (CxExtend e c, liftS 1 sigma)
+    substContext i t (CxExtend x xs) = __IMPOSSIBLE__
 
 compareInterval :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareInterval cmp i t u = do

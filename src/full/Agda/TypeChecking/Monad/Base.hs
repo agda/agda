@@ -4261,7 +4261,7 @@ data TCEnv =
     deriving (Generic)
 
 initEnv :: TCEnv
-initEnv = TCEnv { envContext             = []
+initEnv = TCEnv { envContext             = CxEmpty
                 , envLetBindings         = Map.empty
                 , envCurrentModule       = noModuleName
                 , envCurrentPath         = Nothing

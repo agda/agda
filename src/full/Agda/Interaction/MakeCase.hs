@@ -440,7 +440,9 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
 
     -- If any of the split variables is hidden by the ellipsis, we
     -- should force the expansion of the ellipsis.
-    let splitNames = map (\i -> ctxEntryName $ clauseCxt !! i) toSplit
+    let splitNames =
+          map (ctxEntryName . fromMaybe __IMPOSSIBLE__ . (`cxLookup` clauseCxt))
+          toSplit
     shouldExpandEllipsis <- return (not $ null toShow) `or2M` anyEllipsisVar f absCl splitNames
     let ell' | shouldExpandEllipsis = NoEllipsis
              | otherwise            = ell

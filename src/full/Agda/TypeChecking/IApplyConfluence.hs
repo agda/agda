@@ -194,11 +194,11 @@ unifyElims vs ts k = do
     :: Substitution
     -> IntSet  -- Support.
     -> Context -> Context
-  codomain s vs =
+  codomain s vs = Context .
     mapMaybe (\(i, c) -> if i `IntSet.member` vs
                          then Nothing
                          else Just c) .
-    zipWith (\i c -> (i, dropS (i + 1) s `applySubst` c)) [0..]
+    cxWithIndex (\i c -> (i, dropS (i + 1) s `applySubst` c))
 
 -- | Like @unifyElims@ but @Γ@ is from the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.

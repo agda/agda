@@ -980,7 +980,7 @@ metaHelperType norm ii rng s = withInteractionId ii do
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
     freeVars <- getCurrentModuleFreeVars
     ctx <- getContext
-    let contextForAbstracting = take (size ctx - freeVars) ctx
+    let contextForAbstracting = cxTake (size ctx - freeVars) ctx
 
     -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
     let runInPrintingEnvironment = localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True })
@@ -998,7 +998,7 @@ metaHelperType norm ii rng s = withInteractionId ii do
      Just xs | xs `List.isSubsequenceOf` cxtNames -> do
       let inXs = hasElem xs
       let hideButXs ce = setHiding (if inXs (ctxEntryName ce) then NotHidden else Hidden) ce
-      let tel = contextToTel . map hideButXs $ contextForAbstracting
+      let tel = contextToTel . Context . map hideButXs $ contextForAbstracting
       OfType' h <$> do
         runInPrintingEnvironment $ reify $ telePiVisible tel a0
 
@@ -1006,7 +1006,8 @@ metaHelperType norm ii rng s = withInteractionId ii do
      _ -> do
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
-      let tel = runIdentity . onNamesTel unW . contextToTel $ contextForAbstracting
+      let tel = runIdentity . onNamesTel unW . contextToTel . Context $
+                contextForAbstracting
       let a = runIdentity . onNames unW $ a0
       vtys <- mapM (\ a -> fmap (Arg (getArgInfo a) . fmap OtherType) $ inferExpr $ namedArg a) $
         List1.fromListSafe __IMPOSSIBLE__ args
@@ -1134,11 +1135,11 @@ contextOfMeta ii norm = withInteractionId ii $ do
   withMetaInfo info $ do
     -- List of local variables.
     cxt <- getContext
-    let localVars = zipWith raise [1..] cxt
+    let localVars = flattenContext cxt
     -- List of let-bindings.
     letVars <- Map.toAscList <$> asksTC envLetBindings
     -- Reify the types and filter out bindings without a name.
-    (++) <$> forMaybeM (reverse localVars) mkVar
+    (++) <$> forMaybeM localVars mkVar
          <*> forMaybeM letVars mkLet
 
   where
