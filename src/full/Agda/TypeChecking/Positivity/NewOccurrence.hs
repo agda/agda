@@ -258,7 +258,7 @@ instance ComputeOccurrences Term where
       locals <- asks locals
 
       tda <- asks topDefArgs
-      reportSLn "" 1 $ "VAR " ++ P.prettyShow (Var x es) ++ " " ++ show (locals, tda)
+      -- reportSLn "" 1 $ "VAR " ++ P.prettyShow (Var x es) ++ " " ++ show (locals, tda)
 
       -- it's a locally bound variable, all args are Mixed occurrence,
       -- we don't record an occurrence for the variable
@@ -606,8 +606,6 @@ buildOccurrenceGraph topQs = do
 
   inf <- fmap nameOfInf <$> coinductionKit
 
-  -- TODO: if we want to preserve old debug printing behavior,
-  -- we can collect graphs separately here and then merge them
   let go :: [QName] -> OccGraph -> TCM OccGraph
       go qs acc = expand \ret -> case qs of
         []   -> ret $ pure acc

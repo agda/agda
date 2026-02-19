@@ -107,26 +107,21 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
   gnew <- Graph.Graph <$> New.buildOccurrenceGraph qset
   let (g', gnew') = trimGraphs g gnew
 
-  let (gstar, sccs) =
+  let (!gstar, !sccs) =
         Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
-
-  reportSDoc "tc.pos.graph" 5 $ vcat
+  reportSDoc "tc.pos.graph" 10 $ vcat
     [ "positivity graph for" <+> fsep (map prettyTCM qs)
-    , nest 2 $ prettyTCM filteredg
-    , text ""
-    , text (show g')
-    , text ""
+    , nest 2 $ prettyTCM g
     ]
-  reportSDoc "tc.pos.graph" 5 $ vcat
-    [ "new occurrence graph"
-    , nest 2 $ prettyTCM gnew
-    , text ""
-    , text (show gnew')
-    , "COMPARISON" <+> text (show (g' == gnew'))
-    , text ""
+  reportSLn "tc.pos.graph" 5 $
+    "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
+  reportSDoc "tc.pos.graph" 50 $ vcat
+    [ "transitive closure of positivity graph for" <+>
+      prettyTCM qs
+    , nest 2 $ prettyTCM gstar
     ]
 
   when (g' /= gnew') do
@@ -146,14 +141,6 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
       , text ""
       ]
     error "OCCURRENCE GRAPH MISMATCH"
-
-  reportSLn "tc.pos.graph" 5 $
-    "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
-  reportSDoc "tc.pos.graph" 50 $ vcat
-    [ "transitive closure of positivity graph for" <+>
-      prettyTCM qs
-    , nest 2 $ prettyTCM gstar
-    ]
 
   -- remember argument occurrences for qs in the signature
   setArgOccs qset qs gstar
