@@ -134,14 +134,14 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
       [ "positivity graph for" <+> fsep (map prettyTCM qs)
       , nest 2 $ prettyTCM filteredg
       , text ""
-      , text (show g')
+      -- , text (show g')
       , text ""
       ]
     reportSDoc "tc.pos.graph" 1 $ vcat
       [ "new occurrence graph"
       , nest 2 $ prettyTCM gnew
       , text ""
-      , text (show gnew')
+      -- , text (show gnew')
       , "COMPARISON" <+> text (show (g' == gnew'))
       , text ""
       ]
@@ -484,6 +484,9 @@ instance ComputeOccurrences Clause where
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
     -- TODO #3733: handle hcomp/transp clauses properly
     if hasDefP ps then return mempty else do
+
+      -- reportSLn "" 1 $ "OLD ITEMS |" ++ show items
+
       argOccs <- mapMaybeM matching $ zip [0..] ps
       (Concat argOccs <>) <$> do
       withExtendedOccEnv' items $
@@ -613,11 +616,10 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       if performAnalysis then
         Concat . zipWith (OccursAs . InClause) [0..] <$>
           mapM (getOccurrences []) cs
-       else
-        return $ case cs of
+       else case cs of
           []     -> __IMPOSSIBLE__
-          cl : _ ->
-            Concat
+          cl : _ -> do
+            pure $ Concat
               [ OccursAs Matched (OccursHere (AnArg i []))
               | (i, _) <- zip [0..] (namedClausePats cl)
               ]
@@ -872,9 +874,14 @@ computeEdges muts q ob =
     LeftOfArrow    -> negative
     DefArg d i     -> do
       pol' <- isGuarding d
-      if Set.member d muts
-        then return (Just (ArgNode d i), pol')
-        else addPol =<< otimes pol' <$> getArgOccurrence d i
+      if Set.member d muts then
+        return (Just (ArgNode d i), pol')
+      else do
+        occ <- getArgOccurrence d i
+        -- reportSLn "" 1 $ "OLDOCC " ++ show (occ, i)
+        addPol (otimes pol' occ)
+
+        -- addPol =<< otimes pol' <$> getArgOccurrence d i
     UnderInf       -> addPol GuardPos -- Andreas, 2012-06-09: ∞ is guarding
     ConArgType _   -> keepGoing
     IndArgType _   -> mixed

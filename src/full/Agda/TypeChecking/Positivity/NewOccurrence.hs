@@ -15,8 +15,10 @@ module Agda.TypeChecking.Positivity.NewOccurrence where
 import Prelude hiding ( null, (!!) )
 
 -- import Data.Foldable
-import Data.Map (Map)
-import Data.Map qualified as Map
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.IntMap.Strict (IntMap)
+import Data.IntMap.Strict qualified as IntMap
 import Data.Set (Set)
 import Data.Set qualified as Set
 
@@ -51,14 +53,17 @@ import Agda.Utils.ExpandCase
 TODO:
 - TRANSPOSE graph + use bfs!
 
-- Don't recurse into Unused non-mut def args!
-
 - Pure telView-s as much as possible
 
 - handle Inf occurrence
 
 - mutable hashtable Graph
   (only need one SCC implementation and one BFS for positivity+error msg)
+
+NOTE:
+- We can't avoid recursing into Unused args becuse we might
+  have metavars there, which have constant Mixed arg polarity
+  and must be traversed in all cases!
 
 Possible issues in old impl:
 - lack of Path/Occ handling in record constructors?
@@ -184,8 +189,16 @@ underBinder :: OccM a -> OccM a
 underBinder = local \env -> env {locals = locals env + 1}
 
 {-# INLINE underPathOcc #-}
+-- | Modify the current path and 'otimes' a new 'Occurrence' to the
+--   current occurrence.
 underPathOcc :: (Path -> Path) -> Occurrence -> OccM a -> OccM a
-underPathOcc f p = underPath f . underOcc p
+underPathOcc f p = local \e -> e {path = f (path e), occ = otimes (occ e) p}
+
+{-# INLINE underPathSetOcc #-}
+-- | Modify the current path and set the current 'Occurence' to
+--   the given value.
+underPathSetOcc :: (Path -> Path) -> Occurrence -> OccM a -> OccM a
+underPathSetOcc f p = local \e -> e {path = f (path e), occ = p}
 
 getOccurrencesFromType :: Type -> TCM [Occurrence]
 getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
@@ -244,6 +257,9 @@ instance ComputeOccurrences Term where
     Var x es -> do
       locals <- asks locals
 
+      tda <- asks topDefArgs
+      reportSLn "" 1 $ "VAR " ++ P.prettyShow (Var x es) ++ " " ++ show (locals, tda)
+
       -- it's a locally bound variable, all args are Mixed occurrence,
       -- we don't record an occurrence for the variable
       if x < locals then do
@@ -296,7 +312,9 @@ instance ComputeOccurrences Term where
         -- not a mutual definition
         else case theDef def of
 
+
           Constructor{} -> do
+            -- reportSLn "" 1 $ "CONSTRUCTOR " ++ P.prettyShow d
             let elims i es = expand \ret -> case es of
                   []   -> ret $ pure ()
                   e:es -> ret do occurrencesInDefArg d StrictPos i e
@@ -304,6 +322,7 @@ instance ComputeOccurrences Term where
             elims 0 es
 
           _ -> do
+            -- reportSLn "" 1 $ "NOTMUTUAL " ++ P.prettyShow d ++ " " ++ show (defArgOccurrences def)
             let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
                 elims' d i ps es = expand \ret -> case (ps, es) of
                   (_   , []  ) -> ret $ pure ()
@@ -320,10 +339,11 @@ instance ComputeOccurrences Term where
                   ([]  , e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
                                          elims' d i (drop i ps) (e:es)
 
-            elims d (defType def) 0 (defArgOccurrences def) es
+            defOcc <- liftTCM $ mutualDefOcc d
+            underOcc defOcc $ elims d (defType def) 0 (defArgOccurrences def) es
 
-    Con _ _ es -> occurrences es -- András 2026-02-17: why?
-    MetaV _ es -> underPathOcc MetaArg Mixed (occurrences es)
+    Con _ _ es -> occurrences es -- András 2026-02-17: why not push something here?
+    MetaV m es -> underPathSetOcc MetaArg Mixed (occurrences es)
     Pi a b     -> underPathOcc LeftOfArrow JustNeg (occurrences a) >> occurrences b
     Lam _ t    -> occurrences t
     Level l    -> occurrences l
@@ -335,14 +355,14 @@ instance ComputeOccurrences Term where
     Dummy{}    -> pure ()
 
 addClauseArgMatches :: NAPs -> OccM ()
-addClauseArgMatches = go 0 where
+addClauseArgMatches ps = underPathSetOcc Matched Mixed $ go 0 ps where
   go :: Int -> NAPs -> OccM ()
   go i ps = expand \ret -> case ps of
     []   -> ret $ pure ()
     p:ps -> ret do
       liftTCM (properlyMatching (namedThing $ unArg p)) >>= \case
         True  -> do topDef <- asks topDef
-                    underPathOcc Matched Mixed $ addEdge (ArgNode topDef i)
+                    addEdge (ArgNode topDef i)
         False -> pure ()
       go (i + 1) ps
 
@@ -356,17 +376,23 @@ instance ComputeOccurrences Clause where
       -- add edges for matched args
       addClauseArgMatches ps
 
-      -- collect top def args from clause patterns
-      let collectArgs :: Int -> NAPs -> [DefArgInEnv] -> [DefArgInEnv]
-          collectArgs i []     acc = acc
-          collectArgs i (p:ps) acc =
-            -- TODO: shit Core for Pattern foldl'
-            let acc' = foldl' (\acc _ -> DefArgInEnv i [] : acc) acc
-                              (namedThing $ unArg p)
-            in collectArgs (i + 1) ps acc'
+      let collectArgs :: NAPs -> [DefArgInEnv]
+          collectArgs ps = IntMap.elems $ go 0 ps mempty where
+            go :: Int -> NAPs -> IntMap DefArgInEnv -> IntMap DefArgInEnv
+            go i []     acc = acc
+            go i (p:ps) acc =
+              -- TODO: we get garbage Core for Pattern' foldl'
+              let acc' = foldl'
+                          (\acc j -> IntMap.insert (dbPatVarIndex j) (DefArgInEnv i []) acc)
+                          acc (namedThing $ unArg p)
+              in go (i + 1) ps acc'
+
+      let items = collectArgs ps
+      -- reportSLn "" 1 $ "NEW ITEMS |" ++ show items
+      -- reportSLn "" 1 $ "PS " ++ P.prettyShow ps
 
       -- process body
-      local (\env -> env {topDefArgs = collectArgs 0 ps []}) do
+      local (\env -> env {topDefArgs = items}) do
         occurrences $ clauseBody cl
 
 instance ComputeOccurrences Level where
@@ -458,8 +484,15 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         clauses 0 cs
       else case cs of
         []   -> __IMPOSSIBLE__
+
         -- András 2026-02-18: this looks dodgy?
-        cl:_ -> addClauseArgMatches (namedClausePats cl)
+        cl:_ -> underPathSetOcc Matched Mixed do
+          let go i ps = expand \ret -> case ps of
+                []   -> ret $ pure ()
+                _:ps -> ret do d <- asks topDef
+                               addEdge (ArgNode d i)
+                               go (i + 1) ps
+          go 0 (namedClausePats cl)
 
     Datatype{dataClause = Just c} -> occurrences =<< liftTCM (instantiateFull c)
 
@@ -481,7 +514,8 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         _ -> ret $ pure ()
 
       -- add edges for indices
-      underPathOcc IsIndex Mixed $ rangeM_ np (size telD - 1) \i -> addEdge (ArgNode q i)
+      underPathSetOcc IsIndex Mixed $
+        rangeM_ np (size telD - 1) \i -> addEdge (ArgNode q i)
 
 
       -- Then, we compute the occurrences in the constructor types.
@@ -528,7 +562,7 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
               Def q' vs
                 | q == q' -> do
                     let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
-                    underPathOcc (`IndArgType` c) Mixed $ occurrences indices
+                    underPathSetOcc (`IndArgType` c) Mixed $ occurrences indices
                 | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
               Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
               MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
