@@ -1575,10 +1575,14 @@ instance ToAbstract (TopLevel [C.Declaration]) where
 
           return $ TopLevelInfo (primitiveImport ++ outsideDecls ++ [ insideDecl ]) scope
 
+        -- We hit a declaration that is not allowed before the top-level module:
+        (_, d : _) -> setCurrentRange d $ typeError IllegalDeclarationBeforeTopLevelModule
+
         -- We already inserted the missing top-level module, see
         -- 'Agda.Syntax.Parser.Parser.figureOutTopLevelModule',
-        -- thus, this case is impossible:
+        -- thus, the case of no top-level module is impossible:
         _ -> __IMPOSSIBLE__
+
 
 -- | Declaration @open import Agda.Primitive using (Set)@ when 'optImportSorts'.
 --   @Prop@ is added when 'optProp', and @SSet@ when 'optTwoLevel'.

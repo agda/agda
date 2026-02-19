@@ -305,8 +305,9 @@ instance FoldDecl a => FoldDecl (List1 a)
 instance FoldDecl a => FoldDecl (List2 a)
 instance FoldDecl a => FoldDecl (WhereClause' a)
 
+-- | Note: this instance discards top-level OPTIONS pragmas.
 instance FoldDecl Module where
-  foldDecl f (Mod _ d) = foldDecl f d
+  foldDecl f (Mod _name _pragmas ds) = foldDecl f ds
 
 instance FoldDecl Declaration where
   foldDecl f d = f d <> case d of

@@ -1,0 +1,3 @@
+Checking Library.Module (../BuildFail/Issue7988/Library/Module.agda).
+../BuildFail/Issue7988/Library/Module.agda:4.1-5.10: error: [IllegalDeclarationBeforeTopLevelModule]
+Illegal declaration(s) before top-level module

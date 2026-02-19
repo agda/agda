@@ -702,8 +702,13 @@ data Pragma
 -- | Modules: Top-level pragmas plus other top-level declarations.
 
 data Module = Mod
-  { modPragmas :: [Pragma]
+  { modName    :: QName
+      -- ^ The module name as inferred by the parser.
+      --   Could be @_@ if the parser inserted a top-level module declaration.
+  , modPragmas :: [Pragma]
+      -- ^ The top-level OPTIONS pragmas.
   , modDecls   :: [Declaration]
+      -- ^ All the other declarations, including the top-level module.
   }
 
 -- | Splits off allowed (= import) declarations before the first
