@@ -158,15 +158,17 @@ instance CheckInternal Term where
         -- (commented below)
         -- but this will break stuff that is allowed right now
 
+        reportSDoc "tc.check.internal" 30 $ fsep
+          [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
+          , "and modality", pretty (getModality d)
+          ]
+
         unless (usableCohesion d) $
           typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
 
         unless (usablePolarity d) $
           typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
 
-        reportSDoc "tc.check.internal" 30 $ fsep
-          [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
-          , "and modality", pretty (getModality d) ]
         checkSpine action (unDom d) (Var i) es cmp t
       Def f es   -> do  -- f is not projection(-like)!
         -- There is no "implicitely applied module telescope" at this stage, so no
