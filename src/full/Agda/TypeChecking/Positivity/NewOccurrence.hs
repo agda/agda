@@ -52,18 +52,14 @@ import Agda.Utils.ExpandCase
 {-
 TODO:
 - TRANSPOSE graph + use bfs!
-
-- Pure telView-s as much as possible
-
-- handle Inf occurrence
-
+- purge telView-s if possible
 - mutable hashtable Graph
-  (only need one SCC implementation and one BFS for positivity+error msg)
 
 NOTE:
 - We can't avoid recursing into Unused args becuse we might
   have metavars there, which have constant Mixed arg polarity
   and must be traversed in all cases!
+  Proposal: change behavior, skip all Unused subterms
 
 Possible issues in old impl:
 - lack of Path/Occ handling in record constructors?
@@ -79,7 +75,7 @@ Possible issues in old impl:
   The Unused value only appears when we set occurrences in the signature.
   Imprecise representation in occ analysis.
 
-- The eta expansion of every clause body does a "raise n", which is Not Good
+- The eta expansion of clause bodies does a "raise n", which is Not Good
 
 -}
 
@@ -104,21 +100,22 @@ data Path
   deriving Eq
 
 instance Show Path where
-  show = \case
-    Root            -> ""
-    LeftOfArrow p   -> show p ++ " InLeftOfArrow"
-    DefArg p q i    -> show p ++ " InDefArg "      ++ P.prettyShow q ++ " " ++ P.prettyShow i
-    MutDefArg p q i -> show p ++ " InMutDefArg "   ++ P.prettyShow q ++ " " ++ P.prettyShow i
-    UnderInf p      -> show p ++ " InUnderInf"
-    VarArg p i      -> show p ++ " InVarArg "      ++ P.prettyShow i
-    MetaArg p       -> show p ++ " InMetaArg"
-    ConArgType p q  -> show p ++ " InConArgType "  ++ P.prettyShow q
-    IndArgType p q  -> show p ++ " InIndArgType "  ++ P.prettyShow q
-    ConEndpoint p q -> show p ++ " InConEndpoint " ++ P.prettyShow q
-    InClause p i    -> show p ++ " InClause "    ++ P.prettyShow i
-    Matched p       -> show p ++ " Matched"
-    IsIndex p       -> show p ++ " IsIndex"
-    InDefOf p q     -> show p ++ " InDefOf "     ++ P.prettyShow q
+  show p = go p [] where
+    go p acc = case p of
+      Root            -> acc
+      LeftOfArrow p   -> go p $ " InLeftOfArrow" ++ acc
+      DefArg p q i    -> go p $ " InDefArg "      ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
+      MutDefArg p q i -> go p $ " InMutDefArg "   ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
+      UnderInf p      -> go p $ " InUnderInf" ++ acc
+      VarArg p i      -> go p $ " InVarArg "      ++ P.prettyShow i ++ acc
+      MetaArg p       -> go p $ " InMetaArg" ++ acc
+      ConArgType p q  -> go p $ " InConArgType "  ++ P.prettyShow q ++ acc
+      IndArgType p q  -> go p $ " InIndArgType "  ++ P.prettyShow q ++ acc
+      ConEndpoint p q -> go p $ " InConEndpoint " ++ P.prettyShow q ++ acc
+      InClause p i    -> go p $ " InClause "    ++ P.prettyShow i ++ acc
+      Matched p       -> go p $ " Matched" ++ acc
+      IsIndex p       -> go p $ " IsIndex" ++ acc
+      InDefOf p q     -> go p $ " InDefOf " ++ P.prettyShow q ++ acc
 
 instance P.Pretty Path where
   pretty = P.text . show
@@ -604,7 +601,7 @@ transposeGraph m = foldl' ins mempty assocs where
 buildOccurrenceGraph :: Set QName -> TCM OccGraph
 buildOccurrenceGraph topQs = do
 
-  inf <- fmap nameOfInf <$> coinductionKit
+  inf <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
 
   let go :: [QName] -> OccGraph -> TCM OccGraph
       go qs acc = expand \ret -> case qs of
