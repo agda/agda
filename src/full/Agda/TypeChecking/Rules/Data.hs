@@ -57,6 +57,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -190,11 +191,12 @@ checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
 
         (mtranspix, transpFun) <-
           ifM cubicalCompatibleOption
-            (do mtranspix <- inTopContext $ defineTranspIx name
-                transpFun <- inTopContext $
-                               defineTranspFun name mtranspix cons
-                                 (_dataPathCons dataDef)
-                return (mtranspix, transpFun))
+            (inTopContext $ do
+              checkNoLocalRewrites name
+              mtranspix <- defineTranspIx name
+              transpFun <- defineTranspFun name mtranspix cons $
+                           _dataPathCons dataDef
+              return (mtranspix, transpFun))
             (return (Nothing, Nothing))
 
         -- Add the datatype to the signature with its constructors.
@@ -420,6 +422,7 @@ defineCompData d con params names fsT t boundary = do
     , someBuiltin builtinItIsOne
     ]
   if not (all isJust required) then return $ emptyCompKit else do
+    checkNoLocalRewrites' d params
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans]
       (defineKanOperationD DoHComp  d con params names fsT t boundary)
     transp <- whenDefined True            [builtinTrans]
@@ -692,6 +695,26 @@ defineProjections dataName con params names fsT t = do
 freshAbstractQName'_ :: String -> TCM QName
 freshAbstractQName'_ = freshAbstractQName noFixity' . C.simpleName
 
+-- | I am not sure what the generated transport functions should look like
+--   in the presence of local rewrite rule parameters.
+--   The easiest solution is to just refuse to generate the transport function,
+--   and throw a type error.
+checkNoLocalRewrites :: QName -> TCM ()
+checkNoLocalRewrites d = do
+  def <- getConstInfo d
+  case theDef def of
+    Datatype { dataPars = npars
+             , dataIxs = nixs
+             , dataSort = s}
+     -> do
+      let t = defType def
+      TelV params t' <- telViewUpTo npars t
+      checkNoLocalRewrites' d params
+    _ -> __IMPOSSIBLE__
+
+checkNoLocalRewrites' :: QName -> Tele (Dom Type) -> TCM ()
+checkNoLocalRewrites' d tel = unless (VarSet.null $ theRewVars tel) $
+  typeError $ CannotGenerateTransportLocalRewrite d
 
 -- | Defines and returns the name of the `transpIx` function.
 defineTranspIx :: QName  -- ^ datatype name

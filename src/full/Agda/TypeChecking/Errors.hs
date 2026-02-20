@@ -1582,6 +1582,10 @@ instance PrettyTCM TypeError where
         , "and thus can not be transported"
         ]
 
+    CannotGenerateTransportLocalRewrite f -> vcat
+      [ "Could not generate a transport function for" <+> prettyTCM f
+      , "because there is a local rewrite rule in its telescope"]
+
     CubicalNotErasure q -> prettySigCubicalNotErasure q
 
     CubicalPrimitiveNotFullyApplied c ->

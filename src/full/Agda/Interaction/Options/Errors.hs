@@ -118,6 +118,7 @@ data ErrorName
   | CannotGeneralizeEtaExpandable_
   | CannotGenerateHCompClause_
   | CannotGenerateTransportClause_
+  | CannotGenerateTransportLocalRewrite_
   | CannotQuote_ CannotQuote_
   | CannotQuoteTerm_ CannotQuoteTerm
   | CannotResolveAmbiguousPatternSynonym_
