@@ -320,14 +320,14 @@ instance Free NLPSort where
         PLevelUniv    -> ret $ mempty
         PIntervalUniv -> ret $ mempty
 
-instance Free LocalRewriteHead where
+instance Free RewriteHead where
   freeVars h = expand \ret -> case h of
     RewDefHead f -> ret mempty
     RewVarHead x -> ret $ variable x
 
-instance Free LocalRewriteRule where
+instance Free RewriteRule where
   freeVars rew = expand \ret -> case rew of
-    LocalRewriteRule gamma h ps rhs b -> ret $
+    RewriteRule gamma h ps rhs b -> ret $
       freeVars gamma <> freeVars h <>
       underBinders (size gamma) (freeVars ps <> freeVars rhs <> freeVars b)
 

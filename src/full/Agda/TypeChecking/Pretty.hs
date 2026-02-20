@@ -629,8 +629,8 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 {-# SPECIALIZE prettyTCM :: Type' NLPat -> TCM Doc #-}
 
-instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma f ps rhs b _c _top) = fsep
+instance PrettyTCM GlobalRewriteRule where
+  prettyTCM (GlobalRewriteRule q gamma f ps rhs b _c _top) = fsep
     [ prettyTCM q
     , prettyTCM gamma <+> " |- "
     , addContext gamma $ sep
@@ -641,7 +641,7 @@ instance PrettyTCM RewriteRule where
       , prettyTCM b
       ]
     ]
-{-# SPECIALIZE prettyTCM :: RewriteRule -> TCM Doc #-}
+{-# SPECIALIZE prettyTCM :: GlobalRewriteRule -> TCM Doc #-}
 
 instance PrettyTCM LocalEquation where
   prettyTCM (LocalEquation gamma lhs rhs b) = fsep
@@ -655,12 +655,12 @@ instance PrettyTCM LocalEquation where
       ]
     ]
 
-instance PrettyTCM LocalRewriteHead where
+instance PrettyTCM RewriteHead where
   prettyTCM (RewDefHead f) = prettyTCM f
   prettyTCM (RewVarHead x) = prettyTCM (var x)
 
-instance PrettyTCM LocalRewriteRule where
-  prettyTCM (LocalRewriteRule gamma f ps rhs b) = fsep
+instance PrettyTCM RewriteRule where
+  prettyTCM (RewriteRule gamma f ps rhs b) = fsep
     [ prettyTCM gamma <+> " |- "
     , addContext gamma $ sep
       [ prettyTCM (headToPat (size gamma) f ps)

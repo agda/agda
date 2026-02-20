@@ -7,11 +7,11 @@ import Control.Monad.State
 
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.Syntax.Internal (ModuleName, Telescope, LocalRewriteHead)
+import Agda.Syntax.Internal (ModuleName, Telescope, RewriteHead)
 
 import Agda.TypeChecking.Monad.Base
   ( TCM, ReadTCState, HasOptions, MonadTCEnv
-  , Definition, RewriteRules, LocalRewriteRules
+  , Definition, GlobalRewriteRules, RewriteRules
   )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 
@@ -38,16 +38,16 @@ class ( Functor m
 
   getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q
-  getRewriteRulesFor :: QName -> m RewriteRules
-  getLocalRewriteRulesFor :: LocalRewriteHead -> m (LocalRewriteRules)
+  getGlobalRewriteRulesFor :: QName -> m GlobalRewriteRules
+  getLocalRewriteRulesFor :: RewriteHead -> m RewriteRules
 
   default getConstInfo' :: (HasCallStack, HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
-  default getRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m RewriteRules
-  getRewriteRulesFor = lift . getRewriteRulesFor
+  default getGlobalRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m GlobalRewriteRules
+  getGlobalRewriteRulesFor = lift . getGlobalRewriteRulesFor
 
-  default getLocalRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => LocalRewriteHead -> m (LocalRewriteRules)
+  default getLocalRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => RewriteHead -> m RewriteRules
   getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ReaderT r m)

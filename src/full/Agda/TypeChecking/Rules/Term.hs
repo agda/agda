@@ -356,8 +356,8 @@ checkDomain lamOrPi xs e = do
     eq  <- getEquation r t
     rew <- traverse checkLocalRewriteRule eq
     -- We do not (currently) distinguish failing to elaborate to a LocalEquation
-    -- from failing to elaborate to a LocalRewriteRule. In the case we have
-    -- a valid LocalEquation, but failed to produce a LocalRewriteRule, we could
+    -- from failing to elaborate to a RewriteRule. In the case we have
+    -- a valid LocalEquation, but failed to produce a RewriteRule, we could
     -- technically still store the LocalEquation and check the convertibility
     -- constraint at call sites. I don't think this is super important, but
     -- maybe worth trying in future.

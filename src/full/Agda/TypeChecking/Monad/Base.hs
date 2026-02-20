@@ -966,7 +966,7 @@ stOccursCheckDefs = lensPostScopeState . lensOccursCheckDefs
 stSignature :: Lens' TCState Signature
 stSignature = lensPostScopeState . lensSignature
 
-stRewriteRules :: Lens' TCState RewriteRuleMap
+stRewriteRules :: Lens' TCState GlobalRewriteRuleMap
 stRewriteRules = stSignature . sigRewriteRules
 
 stModuleCheckpoints :: Lens' TCState ModuleCheckpoints
@@ -2177,7 +2177,8 @@ instance Eq IPClause where
 data Signature = Sig
       { _sigSections     :: Sections
       , _sigDefinitions  :: Definitions
-      , _sigRewriteRules :: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      , _sigRewriteRules :: GlobalRewriteRuleMap
+        -- ^ The rewrite rules defined in this file.
       , _sigInstances    :: InstanceTable
       }
   deriving (Show, Generic)
@@ -2199,14 +2200,14 @@ sigDefinitions f s =
 sigInstances :: Lens' Signature InstanceTable
 sigInstances f s = f (_sigInstances s) <&> \x -> s {_sigInstances = x}
 
-sigRewriteRules :: Lens' Signature RewriteRuleMap
+sigRewriteRules :: Lens' Signature GlobalRewriteRuleMap
 sigRewriteRules f s =
   f (_sigRewriteRules s) <&>
   \x -> s {_sigRewriteRules = x}
 
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
-type RewriteRuleMap = HashMap QName RewriteRules
+type GlobalRewriteRuleMap = HashMap QName GlobalRewriteRules
 type DisplayForms = HashMap QName (List1 LocalDisplayForm)
 
 {-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
@@ -2352,10 +2353,10 @@ instance TermLike NLPSort where
 
 instance AllMetas NLPSort
 
-type RewriteRules = [RewriteRule]
+type GlobalRewriteRules = [GlobalRewriteRule]
 
 -- | Rewrite rules can be added independently from function clauses.
-data RewriteRule = RewriteRule
+data GlobalRewriteRule = GlobalRewriteRule
   { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → f ps ≡ rhs@
                              --   where @≡@ is the rewrite relation.
   , rewContext :: Telescope  -- ^ @Γ@.
@@ -2373,24 +2374,24 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
-rewHasProjectionPattern :: RewriteRule -> Bool
+rewHasProjectionPattern :: GlobalRewriteRule -> Bool
 rewHasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
 
-type LocalRewriteRules     = [LocalRewriteRule]
+type RewriteRules = [RewriteRule]
 
 -- | Map from head symbols to local rewrite rules
 --   While the head symbols need to be eagerly updated to live in the current
 --   context, the rewrite rules do not. They instead each store a checkpoint id.
 data LocalRewriteRuleMap = LocalRewriteRuleMap
-  { defHeadedRews :: HashMap QName [Open LocalRewriteRule]
-  , varHeadedRews :: IntMap [Open LocalRewriteRule]
+  { defHeadedRews :: HashMap QName [Open RewriteRule]
+  , varHeadedRews :: IntMap [Open RewriteRule]
   }
     deriving (Show, Generic)
 
-lrewsDefHeaded :: Lens' LocalRewriteRuleMap (HashMap QName [Open LocalRewriteRule])
+lrewsDefHeaded :: Lens' LocalRewriteRuleMap (HashMap QName [Open RewriteRule])
 lrewsDefHeaded f rs = f (defHeadedRews rs) <&> \ rs' -> rs { defHeadedRews = rs' }
 
-lrewsVarHeaded :: Lens' LocalRewriteRuleMap (IntMap [Open LocalRewriteRule])
+lrewsVarHeaded :: Lens' LocalRewriteRuleMap (IntMap [Open RewriteRule])
 lrewsVarHeaded f rs = f (varHeadedRews rs) <&> \ rs' -> rs { varHeadedRews = rs' }
 
 instance Null LocalRewriteRuleMap where
@@ -6692,7 +6693,7 @@ instance KillRange Sections where
 instance KillRange Definitions where
   killRange = fmap killRange
 
-instance KillRange RewriteRuleMap where
+instance KillRange GlobalRewriteRuleMap where
   killRange = fmap killRange
 
 instance KillRange Section where
@@ -6710,9 +6711,9 @@ instance KillRange Definition where
 instance KillRange NumGeneralizableArgs where
   killRange = id
 
-instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma f es rhs t c top) =
-    killRangeN RewriteRule q gamma f es rhs t c top
+instance KillRange GlobalRewriteRule where
+  killRange (GlobalRewriteRule q gamma f es rhs t c top) =
+    killRangeN GlobalRewriteRule q gamma f es rhs t c top
 
 instance KillRange CompiledRepresentation where
   killRange = id
@@ -6868,7 +6869,7 @@ instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause
 instance NFData DisplayForm
 instance NFData DisplayTerm
-instance NFData RewriteRule
+instance NFData GlobalRewriteRule
 instance NFData InstanceInfo
 instance NFData LocalRewriteRuleMap
 instance NFData Definition

@@ -23,7 +23,7 @@ import Agda.Syntax.Common.Pretty
 {-# INLINABLE getClausesAsRewriteRules #-}
 -- | Get all the clauses of a definition and convert them to rewrite
 --   rules.
-getClausesAsRewriteRules :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [RewriteRule]
+getClausesAsRewriteRules :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [GlobalRewriteRule]
 getClausesAsRewriteRules f = do
   cls <- defClauses <$> getConstInfo f
   forMaybeM (zip [1..] cls) $ \(i,cl) -> do
@@ -43,11 +43,11 @@ clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
 --   if @clauseBody cl@ is @Nothing@. Precondition: @clauseType cl@ is
 --   not @Nothing@.
 clauseToRewriteRule :: (MonadTCEnv m, ReadTCState m)
-  => QName -> QName -> Clause -> m (Maybe RewriteRule)
+  => QName -> QName -> Clause -> m (Maybe GlobalRewriteRule)
 clauseToRewriteRule f q cl | hasDefP (namedClausePats cl) = return  Nothing
 clauseToRewriteRule f q cl = do
   top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-  return $ clauseBody cl <&> \rhs -> RewriteRule
+  return $ clauseBody cl <&> \rhs -> GlobalRewriteRule
     { rewName    = q
     , rewContext = clauseTel cl
     , rewHead    = f

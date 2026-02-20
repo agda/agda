@@ -39,8 +39,8 @@ instance (TermLike a, AllMetas a) => AllMetas (RewDom' a) where
 instance (TermLike a, AllMetas a) => AllMetas (LocalEquation' a) where
   allMetas f (LocalEquation a b c d) = allMetas f (a, b, c, d)
 
-instance AllMetas LocalRewriteRule where
-  allMetas f (LocalRewriteRule g _ _ es b) = allMetas f (g, es, b)
+instance AllMetas RewriteRule where
+  allMetas f (RewriteRule g _ _ es b) = allMetas f (g, es, b)
 
 instance {-# OVERLAPPING #-} AllMetas String where
   allMetas f _ = mempty

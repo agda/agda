@@ -59,7 +59,7 @@ import Agda.Utils.Impossible
 data RewDom' t = RewDom
   { rewDomEq  :: LocalEquation' t
     -- ^ Elaborated "@rew" equation
-  , rewDomRew :: Maybe LocalRewriteRule
+  , rewDomRew :: Maybe RewriteRule
     -- ^ "@rew" equation transformed into a directed rewrite rule.
     --
     -- @Nothing@ iff invalidated by a substitution. If we are checking
@@ -1312,17 +1312,17 @@ pattern PSSet p = PUniv USSet p
   PType, PSSet, PProp, PInf,
   PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
 
-data LocalRewriteHead
+data RewriteHead
   = RewDefHead QName
   | RewVarHead Nat
     -- ^ de Bruijn index of head symbol (excluding lrewContext variables)
   deriving (Show, Generic, Eq)
 
-headToPat :: Nat -> LocalRewriteHead -> PElims -> NLPat
+headToPat :: Nat -> RewriteHead -> PElims -> NLPat
 headToPat _        (RewDefHead f) = PDef f
 headToPat telStart (RewVarHead x) = PBoundVar (x + telStart)
 
-headToTerm :: Nat -> LocalRewriteHead -> Elims -> Term
+headToTerm :: Nat -> RewriteHead -> Elims -> Term
 headToTerm _        (RewDefHead f) = Def f
 headToTerm telStart (RewVarHead x) = Var (x + telStart)
 
@@ -1341,16 +1341,16 @@ type LocalEquation = LocalEquation' Term
 
 -- | Directed rewrite rules generic over the type of head symbol.
 --   Generally unstable under substitution.
-data LocalRewriteRule = LocalRewriteRule
+data RewriteRule = RewriteRule
   { lrewContext :: Telescope
-  , lrewHead    :: LocalRewriteHead
+  , lrewHead    :: RewriteHead
   , lrewPats    :: PElims     -- patterns (including lrewContext variables)
   , lrewRHS     :: Term
   , lrewType    :: Type
   }
   deriving (Show, Generic)
 
-lrewHasProjectionPattern :: LocalRewriteRule -> Bool
+lrewHasProjectionPattern :: RewriteRule -> Bool
 lrewHasProjectionPattern rew = any (isJust . isProjElim) $ lrewPats rew
 
 class LensLocalEquation a where
@@ -1589,7 +1589,7 @@ instance KillRange NLPSort where
   killRange PLevelUniv = PLevelUniv
   killRange PIntervalUniv = PIntervalUniv
 
-instance KillRange LocalRewriteHead where
+instance KillRange RewriteHead where
   killRange (RewVarHead a) =
     killRangeN RewVarHead a
   killRange (RewDefHead a) =
@@ -1599,9 +1599,9 @@ instance KillRange t => KillRange (LocalEquation' t) where
   killRange (LocalEquation a b c d) =
     killRangeN LocalEquation a b c d
 
-instance KillRange LocalRewriteRule where
-  killRange (LocalRewriteRule a b c d e) =
-    killRangeN LocalRewriteRule a b c d e
+instance KillRange RewriteRule where
+  killRange (RewriteRule a b c d e) =
+    killRangeN RewriteRule a b c d e
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1841,7 +1841,7 @@ instance NFData DefSing
 instance NFData NLPat
 instance NFData NLPType
 instance NFData NLPSort
-instance NFData LocalRewriteHead
+instance NFData RewriteHead
 instance NFData LocalEquation
-instance NFData LocalRewriteRule
+instance NFData RewriteRule
 instance NFData RewDom

@@ -41,11 +41,11 @@ getOpen (OpenThing cp _ _ x) = do
 -- | Try to extract the value from an open local rewrite rule.
 --   The checkpoint at which it was created must be in scope.
 tryGetOpenRew :: (MonadTCEnv m)
-  => (Substitution -> m LocalRewriteRule)
+  => (Substitution -> m RewriteRule)
        -- ^ Action to take if the substitution fails
-  -> Open LocalRewriteRule
+  -> Open RewriteRule
        -- ^ The rewrite rule we are trying to open
-  -> m LocalRewriteRule
+  -> m RewriteRule
 tryGetOpenRew fallback (OpenThing cp _ _ rew) = do
   sub <- checkpointSubstitution cp
   case applySubstLocalRewrite sub rew of

@@ -95,7 +95,7 @@ import qualified Data.IntMap as IntMap
 data CompactDef =
   CompactDef { cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
-             , cdefRewriteRules   :: LocalRewriteRules
+             , cdefRewriteRules   :: RewriteRules
              }
 
 data CompactDefn
@@ -114,7 +114,9 @@ data BuiltinEnv = BuiltinEnv
   , bPrimForce, bPrimErase  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
-compactDef :: BuiltinEnv -> Definition -> Bool -> LocalRewriteRules -> ReduceM CompactDef
+compactDef ::
+     BuiltinEnv -> Definition -> Bool -> RewriteRules
+  -> ReduceM CompactDef
 compactDef bEnv def copatterns rewr = do
 
   -- WARNING: don't use isPropM here because it relies on reduction,
@@ -840,7 +842,7 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a memoised function to lookup local rewrite rules, and a term to
 --   reduce. The result is the weak-head normal form of the term with an attached blocking tag.
 reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef)
-         -> (Nat -> LocalRewriteRules) -> Normalisation -> Term -> Blocked Term
+         -> (Nat -> RewriteRules) -> Normalisation -> Term -> Blocked Term
 reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     compileAndRun . traceDoc "-- fast reduce --"
   where

@@ -313,20 +313,20 @@ instance NamesIn NLPSort where
     PLevelUniv    -> mempty
     PIntervalUniv -> mempty
 
-instance NamesIn RewriteRule where
+instance NamesIn GlobalRewriteRule where
   namesAndMetasIn' sg = \case
-    RewriteRule a b c d e f _ _ ->
+    GlobalRewriteRule a b c d e f _ _ ->
       namesAndMetasIn' sg (a, b, c, d, e, f)
 
 instance NamesIn a => NamesIn (LocalEquation' a) where
   namesAndMetasIn' sg (LocalEquation a b c d) = namesAndMetasIn' sg (a, b, c, d)
 
-instance NamesIn LocalRewriteHead where
+instance NamesIn RewriteHead where
   namesAndMetasIn' sg (RewVarHead a) = namesAndMetasIn' sg a
   namesAndMetasIn' sg (RewDefHead a) = namesAndMetasIn' sg a
 
-instance NamesIn LocalRewriteRule where
-  namesAndMetasIn' sg (LocalRewriteRule a b c d e) =
+instance NamesIn RewriteRule where
+  namesAndMetasIn' sg (RewriteRule a b c d e) =
     namesAndMetasIn' sg (a, b, c, d, e)
 
 instance NamesIn a => NamesIn (RewDom' a) where

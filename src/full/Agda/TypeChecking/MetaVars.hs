@@ -808,10 +808,10 @@ rewForced :: Tele (Dom Type) -> VarSet
 rewForced =
   foldMap (rewForced' . fromMaybe __IMPOSSIBLE__ . rewDomRew) . allRewDoms
   where
-    rewForced' :: LocalRewriteRule -> VarSet
-    rewForced' (LocalRewriteRule EmptyTel (RewVarHead x) [] _ _) =
+    rewForced' :: RewriteRule -> VarSet
+    rewForced' (RewriteRule EmptyTel (RewVarHead x) [] _ _) =
       VarSet.singleton x
-    rewForced' (LocalRewriteRule _ (RewVarHead x) [] _ _) =
+    rewForced' (RewriteRule _ (RewVarHead x) [] _ _) =
       __IMPOSSIBLE__
     rewForced' _ =
       VarSet.empty
