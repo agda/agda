@@ -454,14 +454,6 @@ instance AddContext (List1 (WithHiding Name), Dom Type) where
     addContext (xs, raise 1 dom)
   contextSize (xs, _) = length xs
 
--- instance AddContext ([Arg Name], Type) where
---   addContext (xs, t) = addContext ((map . fmap) unnamed xs :: [NamedArg Name], t)
---   contextSize (xs, _) = length xs
-
--- instance AddContext (List1 (Arg Name), Type) where
---   addContext (xs, t) = addContext ((fmap . fmap) unnamed xs :: List1 (NamedArg Name), t)
---   contextSize (xs, _) = length xs
-
 instance AddContext ([NamedArg Name], Type) where
   addContext ([], _)     = id
   addContext (x : xs, t) = addContext (x :| xs, t)

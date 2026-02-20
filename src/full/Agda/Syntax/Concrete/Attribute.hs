@@ -254,7 +254,6 @@ setPristineLock q a
   | getLock a == defaultLock = Just $ setLock q a
   | otherwise = Nothing
 
-
 -- | Setting 'RewriteAnn' if unset.
 
 setPristineRewriteAnn :: (LensRewriteAnn a) => RewriteAnn -> a -> Maybe a

@@ -490,9 +490,9 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
 
 checkRewConstraint :: LocalEquation -> TCM ()
 checkRewConstraint
-  (LocalEquation {lEqContext = g, lEqLHS = l, lEqRHS = r, lEqType = t}) = do
-  -- TODO: Sane error messages
-  addContext g $ equalTerm t l r
+  eq@(LocalEquation {lEqContext = g, lEqLHS = l, lEqRHS = r, lEqType = t}) = do
+  c <- viewTC eCall
+  traceCall (CheckLocalRewriteConstraint eq c) $ addContext g $ equalTerm t l r
 
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.

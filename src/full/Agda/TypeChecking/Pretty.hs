@@ -362,7 +362,6 @@ instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => Closure a -> TCM Doc #-}
 
-
 instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => [a] -> TCM Doc #-}

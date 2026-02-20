@@ -1,7 +1,10 @@
-LocalRewriteConstraint.agda:15.17-18: error: [UnequalTerms]
+LocalRewriteConstraint.agda:14.17-18: error: [UnequalTerms]
 The terms
   x
 and
   zero
 are not equal at type Nat
+when checking the following constraint associated with a local
+rewrite rule argument:
+   |-  x  =  0  :  Nat
 when checking that the expression p has type x ≡ 0

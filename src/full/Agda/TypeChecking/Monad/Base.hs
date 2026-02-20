@@ -3830,6 +3830,7 @@ data Call
       Term   -- ^ (Simplified) Function applied to the patterns in this clause
       Term   -- ^ (Simplified) clause RHS
       Type   -- ^ (Simplified) clause type
+  | CheckLocalRewriteConstraint LocalEquation (Maybe (Closure Call))
   | ScopeCheckExpr C.Expr
   | ScopeCheckDeclaration NiceDeclaration
   | ScopeCheckLHS C.QName C.Pattern
@@ -3876,6 +3877,7 @@ instance Pretty Call where
     pretty NoHighlighting{}          = "NoHighlighting"
     pretty ModuleContents{}          = "ModuleContents"
     pretty CheckIApplyConfluence{}   = "ModuleContents"
+    pretty CheckLocalRewriteConstraint{} = "CheckLocalRewriteConstraint"
 
 instance HasRange Call where
     getRange (CheckClause _ c)                   = getRange c
@@ -3915,6 +3917,7 @@ instance HasRange Call where
     getRange NoHighlighting                      = noRange
     getRange ModuleContents                      = noRange
     getRange (CheckIApplyConfluence e _ _ _ _ _) = getRange e
+    getRange (CheckLocalRewriteConstraint _ _)   = noRange
 
 ---------------------------------------------------------------------------
 -- ** Instance table
@@ -5666,8 +5669,6 @@ data InductionAndEta = InductionAndEta
   } deriving (Show, Generic)
 
 -- Source of the rewrite rule
--- TODO: Attach some info to 'Local' so we can give more descriptive error
--- messages
 data RewriteSource
   = GlobalRewrite Definition
   | LocalRewrite Context (Maybe Name) Type

@@ -227,6 +227,13 @@ instance PrettyTCM Call where
         , fsep (pwords "must be equal, since" ++ [prettyTCM fn] ++ pwords "could reduce to either.")
         ]
 
+    CheckLocalRewriteConstraint e c -> vcat
+      [ fsep $ pwords "when checking the following constraint associated with a local rewrite rule argument:"
+      , nest 2 $ prettyTCM e
+      , prettyTCM c
+      ]
+
+
     where
     hPretty :: MonadPretty m => Arg (Named_ Expr) -> m Doc
     hPretty a = do

@@ -4,4 +4,7 @@ The terms
 and
   zero
 are not equal at type Nat
+when checking the following constraint associated with a local
+rewrite rule argument:
+   |-  x  =  0  :  Nat
 when checking that the expression ? has type x ≡ 0

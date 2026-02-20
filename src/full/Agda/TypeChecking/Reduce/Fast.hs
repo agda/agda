@@ -841,8 +841,9 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   the 'ReduceEnv' argument, some precomputed built-in mappings in 'BuiltinEnv', the memoised
 --   'getConstInfo' function, a memoised function to lookup local rewrite rules, and a term to
 --   reduce. The result is the weak-head normal form of the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef)
-         -> (Nat -> RewriteRules) -> Normalisation -> Term -> Blocked Term
+reduceTm ::
+     ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> (Nat -> RewriteRules)
+  -> Normalisation -> Term -> Blocked Term
 reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     compileAndRun . traceDoc "-- fast reduce --"
   where
