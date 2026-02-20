@@ -689,7 +689,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   recd <- fromMaybe __IMPOSSIBLE__ <$> isRecord d
   -- We don't eta-expand variables which occur in local rewrite rules
   -- In principle, I think we could handle this safely, but it is tricky
-  if i `VarSet.member` rewVars (varTel s)
+  if i `VarSet.member` inRewVars (varTel s)
   then return $ UnifyStuck [UnifyVarInRewriteEta (varTel s) i] else do
   let delta = _recTel recd `apply` pars
       c     = _recConHead recd
@@ -843,10 +843,10 @@ solutionStep retry s
       prettyTCM (varTel s)
     , "i.e. is one of" <+>
       addContext (varTel s) (prettyTCM $
-        fmap var $ VarSet.toAscList $ rewVars $ varTel s)
+        fmap var $ VarSet.toAscList $ inRewVars $ varTel s)
     ]
 
-  if i `VarSet.member` rewVars (varTel s)
+  if i `VarSet.member` inRewVars (varTel s)
   then return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
   else do
 

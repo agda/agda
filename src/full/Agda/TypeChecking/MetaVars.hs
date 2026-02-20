@@ -799,6 +799,7 @@ assignWrapper dir x es v doAssign = do
           reportSLn "tc.meta.assign" 10 "don't assign metas"
           patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
 
+
 allRewDoms :: Tele (Dom Type) -> [RewDom]
 allRewDoms = mapMaybe rewDom . flattenTel
 
@@ -974,8 +975,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
     expandProjectedVars args (v, target) $ \ args (v, target) -> do
 
+      cxt <- getContextTelescope
       reportSDoc "tc.meta.assign.proj" 45 $ do
-        cxt <- getContextTelescope
         vcat
           [ "context after projection expansion"
           , nest 2 $ inTopContext $ prettyTCM cxt
@@ -1081,6 +1082,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- We need to identify arguments to the meta that are forced by local
       -- rewrite rules
       let forced = rewForced mTel
+      -- We should never prune local rewrite rules
+      let rVars = theRewVars cxt
+      let noPrune = VarSet.union fvs rVars
 
       -- Check that the arguments are variables
       mids <- do
@@ -1100,10 +1104,10 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           -- here, we cannot prune, since offending vars could be eliminated
           Left (CantInvert tm) -> Nothing <$ boundary v
           -- we have non-variables, but these are not eliminateable
-          Left NeutralArg  -> Just <$> attemptPruning x args fvs
+          Left NeutralArg  -> Just <$> attemptPruning x args noPrune
           -- we have a projected variable which could not be eta-expanded away:
           -- same as neutral
-          Left ProjVar{}   -> Just <$> attemptPruning x args fvs
+          Left ProjVar{}   -> Just <$> attemptPruning x args noPrune
 
       case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
         Nothing  -> patternViolation =<< updateBlocker (unblockOnAnyMetaIn v)  -- TODO: more precise
@@ -1120,7 +1124,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               -- using non-linear variables need to be solved).
               Left ()   -> do
                 block <- updateBlocker $ unblockOnAnyMetaIn v
-                addOrUnblocker block $ attemptPruning x args fvs
+                addOrUnblocker block $ attemptPruning x args noPrune
 
           -- Check ids is time respecting.
           () <- do
@@ -1358,11 +1362,10 @@ assignMeta' m x t n ids v = do
       rho = prependS impossible ivs $ raiseS n
       v'  = applySubst rho v
 
-  -- Variables corresponding to local rewrite rules
-  eqVars <- catMaybes <$> forM [0..m - 1] \i -> do
-    d <- domOfBV i
-    pure $ boolToMaybe (isJust $ rewDom d) i
+  cxt <- getContextTelescope
 
+  -- Variables corresponding to local rewrite rules
+  let rVars = VarSet.toDescList $ theRewVars cxt
   -- Variables not strengthened away
   let notDropped = VarSet.fromList $ fmap fst ids
 
@@ -1385,15 +1388,12 @@ assignMeta' m x t n ids v = do
     -- We fix this by checking that every local rewrite rule in the solution
     -- context is mapped to a local rewrite rule in the meta's context.
     -- This is conservative, but should at least be pretty fast.
-    --
-    -- One especially awkward consequence is that pruning might prune away a
-    -- dependency of a local rewrite rule and then cause this check to fail.
-    -- Perhaps pruning should never prune local rewrite rules...
 
-    stillRews <- addContext mTel $ forM eqVars \i -> do
+    stillRews <- addContext mTel $ forM rVars \i -> do
       if not $ VarSet.member i notDropped then pure False else do
       case deBruijnView $ lookupS rho i of
-        Just i' -> isJust . rewDom <$> domOfBV i'
+        Just i' -> do
+          isJust . rewDom <$> domOfBV i'
         Nothing -> pure False
 
     -- The current context has a rewrite rule which does not appear to be
@@ -1583,7 +1583,7 @@ etaExpandProjectedVar i v fail succeed = do
   -- We don't eta-expand variables which occur in local rewrite rules
   -- In principle, I think we could handle this safely, but it is tricky
   tel <- getContextTelescope
-  if i `VarSet.member` rewVars tel then fail else
+  if i `VarSet.member` inRewVars tel then fail else
     caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
     reportSDoc "tc.meta.assign.proj" 25 $
       "eta-expanding var " <+> prettyTCM (var i) <+>

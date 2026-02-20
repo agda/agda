@@ -1,0 +1,8 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _4 (f = f) (x = x) = 0 : Nat (blocked on _4)
+
+LocalRewriteEagerMetas.agda:14.11-19.15: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  LocalRewriteEagerMetas.agda:14.11-12
+  LocalRewriteEagerMetas.agda:19.11-15
