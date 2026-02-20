@@ -176,9 +176,10 @@ rewriteRelationDom rel = do
         addContext delta $ prettyTCM a
   return (delta, a)
 
-getEquation :: RewriteAnn -> Type -> TCM (Maybe LocalEquation)
-getEquation rewAnn t = if isRewrite rewAnn
-  then runMaybeT $ checkIsRewriteRelation LocalRewrite t
+checkEquationValid ::
+  RewriteSource -> RewriteAnn -> Type -> TCM (Maybe LocalEquation)
+checkEquationValid s rewAnn t = if isRewrite rewAnn
+  then runMaybeT $ checkIsRewriteRelation s t
   else pure Nothing
 
 checkIsRewriteRelation ::
@@ -252,8 +253,9 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
   pure $ GlobalRewriteRule q g f ps  rhs b False top
 
-checkLocalRewriteRule :: LocalEquation -> TCM (Maybe RewriteRule)
-checkLocalRewriteRule eq = runMaybeT $ checkRewriteRule' eq LocalRewrite
+checkLocalRewriteRule ::
+  RewriteSource -> LocalEquation -> TCM (Maybe RewriteRule)
+checkLocalRewriteRule s eq = runMaybeT $ checkRewriteRule' eq s
 
 checkRewriteRule' :: LocalEquation -> RewriteSource -> MaybeT TCM RewriteRule
 checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
@@ -305,9 +307,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
 
   ifNotAlreadyAdded s f $ do
 
-  let rewGamma = case s of
-        LocalRewrite    -> gamma1
-        GlobalRewrite _ -> gamma
+  let rewGamma = if isLocalRewrite s then gamma1 else gamma
 
       telStart = size rewGamma
 
@@ -340,8 +340,8 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
         freeVarsRhs = telVars `VarSet.intersection` freeVarSet rhs
         freeVars    = freeVarsLhs <> freeVarsRhs
         usedVars    = case s of
-          LocalRewrite      -> VarSet.empty
-          GlobalRewrite def -> case theDef def of
+          LocalRewrite _ _ _ -> VarSet.empty
+          GlobalRewrite def  -> case theDef def of
             Function{}         -> usedArgs def
             Axiom{}            -> telVars
             AbstractDefn{}     -> telVars
@@ -401,7 +401,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
         Just rew -> illegalRule (GlobalRewrite def) DuplicateRewriteRule
         Nothing -> cont
     ifNotAlreadyAdded (GlobalRewrite def) (RewVarHead x) cont = __IMPOSSIBLE__
-    ifNotAlreadyAdded LocalRewrite f cont = cont
+    ifNotAlreadyAdded (LocalRewrite _ _ _) f cont = cont
 
     checkNoLhsReduction ::
          Nat -> RewriteHead -> (Elims -> Term) -> Elims

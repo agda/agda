@@ -201,7 +201,6 @@ errorWarnings = Set.fromList
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
   , LetBoundLocalRewrite_
-  , LambdaBoundLocalRewrite_
   , LocalRewriteOutsideTelescope_
   , TopLevelPolarity_
 
@@ -375,7 +374,6 @@ data WarningName
   | RewriteMissingRule_
   | DuplicateRewriteRule_
   | LetBoundLocalRewrite_
-  | LambdaBoundLocalRewrite_
   | LocalRewriteOutsideTelescope_
   | SafeFlagEta_
   | SafeFlagInjective_
@@ -631,7 +629,6 @@ warningNameDescription = \case
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   LetBoundLocalRewrite_            -> "Let-binding annotated with '@rew'."
-  LambdaBoundLocalRewrite_         -> "Binding '@rew' argument with a lambda."
   LocalRewriteOutsideTelescope_    -> "'@rew' arguments are (currently) only allowed in module telescopes."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."

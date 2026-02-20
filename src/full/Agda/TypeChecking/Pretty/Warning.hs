@@ -80,6 +80,7 @@ import Agda.Utils.WithDefault  ( pattern Value )
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Monad.Context (addContext)
 
 instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ doc _ _) = doc <$ do
@@ -531,14 +532,15 @@ prettyWarning = \case
           , pwords "has already been added"
           ]
 
-        LetBoundLocalRewrite ->
-          "Let-binding local rewrite rules is not possible"
+        LetBoundLocalRewrite -> (fsep . concat)
+          [ illegalSince q
+          , pwords "local rewrite rules cannot be bound in let-expressions"
+          ]
 
-        LambdaBoundLocalRewrite ->
-          "Local rewrite rules cannot be bound in lambdas"
-
-        LocalRewriteOutsideTelescope ->
-          "Local rewrite rule arguments are (currently) only allowed in module telescopes. Consider creating an anonymous module."
+        LocalRewriteOutsideTelescope -> (fsep . concat)
+          [ illegalSince q
+          , pwords "local rewrite rules are (currently) only allowed in module telescopes. Consider creating an anonymous module"
+          ]
 
     ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)
       [ pwords "Confluence checking incomplete because the definition of"
@@ -804,9 +806,9 @@ instance PrettyTCM DataOrRecord_ where
 
 instance PrettyTCM RewriteSource where
   prettyTCM = \case
-    -- TODO: Put more info in 'Local' so we can give a better error message.
-    LocalRewrite    -> "a local rewrite"
-    GlobalRewrite q -> prettyTCM (defName q)
+    LocalRewrite g n t ->
+      maybe "_" prettyTCM n <+> ":" <+> addContext g (prettyTCM t)
+    GlobalRewrite q    -> prettyTCM (defName q)
 
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}

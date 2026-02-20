@@ -17,7 +17,7 @@ import qualified Data.Set as Set
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
-import Agda.Syntax.Abstract (Binder, TypedBindingInfo (tbTacticAttr))
+import Agda.Syntax.Abstract (Binder, TypedBindingInfo (tbTacticAttr), unBind, binderName)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
@@ -88,7 +88,9 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
-import Agda.TypeChecking.Rewriting (getEquation, checkLocalRewriteRule, checkRewConstraint)
+import Agda.TypeChecking.Rewriting ( checkEquationValid
+                                   , checkLocalRewriteRule
+                                   , checkRewConstraint)
 import Control.Monad.Trans.Maybe (runMaybeT)
 
 ---------------------------------------------------------------------------
@@ -119,7 +121,8 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- uncurry (defaultArgDomRew info) <$> checkPiDomain (info :| []) t
+      a <- uncurry (defaultArgDomRew info) <$>
+           checkPiDomain Nothing (info :| []) t
       b <- isType_ b
       s <- inferFunSort a b
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -316,8 +319,8 @@ checkTelescope' lamOrPi (b : tel) ret =
 -- | Check the domain of a function type.
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
 checkDomain :: (LensLock a, LensModality a, LensRewriteAnn a)
-            => LamOrPi -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
-checkDomain lamOrPi xs e = do
+  => LamOrPi -> Maybe Name -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
+checkDomain lamOrPi n xs e = do
     -- Get cohesion and quantity of arguments, as well as if they are local
     -- rewrite rules. All of these properties should all be equal because
     -- they come from the same annotated Π-type.
@@ -329,14 +332,6 @@ checkDomain lamOrPi xs e = do
 
     let (r :| rs) = fmap (getRewriteAnn) xs
     unless (all (r ==) rs) $ __IMPOSSIBLE__
-
-  -- For now, we disallow '@rew' domains on pi types
-  -- In the future, this should be allowed only when the pi type is not in
-  -- higher-order position (checked syntactically)
-    r <- case lamOrPi of
-      PiNotLam | isRewrite r -> IsNotRewrite <$
-        runMaybeT (illegalRule LocalRewrite LocalRewriteOutsideTelescope)
-      _                      -> pure r
 
     -- Also get whether the domain is a local rewrite rule. If it is, and there
     -- are multiple arguments, we warn that this is unnecessary
@@ -353,8 +348,19 @@ checkDomain lamOrPi xs e = do
 
         equalSort (getSort t) LockUniv
 
-    eq  <- getEquation r t
-    rew <- traverse checkLocalRewriteRule eq
+    cxt <- getContext
+    let s = LocalRewrite cxt n t
+
+  -- For now, we disallow '@rew' domains on pi types
+  -- In the future, this should be allowed only when the pi type is not in
+  -- higher-order position (checked syntactically)
+    r <- case lamOrPi of
+      PiNotLam | isRewrite r -> IsNotRewrite <$
+        runMaybeT (illegalRule s LocalRewriteOutsideTelescope)
+      _                      -> pure r
+
+    eq  <- checkEquationValid s r t
+    rew <- traverse (checkLocalRewriteRule s) eq
     -- We do not (currently) distinguish failing to elaborate to a LocalEquation
     -- from failing to elaborate to a RewriteRule. In the case we have
     -- a valid LocalEquation, but failed to produce a RewriteRule, we could
@@ -376,7 +382,7 @@ checkDomain lamOrPi xs e = do
         modEnv PiNotLam     = id
 
 checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a)
-              => List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
+              => Maybe Name -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkPiDomain = checkDomain PiNotLam
 
 -- | Check a typed binding and extends the context with the bound variables.
@@ -396,7 +402,9 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    (rew, t) <- checkDomain lamOrPi xps e
+    -- We pick one of the names to report local rewrite errors on
+    let x = unBind $ binderName $ namedArg $ List1.head xps
+    (rew, t) <- checkDomain lamOrPi (Just x) xps e
     whenJust rew $ \r -> reportSDoc "rewriting" 30 $ "Checked local rewrite:" <+> prettyTCM (rewDomEq r)
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
@@ -701,23 +709,15 @@ userOmittedModalities xs = do
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
 lambdaModalityCheck ::
-     (LensAnnotation dom, LensModality dom, LensRewriteAnn dom)
+     (LensAnnotation dom, LensModality dom)
   => dom -> ArgInfo -> TCM ArgInfo
 lambdaModalityCheck dom =
   lambdaAnnotationCheck (getAnnotation dom) <=<
   lambdaPolarityCheck m <=<
   lambdaCohesionCheck m <=<
   lambdaQuantityCheck m <=<
-  lambdaIrrelevanceCheck m <=<
-  lambdaRewCheck dom
+  lambdaIrrelevanceCheck m
   where m = getModality dom
-
--- | Local rewrite rules cannot be bound in lambdas
-lambdaRewCheck :: LensRewriteAnn a => a -> ArgInfo -> TCM ArgInfo
-lambdaRewCheck x info = do
-  when (isRewrite (getRewriteAnn info) || isRewrite (getRewriteAnn x)) $
-    void $ runMaybeT $ illegalRule LocalRewrite LambdaBoundLocalRewrite
-  return $ setRewriteAnn IsNotRewrite info
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
 --   coming from the function type.

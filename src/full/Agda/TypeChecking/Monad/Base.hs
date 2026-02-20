@@ -5044,7 +5044,6 @@ illegalRewriteWarningName = \case
   BeforeMutualFunctionDefinition{}     -> RewriteBeforeMutualFunctionDefinition_
   DuplicateRewriteRule                 -> DuplicateRewriteRule_
   LetBoundLocalRewrite                 -> LetBoundLocalRewrite_
-  LambdaBoundLocalRewrite              -> LambdaBoundLocalRewrite_
   LocalRewriteOutsideTelescope         -> LocalRewriteOutsideTelescope_
 
 -- | Should warnings of that type be serialized?
@@ -5669,12 +5668,14 @@ data InductionAndEta = InductionAndEta
 -- Source of the rewrite rule
 -- TODO: Attach some info to 'Local' so we can give more descriptive error
 -- messages
-data RewriteSource = GlobalRewrite Definition | LocalRewrite
+data RewriteSource
+  = GlobalRewrite Definition
+  | LocalRewrite Context (Maybe Name) Type
   deriving (Show, Generic)
 
 isLocalRewrite :: RewriteSource -> Bool
-isLocalRewrite LocalRewrite      = True
-isLocalRewrite (GlobalRewrite d) = False
+isLocalRewrite (LocalRewrite g r t) = True
+isLocalRewrite (GlobalRewrite d)    = False
 
 -- Reason, why rewrite rule is invalid
 data IllegalRewriteRuleReason
@@ -5695,7 +5696,6 @@ data IllegalRewriteRuleReason
   | BeforeMutualFunctionDefinition QName
   | DuplicateRewriteRule
   | LetBoundLocalRewrite
-  | LambdaBoundLocalRewrite
   | LocalRewriteOutsideTelescope
     deriving (Show, Generic)
 

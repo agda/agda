@@ -233,15 +233,29 @@ instance EmbPrj Warning where
 
 instance EmbPrj UselessPublicReason
 
-instance EmbPrj RewriteSource where
-  icod_ = \case
-    LocalRewrite    -> icodeN 0 LocalRewrite
-    GlobalRewrite a -> icodeN 1 GlobalRewrite a
+instance EmbPrj ContextEntry where
+  icod_ (CtxVar a b) = icodeN 0 CtxVar a b
 
   value = vcase $ \case
-    N1 0   -> valuN LocalRewrite
-    N2 1 a -> valuN GlobalRewrite a
+    N3 0 a b -> valuN CtxVar a b
+    _        -> malformed
+
+instance EmbPrj Context where
+  icod_ (Context a) = icodeN 0 Context a
+
+  value = vcase $ \case
+    N2 0 a -> valuN Context a
     _      -> malformed
+
+instance EmbPrj RewriteSource where
+  icod_ = \case
+    LocalRewrite a b c -> icodeN 0 LocalRewrite a b c
+    GlobalRewrite a    -> icodeN 1 GlobalRewrite a
+
+  value = vcase $ \case
+    N4 0 a b c -> valuN LocalRewrite a b c
+    N2 1 a     -> valuN GlobalRewrite a
+    _          -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
@@ -262,7 +276,6 @@ instance EmbPrj IllegalRewriteRuleReason where
     BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
     LetBoundLocalRewrite                        -> icodeN 16 LetBoundLocalRewrite
-    LambdaBoundLocalRewrite                     -> icodeN 17 LambdaBoundLocalRewrite
     LocalRewriteOutsideTelescope                -> icodeN 18 LocalRewriteOutsideTelescope
 
   value = vcase $ \case
@@ -283,7 +296,6 @@ instance EmbPrj IllegalRewriteRuleReason where
     N2 14 a  -> valuN BeforeMutualFunctionDefinition a
     N1 15    -> valuN DuplicateRewriteRule
     N1 16    -> valuN LetBoundLocalRewrite
-    N1 17    -> valuN LambdaBoundLocalRewrite
     N1 18    -> valuN LocalRewriteOutsideTelescope
     _        -> malformed
 
