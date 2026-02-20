@@ -1,0 +1,7 @@
+JSON> {"kind":"Status","status":{"checked":false,"showImplicitArguments":false,"showIrrelevantArguments":false}}
+{"kind":"ClearRunningInfo"}
+{"kind":"ClearHighlighting","tokenBased":"NotOnlyTokenBased"}
+{"kind":"Status","status":{"checked":false,"showImplicitArguments":false,"showIrrelevantArguments":false}}
+{"info":{"errors":[],"invisibleGoals":[],"kind":"AllGoalsWarnings","visibleGoals":[{"constraintObj":{"id":0,"range":[{"end":{"col":15,"line":10,"pos":110},"start":{"col":10,"line":10,"pos":105}}]},"kind":"OfType","type":"P a"}],"warnings":[]},"kind":"DisplayInfo"}
+{"interactionPoints":[{"id":0,"range":[{"end":{"col":15,"line":10,"pos":110},"start":{"col":10,"line":10,"pos":105}}]}],"kind":"InteractionPoints"}
+JSON> 

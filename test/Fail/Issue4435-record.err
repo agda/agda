@@ -1,6 +1,6 @@
 Issue4435-record.agda:8.1-27: error: [MissingDefinitions]
-The following names are declared but not accompanied by a
-definition: Foo
+The following names are declared but lack a definition:
+Foo
 
 Issue4435-record.agda:12.8-19: error: [ClashingDefinition]
 Multiple definitions of Foo. Previous definition

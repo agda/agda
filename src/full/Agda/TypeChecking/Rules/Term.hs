@@ -1981,8 +1981,8 @@ checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
       fs <- recordPatternToProjections p
       -- We remove the bindings for the pattern variables from the context.
       cxt0 <- getContext
-      let (binds, cxt) = splitAt (size delta) cxt0
-          toDrop       = length binds
+      let binds  = cxTake (size delta) cxt0
+          toDrop = length binds
 
           -- We create a substitution for the let-bound variables
           -- (unfortunately, we cannot refer to x in internal syntax
@@ -1994,7 +1994,7 @@ checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
           -- the size of delta, so we append the identity substitution.
           sub    = parallelS (reverse sigma)
 
-      updateContext sub (drop toDrop) $ do
+      updateContext sub (cxDrop toDrop) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ "delta =" <+> prettyTCM delta
           , "binds =" <+> prettyTCM binds

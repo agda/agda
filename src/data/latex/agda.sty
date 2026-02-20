@@ -165,9 +165,12 @@
     \definecolor{AgdaUnsolvedMeta}      {HTML}{D3D3D3}
     \definecolor{AgdaUnsolvedConstraint}{HTML}{D3D3D3}
     \definecolor{AgdaTerminationProblem}{HTML}{BEBEBE}
-    \definecolor{AgdaIncompletePattern} {HTML}{D3D3D3}
+    \definecolor{AgdaPositivityProblem} {HTML}{BEBEBE}
+    \definecolor{AgdaInstanceProblem}   {HTML}{BEBEBE} %% TODO pick color
+    \definecolor{AgdaCoverageProblem}   {HTML}{D3D3D3}
     \definecolor{AgdaErrorWarning}      {HTML}{BEBEBE}
     \definecolor{AgdaError}             {HTML}{696969}
+    \definecolor{AgdaDeadcode}          {HTML}{EDEDED}
 
     % Misc.
     \definecolor{AgdaHole}              {HTML}{BEBEBE}
@@ -205,9 +208,12 @@
     \definecolor{AgdaUnsolvedMeta}      {HTML}{FFD700}
     \definecolor{AgdaUnsolvedConstraint}{HTML}{FFD700}
     \definecolor{AgdaTerminationProblem}{HTML}{FF0000}
-    \definecolor{AgdaIncompletePattern} {HTML}{A020F0}
+    \definecolor{AgdaPositivityProblem} {HTML}{FF0000}
+    \definecolor{AgdaInstanceProblem}   {HTML}{FF0000} %% TODO pick color
+    \definecolor{AgdaCoverageProblem}   {HTML}{A020F0}
     \definecolor{AgdaErrorWarning}      {HTML}{FF0000}
     \definecolor{AgdaError}             {HTML}{F4A460}
+    \definecolor{AgdaDeadcode}          {HTML}{EDEDED}
 
     % Misc.
     \definecolor{AgdaHole}              {HTML}{9DFF9D}
@@ -244,9 +250,12 @@
     \definecolor{AgdaUnsolvedMeta}      {HTML}{FFFF00}
     \definecolor{AgdaUnsolvedConstraint}{HTML}{FFFF00}
     \definecolor{AgdaTerminationProblem}{HTML}{FFA07A}
-    \definecolor{AgdaIncompletePattern} {HTML}{F5DEB3}
+    \definecolor{AgdaPositivityProblem} {HTML}{FFA07A}
+    \definecolor{AgdaInstanceProblem}   {HTML}{FFA07A}  %% TODO pick color
+    \definecolor{AgdaCoverageProblem}   {HTML}{F5DEB3}
     \definecolor{AgdaErrorWarning}      {HTML}{FFA07A}
     \definecolor{AgdaError}             {HTML}{FF0000}
+    \definecolor{AgdaDeadcode}          {HTML}{EDEDED}
 
     % Misc.
     \definecolor{AgdaHole}              {HTML}{9DFF9D}
@@ -334,17 +343,27 @@
 % Other aspect commands.
 \newcommand{\AgdaFixityOp}          [1]{\AgdaNoSpaceMath{$#1$}}
 \newcommand{\AgdaDottedPattern}     [1]{\textcolor{AgdaDottedPattern}{#1}}
-\newcommand{\AgdaUnsolvedMeta}      [1]
-    {\AgdaFontStyle{\colorbox{AgdaUnsolvedMeta}{#1}}}
-\newcommand{\AgdaUnsolvedConstraint}[1]
-    {\AgdaFontStyle{\colorbox{AgdaUnsolvedConstraint}{#1}}}
-\newcommand{\AgdaTerminationProblem}[1]
-    {\AgdaFontStyle{\colorbox{AgdaTerminationProblem}{#1}}}
-\newcommand{\AgdaIncompletePattern} [1]{\colorbox{AgdaIncompletePattern}{#1}}
-\newcommand{\AgdaErrorWarning}      [1]{\colorbox{AgdaErrorWarning}{#1}}
-\newcommand{\AgdaError}             [1]
-    {\textcolor{AgdaError}{\AgdaFontStyle{\underline{#1}}}}
-\newcommand{\AgdaCatchallClause}    [1]{#1} % feel free to change this
+% Boxes (background color):
+\newcommand{\AgdaDeadcode}          [1]{\AgdaFontStyle{\colorbox{AgdaDeadcode}{#1}}}
+\newcommand{\AgdaInstanceProblem}   [1]{\AgdaFontStyle{\colorbox{AgdaInstanceProblem}{#1}}}
+\newcommand{\AgdaUnsolvedConstraint}[1]{\AgdaFontStyle{\colorbox{AgdaUnsolvedConstraint}{#1}}}
+\newcommand{\AgdaUnsolvedMeta}      [1]{\AgdaFontStyle{\colorbox{AgdaUnsolvedMeta}{#1}}}
+% TODO: add coloring
+\newcommand{\AgdaCatchallClause      }[1]{#1} % feel free to change this
+\newcommand{\AgdaCosmeticProblem     }[1]{#1} % feel free to change this
+\newcommand{\AgdaShadowingInTelescope}[1]{#1} % feel free to change this
+
+% The following aspect are currently unused because Agda does not texify
+% documents with error warnings.
+\newcommand{\AgdaError}             [1]{\textcolor{AgdaError}{\AgdaFontStyle{\underline{#1}}}}
+% Boxes (background color):
+\newcommand{\AgdaConfluenceProblem }[1]{#1} % feel free to change this
+\newcommand{\AgdaCoverageProblem   }[1]{\colorbox{CoverageProblem}{#1}}
+\newcommand{\AgdaErrorWarning      }[1]{\colorbox{AgdaErrorWarning}{#1}}
+\newcommand{\AgdaMissingDefinition }[1]{#1} % currently unused
+\newcommand{\AgdaPositivityProblem }[1]{\AgdaFontStyle{\colorbox{AgdaPositivityProblem}{#1}}}
+\newcommand{\AgdaTerminationProblem}[1]{\AgdaFontStyle{\colorbox{AgdaTerminationProblem}{#1}}}
+\newcommand{\AgdaTypeChecks        }[1]{#1} % currently unused
 
 % Used to hide code from LaTeX.
 %

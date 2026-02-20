@@ -33,7 +33,7 @@ out >   field tel = (B : Set)
 out > Found interaction point ConcreteDef ?0 : Set
 out > reusing meta
 out >   creation context: [(genTel : Issue8182..GeneralizeTel)]
-out >   reusage  context: [(genTel : _11 (r = genTel)), (r : R)]
+out >   reusage  context: [(r : R), (genTel : _11 (r = r))]
 out >   k     = 1
 out >   glen  = 1
 out >   g0len = 0
@@ -43,7 +43,7 @@ out > meta reuse arguments: [genTel]
 out > Found interaction point ConcreteDef ?1 : Set
 out > reusing meta
 out >   creation context: [{G : Set}]
-out >   reusage  context: [(genTel : _11 (r = genTel)), (r : R)]
+out >   reusage  context: [(r : R), (genTel₁ : _11 (r = r))]
 out >   k     = 1
 out >   glen  = 1
 out >   g0len = 0

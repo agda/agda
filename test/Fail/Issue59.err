@@ -1,6 +1,6 @@
 Issue59.agda:17.1-19.12: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bad₂
-Problematic calls:
+Problematic call:
   bad₂ n
     (at Issue59.agda:18.13-17)

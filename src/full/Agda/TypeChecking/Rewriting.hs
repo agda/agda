@@ -88,6 +88,7 @@ import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible
 import Agda.Utils.Either
+import Agda.Utils.List1 (nonEmpty)
 
 requireOptionRewriting :: TCM ()
 requireOptionRewriting =
@@ -433,7 +434,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
           _        -> errorNotGeneral
 
         errorNotGeneral :: MaybeT TCM a
-        errorNotGeneral = illegalRule $ ConstructorParametersNotGeneral c vs
+        errorNotGeneral =
+          illegalRule $ ConstructorParametersNotGeneral c $ fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
 
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.

@@ -1,7 +1,7 @@
 Issue2997.agda:6.1-12.15: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   T
-Problematic calls:
+Problematic call:
   T (at Issue2997.agda:9.11-12)
 
 Issue2997.agda:15.4-12: error: [SplitError.NotADatatype]

@@ -1,5 +1,5 @@
 Issue256.agda:14.1-15.24: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   ℓ
-Problematic calls:
+Problematic call:
   ℓ (at Issue256.agda:15.22-23)

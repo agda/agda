@@ -476,8 +476,8 @@ warningHighlighting' b w = case tcWarning w of
   ClashesViaRenaming _ xs    -> foldMap deadcodeHighlighting xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?
-  WrongInstanceDeclaration{}   -> instanceProblemHighlighting w
-  InstanceWithExplicitArg{}    -> instanceProblemHighlighting w
+  WrongInstanceDeclaration kwr  -> instanceProblemHighlighting kwr <> instanceProblemHighlighting w
+  InstanceWithExplicitArg kwr _ -> instanceProblemHighlighting kwr <> instanceProblemHighlighting w
   InstanceNoOutputTypeName{}   -> instanceProblemHighlighting w
   InstanceArgWithExplicitArg{} -> instanceProblemHighlighting w
   InversionDepthReached{}    -> mempty
@@ -609,8 +609,8 @@ warningHighlighting' b w = case tcWarning w of
     PragmaNoTerminationCheck{}        -> mempty
     PragmaCompiled{}                  -> errorWarningHighlighting w
     UnknownFixityInMixfixDecl{}       -> mempty
-    UnknownNamesInFixityDecl{}        -> mempty
-    UnknownNamesInPolarityPragmas{}   -> mempty
+    UnknownNamesInFixityDecl{}        -> errorWarningHighlighting w
+    UnknownNamesInPolarityPragmas{}   -> errorWarningHighlighting w
 
   -- Backends
   CustomBackendWarning{} -> mempty

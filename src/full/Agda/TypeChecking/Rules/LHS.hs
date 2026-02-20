@@ -561,7 +561,7 @@ checkPatternLinearity eqs = do
 -- | Construct the context for a left hand side, making up out-of-scope names
 --   for unnamed variables.
 computeLHSContext :: [Maybe A.Name] -> Telescope -> TCM Context
-computeLHSContext = go [] []
+computeLHSContext = go CxEmpty []
   where
     go cxt _ []        tel@ExtendTel{} = do
       reportSDoc "impossible" 10 $
@@ -571,8 +571,7 @@ computeLHSContext = go [] []
     go cxt _ []        EmptyTel = return cxt
     go cxt taken (x : xs) tel0@(ExtendTel a tel) = do
         name <- maybe (dummyName taken $ absName tel) return x
-        let e = CtxVar name a
-        go (e : cxt) (name : taken) xs (absBody tel)
+        go (CxExtendVar name a cxt) (name : taken) xs (absBody tel)
 
     dummyName taken s =
       if isUnderscore s then freshNoName_
@@ -672,7 +671,8 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
   --
   -- To pick up instances from {{}}-fields in a record module, we have
   -- to preserve which variable is the 'self' variable of that record.
-  cxt <- map (mapOrigin \case{ RecordSelf -> RecordSelf ; _ -> Inserted }) <$> getContext
+  cxt <- fmap (mapOrigin \case{ RecordSelf -> RecordSelf ; _ -> Inserted }) <$>
+         getContext
   let tel = contextToTel cxt
       cps = [ argFromDom dom $> unnamed (A.VarP $ A.mkBindName $ unDom dom)
             | (_,dom) <- contextVars cxt ]

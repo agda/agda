@@ -1,7 +1,7 @@
 Issue6108.agda:22.1-23.30: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   r
-Problematic calls:
+Problematic call:
   r i
     (at Issue6108.agda:23.26-27)
 

@@ -6,7 +6,7 @@ invˡ {dl″ (cons′ a l) p} rewrite invˡ {dl″ l ?} = ? has type
 {x = x₁ : DList″} → f dl-iso (f⁻¹ dl-iso x₁) ≡ x₁
 Issue5819.agda:72.1-120.45: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  dl-iso, Fresh→Fresh′, Fresh→AllFresh
+  dl-iso Fresh→Fresh′ Fresh→AllFresh
 Problematic calls:
   Fresh→Fresh′ eq p | l″ | sym eq
   Fresh→AllFresh eq p | l″ | sym eq

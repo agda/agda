@@ -73,12 +73,12 @@ instance EmbPrj Warning where
     CantGeneralizeOverSorts a             -> icodeN 14 CantGeneralizeOverSorts a
     IllformedAsClause a                   -> icodeN 15 IllformedAsClause a
     WithoutKFlagPrimEraseEquality         -> icodeN 16 WithoutKFlagPrimEraseEquality
-    InstanceWithExplicitArg a             -> icodeN 17 InstanceWithExplicitArg a
+    InstanceWithExplicitArg a b           -> icodeN 17 InstanceWithExplicitArg a b
     InfectiveImport a                     -> icodeN 18 InfectiveImport a
     CoInfectiveImport a                   -> icodeN 19 CoInfectiveImport a
     InstanceNoOutputTypeName a            -> icodeN 20 InstanceNoOutputTypeName a
     InstanceArgWithExplicitArg a          -> icodeN 21 InstanceArgWithExplicitArg a
-    WrongInstanceDeclaration              -> icodeN 22 WrongInstanceDeclaration
+    WrongInstanceDeclaration a            -> icodeN 22 WrongInstanceDeclaration a
     RewriteNonConfluent a b c d           -> icodeN 23 RewriteNonConfluent a b c d
     RewriteMaybeNonConfluent a b c        -> icodeN 24 RewriteMaybeNonConfluent a b c
     PragmaCompileErased a b               -> icodeN 25 PragmaCompileErased a b
@@ -166,12 +166,12 @@ instance EmbPrj Warning where
     N2 14 a       -> valuN CantGeneralizeOverSorts a
     N2 15 a       -> valuN IllformedAsClause a
     N1 16         -> valuN WithoutKFlagPrimEraseEquality
-    N2 17 a       -> valuN InstanceWithExplicitArg a
+    N3 17 a b     -> valuN InstanceWithExplicitArg a b
     N2 18 a       -> valuN InfectiveImport a
     N2 19 a       -> valuN CoInfectiveImport a
     N2 20 a       -> valuN InstanceNoOutputTypeName a
     N2 21 a       -> valuN InstanceArgWithExplicitArg a
-    N1 22         -> valuN WrongInstanceDeclaration
+    N2 22 a       -> valuN WrongInstanceDeclaration a
     N5 23 a b c d -> valuN RewriteNonConfluent a b c d
     N4 24 a b c   -> valuN RewriteMaybeNonConfluent a b c
     N3 25 a b     -> valuN PragmaCompileErased a b
@@ -338,6 +338,11 @@ instance EmbPrj DeclarationWarning where
 
 instance EmbPrj DeclarationWarning' where
   icod_ = \case
+    -- Andreas, 2026-02-14:
+    -- UnknownNamesInFixityDecl and UnknownNamesInPolarityPragmas are now error warnings,
+    -- so the following two cases are impossible.
+    -- We leave them in as long as they are not a nuisance for maintenance,
+    -- should we decide in the future to revert them to non-error-warnings.
     UnknownNamesInFixityDecl a        -> icodeN 0 UnknownNamesInFixityDecl a
     UnknownNamesInPolarityPragmas a   -> icodeN 1 UnknownNamesInPolarityPragmas a
     PolarityPragmasButNotPostulates a -> icodeN 2 PolarityPragmasButNotPostulates a

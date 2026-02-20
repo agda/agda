@@ -385,7 +385,7 @@ Token
  --------------------------------------------------------------------------}
 
 File :: { Module }
-File : vopen TopLevel maybe_vclose { takeOptionsPragmas $2 }
+File : vopen TopDeclarations maybe_vclose { figureOutTopLevelModule $2 }
 
 maybe_vclose :: { () }
 maybe_vclose : {- empty -} { () }
@@ -1614,9 +1614,6 @@ Module
 
 Underscore :: { Name }
 Underscore : '_' { noName (getRange $1) }
-
-TopLevel :: { [Declaration] }
-TopLevel : TopDeclarations { figureOutTopLevelModule $1 }
 
 Pragma :: { Declaration }
 Pragma : DeclarationPragma  { Pragma $1 }

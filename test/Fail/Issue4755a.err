@@ -1,5 +1,9 @@
 Issue4755a.agda:23.13-16: warning: -W[no]RewriteVariablesBoundMoreThanOnce
-rew  is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side:  A. Perhaps you can use a postulate instead of a constructor as the head symbol?
+rew  is not a legal rewrite rule, since the following parameter is
+bound more than once on the left hand side:
+  A
+(Perhaps you can use a postulate instead of a constructor as the
+head symbol?)
 when checking the pragma REWRITE rew
 
 Issue4755a.agda:26.8-12: error: [UnequalTerms]

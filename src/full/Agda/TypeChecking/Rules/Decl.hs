@@ -731,7 +731,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   -- Add the definition to the instance table, if needed
   case Info.defInstance i of
-    InstanceDef _r -> setCurrentRange x $ addTypedInstance x t
+    InstanceDef kwr -> setCurrentRange x $ addTypedInstance kwr x t
       -- Put highlighting on name only; including the instance keyword,
       -- like @(getRange (r,x))@, does not produce good results.
     NotInstanceDef -> pure ()

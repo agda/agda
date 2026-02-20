@@ -305,7 +305,7 @@ instance Instantiate Constraint where
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (UnBlock m)          = return $ UnBlock m
   instantiate' (FindInstance r m cs)   = FindInstance r m <$> mapM instantiate' cs
-  instantiate' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  instantiate' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
   instantiate' c@CheckFunDef{}      = return c
@@ -983,7 +983,7 @@ instance Reduce Constraint where
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (UnBlock m)           = return $ UnBlock m
   reduce' (FindInstance r m cs)   = FindInstance r m <$> mapM reduce' cs
-  reduce' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  reduce' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
   reduce' c@CheckFunDef{}       = return c
@@ -1150,7 +1150,7 @@ instance Simplify Constraint where
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (UnBlock m)           = return $ UnBlock m
   simplify' (FindInstance r m cs)   = FindInstance r m <$> mapM simplify' cs
-  simplify' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  simplify' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
   simplify' c@CheckFunDef{}       = return c
@@ -1336,7 +1336,7 @@ instance Normalise Constraint where
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (UnBlock m)           = return $ UnBlock m
   normalise' (FindInstance r m cs)   = FindInstance r m <$> mapM normalise' cs
-  normalise' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  normalise' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
   normalise' c@CheckFunDef{}       = return c
@@ -1538,6 +1538,9 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
 
+instance InstantiateFull Context where
+  instantiateFull' (Context es) = Context <$> instantiateFull' es
+
 instance InstantiateFull ContextEntry where
   instantiateFull' (CtxVar x a) = CtxVar x <$> instantiateFull' a
 
@@ -1581,7 +1584,7 @@ instance InstantiateFull Constraint where
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     UnBlock m           -> return $ UnBlock m
     FindInstance r m cs -> FindInstance r m <$> mapM instantiateFull' cs
-    ResolveInstanceHead q -> return $ ResolveInstanceHead q
+    ResolveInstanceHead kwr q -> return $ ResolveInstanceHead kwr q
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
     CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
     c@CheckFunDef{}     -> return c

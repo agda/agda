@@ -23,6 +23,7 @@ import Data.Set            (Set)
 import Data.Sequence       (Seq)
 
 import Agda.Utils.List1    (List1)
+import Agda.Utils.Set1     (Set1)
 import Agda.Utils.Null
 
 -- | The size of a collection (i.e., its length).
@@ -51,6 +52,7 @@ class Sized a where
 
 instance Sized [a]
 instance Sized (Set a)
+instance Sized (Set1 a)
 instance Sized (HashMap k a)
 instance Sized (HashSet a)
 instance Sized (IntMap a)

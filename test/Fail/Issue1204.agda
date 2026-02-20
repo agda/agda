@@ -1,4 +1,4 @@
-{-# OPTIONS --warning=error #-}
+
 
 module _ where
 

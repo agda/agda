@@ -1,11 +1,2 @@
-1.1-5: error: [ModuleNameDoesntMatchFileName]
-The inferred name 'Test' of the top level module does not match the
-file name. A such named module should be defined in one of the
-following files:
-  customised/Test.AGDA
-  agda-default-include-path/Test.AGDA
-where .AGDA denotes a legal extension for an Agda file
-(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
- .lagda.org .lagda.tree .lagda.typ)
-(Hint: no module header was found in this file; adding one might
-fix this error.)
+customised/Issue7953/Test.agda:1.1-27: error: [IllegalDeclarationBeforeTopLevelModule]
+Illegal declaration(s) before top-level module

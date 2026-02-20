@@ -1639,6 +1639,10 @@ instance Reify i => Reify (Dom i) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i
     {-# INLINE reify #-}
 
+instance Reify Context where
+  type ReifiesTo Context = [A.TypedBinding]
+
+  reify = reify . contextToTel
 
 instance Reify ContextEntry where
   type ReifiesTo ContextEntry = A.TypedBinding

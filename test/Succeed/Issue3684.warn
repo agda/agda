@@ -1,13 +1,14 @@
+
 Issue3684.agda:13.10-17.4: warning: -W[no]TooManyFields
-The record type R does not have the fields bar, far but it would
-have the fields foo, boo
+The record type R does not have the fields: bar far
+but it would have the fields: foo boo
 when checking that the expression
 record { moo = A ; bar = A ; far = A } has type R
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue3684.agda:13.10-17.4: warning: -W[no]TooManyFields
-The record type R does not have the fields bar, far but it would
-have the fields foo, boo
+The record type R does not have the fields: bar far
+but it would have the fields: foo boo
 when checking that the expression
 record { moo = A ; bar = A ; far = A } has type R

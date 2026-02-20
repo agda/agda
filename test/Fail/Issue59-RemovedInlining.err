@@ -1,5 +1,5 @@
 Issue59-RemovedInlining.agda:11.3-17.70: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   merge
 Problematic calls:
   merge A _≤_ (x ∷ xs) (y ∷ ys) | x ≤ y

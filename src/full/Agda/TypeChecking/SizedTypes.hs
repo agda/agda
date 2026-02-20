@@ -140,7 +140,7 @@ checkSizeVarNeverZero i = do
   -- Looking for the minimal value for size variable i,
   -- we can restrict to the last i
   -- entries, as only these can contain i in an upper bound.
-  ts <- map ctxEntryType . take i <$> getContext
+  ts <- map ctxEntryType . cxTake i <$> getContext
   -- If we encountered a blocking meta in the context, we cannot
   -- say ``no'' for sure.
   (n, blockers) <- runWriterT $ minSizeValAux ts $ ListInf.repeat 0

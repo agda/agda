@@ -485,7 +485,7 @@ lensOptUniverseCheck :: Lens' PragmaOptions _
 lensOptUniverseCheck f o = f (_optUniverseCheck o) <&> \ i -> o{ _optUniverseCheck = i }
 
 lensOptNoUniverseCheck :: Lens' PragmaOptions _
-lensOptNoUniverseCheck f o = f (mapValue not $ _optUniverseCheck o) <&> \ i -> o{ _optUniverseCheck = mapValue not i }
+lensOptNoUniverseCheck f o = f (not' $ _optUniverseCheck o) <&> \ i -> o{ _optUniverseCheck = not' i }
 
 lensOptOmegaInOmega :: Lens' PragmaOptions _
 lensOptOmegaInOmega f o = f (_optOmegaInOmega o) <&> \ i -> o{ _optOmegaInOmega = i }

@@ -3,14 +3,26 @@ AGDA_UNEXPECTED_SUCCESS
 ret > ExitSuccess
 out >
 out > Issue5929.agda:42.15-31: warning: -W[no]RewriteVariablesBoundInSingleton
-out > I am not certain that the rewrite rule:  circle-elim-loop  is safe because it appears that the following variables:  loopᴾ  are only bound in contexts which might become definitionally singular.
-out > This warning can be silenced with -WnoRewriteVariablesBoundInSingleton, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields.
+out > I am not certain that the rewrite rule   circle-elim-loop   is safe
+out > because it appears that the following variable is only bound in
+out > contexts which might become definitionally singular:
+out >   loopᴾ
+out > This warning can be silenced with
+out >   -WnoRewriteVariablesBoundInSingleton
+out > but be aware that this rewrite might behave strangely in the
+out > presence of e.g. eta records with no fields
 out > when checking the pragma REWRITE circle-elim-loop
 out >
 out > ———— All done; warnings encountered ————————————————————————
 out >
 out > Issue5929.agda:42.15-31: warning: -W[no]RewriteVariablesBoundInSingleton
-out > I am not certain that the rewrite rule:  circle-elim-loop  is safe because it appears that the following variables:  loopᴾ  are only bound in contexts which might become definitionally singular.
-out > This warning can be silenced with -WnoRewriteVariablesBoundInSingleton, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields.
+out > I am not certain that the rewrite rule   circle-elim-loop   is safe
+out > because it appears that the following variable is only bound in
+out > contexts which might become definitionally singular:
+out >   loopᴾ
+out > This warning can be silenced with
+out >   -WnoRewriteVariablesBoundInSingleton
+out > but be aware that this rewrite might behave strangely in the
+out > presence of e.g. eta records with no fields
 out > when checking the pragma REWRITE circle-elim-loop
 out >

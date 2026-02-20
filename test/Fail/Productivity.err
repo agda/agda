@@ -1,6 +1,6 @@
 Productivity.agda:37.3-40.68: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  expr, term, factor
+  expr term factor
 Problematic calls:
   term
     (at Productivity.agda:38.14-18)

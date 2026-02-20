@@ -1,5 +1,7 @@
 Issue4371.agda:19.13-15: warning: -W[no]RewriteVariablesNotBoundByLHS
-ok  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  p
+ok  is not a legal rewrite rule, since the following variable is
+not bound by the left hand side:
+  p
 when checking the pragma REWRITE ok
 
 Issue4371.agda:22.11-15: error: [UnequalTerms]

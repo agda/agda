@@ -496,7 +496,28 @@ processCode toks' = do
     -- Translation from OtherAspect to command strings. So far it happens
     -- to correspond to @show@ but it does not have to (cf. fromAspect)
     fromOtherAspect :: OtherAspect -> Text
-    fromOtherAspect = T.pack . show
+    fromOtherAspect a = let s = T.pack (show a) in
+      -- Andreas, 2026-02-17, issue #8402
+      -- Expand OtherAspect into all of its cases
+      -- such that a developer adding to OtherAspect gets alerted here.
+      -- All ASPECTs need a corresponding @\AgdaASPECT@ command in agda.sty.
+      case a of
+        Error                -> s
+        ErrorWarning         -> s
+        DottedPattern        -> s
+        UnsolvedMeta         -> s
+        UnsolvedConstraint   -> s
+        TerminationProblem   -> s
+        PositivityProblem    -> s
+        Deadcode             -> s
+        ShadowingInTelescope -> s
+        CoverageProblem      -> s
+        TypeChecks           -> s
+        MissingDefinition    -> s
+        InstanceProblem      -> s
+        CosmeticProblem      -> s
+        CatchallClause       -> s
+        ConfluenceProblem    -> s
 
     fromAspect :: Aspect -> [Text]
     fromAspect a = let s = [T.pack $ show a] in case a of
@@ -710,13 +731,15 @@ prepareCommonAssets dir = do
      unlessM (pure dirExisted `and2M` liftIO (doesFileExist agdaSty)) $ do
        -- It is safe now to create the default style file in @dir@ without overwriting
        -- a possibly user-edited copy there.
-       logLaTeX $ LogMessage FileSystem
-         (T.pack $ unwords [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir])
-         []
+       logFileSystem $ unwords $
+         [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir]
        liftIO $ do
          styFile <- getDataFileName $
            latexDataDir </> defaultStyFile
          copyFile styFile agdaSty
+
+logFileSystem :: (MonadLogLaTeX m) => String -> m ()
+logFileSystem s = logLaTeX $ LogMessage FileSystem (T.pack s) []
 
 -- | Generates a LaTeX file for the given interface.
 generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> m ()
@@ -730,6 +753,7 @@ generateLaTeXIO opts i = do
               (latexOptSourceFileName opts)
               (iSource i)
               (iHighlighting i)
+  logFileSystem $ unwords [ "writing", outPath ]
   liftIO $ do
     createDirectoryIfMissing True (takeDirectory outPath)
     BS.writeFile outPath latex

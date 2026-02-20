@@ -1,7 +1,7 @@
 Imports/NonTerminating.agda:3.1-4.10: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   Foo
-Problematic calls:
+Problematic call:
   Foo
     (at Imports/NonTerminating.agda:4.7-10)
 when scope checking the declaration

@@ -518,7 +518,8 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         let numFields = glen - g1len - g0len
         if numFields <= 0 then return $ vs1 ++ vs0 else do
           -- Get the record type.
-          let t = (unDom . ctxEntryDom) $ fromMaybe __IMPOSSIBLE__ $ delta !!! k
+          let t = unDom $ ctxEntryDom $ fromMaybe __IMPOSSIBLE__ $
+                  cxLookup k delta
           -- Get the record field names.
           fs <- reverse . take numFields <$> getRecordTypeFields t
           -- Check that the record field names match

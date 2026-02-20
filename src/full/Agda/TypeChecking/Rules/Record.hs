@@ -41,7 +41,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Lens
-import Agda.Utils.List (headWithDefault)
 import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -262,7 +261,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- Andreas, 2020-01-28, issue #4360:
           -- Use addTypedInstance instead of addNamedInstance
           -- to detect unusable instances.
-          addTypedInstance conName contype
+          addTypedInstance r conName contype
           -- addNamedInstance conName name
         NotInstanceDef -> pure ()
 
@@ -356,8 +355,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- do
-            r <- headWithDefault __IMPOSSIBLE__ <$> getContext
-            return $ contextToTel $ r : params
+            r <- fromMaybe __IMPOSSIBLE__ . cxLookup 0 <$> getContext
+            return $ contextToTel $ CxExtend r params
           cp <- viewTC eCurrentCheckpoint
           setModuleCheckpoint m cp
           checkRecordProjections m name hasNamedCon con tel' ftel fields
@@ -620,8 +619,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           -- local variable" (i.e. the type you'd get were you to open
           -- the record module), but this type has to be treated in the
           -- context ftel1 otherwise it's nonsense
-          InstanceDef _r -> addTypedInstance projname t
-          NotInstanceDef -> pure ()
+          InstanceDef kwr -> addTypedInstance kwr projname t
+          NotInstanceDef  -> pure ()
 
         recurse
 
