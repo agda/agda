@@ -1634,7 +1634,7 @@ instance Free Constraint where
     IsEmpty _ t                 -> ret $ freeVars t
     CheckSizeLtSat u            -> ret $ freeVars u
     FindInstance _ _ cs         -> ret $ freeVars cs
-    ResolveInstanceHead q       -> ret $ mempty
+    ResolveInstanceHead _ _     -> ret $ mempty
     CheckFunDef{}               -> ret $ mempty
     HasBiggerSort s             -> ret $ freeVars s
     HasPTSRule a s              -> ret $ freeVars (a , s)
