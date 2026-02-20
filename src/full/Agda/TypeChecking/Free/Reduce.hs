@@ -32,7 +32,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Precompute
 
--- import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
@@ -161,7 +160,7 @@ instance (Reduce a, ForceNotFree a) => ForceNotFree (Abs a) where
   forceNotFree' = \case
     a@NoAbs{} -> traverse forceNotFreeR a
     a@Abs{}   -> reduceIfFreeVars (local (\(FREnv x nfs ms e) -> FREnv (x + 1) nfs ms e) . traverse forceNotFree') a
---Modality
+
 instance ForceNotFree a => ForceNotFree [a] where
   forceNotFree' = \case
     []     -> pure []
@@ -171,9 +170,9 @@ instance (Reduce a, ForceNotFree a) => ForceNotFree (Elim' a) where
   -- There's an Arg inside Elim' which stores precomputed free vars, so let's
   -- not skip over that.
   forceNotFree' = \case
-    (Apply arg)    -> Apply <$> forceNotFree' arg
-    e@Proj{}       -> pure e
-    (IApply x y r) -> IApply <$> forceNotFreeR x <*> forceNotFreeR y <*> forceNotFreeR r
+    Apply arg    -> Apply <$> forceNotFree' arg
+    e@Proj{}     -> pure e
+    IApply x y r -> IApply <$> forceNotFreeR x <*> forceNotFreeR y <*> forceNotFreeR r
 
 instance ForceNotFree Type where
   forceNotFree' (El s t) = El <$> forceNotFree' s <*> forceNotFree' t
@@ -202,10 +201,10 @@ instance ForceNotFree Term where
       t@Dummy{}  -> pure t
 
 instance ForceNotFree Level where
-  forceNotFree' =  \(Max m as) -> Max m <$> forceNotFree' as
+  forceNotFree' (Max m as) = Max m <$> forceNotFree' as
 
 instance ForceNotFree PlusLevel where
-  forceNotFree' =  \(Plus k a) -> Plus k <$> forceNotFree' a
+  forceNotFree' (Plus k a) = Plus k <$> forceNotFree' a
 
 instance ForceNotFree Sort where
   -- Reduce for sorts already goes under all sort constructors, so we can get

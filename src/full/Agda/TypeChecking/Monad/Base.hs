@@ -2286,18 +2286,6 @@ pattern DDot v = DDot' v []
 pattern DTerm :: Term -> DisplayTerm
 pattern DTerm v = DTerm' v []
 
--- instance FreeOld.Free DisplayForm where
---   freeVars' (Display n ps t) =
---               FreeOld.underBinder (FreeOld.freeVars' ps)
---     `mappend` FreeOld.underBinder' n (FreeOld.freeVars' t)
-
--- instance FreeOld.Free DisplayTerm where
---   freeVars' (DWithApp t ws es) = FreeOld.freeVars' (t, (ws, es))
---   freeVars' (DCon _ _ vs)      = FreeOld.freeVars' vs
---   freeVars' (DDef _ es)        = FreeOld.freeVars' es
---   freeVars' (DDot' v es)       = FreeOld.freeVars' (v, es)
---   freeVars' (DTerm' v es)      = FreeOld.freeVars' (v, es)
-
 instance Pretty DisplayTerm where
   prettyPrec p v =
     case v of

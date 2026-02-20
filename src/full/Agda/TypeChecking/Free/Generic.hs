@@ -188,9 +188,9 @@ instance Free Term where
 
 instance Free t => Free (Elim' t) where
   freeVars e = expand \ret -> case e of
-    (Apply t)      -> ret $ freeVars t
-    (Proj{})       -> ret $ mempty
-    (IApply x y r) -> ret $ freeVars (x,y,r)
+    Apply t      -> ret $ freeVars t
+    Proj{}       -> ret $ mempty
+    IApply x y r -> ret $ freeVars (x,y,r)
 
 instance Free t => Free (Type' t) where
   freeVars :: forall r. ComputeFree r => Type' t -> Reader r (Collect r)
