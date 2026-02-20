@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
 
 -- | Computing the polarity (variance) of function arguments,
 --   for the sake of subtyping.

@@ -1,9 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications    #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -ddump-to-file #-}
 
 -- | This module contains the definition of hereditary substitution
 -- and application operating on internal syntax which is in β-normal
