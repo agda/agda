@@ -1,3 +1,5 @@
 LocalRewriteOutsideTele.agda:8.19-35: error: [LocalRewriteOutsideTelescope]
-Local rewrite rule arguments are (currently) only allowed in module telescopes. Consider creating an anonymous module.
+_ : x ≡ 0  is not a legal rewrite rule, since local rewrite rules
+are (currently) only allowed in module telescopes. Consider
+creating an anonymous module
 when checking that the expression x ≡ 0 → Nat is a type

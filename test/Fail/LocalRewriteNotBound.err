@@ -1,0 +1,13 @@
+LocalRewriteNotBound.agda:9.10-44: warning: -W[no]RewriteVariablesNotBoundByLHS
+p : {m : Nat} → n ≡ m  is not a legal rewrite rule, since the
+following variable is not bound by the left hand side:
+  m
+when checking the parameters of module _
+
+LocalRewriteNotBound.agda:11.10-14: error: [UnequalTerms]
+The terms
+  n
+and
+  m
+are not equal at type Nat
+when checking that the expression refl has type n ≡ m
