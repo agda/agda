@@ -673,7 +673,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                     , defMatchable      = Set.empty
                     , defNoCompilation  = defNoCompilation d
                     , defInjective      = False
-                    , defCopatternLHS   = isCopatternLHS [cl]
+                    , defCopatternLHS'  = isCopatternLHS [cl]
                     , defBlocked        = defBlocked d
                     , defLanguage       =
                       case defLanguage d of
@@ -1017,6 +1017,21 @@ getAllRewriteRulesForDefHead f =
     justTheRule (RewriteRule _ g q ps rhs t isClause _)
       | isClause  = Nothing
       | otherwise = pure $ LocalRewriteRule g (RewDefHead q)  ps rhs t
+
+-- | A local rewrite rule forces us to consider the definition as defined
+--   by copatterns
+--   This is necessary because binding local rewrite rules does not update
+--   defCopattern
+rewUsesCopatterns :: HasConstInfo m => LocalRewriteHead -> m Bool
+rewUsesCopatterns h =
+  any lrewHasProjectionPattern <$> getLocalRewriteRulesFor h
+
+-- | Is this a function defined by copatterns?
+--   Accounts for local rewrite rules
+defCopatternLHS :: HasConstInfo m => QName -> Definition -> m Bool
+defCopatternLHS f d = do
+  rewForces <- rewUsesCopatterns (RewDefHead f)
+  pure $ defCopatternLHS' d || rewForces
 
 getAllRewriteRulesForVarHead :: HasConstInfo m
   => Nat -> m (LocalRewriteRules)
@@ -1624,7 +1639,7 @@ projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
 usesCopatterns :: (HasConstInfo m) => QName -> m Bool
-usesCopatterns q = defCopatternLHS <$> getConstInfo q
+usesCopatterns q = defCopatternLHS q =<< getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection which is not irrelevant.

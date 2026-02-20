@@ -391,10 +391,6 @@ defaultAddLocalRewrite rew ret = do
       (IntMap.insertWith mappend x [rew']) ret
     RewDefHead f -> locallyTC (eLocalRewriteRules . lrewsDefHeaded)
       (HMap.insertWith mappend f [rew']) ret
-  -- TODO: Update matchability...
-  -- We maybe need to store matchability overrides in some sort of local TCEnv field?!
-  -- modifyGlobalSignature $ updateDefinitions $ updateDefsForRewrites f rews matchables
-
 
 addRecordNameContext
   :: (MonadAddContext m, MonadFresh NameId m)

@@ -724,7 +724,7 @@ unfoldDefinitionStep v0 f es =
         , isIrrelevant info
         , not defOk
         ]
-      copatterns = defCopatternLHS info
+  copatterns <- defCopatternLHS f info
   case def of
     Constructor{conSrcCon = c} -> do
       let hd = Con (c `withRangeOf` f) ConOSystem

@@ -317,12 +317,18 @@ functionInverse = \case
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
     cubical <- cubicalOption
+    -- Local rewrite rules do not update definitional injectivity/invertibility
+    -- so we check if any are present
+    rewr <- getLocalRewriteRulesFor $ RewDefHead f
     case inv of
       NotInjective -> return NoInv
-      Inverse m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
+      Inverse m | null rewr -> do
+        maybe NoInv (Inv f es) <$>
+          (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
         -- NB: Invertible functions are never classified as
         --     projection-like, so this is fine, we are not
         --     missing parameters.  (Andreas, 2013-11-01)
+      Inverse m -> return NoInv
   _ -> return NoInv
 
 data InvView = Inv QName [Elim] (InversionMap Clause)

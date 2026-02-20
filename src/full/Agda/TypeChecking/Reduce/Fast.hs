@@ -114,8 +114,8 @@ data BuiltinEnv = BuiltinEnv
   , bPrimForce, bPrimErase  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
-compactDef :: BuiltinEnv -> Definition -> LocalRewriteRules -> ReduceM CompactDef
-compactDef bEnv def rewr = do
+compactDef :: BuiltinEnv -> Definition -> Bool -> LocalRewriteRules -> ReduceM CompactDef
+compactDef bEnv def copatterns rewr = do
 
   -- WARNING: don't use isPropM here because it relies on reduction,
   -- which causes an infinite loop.
@@ -135,7 +135,7 @@ compactDef bEnv def rewr = do
           , isConOrProj && ProjectionReductions `SmallSet.member` allowed
           , isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed
           , definitelyNonRecursive_ (theDef def) && or
-            [ defCopatternLHS def && CopatternReductions `SmallSet.member` allowed
+            [ copatterns && CopatternReductions `SmallSet.member` allowed
             , FunctionReductions `SmallSet.member` allowed
             ]
           ]
@@ -477,9 +477,11 @@ fastReduce' norm v = do
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
+    copatterns <- if rwr then defCopatternLHS f info
+                         else return $ defCopatternLHS' info
     rewr <- if rwr then getAllRewriteRulesForDefHead f
                    else return []
-    compactDef bEnv info rewr
+    compactDef bEnv info copatterns rewr
   localRewr <- unKleisli $ \x -> if rwr then getAllRewriteRulesForVarHead x else return []
 
   ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) (memoInt localRewr) norm v

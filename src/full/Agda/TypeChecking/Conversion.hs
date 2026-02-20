@@ -346,6 +346,10 @@ compareTerm' cmp a m n =
                 -- to trigger a reduction.
                 isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                   not <$> usesCopatterns q -- a def by copattern can reduce if projected
+                isNeutral (NotBlocked r (Var i _)) = do
+                  -- Local rewrite rules can also make a variable applications
+                  -- reduce if projected
+                  not <$> rewUsesCopatterns (RewVarHead i)
                 isNeutral _                   = return True
 
                 -- Amy, 2024-01-29: Is this blocked application headed by one of the

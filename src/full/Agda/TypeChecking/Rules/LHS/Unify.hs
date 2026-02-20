@@ -447,7 +447,7 @@ etaExpandEquationStrategy k s = do
       Def f es   -> usesCopatterns f
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 
-      Var _ _    -> return False
+      Var x _    -> rewUsesCopatterns $ RewVarHead x
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__
       Pi _ _     -> __IMPOSSIBLE__

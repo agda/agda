@@ -2373,6 +2373,9 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
+rewHasProjectionPattern :: RewriteRule -> Bool
+rewHasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
+
 type LocalRewriteRules     = [LocalRewriteRule]
 
 -- | Map from head symbols to local rewrite rules
@@ -2469,8 +2472,9 @@ data Definition = Defn
     -- ^ should compilers skip this? Used for e.g. cubical's comp
   , defInjective      :: Bool
     -- ^ Should the def be treated as injective by the pattern matching unifier?
-  , defCopatternLHS   :: Bool
+  , defCopatternLHS'   :: Bool
     -- ^ Is this a function defined by copatterns?
+    -- Does not account for local rewrite rules
   , defBlocked        :: Blocked_
     -- ^ What blocking tag to use when we cannot reduce this def?
     --   Used when checking a function definition is blocked on a meta
@@ -2518,7 +2522,7 @@ defaultDefn info x t lang def = Defn
   , defMatchable      = Set.empty
   , defNoCompilation  = False
   , defInjective      = False
-  , defCopatternLHS   = False
+  , defCopatternLHS'  = False
   , defBlocked        = NotBlocked ReallyNotBlocked ()
   , defLanguage       = lang
   , theDef            = def
@@ -3163,7 +3167,7 @@ instance Pretty Definition where
       , "defCopy           =" <?> pshow defCopy
       , "defMatchable      =" <?> pshow (Set.toList defMatchable)
       , "defInjective      =" <?> pshow defInjective
-      , "defCopatternLHS   =" <?> pshow defCopatternLHS
+      , "defCopatternLHS   =" <?> pshow defCopatternLHS'
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
