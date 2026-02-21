@@ -11,6 +11,8 @@ import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.Void (Void)
 
+import Agda.Syntax.Abstract.Name
+  ( AbstractName(..), AbstractModule(..), KindOfName, NameMetadata(..), WhyInScope(..) )
 import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern ( noDotOrEqPattern )
 import Agda.Syntax.Common

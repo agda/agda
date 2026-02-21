@@ -19,7 +19,8 @@ import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import qualified Agda.Syntax.Abstract.Name as A
+import Agda.Syntax.Abstract.Name (AbstractName (..), AbstractModule (..), KindOfName(..))
+import Agda.Syntax.Abstract.Name qualified as A
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty

@@ -11,17 +11,18 @@ import Data.Maybe
 
 import System.FilePath
 
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Abstract.Name (AbstractName(..), KindOfName (FldName))
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Name as CName
+import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.List1             ( List1, pattern (:|) )
-import qualified Agda.Utils.List1   as List1
-import qualified Agda.Utils.IO.UTF8 as UTF8
+import Agda.Utils.IO.UTF8 qualified as UTF8
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Tuple
-import Agda.Syntax.Common.Pretty
 
 vimFile :: FilePath -> FilePath
 vimFile file =
