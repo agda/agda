@@ -1,5 +1,7 @@
 Issue3400-2.agda:11.1-4: error: [NoParseForLHS]
 Could not parse the left-hand side + A
 Operators used in the grammar:
-  None
+  ⟨_+_⟩ (closed operator, unrelated) [⟨_+_⟩ (Issue3400-2.agda:3.5-10)]
+Identifiers used in the grammar that overlap with the operators:
+  +
 when scope checking the left-hand side + A in the definition of +

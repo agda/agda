@@ -105,6 +105,7 @@ data Parsers e = Parsers
   , operators :: [NotationSection]
     -- ^ All operators, notations, and sections that were used to generate
     -- the grammar.
+    -- Only used for error reporting via 'OperatorInformation'.
   , operatorScope :: OperatorScope
     -- ^ A flattened scope that only contains names such that
     -- they occur in the expression or at least one of their
@@ -235,18 +236,22 @@ buildParsersFromOperatorScope kind top namesInExpr opScope = do
 
         (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
+        cons       :: [List1 NewNotation]
         cons       = getDefinedNames
                        (someKindsOfNames [ConName, CoConName, FldName, PatternSynName]) opScope
+        conNames   :: Set QName
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
                        map (notaName . List1.head) cons
-        conParts   = Set.fromList $
-                       concatMap notationNames $
-                       filter (or . partsPresent) $
-                       List1.concat cons
+        conParts   :: Set QName
+        conParts   = Set.fromList $ concatMap notationNames conPartNotations
+        conPartNotations :: [NewNotation]
+        conPartNotations = filter (or . partsPresent) $ List1.concat cons
 
+        allNames   :: Set QName
         allNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) names
+        allParts   :: Set QName
         allParts   = Set.union conParts
                        (Set.fromList $
                         concatMap notationNames $
@@ -310,16 +315,32 @@ buildParsersFromOperatorScope kind top namesInExpr opScope = do
                                        nonClosedSections r [n])) $
           fix
 
-        everything :: [NotationSection]
-        everything =
+        almostEverything :: [NotationSection]
+        almostEverything =
           concatMap snd relatedOperators ++
           unrelatedOperators ++
           nonWithSections
+
+        -- Andreas, 2026-02-21, issue #5839
+        -- Add constructor parts to the used-operators list,
+        -- so that failing lhs parses become more comprehensible.
+        -- Disclaimer: I don't know my way around this code,
+        -- and the expert did get active on this issue, see
+        -- https://github.com/agda/agda/issues/5839#issuecomment-1073286909
+        -- so I apologize if this is done in a non-idiomatic of clumsy fashion.
+        everything :: [NotationSection]
+        everything =
+          almostEverything ++
+          map noSection (filter ((`Set.notMember` keys) . key) conPartNotations)
+          where
+            key  = notaName
+            keys = Set.fromList $ map (key . sectNotation) almostEverything
 
     reportS "scope.operators" 50
       [ "unrelatedOperators = " ++ prettyShow unrelatedOperators
       , "nonWithSections    = " ++ prettyShow nonWithSections
       , "relatedOperators   = " ++ prettyShow relatedOperators
+      , "conPartNotations   = " ++ prettyShow conPartNotations
       ]
 
     let g = Data.Function.fix $ \p -> InternalParsers
