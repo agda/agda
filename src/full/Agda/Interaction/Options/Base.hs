@@ -1648,8 +1648,8 @@ rewritingPragmaOptions = ("Rewriting and confluence",) $ concat
                     "disable confluence checking of REWRITE rules (default)"
     ]
   , pragmaFlag      "local-rewriting" lensOptLocalRewriting
-                    "enable use of local (@rew) rewrite rules" ""
-                    $ Just "disable local (@rew) rewrite rules"
+                    "enable declaring local rewrite rules with the @rew annotation" ""
+                    $ Just "disable local rewrite rules"
   ]
 
 equalityCheckingPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])

@@ -741,6 +741,19 @@ Experimental features
 
      Default, opposite of :option:`--rewriting`.
 
+.. option:: --local-rewriting
+
+     .. versionadded:: 2.9.0
+
+     Enable declaring local rewrite rules with the ``@rew`` attribute (see
+     :ref:`local-rewriting`).
+
+.. option:: --no-local-rewriting
+
+     .. versionadded:: 2.9.0
+
+     Default, opposite of :option:`--local-rewriting`.
+
 .. option:: --two-level
 
      .. versionadded:: 2.6.2
@@ -1573,6 +1586,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unknown fields in library files.
 
+.. option:: LocalRewritingConfluenceCheck
+
+     Confluence checking (:option:`--confluence-check` or :option:`--local-confluence-check`) is not yet implemented for local rewrite rules (:option:`--local-rewriting`).
+
 .. option:: MisplacedAttributes
 
      Attributes where they cannot appear.
@@ -2109,6 +2126,7 @@ are infective:
 * :option:`--polarity`
 * :option:`--prop`
 * :option:`--rewriting`
+* :option:`--local-rewriting`
 * :option:`--two-level`
 
 Furthermore, the Cubical options are *jointly infective*
@@ -2202,6 +2220,7 @@ again, the source file is re-typechecked instead:
 * :option:`--qualified-instances`
 * :option:`--quote-metas`
 * :option:`--rewriting`
+* :option:`--local-rewriting`
 * :option:`--safe`
 * :option:`--save-metas`
 * :option:`--syntactic-equality`
