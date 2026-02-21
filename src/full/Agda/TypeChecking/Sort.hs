@@ -27,7 +27,7 @@ import Control.Monad.Except
 import Data.Functor
 import Data.Maybe
 
-import Agda.Interaction.Options (optCumulativity, optRewriting)
+import Agda.Interaction.Options (optCumulativity)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -228,7 +228,7 @@ sortOf t = do
           Blocked m _ -> patternViolation m
 
           -- Not IMPOSSIBLE because of possible non-confluent rewriting (see #5531)
-          _ -> ifM (optRewriting <$> pragmaOptions)
+          _ -> ifM anyRewritingOption
             {-then-} (patternViolation neverUnblock)
             {-else-} __IMPOSSIBLE__
 

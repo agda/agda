@@ -228,7 +228,7 @@ instance PrettyTCM Call where
         ]
 
     CheckLocalRewriteConstraint e c -> vcat
-      [ fsep $ pwords "when checking the following constraint associated with a local rewrite rule argument:"
+      [ fsep $ pwords "when checking the following local rewrite rule constraint:"
       , nest 2 $ prettyTCM e
       , prettyTCM c
       ]

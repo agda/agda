@@ -249,6 +249,7 @@ data WarningName
   = OptionRenamed_
   | WarningProblem_
       -- ^ Some warning could not be set or unset.
+  | LocalRewritingConfluenceCheck_
   -- Parser Warnings
   | OverlappingTokensWarning_
   | MisplacedAttributes_
@@ -502,6 +503,7 @@ warningNameDescription = \case
   -- Option Warnings
   OptionRenamed_                   -> "Renamed options."
   WarningProblem_                  -> "Problems with switching warnings."
+  LocalRewritingConfluenceCheck_   -> "Confluence checking local rewrite rules in not yet implemented."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   MisplacedAttributes_             -> "Attributes where they are not supported."

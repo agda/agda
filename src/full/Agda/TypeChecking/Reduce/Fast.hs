@@ -476,7 +476,8 @@ fastReduce' norm v = do
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
-  rwr <- optRewriting <$> pragmaOptions
+  rwr    <- anyRewritingOption
+  rwrLoc <- localRewritingOption
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
     copatterns <- if rwr then defCopatternLHS f info
@@ -484,9 +485,11 @@ fastReduce' norm v = do
     rewr <- if rwr then getAllRewriteRulesForDefHead f
                    else return []
     compactDef bEnv info copatterns rewr
-  localRewr <- unKleisli $ \x -> if rwr then getAllRewriteRulesForVarHead x else return []
+  localRewr <- unKleisli $ \x ->
+    if rwrLoc then getAllRewriteRulesForVarHead x else return []
 
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) (memoInt localRewr) norm v
+  ReduceM $ \ redEnv ->
+    reduceTm redEnv bEnv (memoQName constInfo) (memoInt localRewr) norm v
 
 -- * Closures
 

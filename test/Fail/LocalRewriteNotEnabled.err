@@ -1,0 +1,3 @@
+LocalRewriteNotEnabled.agda:9.21-25: error: [AttributeKindNotEnabled]
+Rewrite attributes have not been enabled (use --local-rewriting to
+enable them): rew

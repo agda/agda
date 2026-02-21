@@ -3055,7 +3055,7 @@ instance ToAbstract C.Pragma where
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
 
   toAbstract (C.RewritePragma _ r xs) = do
-    (optRewriting <$> pragmaOptions) >>= \case
+    rewritingOption >>= \case
 
       -- If --rewriting is off, ignore the pragma.
       False -> [] <$ do
@@ -4107,8 +4107,8 @@ checkAttributes (Attr r s attr : attrs) =
         setCurrentRange r $ typeError $ AttributeKindNotEnabled "Lock" "--guarded" s
       cont
     RewriteAttribute rew -> do
-      when (isRewrite rew) $ unlessM (optRewriting <$> pragmaOptions) $
-        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Rewrite" "--rewriting" s
+      when (isRewrite rew) $ unlessM localRewritingOption $
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Rewrite" "--local-rewriting" s
       cont
     QuantityAttribute Quantityω{} -> cont
     QuantityAttribute Quantity1{} -> __IMPOSSIBLE__

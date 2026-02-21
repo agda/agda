@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --no-fast-reduce #-}
+{-# OPTIONS --local-rewriting --no-fast-reduce #-}
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite

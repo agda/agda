@@ -4,8 +4,6 @@ module Agda.TypeChecking.CompiledClause.Match where
 
 import qualified Data.Map as Map
 
-import Agda.Interaction.Options (optRewriting)
-
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow)
@@ -211,7 +209,7 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     if f `elem` pds
     then return (NoReduction $ NotBlocked (MissingClauses f) [])
     else do
-      ifM (optRewriting <$> pragmaOptions)
+      ifM anyRewritingOption
       {-then-} (return (NoReduction $ NotBlocked ReallyNotBlocked [])) -- See #5396
       {-else-} $ traceSLn "impossible" 10
         ("Incomplete pattern matching when applying " ++ prettyShow f)

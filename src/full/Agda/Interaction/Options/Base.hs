@@ -80,6 +80,7 @@ module Agda.Interaction.Options.Base
     , lensOptErasedMatches
     , lensOptEraseRecordParameters
     , lensOptRewriting
+    , lensOptLocalRewriting
     , lensOptCubical
     , lensOptGuarded
     , lensOptFirstOrder
@@ -145,6 +146,7 @@ module Agda.Interaction.Options.Base
     , optErasedMatches
     , optEraseRecordParameters
     , optRewriting
+    , optLocalRewriting
     , optGuarded
     , optFirstOrder
     , optRequireUniqueMetaSolutions
@@ -314,6 +316,7 @@ optErasure                   :: PragmaOptions -> Bool
 optErasedMatches             :: PragmaOptions -> Bool
 optEraseRecordParameters     :: PragmaOptions -> Bool
 optRewriting                 :: PragmaOptions -> Bool
+optLocalRewriting            :: PragmaOptions -> Bool
 optGuarded                   :: PragmaOptions -> Bool
 optFirstOrder                :: PragmaOptions -> Bool
 optRequireUniqueMetaSolutions :: PragmaOptions -> Bool
@@ -378,6 +381,7 @@ optErasure                   = collapseDefault . _optErasure || optEraseRecordPa
 optErasedMatches             = collapseDefault . _optErasedMatches && optErasure
 optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting
+optLocalRewriting            = collapseDefault . _optLocalRewriting
 optGuarded                   = collapseDefault . _optGuarded
 optFirstOrder                = collapseDefault . _optFirstOrder
 optRequireUniqueMetaSolutions = collapseDefault . _optRequireUniqueMetaSolutions && not . optFirstOrder
@@ -550,6 +554,9 @@ lensOptEraseRecordParameters f o = f (_optEraseRecordParameters o) <&> \ i -> o{
 lensOptRewriting :: Lens' PragmaOptions _
 lensOptRewriting f o = f (_optRewriting o) <&> \ i -> o{ _optRewriting = i }
 
+lensOptLocalRewriting :: Lens' PragmaOptions _
+lensOptLocalRewriting f o = f (_optLocalRewriting o) <&> \ i -> o{ _optLocalRewriting = i }
+
 lensOptCubical :: Lens' PragmaOptions _
 lensOptCubical f o = f (_optCubical o) <&> \ i -> o{ _optCubical = i }
 
@@ -694,6 +701,8 @@ data OptionWarning
       -- ^ Name of option changed in a newer version of Agda.
   | WarningProblem WarningModeError
       -- ^ A problem with setting or unsetting a warning.
+  | LocalRewritingConfluenceCheck
+      -- ^ Confluence checking for local rewrite rules is unimplemented.
   deriving (Show, Generic)
 
 instance NFData OptionWarning
@@ -703,6 +712,7 @@ instance Pretty OptionWarning where
     OptionRenamed old new -> hsep
       [ "Option", option old, "is deprecated, please use", option new, "instead" ]
     WarningProblem err -> pretty (prettyWarningModeError err) <+> "See --help=warning."
+    LocalRewritingConfluenceCheck -> fsep $ pwords "Confluence checking (--confluence-check or --local-confluence-check) is not yet implemented for local rewrite rules (--local-rewriting)"
     where
     option = text . ("--" ++)
 
@@ -710,11 +720,13 @@ optionWarningName :: OptionWarning -> WarningName
 optionWarningName = \case
   OptionRenamed{} -> OptionRenamed_
   WarningProblem{} -> WarningProblem_
+  LocalRewritingConfluenceCheck -> LocalRewritingConfluenceCheck_
 
 -- | Checks that the given options are consistent.
 --   Also makes adjustments (e.g. when one option implies another).
 
-checkOpts :: MonadError OptionError m => CommandLineOptions -> m CommandLineOptions
+checkOpts :: (MonadError OptionError m, MonadWriter OptionWarnings m)
+  => CommandLineOptions -> m CommandLineOptions
 checkOpts opts = do
   -- NOTE: This is a temporary hold-out until --vim can be converted into a backend or plugin,
   -- whose options compatibility currently is checked in `Agda.Compiler.Backend`.
@@ -735,7 +747,8 @@ checkOpts opts = do
 
 -- | Check for pragma option consistency and make adjustments.
 
-checkPragmaOptions :: MonadError OptionError m => PragmaOptions -> m PragmaOptions
+checkPragmaOptions :: (MonadError OptionError m, MonadWriter OptionWarnings m)
+  => PragmaOptions -> m PragmaOptions
 checkPragmaOptions opts = do
 
   -- Check for errors in pragma options.
@@ -743,6 +756,9 @@ checkPragmaOptions opts = do
   when ((optEraseRecordParameters `butNot` optErasure) opts) $
     throwError
       "The option --erase-record-parameters requires the use of --erasure"
+
+  when (isJust (optConfluenceCheck opts) && optLocalRewriting opts) $
+    tell1 LocalRewritingConfluenceCheck
 
 #ifndef COUNT_CLUSTERS
   when (optCountClusters opts) $
@@ -806,6 +822,8 @@ unsafePragmaOptions opts =
   [ "--irrelevant-projections"          | optIrrelevantProjections opts                     ] ++
   [ "--experimental-irrelevance"        | optExperimentalIrrelevance opts                   ] ++
   [ "--rewriting"                       | optRewriting opts                                 ] ++
+  [ "--local-rewriting"                 | optLocalRewriting opts                            ]
+  ++
   [ "--cubical=compatible and --with-K" | optCubicalCompatible opts, not (optWithoutK opts) ] ++
   [ "--without-K and --flat-split"      | optWithoutK opts, optFlatSplit opts               ] ++
   [ "--cumulativity"                    | optCumulativity opts                              ] ++
@@ -926,6 +944,7 @@ infectiveCoinfectiveOptions =
   , infectiveOption optProp                   "--prop"
   , infectiveOption optTwoLevel               "--two-level"
   , infectiveOption optRewriting              "--rewriting"
+  , infectiveOption optLocalRewriting         "--local-rewriting"
   , infectiveOption optSizedTypes             "--sized-types"
   , infectiveOption optGuardedness            "--guardedness"
   , infectiveOption optFlatSplit              "--flat-split"
@@ -1628,6 +1647,9 @@ rewritingPragmaOptions = ("Rewriting and confluence",) $ concat
     , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
                     "disable confluence checking of REWRITE rules (default)"
     ]
+  , pragmaFlag      "local-rewriting" lensOptLocalRewriting
+                    "enable use of local (@rew) rewrite rules" ""
+                    $ Just "disable local (@rew) rewrite rules"
   ]
 
 equalityCheckingPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])

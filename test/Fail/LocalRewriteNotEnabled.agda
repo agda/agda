@@ -1,11 +1,9 @@
-{-# OPTIONS --cubical --local-rewriting #-}
+{-# OPTIONS --rewriting #-}
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 open import Agda.Builtin.Nat
-open import Agda.Primitive.Cubical
 
-module LocalRewriteRecordCubical where
+module LocalRewriteNotEnabled where
 
 module _ (n : Nat) (@rew p : n ≡ 0) where
-  record Bar : Set where

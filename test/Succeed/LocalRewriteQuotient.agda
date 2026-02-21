@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --cubical #-}
+{-# OPTIONS --local-rewriting --cubical #-}
 
 open import Agda.Builtin.Cubical.Path
 open import Agda.Primitive.Cubical

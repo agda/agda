@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --prop --without-K #-}
+{-# OPTIONS --local-rewriting --prop --without-K #-}
 
 module LocalRewriteMonoid where
 

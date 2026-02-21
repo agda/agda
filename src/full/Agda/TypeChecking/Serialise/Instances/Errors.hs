@@ -301,12 +301,14 @@ instance EmbPrj IllegalRewriteRuleReason where
 
 instance EmbPrj OptionWarning where
   icod_ = \case
-    OptionRenamed a b -> icodeN 0 OptionRenamed a b
-    WarningProblem a  -> icodeN 1 WarningProblem a
+    OptionRenamed a b             -> icodeN 0 OptionRenamed a b
+    WarningProblem a              -> icodeN 1 WarningProblem a
+    LocalRewritingConfluenceCheck -> icodeN 2 LocalRewritingConfluenceCheck
 
   value = vcase $ \case
     N3 0 a b -> valuN OptionRenamed a b
     N2 1 a   -> valuN WarningProblem a
+    N1 2     -> valuN LocalRewritingConfluenceCheck
     _        -> malformed
 
 instance EmbPrj WarningModeError where
@@ -513,8 +515,8 @@ instance EmbPrj InfectiveCoinfective where
     valu _      = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv
 
   value = valueN PragmaOptions
 

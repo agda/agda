@@ -90,6 +90,7 @@ import Agda.Utils.Impossible
 import Agda.Utils.Either
 import Agda.Utils.List1 (nonEmpty)
 
+-- | Require '--rewriting' for global REWRITE rules
 requireOptionRewriting :: TCM ()
 requireOptionRewriting =
   unlessM (optRewriting <$> pragmaOptions) $ typeError NeedOptionRewriting
@@ -100,7 +101,6 @@ requireOptionRewriting =
 --   Note: we do not care about hiding/non-hiding of lhs and rhs.
 verifyBuiltinRewrite :: Term -> Type -> TCM ()
 verifyBuiltinRewrite v t = do
-  requireOptionRewriting
   caseMaybeM (relView t)
     (typeError $ IncorrectTypeForRewriteRelation v ShouldAcceptAtLeastTwoArguments) $
     \ (RelView tel delta a b core) -> do
@@ -530,7 +530,7 @@ rewrite ::
      Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims
   -> ReduceM (Reduced (Blocked Term) Term)
 rewrite block hd rules es = do
-  rewritingAllowed <- optRewriting <$> pragmaOptions
+  rewritingAllowed <- anyRewritingOption
   if (rewritingAllowed && not (null rules)) then do
     (_ , t) <- fromMaybe __IMPOSSIBLE__ <$> getLocalHeadType (hd [])
     loop block t rules es

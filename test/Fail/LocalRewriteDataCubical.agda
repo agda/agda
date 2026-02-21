@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --rewriting #-}
+{-# OPTIONS --cubical --local-rewriting #-}
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite

@@ -5823,6 +5823,19 @@ enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
 {-# INLINE enableCaching #-}
 
+rewritingOption :: HasOptions m => m Bool
+rewritingOption = optRewriting <$> pragmaOptions
+{-# INLINE rewritingOption #-}
+
+localRewritingOption :: HasOptions m => m Bool
+localRewritingOption = optLocalRewriting <$> pragmaOptions
+{-# INLINE localRewritingOption #-}
+
+-- | Local or global rewriting is enabled
+anyRewritingOption :: HasOptions m => m Bool
+anyRewritingOption = (||) <$> rewritingOption <*> localRewritingOption
+{-# INLINE anyRewritingOption #-}
+
 -----------------------------------------------------------------------------
 -- * The reduce monad
 -----------------------------------------------------------------------------
