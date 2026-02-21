@@ -31,7 +31,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
+import Agda.Syntax.Scope.Base ( ThingsInScope
                               , emptyScopeInfo
                               , exportedNamesInScope)
 import Agda.Syntax.Scope.Monad (getNamedScope)

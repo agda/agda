@@ -35,6 +35,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
 
+import Agda.Syntax.Abstract.Name (KindOfName(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser

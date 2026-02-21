@@ -144,22 +144,22 @@ getEverythingInScope metaVar = do
   let nameSpace = Scope.everythingInScope scope
       names = Scope.nsNames nameSpace
       validKind = \ case
-        Scope.PatternSynName           -> False   -- could consider allowing pattern synonyms, but the problem is they can't be getConstInfo'd
-        Scope.GeneralizeName           -> False   -- and any way finding the underlying constructors should be easy
-        Scope.DisallowedGeneralizeName -> False
-        Scope.MacroName                -> False
-        Scope.QuotableName             -> False
-        Scope.ConName                  -> True
-        Scope.CoConName                -> True
-        Scope.FldName                  -> True
-        Scope.DataName                 -> True
-        Scope.RecName                  -> True
-        Scope.FunName                  -> True
-        Scope.AxiomName                -> True
-        Scope.PrimName                 -> True
-        Scope.OtherDefName             -> True
-      qnames = map Scope.anameName
-             . filter (validKind . Scope.anameKind)
+        PatternSynName           -> False   -- could consider allowing pattern synonyms, but the problem is they can't be getConstInfo'd
+        GeneralizeName           -> False   -- and any way finding the underlying constructors should be easy
+        DisallowedGeneralizeName -> False
+        MacroName                -> False
+        QuotableName             -> False
+        ConName                  -> True
+        CoConName                -> True
+        FldName                  -> True
+        DataName                 -> True
+        RecName                  -> True
+        FunName                  -> True
+        AxiomName                -> True
+        PrimName                 -> True
+        OtherDefName             -> True
+      qnames = map anameName
+             . filter (validKind . anameKind)
              . map NonEmptyList.head
              $ Map.elems names
   qnames
@@ -736,4 +736,3 @@ writeTime ii (CPUTime time) = do
     SMaybe.Just file -> do
       let path = filePath (rangeFilePath file) ++ ".stats"
       liftIO $ appendFile path (show (interactionId ii) ++ " " ++ show time ++ "\n")
-

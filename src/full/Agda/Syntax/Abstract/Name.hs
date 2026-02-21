@@ -16,7 +16,10 @@ import Data.Function (on)
 import Data.Hashable (Hashable(..))
 import qualified Data.List as List
 import Data.Maybe
+import Data.Map (Map)
 import Data.Void
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -68,7 +71,7 @@ data Suffix
 data QName = QName
   { qnameModule :: ModuleName
   , qnameName   :: Name
-  }
+  } deriving (Generic)
 
 -- | Something preceeded by a qualified name.
 data QNamed a = QNamed
@@ -90,6 +93,72 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
   deriving (Eq, Ord, NFData)
+
+-- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
+data AbstractName = AbsName
+  { anameName    :: QName
+    -- ^ The resolved qualified name.
+  , anameKind    :: KindOfName
+    -- ^ The kind (definition, constructor, record field etc.).
+  , anameLineage :: WhyInScope
+    -- ^ Explanation where this name came from.
+  , anameMetadata :: NameMetadata
+    -- ^ Additional information needed during scope checking. Currently used
+    --   for generalized data/record params.
+  }
+  deriving (Show, Generic)
+
+-- | A decoration of abstract syntax module names.
+data AbstractModule = AbsModule
+  { amodName    :: ModuleName
+    -- ^ The resolved module name.
+  , amodLineage :: WhyInScope
+    -- ^ Explanation where this name came from.
+  }
+  deriving (Show, Generic)
+
+-- | For the sake of parsing left-hand sides, we distinguish
+--   constructor and record field names from defined names.
+
+-- Note: order does matter in this enumeration, see 'isDefName'.
+data KindOfName
+  = ConName                  -- ^ Constructor name ('Inductive' or don't know).
+  | CoConName                -- ^ Constructor name (definitely 'CoInductive').
+  | FldName                  -- ^ Record field name.
+  | PatternSynName           -- ^ Name of a pattern synonym.
+  | GeneralizeName           -- ^ Name to be generalized
+  | DisallowedGeneralizeName -- ^ Generalizable variable from a let open
+  | MacroName                -- ^ Name of a macro
+  | QuotableName             -- ^ A name that can only be quoted.
+  -- Previous category @DefName@:
+  -- (Refined in a flat manner as Enum and Bounded are not hereditary.)
+  | DataName                 -- ^ Name of a @data@.
+  | RecName                  -- ^ Name of a @record@.
+  | FunName                  -- ^ Name of a defined function.
+  | AxiomName                -- ^ Name of a @postulate@.
+  | PrimName                 -- ^ Name of a @primitive@.
+  | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
+  -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
+  deriving (Eq, Ord, Show, Enum, Bounded, Generic)
+
+-- | Where does a name come from?
+--
+--   This information is solely for reporting to the user,
+--   see 'Agda.Interaction.InteractionTop.whyInScope'.
+data WhyInScope
+  = Defined
+    -- ^ Defined in this module.
+  | Opened C.QName WhyInScope
+    -- ^ Imported from another module.
+  | Applied C.QName WhyInScope
+    -- ^ Imported by a module application.
+  deriving (Show, Generic)
+
+data NameMetadata = NameMetadata
+  { nameDataGeneralizedVars :: Map QName Name
+  , nameDataIsInstance      :: IsInstance
+  }
+  deriving (Show, Generic)
 
 ---------------------------------------------------------------------------
 -- * Class 'IsProjP'
@@ -295,6 +364,29 @@ getUnambiguous (AmbQ (x :| [])) = Just x
 getUnambiguous _                = Nothing
 
 ---------------------------------------------------------------------------
+-- * 'AbstractName'
+---------------------------------------------------------------------------
+
+---------------------------------------------------------------------------
+-- * 'NameMetadata'
+---------------------------------------------------------------------------
+
+noMetadata :: NameMetadata
+noMetadata = empty
+
+generalizedVarsMetadata :: Map QName Name -> NameMetadata
+generalizedVarsMetadata m = NameMetadata m empty
+
+instanceMetadata :: IsInstance -> NameMetadata
+instanceMetadata i = NameMetadata empty i
+
+instance IsInstanceDef NameMetadata where
+  isInstanceDef = isInstanceDef . nameDataIsInstance
+
+instance IsInstanceDef AbstractName where
+  isInstanceDef = isInstanceDef . anameMetadata
+
+---------------------------------------------------------------------------
 -- * Instances
 ---------------------------------------------------------------------------
 
@@ -312,6 +404,8 @@ instance Hashable Name where
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt = hashWithSalt salt . nameId
 
+-- QName
+
 instance Eq QName where
   (==) = (==) `on` qnameName
 
@@ -321,6 +415,25 @@ instance Ord QName where
 instance Hashable QName where
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt = hashWithSalt salt . qnameName
+
+-- AbstractName
+
+instance Eq AbstractName where
+  (==) = (==) `on` anameName
+
+instance Ord AbstractName where
+  compare = compare `on` anameName
+
+instance Hashable AbstractName where
+  hashWithSalt salt = hashWithSalt salt . anameName
+
+-- AbstractModule
+
+instance Eq AbstractModule where
+  (==) = (==) `on` amodName
+
+instance Ord AbstractModule where
+  compare = compare `on` amodName
 
 ------------------------------------------------------------------------
 -- 'IsNoName' and 'Null' instances (checking for "_")
@@ -344,6 +457,10 @@ instance Null QName where
 instance Null Suffix where
   empty = NoSuffix
 
+instance Null NameMetadata where
+  empty = NameMetadata empty empty
+  null (NameMetadata m i) = null m && null i
+
 ------------------------------------------------------------------------
 -- 'NumHoles' instances
 ------------------------------------------------------------------------
@@ -365,6 +482,14 @@ instance NumHoles AmbiguousQName where
 lensQNameName :: Lens' QName Name
 lensQNameName f (QName m n) = QName m <$> f n
 
+-- | Van Laarhoven lens on 'anameName'.
+lensAnameName :: Lens' AbstractName QName
+lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
+
+-- | Van Laarhoven lens on 'amodName'.
+lensAmodName :: Lens' AbstractModule ModuleName
+lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
+
 ------------------------------------------------------------------------
 -- LensFixity' instances
 ------------------------------------------------------------------------
@@ -384,6 +509,9 @@ instance LensFixity Name where
 
 instance LensFixity QName where
   lensFixity = lensFixity' . lensFixity
+
+instance LensFixity AbstractName where
+  lensFixity = lensAnameName . lensFixity
 
 ------------------------------------------------------------------------
 -- LensInScope instances
@@ -435,6 +563,16 @@ instance Pretty AmbiguousQName where
 
 instance Pretty a => Pretty (QNamed a) where
   pretty (QNamed a b) = pretty a <> "." <> pretty b
+
+instance Pretty Suffix where
+  pretty NoSuffix   = mempty
+  pretty (Suffix i) = text (show i)
+
+instance Pretty AbstractName where
+  pretty = pretty . anameName
+
+instance Pretty AbstractModule where
+  pretty = pretty . amodName
 
 ------------------------------------------------------------------------
 -- Range instances
@@ -505,6 +643,14 @@ instance KillRange QName where
 instance KillRange AmbiguousQName where
   killRange (AmbQ xs) = AmbQ $ killRange xs
 
+-- AbstractName
+
+instance HasRange AbstractName where
+  getRange = getRange . anameName
+
+instance SetRange AbstractName where
+  setRange r x = x { anameName = setRange r $ anameName x }
+
 ------------------------------------------------------------------------
 -- Sized instances
 ------------------------------------------------------------------------
@@ -526,9 +672,13 @@ instance Sized ModuleName where
 instance NFData Name where
   rnf (Name _ a b _ c d) = rnf (a, b, c, d)
 
-instance NFData QName where
-  rnf (QName a b) = rnf a `seq` rnf b
-
 instance NFData Suffix where
   rnf NoSuffix   = ()
   rnf (Suffix _) = ()
+
+instance NFData AbstractModule
+instance NFData AbstractName
+instance NFData KindOfName
+instance NFData NameMetadata
+instance NFData QName
+instance NFData WhyInScope

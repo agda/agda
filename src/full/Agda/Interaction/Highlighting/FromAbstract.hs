@@ -21,7 +21,7 @@ import           Agda.Interaction.Highlighting.Precise hiding ( singleton )
 import qualified Agda.Interaction.Highlighting.Precise as H
 import           Agda.Interaction.Highlighting.Range   ( rToR )  -- Range is ambiguous
 
-import           Agda.Syntax.Abstract                ( IsProjP(..) )
+import           Agda.Syntax.Abstract                ( IsProjP(..), anameName )
 import qualified Agda.Syntax.Abstract      as A
 import           Agda.Syntax.Common        as Common
 import           Agda.Syntax.Concrete                ( FieldAssignment'(..), TacticAttribute' )
@@ -30,7 +30,7 @@ import           Agda.Syntax.Info                    ( ModuleInfo(..) )
 import           Agda.Syntax.Literal
 import qualified Agda.Syntax.Position      as P
 import           Agda.Syntax.Position                ( Range, HasRange, getRange, noRange )
-import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..), exactConName )
+import           Agda.Syntax.Scope.Base              ( ResolvedName(..), exactConName )
 import           Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad

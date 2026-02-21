@@ -33,6 +33,9 @@ import Data.Set qualified as Set
 import Agda.Interaction.Options (lensOptWarningMode, optQualifiedInstances)
 import Agda.Interaction.Options.Warnings (lensSingleWarning, WarningName (UnusedImports_, UnusedImportsAll_), warningSet, unusedImportsWarnings)
 
+import Agda.Syntax.Abstract.Name
+    ( WhyInScope(Defined, Opened, Applied),
+      AbstractName(AbsName), anameName, anameLineage )
 import Agda.Syntax.Abstract.Name qualified as A
 import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance, KwRange, ImportDirective' (using, impRenaming, publicOpen) )
 import Agda.Syntax.Common.Pretty (prettyShow, Pretty (pretty))

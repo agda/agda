@@ -15,7 +15,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA, TacticAttribute')
 import Agda.Syntax.Info
-import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
+import Agda.Syntax.Scope.Base (conKindOfName, WithKind(..))
 
 import Agda.Utils.Either
 import Agda.Utils.List1 (List1)

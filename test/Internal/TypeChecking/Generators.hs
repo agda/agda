@@ -14,7 +14,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Fixity
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (ConName)
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Free

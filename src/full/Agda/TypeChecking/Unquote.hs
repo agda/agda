@@ -39,8 +39,7 @@ import Agda.Syntax.Concrete.Name (simpleName)
 import Agda.Syntax.Position
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Translation.ReflectedToAbstract
-import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName)
-                              , scopeLocals, LocalVar(LocalVar), BindingSource(MacroBound) )
+import Agda.Syntax.Scope.Base ( scopeLocals, LocalVar(LocalVar), BindingSource(MacroBound) )
 import Agda.Syntax.Parser
 
 import Agda.Interaction.Library ( ExeName )

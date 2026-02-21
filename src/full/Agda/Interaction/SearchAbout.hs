@@ -4,27 +4,27 @@ module Agda.Interaction.SearchAbout (findMentions) where
 
 import Control.Monad
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import Data.List (isInfixOf)
 import Data.Either (partitionEithers)
 import Data.Foldable (toList)
+import Data.List (isInfixOf)
+import Data.Map qualified as Map
+import Data.Set qualified as Set
 
+import Agda.Interaction.Base (Rewrite)
+import Agda.Interaction.BasicOps (normalForm, parseName)
+import Agda.Syntax.Abstract.Name (AbstractName(..), KindOfName (PatternSynName))
+import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Concrete qualified as C
+import Agda.Syntax.Internal qualified as I
+import Agda.Syntax.Internal.Names (namesIn)
 import Agda.Syntax.Position (Range)
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
-import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.Env
-import Agda.Syntax.Internal.Names (namesIn)
-import Agda.Interaction.Base (Rewrite)
-import Agda.Interaction.BasicOps (normalForm, parseName)
+import Agda.TypeChecking.Monad.Signature
 
-import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Internal as I
-
-import Agda.Utils.List   ( initLast1  )
-import qualified Agda.Utils.List1 as List1
-import Agda.Syntax.Common.Pretty ( prettyShow )
+import Agda.Utils.List (initLast1)
+import Agda.Utils.List1 qualified as List1
 
 findMentions :: Rewrite -> Range -> String -> ScopeM [(C.Name, I.Type)]
 findMentions norm rg nm = do
