@@ -712,7 +712,7 @@ compareAtom cmp t m n =
                         (El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
               compareAtom cmp (AsTermsOf $ El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
-              compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
+              () <- compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
         compareUnglueApp q es es' = do
@@ -729,7 +729,7 @@ compareAtom cmp t m n =
               --           (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',e'])
               compareAtom cmp (AsTermsOf $ El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,e])
                               (unArg b) (unArg b')
-              compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
+              () <- compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
         compareUnglueUApp :: QName -> Elims -> Elims -> m Bool
@@ -752,7 +752,7 @@ compareAtom cmp t m n =
                 (pure tSubOut <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> primIZero) <@> bAS)
               compareAtom cmp (AsTermsOf $ El (tmSort . unArg $ sucla) $ apply tHComp $ [sucla, argH (Sort s), phi] ++ [argH (unArg bT), argH bA])
                               (unArg b) (unArg b')
-              compareElims [] [] (El s bA) (Def q as) bs bs'
+              () <- compareElims [] [] (El s bA) (Def q as) bs bs'
               return True
             _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
@@ -955,6 +955,11 @@ antiUnifyElims _ _ _ _ _ = patternViolation neverUnblock -- trigger maybeGiveUp 
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
+--
+-- Note: since TCM is lazy in return values from @(>>=)@, it is
+-- important that compareElims in non-tail position be called as @() <-
+-- compareElims pols a v e1 e2@ so that any internal invariants upheld
+-- by returning @__IMPOSSIBLE__@ actually get checked.
 compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
 compareElims pols0 fors0 a v els01 els02 =
   verboseBracket "tc.conv.elim" 20 "compareElims" $
@@ -987,8 +992,35 @@ compareElims pols0 fors0 a v els01 els02 =
     (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
     (IApply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Proj{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
-    (IApply{} : _, Apply{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
-    (Apply{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+
+    -- Mismatched IApply/Apply is possible: Cubical.Foundations.Prelude.compPathP, Issue3601
+    -- Either keep comparing as functions or as paths depending on the type of the head.
+    (e@(IApply _ _ r1) : els1, els2@(Apply r2:els2')) -> do
+      a <- abortIfBlocked a
+      va <- pathView a
+      case va of
+        OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v (Apply (defaultArg r1):els1) els2
+        PathType s path l bA x y -> do
+          let (pol, pols) = nextPolarity pols0
+          b <- primIntervalType
+          compareWithPol pol (flip compareTerm b) r1 (unArg r2)
+          codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r1)
+          compareElims pols [] codom (applyE v [e]) els1 els2'
+        _ -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+
+    (els1@(Apply r1:els1'), e@(IApply _ _ r2):els2) -> do
+      a <- abortIfBlocked a
+      va <- pathView a
+      case va of
+        OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v els1 (Apply (defaultArg r2):els2)
+        PathType s path l bA x y -> do
+          let (pol, pols) = nextPolarity pols0
+          b <- primIntervalType
+          compareWithPol pol (flip compareTerm b) (unArg r1) r2
+          codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r2)
+          compareElims pols [] codom (applyE v [e]) els1' els2
+        _ -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+
     (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
       reportSDoc "tc.conv.elim" 25 $ "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
@@ -1011,7 +1043,7 @@ compareElims pols0 fors0 a v els01 els02 =
         -- because @etaContract@ can produce such terms
         OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v (Apply (defaultArg r1) : els1) (Apply (defaultArg r2) : els2)
 
-        OType t -> patternViolation (unblockOnAnyMetaIn t) -- Can we get here? We know a is not blocked.
+        OType t -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
 
     (Apply arg1 : els1, Apply arg2 : els2) ->
       (verboseBracket "tc.conv.elim" 20 "compare Apply" :: m () -> m ()) $ do
@@ -1075,7 +1107,7 @@ compareElims pols0 fors0 a v els01 els02 =
                   return arg
                  else return arg1
           -- continue, possibly with blocked instantiation
-          compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+          () <- compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
           -- any left over constraints of arg are associated to the comparison
           reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
           stealConstraints pid
