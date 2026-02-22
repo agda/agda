@@ -67,7 +67,7 @@ expandPatternSynonyms' :: forall e. A.Pattern' e -> TCM (A.Pattern' e)
 expandPatternSynonyms' = postTraverseAPatternM $ \case
 
   A.PatternSynP i x as -> setCurrentRange i $ do
-    (ns, p) <- killRange <$> lookupPatternSyn x
+    A.PatternSynDefn ns p <- killRange <$> lookupPatternSyn x
 
     -- Andreas, 2020-02-11, issue #3734
     -- If lookup of ambiguous pattern synonym was successful,

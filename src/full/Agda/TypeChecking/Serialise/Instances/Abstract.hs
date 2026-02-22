@@ -203,6 +203,12 @@ instance {-# OVERLAPS #-} EmbPrj A.Pattern where
   icod_ = icod_ <=< noDotOrEqPattern (return $ A.WildP empty)
   value = fmap (__IMPOSSIBLE__ :: Void -> A.Expr) <.> value
 
+instance EmbPrj A.PatternSynDefn where
+  icod_ (A.PatternSynDefn a b) = icodeN' A.PatternSynDefn a b
+  value = vcase \case
+    N2 a b -> valuN A.PatternSynDefn a b
+    _ -> malformed
+
 instance EmbPrj ParenPreference where
   icod_ PreferParen     = icodeN' PreferParen
   icod_ PreferParenless = icodeN 1 PreferParenless

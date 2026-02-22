@@ -1054,7 +1054,14 @@ mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
 mkLet _ []     e = e
 mkLet i (d:ds) e = Let i (d :| ds) e
 
-type PatternSynDefn = ([WithHiding Name], Pattern' Void)
+-- | The definition of a pattern synonym (excluding its name).
+data PatternSynDefn = PatternSynDefn
+  { patSynParams :: ![WithHiding Name]
+      -- ^ The parameters of the pattern synonym.
+  , patSynPat    :: !(Pattern' Void)
+      -- ^ The definiting pattern of the pattern synonym.
+  } deriving (Show, Generic)
+
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [WithHiding Name] -> Expr -> Expr
@@ -1269,3 +1276,10 @@ rhsSpine = \case
 whereDeclarationsSpine :: WhereDeclarations -> WhereDeclarationsSpine
 whereDeclarationsSpine (WhereDecls _ _ md) =
   WhereDeclsS (fmap declarationSpine md)
+
+-- Instances
+
+instance KillRange PatternSynDefn where
+  killRange (PatternSynDefn a b) =  killRangeN PatternSynDefn a b
+
+instance NFData PatternSynDefn

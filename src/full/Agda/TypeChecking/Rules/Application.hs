@@ -159,8 +159,8 @@ checkApplication cmp hd args e t =
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
-      (ns, p) <- lookupPatternSyn n
-      p <- return $ setRange (getRange n) $ killRange $ vacuous p   -- Pattern' Void -> Pattern' Expr
+      A.PatternSynDefn ns p0 <- lookupPatternSyn n
+      let p = setRange (getRange n) $ killRange $ vacuous p0   -- Pattern' Void -> Pattern' Expr
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.

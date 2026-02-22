@@ -2228,7 +2228,7 @@ instance ToAbstract NiceDeclaration where
       -- Expanding pattern synonyms already at definition makes it easier to
       -- fold them back when printing (issue #2762).
       ep <- expandPatternSynonyms p
-      modifyPatternSyns (Map.insert y (as, ep))
+      modifyPatternSyns (Map.insert y (PatternSynDefn as ep))
       return $ singleton $ A.PatternSynDef y (map (fmap BindName) as) p   -- only for highlighting, so use unexpanded version
       where
         checkPatSynParam :: WithHiding C.Name -> ScopeM (WithHiding A.Name)

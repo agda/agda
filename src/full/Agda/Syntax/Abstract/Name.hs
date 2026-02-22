@@ -372,6 +372,9 @@ unambigName = AmbQ . List1.singleton . anameName
 ambigName :: List1 AbstractName -> AmbiguousQName
 ambigName = AmbQ . fmap anameName
 
+mergeAmbQ :: AmbiguousQName -> AmbiguousQName -> AmbiguousQName
+mergeAmbQ (AmbQ xs) (AmbQ ys) = AmbQ (xs <> ys)
+
 ---------------------------------------------------------------------------
 -- * 'AbstractName'
 ---------------------------------------------------------------------------

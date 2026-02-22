@@ -11,15 +11,16 @@ import Data.Set (Set)
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Internal
-import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Concrete qualified as C
+import Agda.Syntax.Abstract qualified as A
+import Agda.Syntax.Abstract (PatternSynDefn(..))
 import Agda.Syntax.Treeless
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.List1 (List1)
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Singleton
 import Agda.Utils.Impossible
 
@@ -370,9 +371,8 @@ instance NamesIn Compiled where
 
 -- Pattern synonym stuff --
 
-newtype PSyn = PSyn A.PatternSynDefn
-instance NamesIn PSyn where
-  namesAndMetasIn' sg (PSyn (_args, p)) = namesAndMetasIn' sg p
+instance NamesIn PatternSynDefn where
+  namesAndMetasIn' sg (PatternSynDefn _args p) = namesAndMetasIn' sg p
 
 instance NamesIn ConPatternInfo where
   namesAndMetasIn' sg (ConPatternInfo _ _ _ ty _) = namesAndMetasIn' sg ty

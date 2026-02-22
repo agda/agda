@@ -1926,7 +1926,7 @@ recoverPatternSyn applySyn match e fallback = do
     let isConP ConP{} = True    -- #2828: only fold pattern synonyms with
         isConP _      = False   --        constructor rhs
         cands = [ (q, args, score rhs)
-                | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns
+                | (q, psyndef@(PatternSynDefn _ rhs)) <- reverse $ Map.toList psyns
                 , isConP rhs
                 , Just args <- [match psyndef e]
                 -- #3879: only fold pattern synonyms with an unqualified concrete name in scope
