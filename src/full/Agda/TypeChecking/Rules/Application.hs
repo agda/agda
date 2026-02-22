@@ -153,9 +153,9 @@ checkApplication cmp hd args e t =
       checkConstructorApplication cmp e t con hd args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0) -> do
+    A.Con ambC -> do
       let cont c = checkConstructorApplication cmp e t c hd args
-      afterDisambiguation cont $ disambiguateConstructor cs0 args t
+      afterDisambiguation cont $ disambiguateConstructor ambC args t
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -1098,10 +1098,11 @@ decideOn c = do
   return $ Right c
 
 -- | Returns an unblocking action in case of failure.
-disambiguateConstructor :: List1 QName -> A.Args -> Type -> DisambiguateConstructor
-disambiguateConstructor cs0 args t = do
-  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
+disambiguateConstructor :: AmbiguousQName -> A.Args -> Type -> DisambiguateConstructor
+disambiguateConstructor ambC args t = do
+  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow ambC
   reportSDoc "tc.check.term.con" 40 $ vcat $ "Arguments:" : map (nest 2 . prettyTCM) args
+  let cs0 = getAmbiguous ambC
 
   -- Get the datatypes of the various constructors
   let getData Constructor{conData = d} = d

@@ -1386,8 +1386,8 @@ instance PrettyTCM TypeError where
             pwords "missing"
           CannotQuoteHidden ->
             pwords "implicit"
-          CannotQuoteAmbiguous (List2 x y zs) ->
-            pwords "ambiguous:" ++ [ pretty $ AmbQ $ x :| y : zs ]
+          CannotQuoteAmbiguous xs ->
+            pwords "ambiguous:" ++ [ pretty xs ]
           CannotQuoteExpression e -> case e of
             -- These expression can be quoted:
             A.Def' _ NoSuffix -> __IMPOSSIBLE__

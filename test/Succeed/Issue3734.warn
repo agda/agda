@@ -1,3 +1,4 @@
+
 Issue3734.agda:19.5-6: warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
