@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
 
 module Agda.TypeChecking.Monad.Signature where
 
@@ -1061,18 +1062,21 @@ instance HasConstInfo TCM where
       Left SigAbstract          -> notInScopeError $ qnameToConcrete q
       Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
+{-# SPECIALIZE defaultGetConstInfo :: TCState -> TCEnv -> QName -> TCM (Either SigError Definition) #-}
 defaultGetConstInfo
   :: (HasCallStack, HasOptions m, MonadDebug m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
     let defs  = st ^. stSignature . sigDefinitions
         idefs = st ^. stImports   . sigDefinitions
-    case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
-        [d] -> checkErasureFixQuantity d >>= \case
-                 Left err -> return (Left err)
-                 Right d  -> mkAbs env d
-        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
+        unambiguous d = checkErasureFixQuantity d >>= \case
+          Left !err -> return $! Left err
+          Right d   -> mkAbs env d
+    case (HMap.lookup q defs, HMap.lookup q idefs) of
+      (Nothing, Nothing) -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
+      (Just d, Nothing)  -> unambiguous d
+      (Nothing, Just d)  -> unambiguous d
+      _                  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
         -- Apply the reducibility rules (abstract, opaque) to check
@@ -1080,7 +1084,7 @@ defaultGetConstInfo st env q = do
         -- 'AbstractDef'.
         | not (isAccessibleDef env st d{defName = q'}) =
           case alwaysMakeAbstract d of
-            Just d      -> return $ Right d
+            Just !d     -> return $ Right d
             Nothing     -> return $ Left SigAbstract
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
         | otherwise = return $ Right d
@@ -1100,7 +1104,7 @@ defaultGetConstInfo st env q = do
       -- Names defined in Cubical Agda may only be used in Erased
       -- Cubical Agda if --erasure is used. In that case they are (to
       -- a large degree) treated as erased.
-      checkErasureFixQuantity d = do
+      checkErasureFixQuantity !d = do
         current <- getLanguage
         if defLanguage d == Cubical CFull &&
            current == Cubical CErased
@@ -1108,7 +1112,7 @@ defaultGetConstInfo st env q = do
           erasure <- optErasure <$> pragmaOptions
           return $
             if erasure
-            then Right $ setQuantity zeroQuantity d
+            then Right $! setQuantity zeroQuantity d
             else Left SigCubicalNotErasure
         else return $ Right d
 
