@@ -394,4 +394,4 @@ instance NamesIn (A.Pattern' a) where
     A.WithP _ p            -> namesAndMetasIn' sg p
 
 instance NamesIn AmbiguousQName where
-  namesAndMetasIn' sg (AmbQ cs) = namesAndMetasIn' sg cs
+  namesAndMetasIn' sg = namesAndMetasIn' sg . getAmbiguous

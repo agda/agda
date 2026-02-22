@@ -581,7 +581,8 @@ getAllPatternSyns :: ReadTCState m => m PatternSynDefns
 getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 
 lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn
-lookupPatternSyn (AmbQ xs) = do
+lookupPatternSyn ambX = do
+  let xs = getAmbiguous ambX
   defs <- traverse lookupSinglePatternSyn xs
   case mergePatternSynDefs defs of
     Just def   -> return def

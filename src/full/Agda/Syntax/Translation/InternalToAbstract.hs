@@ -910,7 +910,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
              [ "  pad =" <+> pshow pad
              , "  nes =" <+> pshow nes
              ]
-           let hd0 | isProperProjection def = A.Proj ProjPrefix $ AmbQ $ singleton x
+           let hd0 | isProperProjection def = A.Proj ProjPrefix $ unambiguous x
                    | otherwise = A.Def x
            let hd = List.foldl' (A.App defaultAppInfo_) hd0 pad
            nelims hd =<< reify nes

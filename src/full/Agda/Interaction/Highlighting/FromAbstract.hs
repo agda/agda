@@ -21,7 +21,7 @@ import           Agda.Interaction.Highlighting.Precise hiding ( singleton )
 import qualified Agda.Interaction.Highlighting.Precise as H
 import           Agda.Interaction.Highlighting.Range   ( rToR )  -- Range is ambiguous
 
-import           Agda.Syntax.Abstract                ( IsProjP(..), anameName )
+import           Agda.Syntax.Abstract                ( IsProjP(..), anameName, getAmbiguous )
 import qualified Agda.Syntax.Abstract      as A
 import           Agda.Syntax.Common        as Common
 import           Agda.Syntax.Concrete                ( FieldAssignment'(..), TacticAttribute' )
@@ -456,10 +456,10 @@ instance Hilite ResolvedName where
   hilite = \case
     VarName           x _bindSrc -> hiliteBound x
     DefinedName  _acc x _suffix  -> hilite $ anameName x
-    FieldName         xs         -> hiliteProjection $ A.AmbQ $ fmap anameName xs
-    ConstructorName i xs         -> hiliteAmbiguousQName k $ A.AmbQ $ fmap anameName xs
+    FieldName         xs         -> hiliteProjection $ A.ambigName xs
+    ConstructorName i xs         -> hiliteAmbiguousQName k $ A.ambigName xs
       where k = kindOfNameToNameKind <$> exactConName i
-    PatternSynResName xs         -> hilitePatternSynonym $ A.AmbQ $ fmap anameName xs
+    PatternSynResName xs         -> hilitePatternSynonym $ A.ambigName xs
     UnknownName                  -> mempty
 
 instance Hilite A.QName where
@@ -517,7 +517,7 @@ hiliteAmbiguousQName
   :: Maybe NameKind   -- ^ Is 'NameKind' already known from the context?
   -> A.AmbiguousQName
   -> Hiliter
-hiliteAmbiguousQName mkind (A.AmbQ qs) = do
+hiliteAmbiguousQName mkind x = do
   kind <- ifJust mkind (pure . Just) {-else-} $ do
     kinds <- asks hleNameKinds
     pure $ listToMaybe $ List1.catMaybes $ fmap kinds qs
@@ -527,7 +527,8 @@ hiliteAmbiguousQName mkind (A.AmbQ qs) = do
   flip foldMap qs $ \ q ->
     hiliteAName q include $ nameAsp' kind
   where
-  include = List1.allEqual $ fmap bindingSite qs
+    qs = getAmbiguous x
+    include = List1.allEqual $ fmap bindingSite qs
 
 hiliteBound :: A.Name -> Hiliter
 hiliteBound x =

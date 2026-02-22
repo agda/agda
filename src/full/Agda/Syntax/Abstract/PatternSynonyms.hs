@@ -53,10 +53,10 @@ matchPatternSyn = runMatch match
   where
     match (VarP x) e = unBind x ==> e
     match (LitP _ l) (Lit _ l') = guard (l == l')
-    match (ConP _ (AmbQ cs) ps) e = do
-      Application (Con (AmbQ cs')) args <- return (appView e)
-      guard $ all (`elem` cs) cs'                       -- check all possible constructors appear in the synonym
-      guard $ map getArgInfo ps == map getArgInfo args  -- check that we agree on the hiding (TODO: too strict?)
+    match (ConP _ x ps) e = do
+      Application (Con x') args <- return (appView e)
+      guard $ allPossibleConstructorsAppearInSynonym x x'  -- check all possible constructors appear in the synonym
+      guard $ map getArgInfo ps == map getArgInfo args     -- check that we agree on the hiding (TODO: too strict?)
       zipWithM_ match (map namedArg ps) (map namedArg args)
     match _ _ = empty
 
@@ -67,11 +67,14 @@ matchPatternSynP = runMatch match
     match (VarP x) q = unBind x ==> q
     match (LitP _ l) (LitP _ l') = guard (l == l')
     match (WildP _) (WildP _) = return ()
-    match (ConP _ (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
-      guard $ all (`elem` cs) cs'
+    match (ConP _ x ps) (ConP _ x' qs) = do
+      guard $ allPossibleConstructorsAppearInSynonym x x'
       guard $ map getArgInfo ps == map getArgInfo qs
       zipWithM_ match (map namedArg ps) (map namedArg qs)
     match _ _ = empty
+
+allPossibleConstructorsAppearInSynonym :: AmbiguousQName -> AmbiguousQName -> Bool
+allPossibleConstructorsAppearInSynonym x x' = all (`elem` getAmbiguous x) (getAmbiguous x')
 
 type Match e = WriterT (Map Name e) Maybe
 

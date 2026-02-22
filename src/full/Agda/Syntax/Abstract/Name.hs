@@ -363,6 +363,15 @@ getUnambiguous :: AmbiguousQName -> Maybe QName
 getUnambiguous (AmbQ (x :| [])) = Just x
 getUnambiguous _                = Nothing
 
+getAmbiguous :: AmbiguousQName -> List1 QName
+getAmbiguous (AmbQ xs) = xs
+
+unambigName :: AbstractName -> AmbiguousQName
+unambigName = AmbQ . List1.singleton . anameName
+
+ambigName :: List1 AbstractName -> AmbiguousQName
+ambigName = AmbQ . fmap anameName
+
 ---------------------------------------------------------------------------
 -- * 'AbstractName'
 ---------------------------------------------------------------------------

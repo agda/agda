@@ -1407,11 +1407,11 @@ appViewM e = do
       | A.Dot _ e2' <- unScope $ namedArg e2
       , Just (f0, hd) <- maybeProjTurnPostfix e2'
       -> do
-       ai <- case f0 of
-         A.AmbQ (f :| []) -> isProjection f >>= \case
+       ai <- case getUnambiguous f0 of
+         Just f -> isProjection f >>= \case
            Just p | isProperProjection_ p -> pure $ projArgInfo p
            _ -> pure defaultArgInfo
-         _ -> pure defaultArgInfo
+         Nothing -> pure defaultArgInfo
        return (Application hd, singleton (unnamedArg ai e1))
     A.App _ e1 arg -> second (`DL.snoc` arg) <$> go e1
     e -> return (Application e, mempty)

@@ -5726,8 +5726,8 @@ data IncorrectTypeForRewriteRelationReason
 
 -- | Extra information for error 'CannotQuote'.
 data CannotQuote
-  = CannotQuoteAmbiguous (List2 A.QName)
-      -- ^ @quote@ is applied to an ambiguous name.
+  = CannotQuoteAmbiguous AmbiguousQName
+      -- ^ @quote@ is applied to a really ambiguous name.
   | CannotQuoteExpression A.Expr
       -- ^ @quote@ is applied to an expression that is not an unambiguous defined name.
   | CannotQuoteHidden

@@ -1038,9 +1038,9 @@ instance NameToExpr ResolvedName where
   nameToExpr = \case
     VarName x _          -> Var x
     DefinedName _ x s    -> withSuffix s $ nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
-    FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
-    ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
-    PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
+    FieldName xs         -> Proj ProjSystem . ambigName $ xs
+    ConstructorName _ xs -> Con . ambigName $ xs
+    PatternSynResName xs -> PatternSyn . ambigName $ xs
     UnknownName          -> __IMPOSSIBLE__
     where
       withSuffix NoSuffix   e       = e

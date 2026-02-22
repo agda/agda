@@ -591,15 +591,14 @@ instance ToAbstract MaybeOldQName where
     where
       ambiguous :: (AmbiguousQName -> A.Expr) -> List1 AbstractName -> ScopeM (Maybe A.Expr)
       ambiguous f ds = do
-        let xs = fmap anameName ds
-        raiseWarningsOnUsageIfUnambiguous xs
-        return $ Just $ f $ AmbQ xs
+        raiseWarningsOnUsageIfUnambiguous ds
+        return $ Just $ f $ ambigName ds
 
       -- Note: user warnings on ambiguous names will be raised by the type checker,
       -- see 'storeDisambiguatedName'.
-      raiseWarningsOnUsageIfUnambiguous :: List1 A.QName -> ScopeM ()
+      raiseWarningsOnUsageIfUnambiguous :: List1 AbstractName -> ScopeM ()
       raiseWarningsOnUsageIfUnambiguous = \case
-        x :| [] -> raiseWarningsOnUsage x
+        x :| [] -> raiseWarningsOnUsage $ anameName x
         _       -> return ()
 
 -- | Resolve a name and fail hard if it is not in scope.
@@ -3074,7 +3073,7 @@ instance ToAbstract C.Pragma where
 
   toAbstract pragma@(C.InlinePragma _ b x) = do
       caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope \case
-        A.Con (AmbQ xs)                -> concatMapM ret $ List1.toList xs
+        A.Con c                        -> concatMapM ret $ List1.toList $ getAmbiguous c
         A.Def x                        -> ret x
         A.Proj _ p
           | Just x <- getUnambiguous p -> ret x
@@ -3164,9 +3163,9 @@ instance ToAbstract C.Pragma where
             DefinedName _ d NoSuffix    -> return . (False,) $ anameName d
             DefinedName _ d Suffix{}    -> failure $ "Invalid pattern " ++ prettyShow top
             FieldName     (d :| [])     -> return . (False,) $ anameName d
-            FieldName ds                -> failure $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (AmbQ $ fmap anameName ds)
+            FieldName ds                -> failure $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (ambigName ds)
             ConstructorName _ (d :| []) -> return . (False,) $ anameName d
-            ConstructorName _ ds        -> failure $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (AmbQ $ fmap anameName ds)
+            ConstructorName _ ds        -> failure $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (ambigName ds)
             UnknownName                 -> do liftTCM $ notInScopeWarning top; mzero
             PatternSynResName (d :| []) -> return . (True,) $ anameName d
             PatternSynResName ds        -> failure $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
@@ -3689,13 +3688,13 @@ instance ToAbstract CLHSCore where
 
     C.LHSProj d ps1 core ps2 -> do
         unless (null ps1) $ typeError $ IllformedProjectionPatternConcrete (foldl C.AppP (C.IdentP True d) ps1)
-        ds <- resolveName d >>= \case
-          FieldName ds -> return $ fmap anameName ds
+        x <- resolveName d >>= \case
+          FieldName ds -> pure (ambigName ds)
           UnknownName  -> notInScopeError d
           _            -> typeError $ CopatternHeadNotProjection d
         core <- toAbstract $ (fmap . fmap) (CLHSCore displayLhs) core
         ps2  <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs) ps2
-        A.LHSProj (AmbQ ds) core <$> mergeEqualPs ps2
+        A.LHSProj x core <$> mergeEqualPs ps2
 
     C.LHSWith core wps ps -> do
       -- DISPLAY pragmas cannot have @with@, so no need to pass on @displayLhs@.
@@ -3774,15 +3773,15 @@ resolvePatternIdentifier canBeConstructor displayLhs h x ns = do
 
     ConPatName ds -> do
       unless canBeConstructor $ err IsConstructor
-      return $ ConP (ConPatInfo ConOCon info ConPatEager) (AmbQ $ fmap anameName ds) []
+      return $ ConP (ConPatInfo ConOCon info ConPatEager) (ambigName ds) []
 
     PatternSynPatName ds -> do
       unless canBeConstructor $ err IsPatternSynonym
-      return $ PatternSynP info (AmbQ $ fmap anameName ds) []
+      return $ PatternSynP info (ambigName ds) []
 
     DefPatName d -> do
       unless displayLhs __IMPOSSIBLE__
-      return $ DefP info (AmbQ $ singleton $ anameName d) []
+      return $ DefP info (unambigName d) []
 
   where
   r = getRange x
@@ -3810,7 +3809,7 @@ applyAPattern p0 p ps1 = do
       A.DotP i (Ident x)   -> resolveName x >>= \case
         ConstructorName _ ds -> do
           let cpi = ConPatInfo ConOCon i ConPatLazy
-              c   = AmbQ (fmap anameName ds)
+              c   = ambigName ds
           return $ A.ConP cpi c ps
         _ -> failure
       A.DotP{}    -> failure
@@ -3960,8 +3959,7 @@ instance ToAbstract CPattern where
         C.Ident x -> resolveName x >>= \case
           -- Andreas, 2018-06-19, #3130
           -- We interpret .x as postfix projection if x is a field name in scope
-          FieldName xs -> return $ A.ProjP (PatRange r) ProjPostfix $ AmbQ $
-            fmap anameName xs
+          FieldName xs -> return $ A.ProjP (PatRange r) ProjPostfix $ ambigName xs
           _ -> fallback
         _ -> fallback
 
