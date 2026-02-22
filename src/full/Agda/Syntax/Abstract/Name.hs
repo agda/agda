@@ -32,7 +32,11 @@ import Agda.Utils.Lens
 import Agda.Utils.List qualified as List
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import Agda.Utils.List1 qualified as List1
+import Agda.Utils.Map1 (Map1)
+import Agda.Utils.Map1 qualified as Map1
+import Agda.Utils.Maybe ( unionMaybeWith )
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import qualified Agda.Syntax.Common.Aspect as Asp
@@ -89,10 +93,23 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
--- Invariant: All the names in the list must have the same concrete,
+-- A 'QName' in this collection might be equipped with lineage information
+-- in form of an associated 'AbstractName' (which must contain the same 'QName').
+--
+-- Invariant: All the names in the map must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
-newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
-  deriving (Eq, Ord, NFData)
+--
+-- Don't use the constructor 'AmbQ' directly, use the smart constructors below!
+newtype AmbiguousQName = AmbQ { unAmbQ :: Map1 NameId AmbQNameEntry }
+  deriving (Eq, Ord, NFData, Sized)
+
+-- | Alternative in 'AmbiguousQName'.
+data AmbQNameEntry
+  = AmbQName QName
+      -- ^ 'QName' without lineage information.
+  | AmbAbstractName AbstractName
+      -- ^ 'QName' with lineage information, for error reporting.
+  deriving (Eq, Ord, Show, Generic)
 
 -- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
 data AbstractName = AbsName
@@ -362,34 +379,55 @@ nextName freshNameMode x = x { nameConcrete = C.nextName freshNameMode (nameConc
 -- * 'AmbiguousQName'
 ---------------------------------------------------------------------------
 
+fromAmbQName :: AmbQNameEntry -> QName
+fromAmbQName = \case
+  AmbQName x -> x
+  AmbAbstractName x -> anameName x
+
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
-unambiguous x = AmbQ (x :| [])
+unambiguous = ambiguous . singleton
+
+ambiguous :: List1 QName -> AmbiguousQName
+ambiguous = AmbQ . Map1.fromList . fmap \ x -> (nameId x, AmbQName x)
 
 -- | Get the first of the ambiguous names.
 headAmbQ :: AmbiguousQName -> QName
-headAmbQ (AmbQ xs) = List1.head xs
+headAmbQ = List1.head . getAmbiguous
 
 -- | Is a name ambiguous.
 isAmbiguous :: AmbiguousQName -> Bool
-isAmbiguous (AmbQ (_ :| xs)) = not (null xs)
+isAmbiguous (AmbQ m) = size m > 1
 
 -- | Get the name if unambiguous.
 getUnambiguous :: AmbiguousQName -> Maybe QName
-getUnambiguous (AmbQ (x :| [])) = Just x
-getUnambiguous _                = Nothing
+getUnambiguous m
+  | size m == 1 = Just $ headAmbQ m
+  | otherwise   = Nothing
 
 getAmbiguous :: AmbiguousQName -> List1 QName
-getAmbiguous (AmbQ xs) = xs
+getAmbiguous = fmap fromAmbQName . Map1.elems . unAmbQ
+
+ambAbstractNames :: AmbiguousQName -> [AbstractName]
+ambAbstractNames (AmbQ xs) = (`List1.mapMaybe` Map1.elems xs) \case
+  AmbQName{} -> Nothing
+  AmbAbstractName x -> Just x
 
 unambigName :: AbstractName -> AmbiguousQName
-unambigName = AmbQ . List1.singleton . anameName
+unambigName = ambigName . singleton
 
 ambigName :: List1 AbstractName -> AmbiguousQName
-ambigName = AmbQ . fmap anameName
+ambigName = AmbQ . Map1.fromList . fmap \ x -> (nameId x, AmbAbstractName x)
 
+-- | Preserve lineage information from both maps, left-biased.
 mergeAmbQ :: AmbiguousQName -> AmbiguousQName -> AmbiguousQName
-mergeAmbQ (AmbQ xs) (AmbQ ys) = AmbQ (xs <> ys)
+mergeAmbQ (AmbQ xs) (AmbQ ys) = AmbQ (Map1.unionWith (<>) xs ys)
+
+-- | Prefer 'AmbAbstractName' over 'AmbQName', left-biased.
+instance Semigroup AmbQNameEntry where
+  x@AmbAbstractName{} <> _ = x
+  _ <> y@AmbAbstractName{} = y
+  x <> _                   = x
 
 ---------------------------------------------------------------------------
 -- * 'AbstractName'
@@ -587,7 +625,7 @@ instance Pretty QName where
       useCanonical q = q { qnameName = (qnameName q) { nameConcrete = nameCanonical (qnameName q) } }
 
 instance Pretty AmbiguousQName where
-  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty $ List1.toList qs
+  pretty qs = hcat $ punctuate " | " $ fmap pretty $ getAmbiguous qs
 
 instance Pretty a => Pretty (QNamed a) where
   pretty (QNamed a b) = pretty a <> "." <> pretty b
@@ -621,7 +659,12 @@ instance HasRange QName where
 -- | The range of an @AmbiguousQName@ is the range of any of its
 --   disambiguations (they are the same concrete name).
 instance HasRange AmbiguousQName where
-  getRange (AmbQ (c :| _)) = getRange c
+  getRange = getRange . headAmbQ
+
+instance HasRange AmbQNameEntry where
+  getRange = \case
+    AmbQName        x -> getRange x
+    AmbAbstractName x -> getRange x
 
 -- SetRange
 
@@ -671,6 +714,28 @@ instance KillRange QName where
 instance KillRange AmbiguousQName where
   killRange (AmbQ xs) = AmbQ $ killRange xs
 
+instance KillRange AmbQNameEntry where
+  killRange = \case
+    AmbQName x -> killRangeN AmbQName x
+    AmbAbstractName x -> killRangeN AmbAbstractName x
+
+instance KillRange AbstractName where
+  killRange (AbsName a b c d) = killRangeN AbsName a b c d
+
+instance KillRange KindOfName where
+  killRange = id
+
+instance KillRange WhyInScope where
+  killRange = \case
+    Defined -> Defined
+    Opened a b -> killRangeN Opened a b
+    Applied a b -> killRangeN Applied a b
+
+instance KillRange NameMetadata where
+  killRange = \case
+    NameMetadata a b -> killRangeN NameMetadata a b
+
+
 -- AbstractName
 
 instance HasRange AbstractName where
@@ -706,6 +771,7 @@ instance NFData Suffix where
 
 instance NFData AbstractModule
 instance NFData AbstractName
+instance NFData AmbQNameEntry
 instance NFData KindOfName
 instance NFData NameMetadata
 instance NFData QName

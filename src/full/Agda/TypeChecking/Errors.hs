@@ -792,7 +792,9 @@ instance PrettyTCM TypeError where
       ]
 
     AmbiguousOverloadedProjection ds reason -> do
-      let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ headAmbQ ds
+      let
+        x = headAmbQ ds
+        nameRaw = pretty $ A.nameConcrete $ A.qnameName x
       vcat
         [ fsep
           [ text "Cannot resolve overloaded projection"
@@ -804,6 +806,15 @@ instance PrettyTCM TypeError where
         , vcat $ for (getAmbiguous ds) $ \ d -> do
             t <- typeOfConst d
             text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
+        -- , vcat . concat $ for (unAmbQ ds) \ d ->
+        --     [ text "-" <+> nest 2 (nameRaw <+> text ":" <+> (prettyTCM =<< typeOfConst (fromAmbQName d))) ]
+        --       ++
+        --     case d of
+        --       AmbQName{} -> []
+        --       AmbAbstractName x -> [ nest 2 $ prettyTCM x ]
+        , case whyInScopeDataFromAmbiguousQName (qnameToConcrete x) ds of
+            Nothing -> empty
+            Just why -> explainWhyInScope why
         ]
 
     AmbiguousConstructor c disambs -> vcat

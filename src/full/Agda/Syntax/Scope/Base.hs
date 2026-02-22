@@ -650,6 +650,11 @@ data WhyInScopeData
       [AbstractModule]
         -- ^ The modules that @x@ could denote.
 
+whyInScopeDataFromAmbiguousQName :: C.QName -> AmbiguousQName -> Maybe WhyInScopeData
+whyInScopeDataFromAmbiguousQName q x = case ambAbstractNames x of
+  [] -> Nothing
+  xs -> Just $ WhyInScopeData q empty Nothing xs empty
+
 whyInScopeDataFromAbstractName :: C.QName -> AbstractName -> WhyInScopeData
 whyInScopeDataFromAbstractName q x = WhyInScopeData q empty Nothing [x] empty
 
