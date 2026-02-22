@@ -1918,7 +1918,7 @@ instance AllMetas PrincipalArgTypeMetas where
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs Comparison ExpandHidden A.Expr [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
-  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Expr A.Args Type Int Term Type PrincipalArgTypeMetas
+  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin AmbiguousQName A.Expr A.Args Type Int Term Type PrincipalArgTypeMetas
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -5547,7 +5547,7 @@ data TypeError
             -- ^ Pattern and its possible interpretations.
         | AmbiguousProjection QName (List1 QName)
             -- ^ The list contains alternative interpretations of the name.
-        | AmbiguousOverloadedProjection (List1 QName) Doc
+        | AmbiguousOverloadedProjection AmbiguousQName Doc
         | OperatorInformation [NotationSection] OperatorScope TypeError
             -- ^ The list of notations can be empty.
 {- UNUSED

@@ -76,7 +76,7 @@ expandPatternSynonyms' = postTraverseAPatternM $ \case
     -- This is less than optimal, since we do not rule out
     -- the invalid alternatives by typing, but we cannot do
     -- better here.
-    mapM_ raiseWarningsOnUsage $ A.unAmbQ x
+    mapM_ raiseWarningsOnUsage $ A.getAmbiguous x
 
     -- Must expand arguments before instantiating otherwise pattern
     -- synonyms could get into dot patterns (which is __IMPOSSIBLE__).
