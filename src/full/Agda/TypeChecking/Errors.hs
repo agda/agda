@@ -792,7 +792,7 @@ instance PrettyTCM TypeError where
       ]
 
     AmbiguousOverloadedProjection ds reason -> do
-      let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
+      let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ headAmbQ ds
       vcat
         [ fsep
           [ text "Cannot resolve overloaded projection"
@@ -801,7 +801,7 @@ instance PrettyTCM TypeError where
           , pure reason
           ]
         , nest 2 $ text "candidates in scope:"
-        , vcat $ for ds $ \ d -> do
+        , vcat $ for (getAmbiguous ds) $ \ d -> do
             t <- typeOfConst d
             text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
         ]
