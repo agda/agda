@@ -27,6 +27,8 @@ import Agda.TypeChecking.Monad
   , mapTCMT
   )
 
+import GHC.Magic (oneShot)
+
 -- | Interaction monad.
 newtype IM a = IM {unIM :: TCMT (Haskeline.InputT IO) a}
   deriving
@@ -40,8 +42,8 @@ runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings) . unIM
 
 instance MonadError TCErr IM where
   throwError                = liftIO . throwIO
-  catchError (IM (TCM m)) h = IM . TCM $ \s e ->
-    m s e `Haskeline.catch` \err -> unTCM (unIM (h err)) s e
+  catchError (IM (TCM m)) h = IM . TCM $ oneShot \p ->
+    m p `Haskeline.catch` \err -> unTCM (unIM (h err)) p
 
 -- | Line reader. The line reader history is not stored between
 -- sessions.

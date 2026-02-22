@@ -3,6 +3,8 @@
 -- SPECIALIZE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a
 -- with GHC 9.14
 {-# LANGUAGE NoDeepSubsumption #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE MagicHash #-}
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
@@ -150,6 +152,7 @@ import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible
+import GHC.Magic (oneShot)
 
 ---------------------------------------------------------------------------
 -- * Type checking state
@@ -5955,8 +5958,8 @@ instance ReadTCState ReduceM where
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
-runReduceM m = TCM $ \ r e -> do
-  s <- Strict.readIORef r
+runReduceM m = TCM $ oneShot \(# r , !e #) -> do
+  s <- Strict.readIORef# r
   E.evaluate $ unReduceM m $ ReduceEnv e s Nothing
   -- Andreas, 2021-05-13, issue #5379
   -- This was the following, which is apparently not strict enough
@@ -6219,7 +6222,7 @@ instance MonadFileId m => MonadFileId (BlockT m)
 
 -- | The type checking monad transformer.
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
-newtype TCMT m a = TCM { unTCM :: Strict.IORef TCState -> TCEnv -> m a }
+newtype TCMT m a = TCM { unTCM :: (# Strict.IORef# TCState, TCEnv #) -> m a }
 
 -- | Type checking monad.
 type TCM = TCMT IO
@@ -6230,84 +6233,84 @@ type TCM = TCMT IO
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
 -- #endif
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
-mapTCMT f (TCM m) = TCM $ \ s e -> f (m s e)
+mapTCMT f (TCM m) = TCM $ oneShot \p -> f (m p)
 
 pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMT m a
-pureTCM f = TCM $ \ r e -> do
-  s <- liftIO $ Strict.readIORef r
+pureTCM f = TCM $ oneShot \(# r , !e #) -> do
+  s <- liftIO $ Strict.readIORef# r
   return (f s e)
 {-# INLINE pureTCM #-}
 
--- One goal of the definitions and pragmas below is to inline the
--- monad operations as much as possible. This doesn't seem to have a
--- large effect on the performance of the normal executable, but (at
--- least on one machine/configuration) it has a massive effect on the
--- performance of the profiling executable [1], and reduces the time
--- attributed to bind from over 90% to about 25%.
---
--- [1] When compiled with -auto-all and run with -p: roughly 750%
--- faster for one example.
+instance Monad m => Functor (TCMT m) where
+  fmap f (TCM m) = TCM $ oneShot \p -> do
+    !x <- m p
+    pure $! f x
+  {-# INLINE fmap #-}
 
-returnTCMT :: Applicative m => a -> TCMT m a
-returnTCMT = \x -> TCM $ \_ _ -> pure x
-{-# INLINE returnTCMT #-}
+  ~a <$ TCM k = TCM $ oneShot \p -> do
+    !_ <- k p
+    pure a
+  {-# INLINE (<$) #-}
 
-bindTCMT :: Monad m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
-bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
-{-# INLINE bindTCMT #-}
+instance Monad m => Applicative (TCMT m) where
+  pure x = TCM $ oneShot \_ -> pure x
+  {-# INLINE pure #-}
 
-thenTCMT :: Applicative m => TCMT m a -> TCMT m b -> TCMT m b
-thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e *> m2 r e
-{-# INLINE thenTCMT #-}
+  TCM f <*> TCM x = TCM $ oneShot \r -> do
+    !f <- f r
+    !x <- x r
+    pure $! f x
+  {-# INLINE (<*>) #-}
 
-instance Functor m => Functor (TCMT m) where
-  fmap = fmapTCMT; {-# INLINE fmap #-}
+  TCM x *> TCM y = TCM $ oneShot \r -> do
+    !_ <- x r
+    !y <- y r
+    pure y
+  {-# INLINE (*>) #-}
 
-fmapTCMT :: Functor m => (a -> b) -> TCMT m a -> TCMT m b
-fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
-{-# INLINE fmapTCMT #-}
-
-instance Applicative m => Applicative (TCMT m) where
-  pure  = returnTCMT; {-# INLINE pure #-}
-  (<*>) = apTCMT; {-# INLINE (<*>) #-}
-
-apTCMT :: Applicative m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
-apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> mf r e <*> m r e
-{-# INLINE apTCMT #-}
+  TCM x <* TCM y = TCM $ oneShot \r -> do
+    !x <- x r
+    !_ <- y r
+    pure x
+  {-# INLINE (<*) #-}
 
 instance MonadTrans TCMT where
-    lift m = TCM $ \_ _ -> m; {-# INLINE lift #-}
+  lift m = TCM $ oneShot \_ -> m; {-# INLINE lift #-}
 
 -- We want a special monad implementation of fail.
 -- Andreas, 2022-02-02, issue #5659:
 -- @transformers-0.6@ requires exactly a @Monad@ superclass constraint here
 -- if we want @instance MonadTrans TCMT@.
 instance Monad m => Monad (TCMT m) where
-    return = pure; {-# INLINE return #-}
-    (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
-    (>>)   = (*>); {-# INLINE (>>) #-}
+  return = pure; {-# INLINE return #-}
+  (>>)   = (*>); {-# INLINE (>>) #-}
+
+  TCM x >>= f = TCM $ oneShot \r -> do
+    !x <- x r
+    unTCM (f x) r
+  {-# INLINE (>>=) #-}
 
 instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
   fail = internalError
   {-# INLINE fail #-}
 
 instance MonadIO m => MonadIO (TCMT m) where
-  liftIO m = TCM $ \ s env -> do
+  liftIO m = TCM $ oneShot \(# s , !env #) -> do
     liftIO $ wrap s (envRange env) $ do
       x <- m
       x `seq` return x
     where
-      wrap s r m = E.catch m $ \ err -> do
-        s <- Strict.readIORef s
+      wrap s !r m = E.catch m $ oneShot \ err -> do
+        s <- Strict.readIORef# s
         E.throwIO $ IOException (Just s) r err
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
-  askTC             = TCM $ \ _ e -> return e; {-# INLINE askTC #-}
-  localTC f (TCM m) = TCM $ \ s e -> m s (f e); {-# INLINE localTC #-}
+  askTC             = TCM $ oneShot \(# _ , !e #) -> return e; {-# INLINE askTC #-}
+  localTC f (TCM m) = TCM $ oneShot \(# s , e #) -> let !e' = f e in m (# s , e' #); {-# INLINE localTC #-}
 
 instance MonadIO m => MonadTCState (TCMT m) where
-  getTC   = TCM $ \ r _e -> liftIO (Strict.readIORef r); {-# INLINE getTC #-}
-  putTC s = TCM $ \ r _e -> liftIO (Strict.writeIORef r s); {-# INLINE putTC #-}
+  getTC   = TCM $ oneShot \(# r , _ #) -> liftIO (Strict.readIORef# r); {-# INLINE getTC #-}
+  putTC s = TCM $ oneShot \(# r , _ #) -> liftIO (Strict.writeIORef# r s); {-# INLINE putTC #-}
   modifyTC f = putTC . f =<< getTC; {-# INLINE modifyTC #-}
 
 instance MonadIO m => ReadTCState (TCMT m) where
@@ -6327,18 +6330,18 @@ instance MonadBlock TCM where
 
 instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
   throwError = liftIO . E.throwIO
-  catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
-    oldState <- liftIO $ Strict.readIORef r
-    unTCM m r e `catchIO` \err -> do
+  catchError m h = TCM $ oneShot \(# r , !e #) -> do  -- now we are in the monad m
+    oldState <- liftIO $ Strict.readIORef# r
+    unTCM m (# r , e #) `catchIO` oneShot \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
       case err of
         PatternErr{} -> return ()
         _            ->
           liftIO $ do
-            newState <- Strict.readIORef r
-            Strict.writeIORef r oldState { stPersistentState = stPersistentState newState }
-      unTCM (h err) r e
+            newState <- Strict.readIORef# r
+            Strict.writeIORef# r oldState { stPersistentState = stPersistentState newState }
+      unTCM (h err) (# r , e #)
 
 -- | Like 'catchError', but resets the state completely before running the handler.
 --   This means it also loses changes to the 'stPersistentState'.
@@ -6346,12 +6349,12 @@ instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
 --   The intended use is to catch internal errors during debug printing.
 --   In debug printing, we are not expecting state changes.
 instance CatchImpossible TCM where
-  catchImpossibleJust f m h = TCM $ \ r e -> do
+  catchImpossibleJust f m h = TCM $ oneShot \(# r , !e #) -> do
     -- save the state
-    s <- Strict.readIORef r
-    catchImpossibleJust f (unTCM m r e) $ \ err -> do
-      Strict.writeIORef r s
-      unTCM (h err) r e
+    s <- Strict.readIORef# r
+    catchImpossibleJust f (unTCM m (# r , e #)) $ oneShot \err -> do
+      Strict.writeIORef# r s
+      unTCM (h err) (# r , e #)
 
 instance MonadIO m => MonadReduce (TCMT m) where
   liftReduce = liftTCM . runReduceM; {-# INLINE liftReduce #-}
@@ -6380,9 +6383,8 @@ instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMT m a) where
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
-catchError_ m h = TCM $ \r e ->
-  unTCM m r e
-  `E.catch` \err -> unTCM (h err) r e
+catchError_ m h = TCM $ oneShot \p ->
+  unTCM m p `E.catch` \err -> unTCM (h err) p
 
 -- | Execute a finalizer even when an exception is thrown.
 --   Does not catch any errors.
@@ -6478,9 +6480,9 @@ execError = locatedTypeError ExecError
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
 runTCM :: MonadIO m => TCEnv -> TCState -> TCMT m a -> m (a, TCState)
 runTCM e s m = do
-  r <- liftIO $ Strict.newIORef s
-  a <- unTCM m r e
-  s <- liftIO $ Strict.readIORef r
+  Strict.StrictIORef r <- liftIO (Strict.newIORef s)
+  a <- unTCM m (# r , e #)
+  s <- liftIO $ Strict.readIORef# r
   return (a, s)
 
 -- | Running the type checking monad on toplevel (with initial state).
@@ -6489,8 +6491,8 @@ runTCMTop m = (Right <$> runTCMTop' m) `E.catch` (return . Left)
 
 runTCMTop' :: MonadIO m => TCMT m a -> m a
 runTCMTop' m = do
-  r <- liftIO $ Strict.newIORef =<< initStateIO
-  unTCM m r initEnv
+  Strict.StrictIORef r <- liftIO $ Strict.newIORef =<< initStateIO
+  unTCM m (# r , initEnv #)
 
 -- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which
 --   cannot fail, except that it might raise 'IOException's) in the

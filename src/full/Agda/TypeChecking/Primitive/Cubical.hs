@@ -1087,8 +1087,8 @@ instance Show TranspError where
   show _ = "TranspError"
 
 tryTranspError :: TCM a -> TCM (Either (Closure (Abs Type)) a)
-tryTranspError (TCM m) = TCM $ \ s env -> do
-  mapLeft errorType <$> (try (m s env))
+tryTranspError (TCM m) = TCM $ \p -> do
+  mapLeft errorType <$> (try (m p))
 
 transpPathPTel' ::
              NamesT TCM (Abs (Abs Telescope)) -- ^ j.i.Δ                 const on φ
