@@ -4,4 +4,11 @@ no matching candidate found
   candidates in scope:
 - nat : Dummy → Set
 - nat : .S → Nat
+Issue2797.Dummy.nat is in scope as
+  * a record field Issue2797.Dummy.nat brought into scope by
+    - the opening of Dummy at Issue2797.agda:14.6-11
+    - its definition at Issue2797.agda:13.9-12
+  * a record field Issue2797.S.nat brought into scope by
+    - the opening of S at Issue2797.agda:18.6-7
+    - its definition at Issue2797.agda:17.10-13
 when checking that the expression s .nat has type Nat

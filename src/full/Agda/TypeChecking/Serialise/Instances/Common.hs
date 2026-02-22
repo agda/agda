@@ -37,6 +37,7 @@ import Agda.Utils.Impossible
 import Agda.Utils.CallStack
 import qualified Agda.Utils.HashTable as H
 import qualified Agda.Utils.CompactRegion as Compact
+import Agda.Utils.Functor ((<.>))
 
 instance EmbPrj ConstructorOrPatternSynonym
 
@@ -246,9 +247,24 @@ instance EmbPrj A.QName where
 
   value = valueN A.QName
 
+-- | Note: Serialization of 'A.AmbiguousQName' discards lineage,
+-- treating all entries as just 'A.QName' rather than 'A.AbstractName'.
 instance EmbPrj A.AmbiguousQName where
-  icod_ (A.AmbQ a) = icode a
-  value n          = A.AmbQ <$!> value n
+  icod_ = icod_ . A.getAmbiguous
+  value = A.ambiguous <.> value
+
+-- instance EmbPrj A.AmbiguousQName where
+--   icod_ (A.AmbQ a) = icode a
+--   value n          = A.AmbQ <$!> value n
+
+-- instance EmbPrj A.AmbQNameEntry where
+--   icod_ = \case
+--     A.AmbQName a -> icodeN 0 a
+--     A.AmbAbstractName a -> icodeN 1 a
+--   value = vcase \case
+--     N2 0 a -> valuN A.AmbQName a
+--     N2 1 a -> valuN A.AmbAbstractName a
+--     _ -> malformed
 
 instance EmbPrj A.ModuleName where
   icod_ (A.MName a) = icode a

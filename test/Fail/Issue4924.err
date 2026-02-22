@@ -4,4 +4,11 @@ principal argument pri has type A while it should be of record type
   candidates in scope:
 - f : A → A
 - f : B → B
+Issue4924.f is in scope as
+  * a record field Issue4924._._.f brought into scope by
+    - the application of R at Issue4924.agda:8.8-9
+    - its definition at Issue4924.agda:5.5-6
+  * a record field Issue4924._._.f brought into scope by
+    - the application of R at Issue4924.agda:9.8-9
+    - its definition at Issue4924.agda:5.5-6
 when checking that the expression f pri has type A
