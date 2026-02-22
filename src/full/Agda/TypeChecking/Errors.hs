@@ -1089,7 +1089,7 @@ instance PrettyTCM TypeError where
       ]
       where
         (x, _) = List1.head defs
-        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
+        prDef (x, (A.PatternSynDefn xs p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 
     IllegalInstanceVariableInPatternSynonym x -> fsep $ concat
