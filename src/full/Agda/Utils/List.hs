@@ -12,24 +12,24 @@ import Data.List as X (uncons)
 
 import Control.Monad (filterM, forM)
 import Control.Applicative (Alternative, (<|>))
-import qualified Control.Applicative as A
+import Control.Applicative qualified as A
 
 import Data.Array (Array, array, listArray)
-import qualified Data.Array as Array
+import Data.Array qualified as Array
 import Data.Bifunctor
 import Data.Function (on)
 import Data.Hashable
 import Data.List.Split (splitOn)
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as List1
+import Data.List qualified as List
+import Data.List.NonEmpty qualified as List1
 import Data.List.NonEmpty (pattern (:|), (<|))
 import Data.Maybe
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
-import qualified Data.Set as Set
+import Data.Map qualified as Map
+import Data.HashMap.Strict qualified as HMap
+import Data.Set qualified as Set
 import Data.Strict.These
 
-import qualified Agda.Utils.Bag as Bag
+import Agda.Utils.Bag qualified as Bag
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<.>))

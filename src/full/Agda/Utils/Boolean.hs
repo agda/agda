@@ -20,7 +20,7 @@
 module Agda.Utils.Boolean where
 
 import Prelude ( Bool(True,False), Eq, ($), (.), const, id )
-import qualified Prelude as P
+import Prelude qualified as P
 
 infixr 3 &&
 infixr 2 ||

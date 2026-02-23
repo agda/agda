@@ -13,11 +13,11 @@ module Agda.Utils.IO.UTF8
 import Control.Exception
 import Data.Maybe (fromMaybe)
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.Encoding as T
-import qualified Data.Text.Lazy.IO as T
-import qualified Data.ByteString.Lazy as BS
-import qualified System.IO as IO
+import Data.Text.Lazy qualified as T
+import Data.Text.Lazy.Encoding qualified as T
+import Data.Text.Lazy.IO qualified as T
+import Data.ByteString.Lazy qualified as BS
+import System.IO qualified as IO
 
 -- | Converts many character sequences which may be interpreted as
 -- line or paragraph separators into '\n'.

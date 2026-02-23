@@ -6,17 +6,17 @@ module Agda.Utils.Bag where
 
 import Prelude hiding (null, map)
 
-import           Text.Show.Functions    () -- instance only
+import Text.Show.Functions    () -- instance only
 
-import qualified Data.List              as List
-import           Data.List.NonEmpty     ( NonEmpty, pattern (:|) )
-import qualified Data.List.NonEmpty     as List1
-  -- NB: Not importing Agda.Utils.List1 to avoid import cycles.
-import           Data.Map               ( Map )
-import qualified Data.Map               as Map
-import           Data.Semigroup         ( Sum(..) )
+-- NB: Not importing Agda.Utils.List1 to avoid import cycles.
+import Data.List              qualified as List
+import Data.List.NonEmpty     ( NonEmpty, pattern (:|) )
+import Data.List.NonEmpty     qualified as List1
+import Data.Map               ( Map )
+import Data.Map               qualified as Map
+import Data.Semigroup         ( Sum(..) )
 
-import           Agda.Utils.Functor
+import Agda.Utils.Functor
 
 -- | A set with duplicates.
 --   Faithfully stores elements which are equal with regard to (==).

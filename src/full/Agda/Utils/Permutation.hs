@@ -9,11 +9,11 @@ import Control.Monad (filterM)
 
 import Data.Array.Unboxed
 import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-import qualified Data.IntMap.Strict as IntMapS
-import qualified Data.IntSet as IntSet
+import Data.IntMap qualified as IntMap
+import Data.IntMap.Strict qualified as IntMapS
+import Data.IntSet qualified as IntSet
 import Data.Functor.Identity
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Maybe
 
 import GHC.Generics (Generic)

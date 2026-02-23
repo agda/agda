@@ -18,7 +18,7 @@ import Data.Equivalence.Monad ( runEquivM, equateAll, classDesc )
 import Data.List.NonEmpty     ( NonEmpty(..), nonEmpty, toList )
 import Data.Maybe             ( fromMaybe )
 
-import qualified Data.Map.Strict as MapS
+import Data.Map.Strict qualified as MapS
 
 import Agda.Utils.Functor
 import Agda.Utils.Singleton

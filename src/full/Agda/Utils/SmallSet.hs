@@ -10,8 +10,8 @@
 --
 -- Import as:
 -- @
---    import qualified Agda.Utils.SmallSet as SmallSet
 --    import Agda.Utils.SmallSet (SmallSet)
+--    import Agda.Utils.SmallSet qualified as SmallSet
 -- @
 
 module Agda.Utils.SmallSet
@@ -45,10 +45,10 @@ import Data.Word (Word64)
 import Data.List (foldl')
 #endif
 import Data.Bits hiding (complement)
-import qualified Data.Bits as Bits
+import Data.Bits qualified as Bits
 import Data.Ix
 
-import qualified Agda.Utils.Null as Null
+import Agda.Utils.Null qualified as Null
 
 -- | An element in a small set.
 --

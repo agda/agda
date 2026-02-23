@@ -13,7 +13,7 @@ module Agda.Utils.IntSet.Infinite
 
 
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 -- | Represents a set of integers.
 --   Invariants:

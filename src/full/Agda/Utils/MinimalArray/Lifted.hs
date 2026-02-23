@@ -5,14 +5,14 @@
 
 module Agda.Utils.MinimalArray.Lifted where
 
-import qualified Data.Foldable
+import Data.Foldable qualified
 import GHC.Exts
-import qualified GHC.Arr as GHC
-import qualified Data.Primitive.Array as A
+import GHC.Arr qualified as GHC
+import Data.Primitive.Array qualified as A
 import Control.Monad.Primitive
 
 import Agda.Utils.Serialize
-import qualified Agda.Utils.Serialize as Ser
+import Agda.Utils.Serialize qualified as Ser
 
 newtype Array a = Array {unwrap :: A.Array a}
   deriving (Eq, Show, IsList, Functor, Foldable, Traversable)

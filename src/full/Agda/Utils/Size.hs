@@ -17,7 +17,7 @@ import Data.HashMap.Strict (HashMap)
 import Data.HashSet        (HashSet)
 import Data.IntMap         (IntMap)
 import Data.IntSet         (IntSet)
-import qualified Data.IntSet as IntSet
+import Data.IntSet qualified as IntSet
 import Data.Map            (Map)
 import Data.Set            (Set)
 import Data.Sequence       (Seq)
