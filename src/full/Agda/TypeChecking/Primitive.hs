@@ -957,7 +957,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , PrimQNameLess         |-> mkPrimFun2 ((<) :: Rel QName)
   , PrimShowQName         |-> mkPrimFun1 (T.pack . prettyShow :: QName -> Text)
   , PrimQNameFixity       |-> mkPrimFun1 (nameFixity . qnameName)
-  , PrimQNameToWord64s    |-> mkPrimFun1 ((\ (NameId x (ModuleNameHash y)) -> (x, y)) . nameId . qnameName
+  , PrimQNameToWord64s    |-> mkPrimFun1 ((\ (NameId x (ModuleNameHash y)) -> (x, y)) . nameId
                                           :: QName -> (Word64, Word64))
   , PrimQNameToWord64sInjective   |-> primQNameToWord64sInjective
   , PrimMetaEquality      |-> mkPrimFun2 ((==) :: Rel MetaId)

@@ -151,7 +151,7 @@ makeConfiguration ds cs ps vs = TermConf
       n <- tick
       return $ QName { qnameModule = MName []
                      , qnameName   = Name
-                        { nameId          = NameId n (ModuleNameHash 1)
+                        { _nameId         = NameId n (ModuleNameHash 1)
                         , nameConcrete    = C.simpleName s
                         , nameCanonical   = C.simpleName s
                         , nameBindingSite = noRange

@@ -1619,7 +1619,7 @@ buildInterface src topLevel = do
     let
       !mh = moduleNameId (srcModuleName src)
       !opaqueBlocks = Map.filterWithKey (\(OpaqueId _ mod) _ -> mod == mh) opaqueBlocks'
-      isLocal qnm = case nameId (qnameName qnm) of
+      isLocal qnm = case nameId qnm of
         NameId _ mh' -> mh' == mh
       !opaqueIds = Map.filterWithKey (\qnm (OpaqueId _ mod) -> isLocal qnm || mod == mh) opaqueIds'
 

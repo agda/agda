@@ -1161,7 +1161,7 @@ litqname x =
   where
     apps = foldl HS.App
     rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
-    NameId n (ModuleNameHash m) = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId x
     fx = theFixity $ nameFixity $ qnameName x
 
     litAssoc NonAssoc   = rteCon "NonAssoc"
@@ -1178,7 +1178,7 @@ litqnamepat x =
           , HS.PLit (HS.Int $ fromIntegral m)
           , HS.PWildCard, HS.PWildCard ]
   where
-    NameId n (ModuleNameHash m) = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId x
 
 litmetapat :: MetaId -> HS.Pat
 litmetapat (MetaId m h) =
