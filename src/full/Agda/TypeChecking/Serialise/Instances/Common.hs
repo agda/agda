@@ -330,9 +330,6 @@ instance EmbPrj a => EmbPrj (HasEta' a) where
     valu (N1 a) = valuN NoEta a
     valu _      = malformed
 
-
-instance EmbPrj IsModality
-
 instance EmbPrj PatternOrCopattern
 
 instance EmbPrj a => EmbPrj (DataOrRecord' a) where

@@ -43,7 +43,6 @@ data Keyword
         | KwVariable
         | KwNO_POSITIVITY_CHECK | KwPOLARITY
         | KwNO_UNIVERSE_CHECK
-        | KwMODALOP
     deriving (Eq, Show)
 
 -- | Unconditional layout keywords.

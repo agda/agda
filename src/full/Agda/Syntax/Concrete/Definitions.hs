@@ -612,7 +612,6 @@ niceDeclarations fixs ds = do
      StaticPragma{}                -> keep
      WarningOnImport{}             -> keep
      WarningOnUsage{}              -> keep
-     ModalOpPragma{}               -> keep
 
      where keep = return ([NicePragma (getRange p) p], ds)
 
@@ -1195,7 +1194,6 @@ niceDeclarations fixs ds = do
               InjectivePragma{}         -> top     -- only needs name, not definition
               InjectiveForInferencePragma{} -> top
               DisplayPragma{}           -> top     -- only for printing
-              ModalOpPragma{}           -> bottom  -- needs data definition
 
               -- The attached pragmas have already been handled at this point.
               CatchallPragma{}          -> __IMPOSSIBLE__

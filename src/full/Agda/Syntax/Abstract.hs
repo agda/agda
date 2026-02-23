@@ -263,7 +263,6 @@ data Pragma
   | OverlapPragma QName OverlapMode
     -- ^ If the definition is an instance, set its overlap mode.
   | DisplayPragma QName [NamedArg Pattern] Expr
-  | ModalOpPragma QName
   deriving (Show, Eq, Generic)
 
 -- | Bindings that are valid in a @let@.

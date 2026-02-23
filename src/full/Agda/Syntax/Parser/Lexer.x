@@ -110,7 +110,6 @@ tokens :-
 <pragma_>   "TERMINATING"              { keyword KwTERMINATING }
 <pragma_>   "WARNING_ON_USAGE"         { keyword KwWARNING_ON_USAGE }
 <pragma_>   "WARNING_ON_IMPORT"        { keyword KwWARNING_ON_IMPORT }
-<pragma_>   "MODALOP"                  { keyword KwMODALOP }
 <pragma_>   . # [ $white \" ] +        { withInterval $ TokString } -- we recognise string literals in pragmas
 <fpragma_>  . # [ $white ] +           { withInterval $ TokString }
 

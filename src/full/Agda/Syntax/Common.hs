@@ -178,27 +178,6 @@ isKindPattern :: ExprKind -> Bool
 isKindPattern (IsPattern _) = True
 isKindPattern IsExpr        = False
 
--- | Is this data type a modality
-data IsModality
-  = YesModality
-  | NoModality
-  deriving (Eq, Show, Enum, Generic, Bounded)
-
-instance Boolean IsModality where
-  fromBool = \case
-    True -> YesModality
-    False -> NoModality
-
-instance IsBool IsModality where
-  toBool = \case
-    YesModality -> True
-    NoModality -> False
-
-instance NFData IsModality
-
-instance KillRange IsModality where
-  killRange = id
-
 ---------------------------------------------------------------------------
 -- * Record Directives
 ---------------------------------------------------------------------------

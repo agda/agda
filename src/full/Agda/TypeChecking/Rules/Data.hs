@@ -150,7 +150,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , _dataCons       = []     -- Constructors are added later
                   , _dataSort       = s
                   , _dataAbstr      = Info.defAbstract i
-                  , _dataIsModality = NoModality
                   , _dataMutual     = Nothing
                   , _dataPathCons   = []     -- Path constructors are added later
                   , _dataTranspIx   = Nothing -- Generated later if nofIxs > 0.

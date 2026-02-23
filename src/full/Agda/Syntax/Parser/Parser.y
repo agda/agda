@@ -185,7 +185,6 @@ import Agda.Utils.Impossible
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
     'STATIC'                  { TokKeyword KwSTATIC $$ }
     'TERMINATING'             { TokKeyword KwTERMINATING $$ }
-    'MODALOP'                 { TokKeyword KwMODALOP $$ }
 
     tex                       { TokTeX $$ }
     comment                   { TokComment $$ }
@@ -341,7 +340,6 @@ Token
     | 'TERMINATING'             { TokKeyword KwTERMINATING $1 }
     | 'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $1 }
     | 'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $1 }
-    | 'MODALOP'                 { TokKeyword KwMODALOP $1 }
 
     | tex                       { TokTeX $1 }
     | comment                   { TokComment $1 }
@@ -1648,7 +1646,6 @@ DeclarationPragma
   | PolarityPragma           { $1 }
   | OverlapPragma            { $1 }
   | OptionsPragma            { $1 }
-  | ModalOpPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
     -- Give better error during type checking instead.
@@ -1802,12 +1799,6 @@ WarningOnImportPragma
         ; _ -> parseError "Expected string literal"
         }
   }
-
-ModalOpPragma :: { Pragma }
-ModalOpPragma
-  : '{-#' 'MODALOP' PragmaQName '#-}'
-    { ModalOpPragma (getRange ($1,$2,$3,$4)) $3 }
-
 
 -- Possibly empty list of polarities. Reversed.
 Polarities :: { [Ranged Occurrence] }

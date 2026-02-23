@@ -449,7 +449,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           ]
 
       -- Cohesion check:
-      -- For a field `@c π : A`, if c has a left adjoint, we create a projection 
+      -- For a field `@c π : A`, if c has a left adjoint, we create a projection
       -- `@(c^-1) π : .., (@(c^-1 . c) r : R as) -> A`
       -- So we want to check that `@.., (c^-1 . c) x : A |- x : A` is allowed by the modalities.
       --

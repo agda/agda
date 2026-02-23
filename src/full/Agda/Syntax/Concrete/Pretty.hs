@@ -593,7 +593,6 @@ instance Pretty Pragma where
       hsep (hlKeyword "POLARITY" : pretty q : map pretty occs)
     pretty (NoUniverseCheckPragma _) = hlKeyword "NO_UNIVERSE_CHECK"
     pretty (OverlapPragma _ x m) = hsep [pretty m, pretty x]
-    pretty (ModalOpPragma _ i) = hsep $ ["MODALOP", pretty i]
 
 instance Pretty Pattern where
     prettyList = fsep . map pretty
