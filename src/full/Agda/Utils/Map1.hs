@@ -34,3 +34,12 @@ unlessNull = flip $ Map1.withNonEmpty $ pure ()
 unlessNullM :: Monad m => m (Map k a) -> (Map1 k a -> m ()) -> m ()
 unlessNullM m k = m >>= (`unlessNull` k)
 {-# INLINE unlessNullM #-}
+
+-- | Map both keys and values where the map is monotonic for the keys.
+--
+-- A function that maps both keys and values while preserving
+-- the map structure is missing in "Data.Map.NonEmpty".
+-- We implement it simplistically here
+-- as a combination of 'Map1.mapKeysMonotonic' and 'fmap'.
+mapKeysAndValuesMonotonic :: (k -> k) -> (a -> b) -> Map1 k a -> Map1 k b
+mapKeysAndValuesMonotonic f g = Map1.mapKeysMonotonic f . fmap g

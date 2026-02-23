@@ -23,6 +23,7 @@ import Data.Set            (Set)
 import Data.Sequence       (Seq)
 
 import Agda.Utils.List1    (List1)
+import Agda.Utils.Map1     (Map1)
 import Agda.Utils.Set1     (Set1)
 import Agda.Utils.Null
 
@@ -58,6 +59,7 @@ instance Sized (HashSet a)
 instance Sized (IntMap a)
 instance Sized (List1 a)
 instance Sized (Map k a)
+instance Sized (Map1 k a)
 instance Sized (Seq a)
 instance Sized IntSet where
   size = IntSet.size

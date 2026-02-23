@@ -26,6 +26,8 @@ import Data.IntSet qualified as IntSet
 
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Map.NonEmpty (NEMap)
+import Data.Map.NonEmpty qualified as Map1
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Set (Set)
@@ -146,11 +148,14 @@ instance SmallSetElement a => Singleton a (SmallSet a) where
   singleton = SmallSet.singleton
   {-# INLINE singleton #-}
 
+instance Singleton (Int,a) (IntMap a)                  where
+  singleton = uncurry IntMap.singleton
+  {-# INLINE singleton #-}
 instance Singleton (k  ,a) (Map  k a)                  where
   singleton = uncurry Map.singleton
   {-# INLINE singleton #-}
-instance Singleton (Int,a) (IntMap a)                  where
-  singleton = uncurry IntMap.singleton
+instance Singleton (k  ,a) (NEMap k a)                 where
+  singleton = uncurry Map1.singleton
   {-# INLINE singleton #-}
 
 instance Hashable k => Singleton k     (HashSet   k)   where
