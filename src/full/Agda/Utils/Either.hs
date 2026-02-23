@@ -29,7 +29,7 @@ import Data.List   (unfoldr)
 
 import Agda.Utils.List ( spanJust )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 
 -- | Loop while we have an exception.
 

@@ -5,8 +5,8 @@
 --   Import:
 --   @
 --
---     import           Agda.Utils.Set1 (Set1)
---     import qualified Agda.Utils.Set1 as Set1
+--     import Agda.Utils.Set1 (Set1)
+--     import Agda.Utils.Set1 qualified as Set1
 --
 --   @
 

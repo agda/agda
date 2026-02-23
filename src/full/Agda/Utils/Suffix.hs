@@ -3,7 +3,7 @@
 module Agda.Utils.Suffix where
 
 import Data.Char
-import qualified Data.List as List
+import Data.List qualified as List
 
 import Agda.Utils.Impossible
 

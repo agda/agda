@@ -3,7 +3,7 @@
 module Agda.Utils.MinimalArray.Prim where
 
 import GHC.Exts
-import qualified Data.Primitive.PrimArray as A
+import Data.Primitive.PrimArray qualified as A
 import Data.Primitive.Types
 import Control.Monad.Primitive
 

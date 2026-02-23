@@ -7,37 +7,37 @@ import Data.Maybe
 import Data.Monoid (Endo(..))
 
 import Data.DList (DList)
-import qualified Data.DList as DL
+import Data.DList qualified as DL
 import Data.Hashable (Hashable)
 import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
+import Data.HashMap.Strict qualified as HashMap
 import Data.HashSet (HashSet)
-import qualified Data.HashSet as HashSet
+import Data.HashSet qualified as HashSet
 import Data.List.NonEmpty (NonEmpty(..))
 
 import Data.EnumMap (EnumMap)
-import qualified Data.EnumMap as EnumMap
+import Data.EnumMap qualified as EnumMap
 import Data.EnumSet (EnumSet)
-import qualified Data.EnumSet as EnumSet
+import Data.EnumSet qualified as EnumSet
 import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
+import Data.IntMap qualified as IntMap
 import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
+import Data.IntSet qualified as IntSet
 
 import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
+import Data.Sequence qualified as Seq
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.Set.NonEmpty (NESet)
-import qualified Data.Set.NonEmpty as Set1
+import Data.Set.NonEmpty qualified as Set1
 
 import Agda.Utils.Null     (Null, empty)
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
-import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.SmallSet qualified as SmallSet
 import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet qualified as VarSet
 
 -- | A create-only possibly empty collection is a monoid with the possibility
 --   to inject elements.

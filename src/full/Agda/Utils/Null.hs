@@ -19,39 +19,39 @@ import Control.Monad.Trans.Maybe
 
 import Data.Maybe             ( isNothing )
 
-import qualified Data.ByteString.Char8 as ByteStringChar8
-import qualified Data.ByteString.Lazy as ByteStringLazy
+import Data.ByteString.Char8 qualified as ByteStringChar8
+import Data.ByteString.Lazy qualified as ByteStringLazy
 
 import Data.EnumMap (EnumMap)
-import qualified Data.EnumMap as EnumMap
+import Data.EnumMap qualified as EnumMap
 import Data.EnumSet (EnumSet)
-import qualified Data.EnumSet as EnumSet
+import Data.EnumSet qualified as EnumSet
 import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
+import Data.HashMap.Strict qualified as HashMap
 import Data.HashSet (HashSet)
-import qualified Data.HashSet as HashSet
+import Data.HashSet qualified as HashSet
 import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
+import Data.IntMap qualified as IntMap
 import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
-import qualified Data.List as List
+import Data.IntSet qualified as IntSet
+import Data.List qualified as List
 import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
+import Data.Sequence qualified as Seq
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.Word (Word32, Word64)
 
 import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Text qualified as Text
 
 import Text.PrettyPrint.Annotated (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
-import qualified Agda.Utils.Bag as Bag
+import Agda.Utils.Bag qualified as Bag
 import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet qualified as VarSet
 
 import Agda.Utils.Unsafe (unsafeComparePointers)
 import Agda.Utils.Impossible

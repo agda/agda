@@ -6,15 +6,15 @@
 --   To avoid name clashes, import this module qualified, as in
 --   @
 --      import Agda.Utils.Favorites (Favorites)
---      import qualified Agda.Utils.Favorites as Fav
+--      import Agda.Utils.Favorites qualified as Fav
 --   @
 
 module Agda.Utils.Favorites where
 
 import Prelude hiding ( null )
 
-import qualified Data.List as List
-import qualified Data.Set as Set
+import Data.List qualified as List
+import Data.Set qualified as Set
 
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd

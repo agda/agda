@@ -5,8 +5,8 @@
 --   Import:
 --   @
 --
---     import           Agda.Utils.Map1 (Map1)
---     import qualified Agda.Utils.Map1 as Map1
+--     import Agda.Utils.Map1 (Map1)
+--     import Agda.Utils.Map1 qualified as Map1
 --
 --   @
 

@@ -105,8 +105,8 @@ module Agda.Utils.VarSet
 import Control.DeepSeq
 import Control.Monad
 
-import qualified Data.ByteString as BS
-import qualified Data.Foldable as Fold
+import Data.ByteString qualified as BS
+import Data.Foldable qualified as Fold
 import Data.Hashable
 import Data.Word
 
@@ -117,7 +117,7 @@ import GHC.Num.WordArray
 import Debug.Trace
 
 import Prelude (Num(..), Show(..))
-import qualified Prelude as P
+import Prelude qualified as P
 
 import Agda.Utils.ByteArray
 import Agda.Utils.Word

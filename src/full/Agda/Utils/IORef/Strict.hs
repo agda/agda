@@ -4,7 +4,7 @@
 -- This module should be imported qualified, ala
 --
 -- @
--- import qualified Agda.Utils.IORef.Strict as Strict
+-- import Agda.Utils.IORef.Strict qualified as Strict
 -- @
 module Agda.Utils.IORef.Strict
   (
@@ -22,7 +22,7 @@ module Agda.Utils.IORef.Strict
 import Control.Exception (evaluate)
 
 import Data.Coerce
-import qualified Data.IORef as Lazy
+import Data.IORef qualified as Lazy
 
 
 -- $strictIORef

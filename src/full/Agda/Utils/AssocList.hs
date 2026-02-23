@@ -11,8 +11,8 @@ import Prelude hiding (lookup)
 
 import Data.Function (on)
 import Data.List (lookup)
-import qualified Data.List as List
-import qualified Data.Map  as Map
+import Data.List qualified as List
+import Data.Map qualified  as Map
 
 import Agda.Utils.Tuple
 

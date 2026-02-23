@@ -8,12 +8,12 @@ module Agda.Utils.Hash where
 
 import Data.ByteString as B
 import Data.Word
-import qualified Data.Hash as H
-import qualified Data.List as L
+import Data.Hash qualified as H
+import Data.List qualified as L
 import Data.Digest.Murmur64
-import qualified Data.Text.Encoding as T
+import Data.Text.Encoding qualified as T
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text.Lazy qualified as T
 
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
