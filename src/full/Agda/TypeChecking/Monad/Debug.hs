@@ -48,8 +48,8 @@ import Agda.Utils.DocTree (renderToTree)
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
-  formatDebugMessage :: VerboseKey -> VerboseLevel -> TCM Doc -> m DocTree
-  traceDebugMessage  :: VerboseKey -> VerboseLevel -> DocTree -> m a -> m a
+  formatDebugMessage :: VerboseKey -> VerboseLevel -> TCM Doc -> m Doc
+  traceDebugMessage  :: VerboseKey -> VerboseLevel -> Doc -> m a -> m a
 
   -- | Print brackets around debug messages issued by a computation.
   verboseBracket     :: VerboseKey -> VerboseLevel -> String -> m a -> m a
@@ -67,12 +67,12 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
   default formatDebugMessage
     :: (MonadTrans t, MonadDebug n, m ~ t n)
-    => VerboseKey -> VerboseLevel -> TCM Doc -> m DocTree
+    => VerboseKey -> VerboseLevel -> TCM Doc -> m Doc
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
   default traceDebugMessage
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
-    => VerboseKey -> VerboseLevel -> DocTree -> m a -> m a
+    => VerboseKey -> VerboseLevel -> Doc -> m a -> m a
   traceDebugMessage k n s = liftThrough $ traceDebugMessage k n s
 
 #ifdef DEBUG
@@ -125,20 +125,14 @@ defaultNowDebugPrinting = locallyTC eIsDebugPrinting $ const True
 
 -- | Print a debug message if switched on.
 displayDebugMessage :: MonadDebug m => VerboseKey -> VerboseLevel -> Doc -> m ()
-displayDebugMessage k n s = traceDebugMessage k n (renderToTree s) $ return ()
+displayDebugMessage k n s = traceDebugMessage k n s $ return ()
 
 -- | During printing, catch internal errors of kind 'Impossible' and print them.
 catchAndPrintImpossible
   :: (CatchImpossible m, Monad m)
   => VerboseKey -> VerboseLevel -> m DocTree -> m DocTree
 {-# SPECIALIZE catchAndPrintImpossible :: VerboseKey -> VerboseLevel -> TCM DocTree -> TCM DocTree #-}
-
--- Andreas, 2019-08-20, issue #4016:
--- Force any lazy 'Impossible' exceptions to the surface and handle them.
---
--- Amy, 2026-02-22: with TCM made strict, we can just DeepSeq.force here.
-
-catchAndPrintImpossible k n m = catchImpossibleJust catchMe (DeepSeq.force <$> m) $ \ imposs -> do
+catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
   return $ renderToTree $ vcat
     [ text $ "Debug printing " ++ k ++ ":" ++ show n ++ " failed due to exception:"
     , vcat $ map (nest 2 . text) $ lines $ show imposs
@@ -151,25 +145,34 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe (DeepSeq.force <$> m
     Unreachable{}           -> False
     ImpMissingDefinitions{} -> False
 
-traceDebugMessageTCM :: VerboseKey -> VerboseLevel -> DocTree -> TCM a -> TCM a
-traceDebugMessageTCM k n msg cont = do
-  cb <- useTC $ stInteractionOutputCallback
-  cb $ Resp_RunningInfo n msg
-  cont
+traceDebugMessageTCM :: VerboseKey -> VerboseLevel -> Doc -> TCM a -> TCM a
+traceDebugMessageTCM k n doc cont = do
+    -- Andreas, 2025-07-30, PR #8040:
+    -- Forcing the @doc@ introduces a massive space leak,
+    -- so for now we switch off the fix of #4016 which is just devx.
+    -- This means that attempts to debug-print __IMPOSSIBLE__s will result in internal errors again.
 
-formatDebugMessageTCM :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM DocTree
-formatDebugMessageTCM k n doc = catchAndPrintImpossible k n $ renderToTree <$> do
-  -- Andreas, 2022-06-15, prefix with time stamp if `-v debug.time:100`:
-  ifNotM (hasVerbosity "debug.time" 100) {-then-} doc {-else-} $ do
-    now <- liftIO $ trailingZeros . iso8601Show <$> liftA2 utcToLocalTime getCurrentTimeZone getCurrentTime
-    fmap ((text now <> ":") <+>) doc
-  where
+    -- Andreas, 2022-06-15, prefix with time stamp if `-v debug.time:100`:
+    doc <- ifNotM (hasVerbosity "debug.time" 100) {-then-} (pure doc) {-else-} $ do
+      now <- liftIO $ trailingZeros . iso8601Show <$> liftA2 utcToLocalTime getCurrentTimeZone getCurrentTime
+      pure $ (text now <> ":") <+> doc
+
+    -- Andreas, 2019-08-20, issue #4016:
+    -- Force any lazy 'Impossible' exceptions to the surface and handle them.
+    msg :: DocTree <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force . renderToTree $ doc
+    cb <- useTC $ stInteractionOutputCallback
+    cb $ Resp_RunningInfo n msg
+    cont
+    where
     -- Surprisingly, iso8601Show gives us _up to_ 6 fractional digits (microseconds),
     -- but not exactly 6.  https://github.com/haskell/time/issues/211
     -- So we need to do the padding ourselves.
     -- yyyy-mm-ddThh:mm:ss.ssssss
     -- 12345678901234567890123456
     trailingZeros = takeExactly '0' 26
+
+formatDebugMessageTCM :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM Doc
+formatDebugMessageTCM _ _ = id
 
 verboseBracketTCM :: VerboseKey -> VerboseLevel -> String -> TCM a -> TCM a
 #ifdef DEBUG
@@ -318,12 +321,7 @@ instance TraceS Doc       where traceS k n = traceSDoc k n . pure
 
 -- | Conditionally debug print 'String', and then continue. Works regardless of the debug flag.
 alwaysTraceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
-alwaysTraceSLn k n s = applyWhenVerboseS k n \cont -> do
-  -- Note: very important that we use formatDebugMessage explicitly,
-  -- since it is what catches any IMPOSSIBLEs that come up when forcing
-  -- the string.
-  doc <- formatDebugMessage k n (pure $ text s)
-  traceDebugMessage k n doc cont
+alwaysTraceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage k n $ text s
 
 -- | Conditionally render debug 'Doc', print it, and then continue. Works regardless of the debug flag.
 alwaysTraceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a

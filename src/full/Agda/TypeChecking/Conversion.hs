@@ -987,35 +987,8 @@ compareElims pols0 fors0 a v els01 els02 =
     (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
     (IApply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Proj{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
-
-    -- Mismatched IApply/Apply is possible: Cubical.Foundations.Prelude.compPathP, Issue3601
-    -- Either keep comparing as functions or as paths depending on the type of the head.
-    (e@(IApply _ _ r1) : els1, els2@(Apply r2:els2')) -> do
-      a <- abortIfBlocked a
-      va <- pathView a
-      case va of
-        OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v (Apply (defaultArg r1):els1) els2
-        PathType s path l bA x y -> do
-          let (pol, pols) = nextPolarity pols0
-          b <- primIntervalType
-          compareWithPol pol (flip compareTerm b) r1 (unArg r2)
-          codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r1)
-          compareElims pols [] codom (applyE v [e]) els1 els2'
-        _ -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
-
-    (els1@(Apply r1:els1'), e@(IApply _ _ r2):els2) -> do
-      a <- abortIfBlocked a
-      va <- pathView a
-      case va of
-        OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v els1 (Apply (defaultArg r2):els2)
-        PathType s path l bA x y -> do
-          let (pol, pols) = nextPolarity pols0
-          b <- primIntervalType
-          compareWithPol pol (flip compareTerm b) (unArg r1) r2
-          codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r2)
-          compareElims pols [] codom (applyE v [e]) els1' els2
-        _ -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
-
+    (IApply{} : _, Apply{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+    (Apply{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
       reportSDoc "tc.conv.elim" 25 $ "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
@@ -1038,7 +1011,7 @@ compareElims pols0 fors0 a v els01 els02 =
         -- because @etaContract@ can produce such terms
         OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v (Apply (defaultArg r1) : els1) (Apply (defaultArg r2) : els2)
 
-        OType t -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+        OType t -> patternViolation (unblockOnAnyMetaIn t) -- Can we get here? We know a is not blocked.
 
     (Apply arg1 : els1, Apply arg2 : els2) ->
       (verboseBracket "tc.conv.elim" 20 "compare Apply" :: m () -> m ()) $ do

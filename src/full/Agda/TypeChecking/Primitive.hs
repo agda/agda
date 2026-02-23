@@ -48,7 +48,6 @@ import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.Solo
 
 import Agda.Utils.Impossible
 
@@ -266,17 +265,11 @@ instance ToTerm FixityLevel where
 
 instance (ToTerm a, ToTerm b) => ToTerm (a, b) where
   toTerm = do
-    -- TODO: Issue6711 forces this 'toTerm' *before* we get a chance to
-    -- check whether BUILTIN SIGMA is bound.
-    --
-    -- I'm not sure how! For now, put it in a Solo to delay the
-    -- evaluation of the actual kit.
-    MkSolo ~sigKit <- fromMaybe (MkSolo __IMPOSSIBLE__) . fmap MkSolo <$> getSigmaKit
+    sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
     let con = Con (sigmaCon sigKit) ConOSystem []
-
     fromA <- toTerm
     fromB <- toTerm
-    pure $ \ (a, b) -> con `seq` do apply2 con <$> fromA a <*> fromB b
+    pure $ \ (a, b) -> apply2 con <$> fromA a <*> fromB b
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
