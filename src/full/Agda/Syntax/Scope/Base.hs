@@ -1384,7 +1384,7 @@ inverseScopeLookupName' amb q scope =
 inverseScopeLookupName'' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> Maybe NameMapEntry
 inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup ] $ do
 
-  NameMapEntry k xs <- HMap.lookup (A.nameId $ qnameName q) (scope ^. scopeInverseName)
+  NameMapEntry k xs <- HMap.lookup (A.nameId q) (scope ^. scopeInverseName)
 
   !xs <- List1.nonEmpty $ List.sortOn (length . C.qnameParts &!& Down . getRange) $ do
     -- List comprehension written in monadic form
@@ -1494,7 +1494,7 @@ recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty)
           let !qualx = applyQuals (C.QName x) quals
           when (not (internalName qualx)) do
             forM_ ys \y -> do
-              let nid   = A.nameId $ qnameName $ anameName y
+              let nid   = A.nameId y
               let entry = NameMapEntry (anameKind y) (qualx :| [])
               updNames qualx nid entry
 
