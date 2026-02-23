@@ -7,7 +7,7 @@ open import Agda.Builtin.Equality
 record Sharp (@♯ A : Set) : Set where
   constructor con
   field
-    @♯ counit : A
+    @♯ counit : A
 
 open Sharp
 
