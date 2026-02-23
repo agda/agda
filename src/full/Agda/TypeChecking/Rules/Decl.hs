@@ -75,12 +75,12 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
-import Agda.Utils.Solo
 import Agda.Utils.Update
-import Agda.Utils.Impossible
 import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.SmallSet as SmallSet
 
+import Agda.Utils.Impossible
+import GHC.Tuple
 
 -- | Cached checkDecl
 checkDeclCached :: A.Declaration -> TCM ()

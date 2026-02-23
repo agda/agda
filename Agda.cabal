@@ -931,7 +931,6 @@ library
       Agda.Utils.Singleton
       Agda.Utils.Size
       Agda.Utils.SmallSet
-      Agda.Utils.Solo
       Agda.Utils.StrictState
       Agda.Utils.StrictState2
       Agda.Utils.StrictWriter
