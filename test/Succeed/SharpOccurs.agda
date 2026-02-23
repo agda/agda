@@ -6,8 +6,6 @@ open import Agda.Builtin.Equality
 data Sharp (@♯ A : Set) : Set where
   con : (@♯ x : A) → Sharp A
 
-{-# MODALOP Sharp #-}
-
 -- Non-interactive reconstruction of giving {! con _ !} for the body of unit
 --
 -- should have exactly one unsolved meta (the argument to con in the type signature of blah)
