@@ -1903,7 +1903,6 @@ scopeCheckLetDef wh d = setCurrentRange d do
 
 checkFieldArgInfo :: Bool -> ArgInfo -> ScopeM ArgInfo
 checkFieldArgInfo warn =
-    ensureContinuous msg >=>
     ensureMixedPolarity msg
   where
     msg = if warn then Just "of field" else Nothing

@@ -1,25 +1,38 @@
-{-# OPTIONS --cohesion #-}
+{-# OPTIONS --cohesion --type-in-type #-}
 
 module _ where
 
-data Sharp (@♯ A : Set) : Set where
-  con : (@♯ x : A) → Sharp A
+open import Agda.Builtin.Equality
 
-{-# MODALOP Sharp #-}
+record Sharp (@♯ A : Set) : Set where
+  constructor con
+  field
+    @♯ counit : A
+
+open Sharp
 
 unit : {A : Set} → A → Sharp A
 unit x = con x
 
+ind : ∀ {A : Set} (B : Sharp A → Set)
+        → (f : (a : A) → Sharp (B (unit a)))
+        → (a : Sharp A) → Sharp (B a)
+ind B f x .counit = f (x .counit) .counit
+
 mult : {A : Set} → Sharp (Sharp A) → Sharp A
-mult (con (con x)) = con x
+mult a .counit = a .counit .counit
 
-counit : ∀ {@♭ A : Set} → @♭ (Sharp A) → A
-counit (con x) = x
+_ : ∀ {@♭ A : Set} → @♭ (Sharp A) → A
+_ = counit
 
-postulate
-  A : Set
-  P : @♭ A → Set
-  p : (@♭ a : A) → P a
+-- Sharp also makes module variables crisp
+module _ {A : Set} (P : @♭ Set → Set) where
+  test : Sharp Set
+  test .counit = P A
 
-test : (a : A) → Sharp (P a)
-test a = con (p a)
+-- Eta rules for Sharp
+_ : ∀ {@♭ A : Set} {@♭ x : A} → counit (con x) ≡ x
+_ = refl
+
+_ : ∀ {A : Set} {x : Sharp A } → con (counit x) ≡ x
+_ = refl
