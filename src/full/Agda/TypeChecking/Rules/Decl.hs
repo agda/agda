@@ -80,7 +80,6 @@ import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
-import GHC.Tuple
 
 -- | Cached checkDecl
 checkDeclCached :: A.Declaration -> TCM ()
@@ -155,12 +154,13 @@ checkDecl d = setCurrentRange d $ do
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
-        none        m = m $>  MkSolo Nothing           -- skip all checks
-        meta        m = m $>  MkSolo (Just (return ()))  -- do the usual checks
-        mutual i    m = m <&> MkSolo . Just . uncurry (mutualChecks i d)
-        impossible  m = m $> MkSolo __IMPOSSIBLE__
+        none        m = m $>  Nothing           -- skip all checks
+        meta        m = m $>  Just (return ())  -- do the usual checks
+        mutual i    m = m <&> Just . uncurry (mutualChecks i d)
+        impossible  m = m $>  __IMPOSSIBLE__
+                        -- We're definitely inside a mutual block.
 
-    (MkSolo ~finalChecks, metas) <- metasCreatedBy $ case d of
+    (finalChecks, metas) <- metasCreatedBy $ case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
       A.Generalize s i info x e -> meta $ inConcreteMode $ checkGeneralize s i info x e
       A.Field{}                -> typeError FieldOutsideRecord
@@ -214,7 +214,7 @@ checkDecl d = setCurrentRange d $ do
       A.UnquoteDef is xs e     -> impossible $ checkMaybeAbstractly is $ checkUnquoteDef is xs e
       A.UnquoteData is x uc js cs e -> checkMaybeAbstractly (is ++ js) $ do
         reportSDoc "tc.unquote.data" 20 $ "Checking unquoteDecl data" <+> prettyTCM x
-        MkSolo Nothing <$ unquoteTop (x:cs) e
+        Nothing <$ unquoteTop (x:cs) e
 
     whenNothingM (asksTC envMutualBlock) $ do
 
@@ -345,12 +345,12 @@ revisitRecordPatternTranslation qs = do
         } -> return $ Just $ Right (q, cc)
       _ -> return Nothing
 
-type FinalChecks = Solo (Maybe (TCM ()))
+type FinalChecks = Maybe (TCM ())
 
 checkUnquoteDecl :: Info.MutualInfo -> [A.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
 checkUnquoteDecl mi is xs e = do
   reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDecl" <+> sep (map prettyTCM xs)
-  MkSolo Nothing <$ unquoteTop xs e
+  Nothing <$ unquoteTop xs e
 
 checkUnquoteDef :: [A.DefInfo] -> [QName] -> A.Expr -> TCM ()
 checkUnquoteDef _ xs e = do

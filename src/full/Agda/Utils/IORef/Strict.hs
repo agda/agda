@@ -6,26 +6,17 @@
 -- @
 -- import qualified Agda.Utils.IORef.Strict as Strict
 -- @
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnliftedNewtypes #-}
-{-# LANGUAGE UnboxedTuples #-}
 module Agda.Utils.IORef.Strict
   (
     -- * Strict IO references #strict-ioref#
     --
     -- $strictIORef
-    IORef(..)
+    IORef
   , newIORef
   , readIORef
   , writeIORef
   , modifyIORef
   , atomicModifyIORef
-
-  , IORef#
-  , newIORef#
-  , readIORef#
-  , writeIORef#
-  , modifyIORef#
   ) where
 
 import Control.Exception (evaluate)
@@ -33,8 +24,6 @@ import Control.Exception (evaluate)
 import Data.Coerce
 import qualified Data.IORef as Lazy
 
-import GHC.Prim
-import GHC.IO
 
 -- $strictIORef
 -- A classic laziness footgun is that 'IORef' does not force
@@ -215,83 +204,38 @@ import GHC.IO
 -- when doing code transformations that might move where a value gets forced (EG: worker-wrapper).
 -- This is a safe choice, as Agda does not rely on precise exception semantics for correctness.
 
--- | Unlifted, strict IO references.
-newtype IORef# a = StrictIORef# (MutVar# RealWorld a)
-
--- | Apply the continuation to a new strict, unlifted 'IORef#'.
---
--- This will force the value to WHNF before creating the reference.
-newIORef# :: a -> (IORef# a -> IO b) -> IO b
-newIORef# = \ !a k -> IO \s -> case newMutVar# a s of
-  (# s , v #) -> unIO (k (StrictIORef# v)) s
-{-# INLINE newIORef# #-}
-
--- | Read the contents of a strict, unlifted 'IORef#'.
-readIORef# :: IORef# a -> IO a
-readIORef# = \(StrictIORef# ref) -> IO \s -> readMutVar# ref s
-{-# INLINE readIORef# #-}
-
--- | Write to a strict, unlifted 'IORef#'.
---
--- This will force the value to WHNF before writing.
-writeIORef# :: IORef# a -> a -> IO ()
-writeIORef# = \(StrictIORef# ref) !a -> IO \s -> case writeMutVar# ref a s of
-  s -> (# s , () #)
-{-# INLINE writeIORef# #-}
-
--- | Modify a strict, unlifted 'IORef#', by a applying a function to the
--- value stored in the reference.
---
--- This will force the value to WHNF before writing.
-modifyIORef# :: IORef# a -> (a -> a) -> IO ()
-modifyIORef# = \v f -> writeIORef# v . f =<< readIORef# v
-{-# INLINE modifyIORef# #-}
-
--- | Atomically modify the contents of a strict, unlifted 'IORef#'.
--- Both the stored value and the result are forced.
-atomicModifyIORef# :: IORef# a -> (a -> (a, b)) -> IO b
-atomicModifyIORef# = \(StrictIORef# r) f -> IO \s ->
-  -- Implementation note: atomicModifyMutVar2# replaces the value in the
-  -- MutVar# with a selector thunk pointing to the (new,ret)-pair.
-  --
-  -- We can't directly force the selector thunk (the garbage collector
-  -- will, even on a minor GC), but we *can* force the value it
-  -- eventually resolves to.
-  case atomicModifyMutVar2# r f s of
-    (# s , _ , (new, ret) #) -> new `seq` ret `seq` (# s , ret #)
-{-# INLINE atomicModifyIORef# #-}
-
--- | Lifted, strict IO references.
-data IORef a = StrictIORef (IORef# a)
+-- | Strict IO references.
+newtype IORef a = StrictIORef (Lazy.IORef a)
 
 -- | Create a new strict 'IORef'.
 --
 -- This will force the value to WHNF before creating the reference.
 newIORef :: a -> IO (IORef a)
-newIORef = \a -> newIORef# a \k -> pure (StrictIORef k)
+newIORef = \a -> StrictIORef <$> (Lazy.newIORef $! a)
 {-# INLINE newIORef #-}
 
 -- | Read the contents of a strict 'IORef'.
 readIORef :: IORef a -> IO a
-readIORef = \(StrictIORef ref) -> readIORef# ref
+readIORef = \(StrictIORef ref) -> Lazy.readIORef ref
 {-# INLINE readIORef #-}
 
 -- | Write to a strict 'IORef'.
 --
 -- This will force the value to WHNF before writing.
 writeIORef :: IORef a -> a -> IO ()
-writeIORef = \(StrictIORef ref) a -> writeIORef# ref a
+writeIORef = \(StrictIORef ref) a -> Lazy.writeIORef ref $! a
 {-# INLINE writeIORef #-}
 
 -- | Modify a strict 'IORef' by a applying a function to the value stored in the reference.
 --
 -- This will force the value to WHNF before writing.
 modifyIORef :: IORef a -> (a -> a) -> IO ()
-modifyIORef = \(StrictIORef ref) f -> modifyIORef# ref f
+modifyIORef = \ref f -> do
+  a <- readIORef ref
+  writeIORef ref (f a)
 {-# INLINE modifyIORef #-}
 
 -- | Atomically modify the contents of a strict 'IORef'.
 -- Both the stored value and the result are forced.
 atomicModifyIORef :: IORef a -> (a -> (a, b)) -> IO b
-atomicModifyIORef = \(StrictIORef r) -> atomicModifyIORef# r
-{-# INLINE atomicModifyIORef #-}
+atomicModifyIORef (StrictIORef r) = Lazy.atomicModifyIORef' r
