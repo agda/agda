@@ -29,9 +29,9 @@ import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import qualified Agda.Utils.List as L
+import Agda.Utils.List qualified as List
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Null
 import Agda.Utils.Size
 
@@ -214,7 +214,7 @@ sameRoot = C.sameRoot `on` nameConcrete
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
-isAnonymousModuleName (MName mms) = maybe False isNoName $ L.lastMaybe mms
+isAnonymousModuleName (MName mms) = maybe False isNoName $ List.lastMaybe mms
 
 -- | Sets the ranges of the individual names in the module name to
 -- match those of the corresponding concrete names. If the concrete
@@ -260,7 +260,7 @@ noModuleName = mnameFromList []
 
 commonParentModule :: ModuleName -> ModuleName -> ModuleName
 commonParentModule m1 m2 =
-  mnameFromList $ L.commonPrefix (mnameToList m1) (mnameToList m2)
+  mnameFromList $ List.commonPrefix (mnameToList m1) (mnameToList m2)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?
@@ -278,7 +278,7 @@ isLeParentModuleOf = List.isPrefixOf `on` mnameToList
 -- | Is the first module a proper parent of the second?
 isLtParentModuleOf :: ModuleName -> ModuleName -> Bool
 isLtParentModuleOf x y =
-  isJust $ (L.stripPrefixBy (==) `on` mnameToList) x y
+  isJust $ (List.stripPrefixBy (==) `on` mnameToList) x y
 
 -- | Is the first module a weak child of the second?
 isLeChildModuleOf :: ModuleName -> ModuleName -> Bool
