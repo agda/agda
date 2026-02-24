@@ -1,4 +1,4 @@
-LocalRewriteConstraint.agda:14.17-18: error: [UnequalTerms]
+LocalRewriteConstraint.agda:14.11-16: error: [UnequalTerms]
 The terms
   x
 and
@@ -6,4 +6,5 @@ and
 are not equal at type Nat
 when checking the following local rewrite rule constraint:
    |-  x  =  0  :  Nat
-when checking that the expression p has type x ≡ 0
+when checking that p is a valid argument to a function of type
+(@rew _ : x ≡ 0) → Nat
