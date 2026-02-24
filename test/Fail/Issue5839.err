@@ -1,0 +1,6 @@
+Issue5839.agda:7.1-6: error: [NoParseForLHS]
+Could not parse the left-hand side bug x
+Operators used in the grammar:
+  var_x (closed operator, unrelated) [var_x (Issue5839.agda:4.3-8)]
+when scope checking the left-hand side bug x in the definition of
+bug

@@ -522,7 +522,7 @@ instance Pretty DeclarationWarning' where
       pwords "An import statement with module instantiation is useless without either an `open' keyword or an `as` binding giving a name to the instantiated module."
 
     UselessInstance _ -> fsep $
-      pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms (other than primitives)."
+      pwords "Using instance here has no effect. Instance applies only to (function) definitions, constructor declarations and axioms (other than primitives)."
 
     UselessMacro _ -> fsep $
       pwords "Using a macro block here has no effect. `macro' applies only to function definitions."

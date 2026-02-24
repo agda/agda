@@ -267,6 +267,7 @@ instance (ToTerm a, ToTerm b) => ToTerm (a, b) where
   toTerm = do
     sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
     let con = Con (sigmaCon sigKit) ConOSystem []
+
     fromA <- toTerm
     fromB <- toTerm
     pure $ \ (a, b) -> apply2 con <$> fromA a <*> fromB b

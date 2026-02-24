@@ -3,6 +3,7 @@
 -- SPECIALIZE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a
 -- with GHC 9.14
 {-# LANGUAGE NoDeepSubsumption #-}
+{-# LANGUAGE MagicHash #-}
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
@@ -57,6 +58,7 @@ import qualified Data.Text.Lazy as TL
 import Data.Semigroup (Sum, Max)
 
 import GHC.Generics (Generic)
+import GHC.Exts (oneShot)
 
 import System.IO (hFlush, stdout)
 
@@ -6214,7 +6216,13 @@ instance MonadFileId m => MonadFileId (BlockT m)
 
 -- | The type checking monad transformer.
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
-newtype TCMT m a = TCM { unTCM :: Strict.IORef TCState -> TCEnv -> m a }
+newtype TCMT m a = TCM# { unTCM :: Strict.IORef TCState -> TCEnv -> m a }
+
+pattern TCM :: (Strict.IORef TCState -> TCEnv -> m a) -> TCMT m a
+pattern TCM f <- TCM# f where
+  TCM f = TCM# (oneShot \s -> oneShot \e -> f s e)
+{-# INLINE TCM #-}
+{-# COMPLETE TCM #-}
 
 -- | Type checking monad.
 type TCM = TCMT IO

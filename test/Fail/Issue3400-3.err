@@ -1,5 +1,5 @@
 Issue3400-3.agda:11.1-4: error: [NoParseForLHS]
 Could not parse the left-hand side F +
 Operators used in the grammar:
-  None
+  ⟨_+_⟩ (closed operator, unrelated) [⟨_+_⟩ (Issue3400-3.agda:3.5-10)]
 when scope checking the left-hand side F + in the definition of F
