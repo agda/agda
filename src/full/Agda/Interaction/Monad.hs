@@ -23,7 +23,7 @@ import Agda.TypeChecking.Monad
   , MonadTCState
   , ReadTCState
   , TCErr
-  , TCM, TCMT(..)
+  , type TCM, pattern TCM, TCMT, unTCM
   , mapTCMT
   )
 

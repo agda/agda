@@ -55,7 +55,7 @@ instance MonadDebug ReduceM where
   traceDebugMessage k n s cont = do
     ReduceEnv env st _ <- askR
     unsafePerformIO $ do
-      _ <- runTCM env st $ displayDebugMessage k n s
+      _ <- runTCM env st $ traceDebugMessage k n s $ pure ()
       return $ cont
 
   formatDebugMessage k n d = do
