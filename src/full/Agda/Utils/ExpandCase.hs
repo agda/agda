@@ -69,18 +69,25 @@ module Agda.Utils.ExpandCase where
 
 import Data.Monoid
 import GHC.Exts (oneShot)
+import Data.Strict.Tuple
 
 class ExpandCase a where
   type Result a
   expand :: ((a -> Result a) -> Result a) -> a
 
-instance ExpandCase Any where
-  type Result Any = Any
-  expand k = k id; {-# INLINE expand #-}
+  {-# INLINE expand #-}
+  default expand :: (Result a ~ a) => ((a -> Result a) -> Result a) -> a
+  expand k = k id
 
-instance ExpandCase All where
-  type Result All = All
-  expand k = k id; {-# INLINE expand #-}
+instance ExpandCase Any        where type Result Any        = Any
+instance ExpandCase All        where type Result All        = All
+instance ExpandCase ()         where type Result ()         = ()
+instance ExpandCase (Pair a b) where type Result (Pair a b) = Pair a b
+instance ExpandCase (IO a)     where type Result (IO a)     = IO a
+instance ExpandCase [a]        where type Result [a]        = [a]
+instance ExpandCase (Maybe a)  where type Result (Maybe a)  = Maybe a
+instance ExpandCase Int        where type Result Int        = Int
+instance ExpandCase Bool       where type Result Bool       = Bool
 
 instance ExpandCase (Endo a) where
   type Result (Endo a) = a

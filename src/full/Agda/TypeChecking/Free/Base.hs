@@ -153,6 +153,11 @@ composeFlexRig = curry $ \case
 oneFlexRig :: FlexRig' a
 oneFlexRig = Unguarded
 
+-- | Extract a blocker from an occurrence
+flexRigToBlocker :: FlexRig -> Blocker
+flexRigToBlocker (Flexible ms) = metaSetToBlocker ms
+flexRigToBlocker _ = neverUnblock
+
 ---------------------------------------------------------------------------
 -- * Multi-dimensional feature vector for variable occurrence (semigroup)
 
@@ -222,6 +227,25 @@ composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (compos
 
 oneVarOcc :: VarOcc' a
 oneVarOcc = VarOcc Unguarded unitModality
+
+-- | What's the rigidity of a constructor?
+constructorFlexRig :: ConHead -> Elims -> FlexRig' a
+constructorFlexRig (ConHead _ _ i fs) es = case i of
+
+  -- Coinductive (record) constructors admit infinite cycles:
+  CoInductive -> WeaklyRigid
+  -- Inductive constructors do not admit infinite cycles:
+  Inductive   | size es == size fs -> StronglyRigid
+              | otherwise          -> WeaklyRigid
+  -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
+  -- applied constructors as weakly rigid.
+  -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
+  -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
+  -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
+  -- WAS:
+  -- -- Inductive record constructors do not admit infinite cycles,
+  -- -- but this cannot be proven inside Agda.
+  -- -- Thus, unification should not prove it either.
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).

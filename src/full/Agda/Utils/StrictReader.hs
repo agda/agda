@@ -4,12 +4,15 @@
 module Agda.Utils.StrictReader (
     MonadReader(..)
   , module Agda.Utils.StrictReader
+  , asks
   ) where
 
 import GHC.Exts (oneShot)
-import Control.Monad.Reader (MonadReader(..))
+import Control.Monad.Reader (MonadReader(..), asks)
 import Control.Monad.State (MonadState(..))
 import Control.Monad.Trans.Class (MonadTrans(..))
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Trans.Control (MonadTransControl(..))
 import Agda.Utils.ExpandCase
 
 newtype ReaderT r m a = ReaderT {runReaderT :: r -> m a}
@@ -78,6 +81,24 @@ instance MonadState s m => MonadState s (ReaderT r m) where
   get = lift get
   {-# INLINE put #-}
   put = \s -> lift (put s)
+
+instance MonadIO m => MonadIO (ReaderT r m) where
+  {-# INLINE liftIO #-}
+  liftIO ma = lift (liftIO ma)
+
+instance MonadTransControl (ReaderT r) where
+    type StT (ReaderT r) a = a
+    {-# INLINE liftWith #-}
+    liftWith f = ReaderT (\r -> f (\t -> runReaderT t r))
+    {-# INLINE restoreT #-}
+    restoreT = ReaderT . const
+
+instance ExpandCase (m a) => ExpandCase (ReaderT r m a) where
+  type Result (ReaderT r m a) = Result (m a)
+  {-# INLINE expand #-}
+  expand k = ReaderT (oneShot \ ~r ->
+    expand @(m a) (oneShot \ret ->
+      let r' = r in k (oneShot \act -> ret (runReaderT act r'))))
 
 ----------------------------------------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
 {-|
@@ -16,10 +17,14 @@ module Agda.Utils.StrictState (
   , module Agda.Utils.StrictState
   ) where
 
+import Control.Monad.Reader (MonadReader(..))
 import Control.Monad.State (MonadState(..))
 import Control.Monad.Trans (MonadTrans(..))
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Trans.Control (MonadTransControl(..))
 import Data.Strict.Tuple
 import GHC.Exts (oneShot)
+import Agda.Utils.ExpandCase
 
 newtype State s a = State {runState# :: s -> (# a, s #)}
 
@@ -137,6 +142,25 @@ instance Monad m => MonadState s (StateT s m) where
   {-# INLINE put #-}
   put s = StateT (\_ -> pure (() :!: s))
 
+instance MonadTransControl (StateT s) where
+    type StT (StateT s) a = Pair a s
+    {-# INLINE liftWith #-}
+    liftWith f = StateT \s -> do
+      x <- f \t -> runStateT# t s
+      pure (x :!: s)
+    {-# INLINE restoreT #-}
+    restoreT msa = StateT \_ -> msa
+
+instance MonadIO m => MonadIO (StateT s m) where
+  {-# INLINE liftIO #-}
+  liftIO ma = lift (liftIO ma)
+
+instance MonadReader r m => MonadReader r (StateT s m) where
+  {-# INLINE ask #-}
+  ask = lift ask
+  {-# INLINE local #-}
+  local = \f (StateT ma) -> StateT (oneShot \s -> local f (ma s))
+
 {-# INLINE execStateT #-}
 execStateT :: Monad m => StateT s m a -> s -> m s
 execStateT (StateT f) s = do _ :!: s <- f s; pure s
@@ -148,3 +172,9 @@ runStateT (StateT f) s = do a :!: s <- f s; pure (a, s)
 {-# INLINE evalStateT #-}
 evalStateT :: Monad m => StateT s m a -> s -> m a
 evalStateT (StateT f) s = do a :!: _ <- f s; pure a
+
+instance ExpandCase (m (Pair a s)) => ExpandCase (StateT s m a) where
+  type Result (StateT s m a) = Result (m (Pair a s))
+  {-# INLINE expand #-}
+  expand k = StateT (oneShot \ ~s ->
+    expand @(m (Pair a s)) (oneShot \ret -> let !s' = s in k (oneShot \act -> ret (runStateT# act s'))))

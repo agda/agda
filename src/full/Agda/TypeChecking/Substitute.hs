@@ -1714,26 +1714,40 @@ piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
   Nothing -> Right $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
-  Just o  -> case (sizeOfSort s1 , sizeOfSort s2) of
-    (Right (SmallSort u1) , Right (SmallSort u2)) -> case o of
-      StronglyRigid -> Right $ Inf (funUniv u1 u2) 0
-      Unguarded     -> Right $ Inf (funUniv u1 u2) 0
-      WeaklyRigid   -> Right $ Inf (funUniv u1 u2) 0
-      Flexible ms   -> Left $ metaSetToBlocker ms
-    (Right (LargeSort u1 n) , Right (SmallSort u2)) -> Right $ Inf (funUniv u1 u2) n
-    (_                     , Right LargeSort{}    ) ->
-       -- large sorts cannot depend on variables
-       __IMPOSSIBLE__
-       -- (`trace` __IMPOSSIBLE__) $ unlines
-       --   [ "piSort': unexpected dependency in large codomain s2"
-       --   , "- a  = " ++ prettyShow a
-       --   , "- s1 = " ++ prettyShow s1
-       --   , "- s2 = " ++ prettyShow s2
-       --   , "- s2 (raw) = " ++ show s2
-       --   ]
-    (Left blocker          , Right _              ) -> Left blocker
-    (Right _               , Left blocker         ) -> Left blocker
-    (Left blocker1         , Left blocker2        ) -> Left $ unblockOnBoth blocker1 blocker2
+  Just o  -> piSortAbs a s1 s2Abs o CodomainNotNormalised
+
+data IsCodomainNormalised = CodomainNormalised | CodomainNotNormalised
+
+-- | Compute the sort of a pi type where the codomain sort is a proper Abs.
+--   Compared to piSort' we take two additional arguments:
+--   4. The occurrence of the variable in the codomain.
+--   5. Whether we have already tried to remove the dependency by
+--      normalising the codomain sort (e.g. with forceNoAbs)
+piSortAbs
+  :: Dom Term
+  -> Sort
+  -> Abs Sort
+  -> FlexRig
+  -> IsCodomainNormalised
+  -> Either Blocker Sort
+piSortAbs a s1 NoAbs{} _ _ = __IMPOSSIBLE__
+piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
+  (Right (SmallSort u1) , Right (SmallSort u2)) -> case occ of
+    StronglyRigid -> let !u = funUniv u1 u2 in Right (Inf u 0)
+    Unguarded     -> let !u = funUniv u1 u2 in Right (Inf u 0)
+    -- Jesper, 2026-02-17: A weakly rigid occurrence might disappear after
+    -- normalisation (see #8393) so we refrain from making a final verdict here.
+    -- unless we are sure further normalisation will not remove the dependency
+    WeaklyRigid -> case norm of
+      CodomainNormalised -> let !u = funUniv u1 u2 in Right (Inf u 0)
+      CodomainNotNormalised -> Left alwaysUnblock
+    Flexible ms -> Left $! metaSetToBlocker ms
+  (Right (LargeSort u1 n) , Right (SmallSort u2)) -> let !u = funUniv u1 u2 in Right (Inf u n)
+  -- large sorts cannot depend on variables
+  (_             , Right LargeSort{}) -> __IMPOSSIBLE__
+  (Left blocker  , Right _          ) -> Left blocker
+  (Right _       , Left blocker     ) -> Left blocker
+  (Left blocker1 , Left blocker2    ) -> Left $! unblockOnBoth blocker1 blocker2
 
 -- Andreas, 2019-06-20
 -- KEEP the following commented out code for the sake of the discussion on irrelevance.

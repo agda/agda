@@ -288,25 +288,6 @@ instance Free EqualityView where
     IdiomType t                   -> ret $ freeVars t
     EqualityType _r s _eq l t a b -> ret $ freeVars (s, l, (t, a, b))
 
--- | What's the rigidity of a constructor?
-constructorFlexRig :: ConHead -> Elims -> FlexRig' a
-constructorFlexRig (ConHead _ _ i fs) es = case i of
-
-  -- Coinductive (record) constructors admit infinite cycles:
-  CoInductive -> WeaklyRigid
-  -- Inductive constructors do not admit infinite cycles:
-  Inductive   | size es == size fs -> StronglyRigid
-              | otherwise          -> WeaklyRigid
-  -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
-  -- applied constructors as weakly rigid.
-  -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
-  -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
-  -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
-  -- WAS:
-  -- -- Inductive record constructors do not admit infinite cycles,
-  -- -- but this cannot be proven inside Agda.
-  -- -- Thus, unification should not prove it either.
-
 {-# INLINE defaultUnderConstructor #-}
 defaultUnderConstructor :: (Semigroup a, LensFlexRig r a) => ConHead -> Elims -> r -> r
 defaultUnderConstructor c h = over lensFlexRig (composeFlexRig (constructorFlexRig c h))

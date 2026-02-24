@@ -13,6 +13,8 @@
 module Agda.TypeChecking.Free.Reduce
   ( ForceNotFree
   , forceNotFree
+  , forceNoAbs
+  , forceNoAbsSort
   , reallyFree
   , IsFree(..)
   , nonFreeVars
@@ -20,6 +22,7 @@ module Agda.TypeChecking.Free.Reduce
 
 import Prelude hiding (null)
 
+import Data.Maybe
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap)
 import GHC.Exts
@@ -30,33 +33,35 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Base (constructorFlexRig, addFlexRig, oneFlexRig)
 import Agda.TypeChecking.Free.Precompute
 
-import Agda.Utils.Null
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.StrictState
 import Agda.Utils.StrictReader
+import Agda.Utils.ExpandCase
+import Agda.Utils.Singleton
+import Agda.Utils.Impossible
 
 
 -- | A variable can either not occur (`NotFree`) or it does occur
 --   (`MaybeFree`).  In the latter case, the occurrence may disappear
 --   depending on the instantiation of some set of metas.
 data IsFree
-  = MaybeFree MetaSet
+  = MaybeFree FlexRig
   | NotFree
   deriving (Eq, Show)
 
--- local scope size, VarSet to enforce not occurring, MetaSet we're under, ReduceEnv
+-- local scope size, VarSet to enforce not occurring, FlexRig we're under, ReduceEnv
 -- András, 2026-02-12: the ReduceEnv is put in the FREnv because I don't want to bother
 -- fixing GHC code generation (i.e. not returning closures from case splits) for ReduceM.
-data FREnv = FREnv Int VarSet MetaSet ReduceEnv
+data FREnv = FREnv Int VarSet FlexRig ReduceEnv
 
 -- This is equivalent to IntMap IsFree, where the NotFree cases are factored out into
 -- a VarSet for efficiency.
-data FRState = FRState VarSet (IntMap MetaSet)
-
-type FreeRed = ReaderT FREnv (State FRState)
+data FRState = FRState VarSet (IntMap FlexRig)
+type FreeRed = StateT FRState (Reader FREnv)
 
 {-# SPECIALIZE forceNotFree :: VarSet -> Term -> ReduceM (IntMap IsFree, Term) #-}
 -- | Try to enforce a set of variables not occurring in a given
@@ -66,8 +71,8 @@ type FreeRed = ReaderT FREnv (State FRState)
 forceNotFree :: (ForceNotFree a, Reduce a) => VarSet -> a -> ReduceM (IntMap IsFree, a)
 forceNotFree xs a = ReduceM \env ->
   let (a', FRState notfree mxs) =
-        runState (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) (FREnv 0 xs mempty env))
-                 (FRState xs mempty) in
+        runReader (runStateT (forceNotFreeR $ precomputeFreeVars_ a) (FRState xs mempty))
+                  (FREnv 0 xs oneFlexRig env) in
   let mxs' = VarSet.foldl' (\k -> IntMap.insert k NotFree) (MaybeFree <$> mxs) notfree in
   (mxs', a')
 
@@ -82,22 +87,35 @@ reallyFree :: (Reduce a, ForceNotFree a) => VarSet -> a -> ReduceM (Either Block
 reallyFree xs v = do
   (mxs , v') <- forceNotFree xs v
   case IntMap.foldr pickFree NotFree mxs of
-    MaybeFree ms
-      | null ms   -> return $ Right Nothing
-      | otherwise -> return $ Left $ Blocked blocker ()
-      where blocker = metaSetToBlocker ms
-    NotFree -> return $ Right (Just v')
+    MaybeFree (Flexible ms) -> do
+      let !blocker = metaSetToBlocker ms
+      pure $ Left $ Blocked blocker ()
+    MaybeFree _ -> pure $ Right Nothing
+    NotFree     -> pure $ Right (Just v')
   where
     -- Check if any of the variables occur freely.
-    -- Prefer occurrences that do not depend on any metas.
     pickFree :: IsFree -> IsFree -> IsFree
-    pickFree f1@(MaybeFree ms1) ~f2
-      | null ms1  = f1
-    pickFree f1@(MaybeFree ms1) f2@(MaybeFree ms2)
-      | null ms2  = f2
-      | otherwise = f1
-    pickFree f1@(MaybeFree ms1) NotFree = f1
+    pickFree (MaybeFree ms1) (MaybeFree ms2) = MaybeFree $! (ms1 `addFlexRig` ms2)
+    pickFree f1 NotFree = f1
     pickFree NotFree f2 = f2
+
+-- | Try to force a binder to be a NoAbs by reducing the body as needed
+--   to get rid of the bound variable. Returns either the reduced abstraction
+--   and the occurrence of the variable (if removing it failed) or else
+--   the strengthened body.
+forceNoAbs :: (Reduce a, ForceNotFree a)
+           => Dom Type -> Abs a -> ReduceM (Either (Abs a, FlexRig) a)
+forceNoAbs dom (NoAbs _ x) = pure $ Right x
+forceNoAbs dom (Abs n x)   = do
+  (fvm, x) <- forceNotFree (singleton 0) x
+  case fromMaybe __IMPOSSIBLE__ (IntMap.lookup 0 fvm) of
+    NotFree           -> pure $! Right $! noabsApp __IMPOSSIBLE__ (Abs n x)
+    MaybeFree flexRig -> pure $ Left (Abs n x , flexRig)
+
+-- | András 2026-02-24: we specialize this, because TypeChecking.Reduce imports it via the hs-boot
+--   file, and if it's not specialized there, it is __impossible__ to specialzie by GHC.
+forceNoAbsSort :: Dom Type -> Abs Sort -> ReduceM (Either (Abs Sort, FlexRig) Sort)
+forceNoAbsSort = forceNoAbs
 
 -- | Get the set of 'NotFree' variables from a variable map.
 nonFreeVars :: IntMap IsFree -> VarSet
@@ -147,6 +165,14 @@ reduceIfFreeVars k = \a -> do
 forceNotFreeR :: (Reduce a, ForceNotFree a) => a -> FreeRed a
 forceNotFreeR = reduceIfFreeVars forceNotFree'
 
+{-# INLINE underFlexRig #-}
+underFlexRig :: FlexRig -> FreeRed a -> FreeRed a
+underFlexRig fr' = local \(FREnv x nfs fr e) -> FREnv x nfs (composeFlexRig fr' fr) e
+
+{-# INLINE underConstructor #-}
+underConstructor :: ConHead -> Elims -> FreeRed a -> FreeRed a
+underConstructor c es = underFlexRig (constructorFlexRig c es)
+
 instance (Reduce a, ForceNotFree a) => ForceNotFree (Arg a) where
   -- Precomputed free variables are stored in the Arg so reduceIf outside the
   -- traverse.
@@ -157,68 +183,73 @@ instance (Reduce a, ForceNotFree a, TermSubst a) => ForceNotFree (Dom a) where
 
 instance (Reduce a, ForceNotFree a) => ForceNotFree (Abs a) where
   -- Reduction stops at abstractions (lambda/pi) so do reduceIf/forceNotFreeR here.
-  forceNotFree' = \case
-    a@NoAbs{} -> traverse forceNotFreeR a
-    a@Abs{}   -> reduceIfFreeVars (local (\(FREnv x nfs ms e) -> FREnv (x + 1) nfs ms e) . traverse forceNotFree') a
+  forceNotFree' abs = expand \ret -> case abs of
+    a@NoAbs{} -> ret $ traverse forceNotFreeR a
+    a@Abs{}   -> ret $ reduceIfFreeVars
+                   (local (\(FREnv x nfs fr e) -> FREnv (x + 1) nfs fr e) . traverse forceNotFree') a
 
 instance ForceNotFree a => ForceNotFree [a] where
-  forceNotFree' = \case
-    []     -> pure []
-    (a:as) -> (:) <$> forceNotFree' a <*> forceNotFree' as
+  forceNotFree' as = expand \ret -> case as of
+    []     -> ret $ pure []
+    (a:as) -> ret $ (:) <$> forceNotFree' a <*> forceNotFree' as
 
 instance (Reduce a, ForceNotFree a) => ForceNotFree (Elim' a) where
   -- There's an Arg inside Elim' which stores precomputed free vars, so let's
   -- not skip over that.
-  forceNotFree' = \case
-    Apply arg    -> Apply <$> forceNotFree' arg
-    e@Proj{}     -> pure e
-    IApply x y r -> IApply <$> forceNotFreeR x <*> forceNotFreeR y <*> forceNotFreeR r
+  forceNotFree' e = expand \ret -> case e of
+    Apply arg    -> ret $ Apply <$> forceNotFree' arg
+    e@Proj{}     -> ret $ pure e
+    IApply x y r -> ret $ IApply <$> forceNotFreeR x <*> forceNotFreeR y <*> forceNotFreeR r
 
 instance ForceNotFree Type where
-  forceNotFree' (El s t) = El <$> forceNotFree' s <*> forceNotFree' t
+  forceNotFree' a = expand \ret -> case a of
+    El s t -> ret $ El <$> forceNotFree' s <*> forceNotFree' t
 
 instance ForceNotFree Term where
-  forceNotFree' t = do
-    FREnv locals wantToNotFree metas _ <- ask
-    case t of
-      Var x es -> do
-        FRState xs mxs <- get
-        let x' = x - locals
-        if (x >= locals && VarSet.member x' wantToNotFree) then do
-          put $! FRState (VarSet.delete x' xs) (IntMap.insert x' metas mxs)
-          Var x <$> forceNotFree' es
-        else
-          Var x <$> forceNotFree' es
-      Def f es   -> Def f    <$> forceNotFree' es
-      Con c h es -> Con c h  <$> forceNotFree' es
-      MetaV m es -> local (\(FREnv x nfs ms e) -> FREnv x nfs (insertMetaSet m ms) e) $ MetaV m <$> forceNotFree' es
-      Lam h b    -> Lam h    <$> forceNotFree' b
-      Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
-      Sort s     -> Sort     <$> forceNotFree' s
-      Level l    -> Level    <$> forceNotFree' l
-      DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
-      t@Lit{}    -> pure t
-      t@Dummy{}  -> pure t
+  forceNotFree' t = expand \ret -> case t of
+    Var x es -> ret do
+      FREnv locals wantToNotFree fr _ <- ask
+      FRState xs frs <- get
+      let x' = x - locals
+      expand \ret -> if (x >= locals && VarSet.member x' wantToNotFree) then ret do
+        put $! FRState (VarSet.delete x' xs) (IntMap.insert x' fr frs)
+        Var x <$> underFlexRig WeaklyRigid (forceNotFree' es)
+      else ret do
+        Var x <$> underFlexRig WeaklyRigid (forceNotFree' es)
+    Def f es   -> ret $ Def f    <$> underFlexRig WeaklyRigid (forceNotFree' es)
+    Con c h es -> ret $ Con c h  <$> underConstructor c es (forceNotFree' es)
+    MetaV m es -> ret $ MetaV m  <$> underFlexRig (Flexible (singleton m)) (forceNotFree' es)
+    Lam h b    -> ret $ Lam h    <$> underFlexRig WeaklyRigid (forceNotFree' b)
+    Pi a b     -> ret $ Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
+    Sort s     -> ret $ Sort     <$> forceNotFree' s
+    Level l    -> ret $ Level    <$> forceNotFree' l
+    DontCare t -> ret $ DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
+    t@Lit{}    -> ret $ pure t
+    t@Dummy{}  -> ret $ pure t
 
 instance ForceNotFree Level where
+  {-# INLINE forceNotFree' #-}
   forceNotFree' (Max m as) = Max m <$> forceNotFree' as
 
 instance ForceNotFree PlusLevel where
+  {-# INLINE forceNotFree' #-}
   forceNotFree' (Plus k a) = Plus k <$> forceNotFree' a
 
 instance ForceNotFree Sort where
   -- Reduce for sorts already goes under all sort constructors, so we can get
   -- away without forceNotFreeR here.
-  forceNotFree' = \case
-    Univ u l       -> Univ u <$> forceNotFree' l
-    PiSort a b c   -> PiSort <$> forceNotFree' a <*> forceNotFree' b <*> forceNotFree' c
-    FunSort a b    -> FunSort <$> forceNotFree' a <*> forceNotFree' b
-    UnivSort s     -> UnivSort <$> forceNotFree' s
-    MetaS x es     -> MetaS x <$> forceNotFree' es
-    DefS d es      -> DefS d <$> forceNotFree' es
-    s@(Inf _ _)    -> pure s
-    s@SizeUniv     -> pure s
-    s@LockUniv     -> pure s
-    s@LevelUniv    -> pure s
-    s@IntervalUniv -> pure s
-    s@DummyS{}     -> pure s
+  forceNotFree' s = expand \ret -> case s of
+    Univ u l       -> ret $ Univ u <$> forceNotFree' l
+    PiSort a b c   -> ret do a        <- underFlexRig (Flexible mempty) (forceNotFree' a)
+                             (!b, !c) <- underFlexRig WeaklyRigid ((,) <$> forceNotFree' b <*> forceNotFree' c)
+                             pure $ PiSort a b c
+    FunSort a b    -> ret $ FunSort <$> forceNotFree' a <*> forceNotFree' b
+    UnivSort s     -> ret $ UnivSort <$> underFlexRig WeaklyRigid (forceNotFree' s)
+    MetaS x es     -> ret $ MetaS x <$> underFlexRig (Flexible (singleton x)) (forceNotFree' es)
+    DefS d es      -> ret $ DefS d <$> underFlexRig WeaklyRigid (forceNotFree' es)
+    s@(Inf _ _)    -> ret $ pure s
+    s@SizeUniv     -> ret $ pure s
+    s@LockUniv     -> ret $ pure s
+    s@LevelUniv    -> ret $ pure s
+    s@IntervalUniv -> ret $ pure s
+    s@DummyS{}     -> ret $ pure s
