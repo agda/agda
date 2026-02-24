@@ -495,6 +495,14 @@ instance Reify Constraint where
     OfType <$> reify (MetaV m []) <*> reify t
   reify (CheckType t) = JustType <$> reify t
   reify (UsableAtModality _ _ mod t) = UsableAtMod mod <$> reify t
+  reify (RewConstraint (LocalEquation g t u a)) = do
+    -- I think reifying rewrite constraints to 'CmpInType' should be fine
+    -- (ultimately 'RewConstraint' is basically just 'ValueCmp' with a nicer
+    -- error message)
+    t' <- addContext g $ reify t
+    u' <- addContext g $ reify u
+    a' <- addContext g $ reify a
+    return $ CmpInType CmpEq t' u' a'
   {-# SPECIALIZE reify :: Constraint -> TCM (ReifiesTo Constraint) #-}
 
 instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
@@ -674,6 +682,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         CheckType t                -> isMeta (unEl t)
         CheckLockedVars t _ _ _    -> isMeta t
         UsableAtModality _ ms _ t  -> caseMaybe ms (isMeta t) $ \ s -> isMetaS s `mplus` isMeta t
+        RewConstraint (LocalEquation g t u a) -> isMeta t `mplus` isMeta u
 
     isMeta :: Term -> Maybe Elims
     isMeta (MetaV m' es_m) | m == m' = pure es_m

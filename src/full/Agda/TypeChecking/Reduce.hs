@@ -318,6 +318,7 @@ instance Instantiate Constraint where
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
   instantiate' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> instantiate' ms <*> instantiate' t
+  instantiate' (RewConstraint e)    = RewConstraint <$> instantiate' e
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -1040,6 +1041,12 @@ instance Reduce Telescope where
 instance Reduce ProblemConstraint where
   reduce' (PConstr p u c) = PConstr p u <$> reduce' c
 
+instance Reduce LocalEquation where
+  reduce' (LocalEquation g t u a) = do
+    g' <- reduce' g
+    (t', u', a') <- addContext g' $ reduce' (t, u, a)
+    return $ LocalEquation g' t' u' a'
+
 instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce' (t,u,v)
@@ -1066,6 +1073,7 @@ instance Reduce Constraint where
   reduce' c@CheckMetaInst{}     = return c
   reduce' (CheckType t)         = CheckType <$> reduce' t
   reduce' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> reduce' ms <*> reduce' t
+  reduce' (RewConstraint e)     = RewConstraint <$> reduce' e
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -1207,6 +1215,12 @@ instance (Subst a, Simplify a) => Simplify (Tele a) where
 instance Simplify ProblemConstraint where
   simplify' (PConstr pid unblock c) = PConstr pid unblock <$> simplify' c
 
+instance Simplify LocalEquation where
+  simplify' (LocalEquation g t u a) = do
+    g' <- simplify' g
+    (t', u', a') <- addContext g' $ simplify (t, u, a)
+    return $ LocalEquation g' t' u' a'
+
 instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
@@ -1233,6 +1247,7 @@ instance Simplify Constraint where
   simplify' c@CheckMetaInst{}     = return c
   simplify' (CheckType t)         = CheckType <$> simplify' t
   simplify' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> simplify' ms <*> simplify' t
+  simplify' (RewConstraint e)     = RewConstraint <$> simplify' e
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1393,6 +1408,12 @@ instance (Subst a, Normalise a) => Normalise (Tele a) where
 instance Normalise ProblemConstraint where
   normalise' (PConstr pid unblock c) = PConstr pid unblock <$> normalise' c
 
+instance Normalise LocalEquation where
+  normalise' (LocalEquation g t u a) = do
+    g' <- normalise g
+    (t', u', a') <- addContext g' $ normalise (t, u, a)
+    return $ LocalEquation g' t' u' a'
+
 instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise' (t,u,v)
@@ -1419,6 +1440,7 @@ instance Normalise Constraint where
   normalise' c@CheckMetaInst{}     = return c
   normalise' (CheckType t)         = CheckType <$> normalise' t
   normalise' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> normalise' ms <*> normalise' t
+  normalise' (RewConstraint e)     = RewConstraint <$> normalise' e
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1667,6 +1689,7 @@ instance InstantiateFull Constraint where
     c@CheckMetaInst{}   -> return c
     CheckType t         -> CheckType <$> instantiateFull' t
     UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$> instantiateFull' ms <*> instantiateFull' t
+    RewConstraint e     -> RewConstraint <$> instantiateFull' e
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a

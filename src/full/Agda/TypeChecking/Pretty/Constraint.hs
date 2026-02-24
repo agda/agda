@@ -175,7 +175,8 @@ instance PrettyTCM Constraint where
         CheckLockedVars t ty lk lk_ty -> do
           "Lock" <+> prettyTCM lk <+> "|-" <+> prettyTCMCtx TopCtx t <+> ":" <+> prettyTCM ty
         UsableAtModality _ ms mod t -> "Is usable at" <+> text (verbalize mod) <+> "modality:" <+> prettyTCM t
-          -- TODO: print @ms : Maybe Sort@ as well?
+        RewConstraint (LocalEquation g t u a) ->
+          addContext g $ prettyCmp (prettyTCM CmpEq) t u <?> prettyTCM a
 
       where
         prettyCmp

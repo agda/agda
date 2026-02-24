@@ -88,9 +88,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
-import Agda.TypeChecking.Rewriting ( checkEquationValid
-                                   , checkLocalRewriteRule
-                                   , checkRewConstraint)
+import Agda.TypeChecking.Rewriting (checkEquationValid, checkLocalRewriteRule)
 import Control.Monad.Trans.Maybe (runMaybeT)
 
 ---------------------------------------------------------------------------
@@ -1483,16 +1481,6 @@ scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 scopedExpr (A.Qualified mod e)    = scopedExpr e
 scopedExpr e                      = return e
 
--- | If we are checking an @rew application, the equational constraint must hold
---   definitionally.
-checkLocalEquation :: TCM ()
-checkLocalEquation = do
-  eq <- viewTC eLocalEquation
-  whenJust eq \eq' -> do
-    reportSDoc "tc.term.expr.top" 15 $
-      "Checking @rew constraint " <+> prettyTCM eq'
-    checkRewConstraint eq'
-
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr = checkExpr' CmpLeq
@@ -1511,8 +1499,6 @@ checkExpr' cmp e t =
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
   traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
-    checkLocalEquation
-
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]
@@ -1791,8 +1777,6 @@ checkOrInferMeta i newMeta mt = do
   -- We still need to check equational constraints even when checking a meta
   -- because definitions parameterised by a local rewrite rule do not block
   -- on the corresponding argument
-  checkLocalEquation
-
   case A.metaNumber i of
     Nothing -> do
       unlessNull (A.metaScope i) setScope
@@ -1889,7 +1873,9 @@ checkNamedArg arg@(Arg info e0) t0 = do
     -- argument (i.e. solve with unification).
     -- Andreas, 2024-03-07, issue #2829: Except when we don't.
     -- E.g. when 'insertImplicitPatSynArgs' inserted an instance underscore.
-    let checkU i = checkMeta i (newMetaArg (A.metaKind i) info x) CmpLeq t0
+    let checkU i = checkMeta i
+          (\cmp -> newMetaArg (A.metaKind i) x cmp . defaultArgDom info)
+          CmpLeq t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) CmpLeq t0
     if not $ isHole e then checkExpr e t0 else localScope $ do
       -- Note: we need localScope_ here,

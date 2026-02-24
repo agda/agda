@@ -32,8 +32,8 @@ import Agda.TypeChecking.Monad.Env
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Maybe (maybeToList)
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import Agda.Utils.Maybe (whenJust)
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint, solveConstraint)
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
@@ -143,30 +143,18 @@ splittableCohesion a = do
   let c = getCohesion a
   pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
 
-{-# SPECIALIZE applyDomToContext :: Dom e -> TCM a -> TCM a #-}
 -- | Apply modalities and equational constraints (local rewrite rules) to the
--- context.
-applyDomToContext :: (MonadTCEnv tcm) => Dom e -> tcm a -> tcm a
-applyDomToContext d c =
-  applyModalityToContext d $ applyEquationToContext (domEq d) c
+--   context.
+applyDomToContext :: (MonadConstraint tcm) => Dom e -> tcm a -> tcm a
+applyDomToContext d ret =
+  applyModalityToContext d $ do
+    whenJust (domEq d) addRewConstraint
+    ret
 
--- | Checking against more than one equation at once is impossible
-composeEquation
-  :: Maybe LocalEquation -> Maybe LocalEquation -> Maybe LocalEquation
-composeEquation eq eq' = case maybeToList eq ++ maybeToList eq' of
-  [eq] -> Just eq
-  []   -> Nothing
-  _    -> __IMPOSSIBLE__
-
-{-# SPECIALIZE applyEquationToContext :: Maybe LocalEquation -> TCM a -> TCM a #-}
--- | Apply equational constraint (local rewrite rule) to context
---   We could probably check this immediately, but delaying until application
---   stays consistent with the way modalities are handled.
-applyEquationToContext
-  :: (MonadTCEnv tcm) => Maybe LocalEquation -> tcm a -> tcm a
-applyEquationToContext eq =
-  localTC $ over eLocalEquation (composeEquation eq)
-
+-- | Adds an equational constraint due to a local rewrite rule.
+addRewConstraint :: MonadConstraint tcm
+  => LocalEquation -> tcm ()
+addRewConstraint = solveConstraint . RewConstraint
 
 {-# SPECIALIZE applyModalityToContext :: Modality -> TCM a -> TCM a #-}
 -- | (Conditionally) wake up irrelevant variables and make them relevant.

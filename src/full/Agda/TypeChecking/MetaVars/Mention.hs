@@ -87,6 +87,14 @@ instance (MentionsMeta a, MentionsMeta b) => MentionsMeta (a, b) where
 instance (MentionsMeta a, MentionsMeta b, MentionsMeta c) => MentionsMeta (a, b, c) where
   mentionsMetas xs (a, b, c) = mentionsMetas xs a || mentionsMetas xs b || mentionsMetas xs c
 
+instance (MentionsMeta a, MentionsMeta b, MentionsMeta c, MentionsMeta d)
+  => MentionsMeta (a, b, c, d) where
+  mentionsMetas xs (a, b, c, d) =
+    mentionsMetas xs a ||
+    mentionsMetas xs b ||
+    mentionsMetas xs c ||
+    mentionsMetas xs d
+
 instance MentionsMeta a => MentionsMeta (Closure a) where
   mentionsMetas xs cl = mentionsMetas xs (clValue cl)
 
@@ -101,6 +109,9 @@ instance MentionsMeta a => MentionsMeta (Tele a) where
 
 instance MentionsMeta ProblemConstraint where
   mentionsMetas xs = mentionsMetas xs . theConstraint
+
+instance MentionsMeta LocalEquation where
+  mentionsMetas xs (LocalEquation g t u a) = mentionsMetas xs (g, t, u, a)
 
 instance MentionsMeta Constraint where
   mentionsMetas xs = \case
@@ -125,6 +136,7 @@ instance MentionsMeta Constraint where
     CheckType t         -> mm t
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
     UsableAtModality _ ms mod t -> mm (ms, t)
+    RewConstraint e     -> mm e
     where
       mm :: forall t. MentionsMeta t => t -> Bool
       mm = mentionsMetas xs

@@ -1140,6 +1140,7 @@ instance Subst Constraint where
     CheckMetaInst m          -> CheckMetaInst m
     CheckType t              -> CheckType (rf t)
     UsableAtModality cc ms mod m -> UsableAtModality cc (rf ms) mod (rf m)
+    RewConstraint e          -> RewConstraint (rf e)
     where
       rf :: forall a. TermSubst a => a -> a
       rf x = applySubst rho x

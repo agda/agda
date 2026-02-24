@@ -436,6 +436,7 @@ constraintMetas = \case
       CheckType t              -> gatherMetas t
       CheckLockedVars a b c d  -> gatherMetas (a, b, c, d)
       UsableAtModality{}       -> return mempty
+      RewConstraint e          -> gatherMetas e
   where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty

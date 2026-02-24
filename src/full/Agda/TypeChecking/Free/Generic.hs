@@ -331,6 +331,12 @@ instance Free RewriteRule where
       freeVars gamma <> freeVars h <>
       underBinders (size gamma) (freeVars ps <> freeVars rhs <> freeVars b)
 
+instance Free LocalEquation where
+  freeVars eq = expand \ret -> case eq of
+    LocalEquation gamma lhs rhs b -> ret $
+      freeVars gamma <>
+      underBinders (size gamma) (freeVars lhs <> freeVars rhs <> freeVars b)
+
 {-# INLINE defaultUnderConstructor #-}
 defaultUnderConstructor :: (Semigroup a, LensFlexRig r a) => ConHead -> Elims -> r -> r
 defaultUnderConstructor c h = over lensFlexRig (composeFlexRig (constructorFlexRig c h))

@@ -1586,6 +1586,9 @@ data Constraint
   | UsableAtModality WhyCheckModality (Maybe Sort) Modality Term
     -- ^ Is the term usable at the given modality?
     -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.
+  | RewConstraint LocalEquation
+    -- ^ Does the local rewrite rule hold definitionally at the call-site?
+    --   Essentially a 'ValueCmp' but with a more specific error message
   deriving (Show, Generic)
 
 -- It's important to have a proper range for constraints that can remain unsolved
@@ -1610,6 +1613,7 @@ instance HasRange Constraint where
   getRange UnquoteTactic{}       = noRange
   getRange CheckLockedVars{}     = noRange
   getRange UsableAtModality{}    = noRange
+  getRange RewConstraint{}       = noRange
 
 instance Free Constraint where
   freeVars c = expand \ret -> case c of
@@ -1632,9 +1636,15 @@ instance Free Constraint where
     CheckMetaInst m             -> ret $ mempty
     CheckType t                 -> ret $ freeVars t
     UsableAtModality _ ms mod t -> ret $ freeVars (ms, t)
+    RewConstraint e             -> ret $ freeVars e
 
 {-# SPECIALIZE closed :: Constraint -> Bool #-}
 {-# SPECIALIZE freeVarSet :: Constraint -> VarSet #-}
+
+instance TermLike LocalEquation where
+  foldTerm f (LocalEquation g t u a) = foldTerm f (g, t, u, a)
+
+  traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1657,6 +1667,7 @@ instance TermLike Constraint where
       CheckMetaInst m        -> mempty
       CheckType t            -> foldTerm f t
       UsableAtModality _ ms m t   -> foldTerm f (Sort <$> ms, t)
+      RewConstraint e        -> foldTerm f e
 
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
@@ -4211,9 +4222,6 @@ data TCEnv =
                 -- checker (for unfolding control).
           , envLocalRewriteRules :: LocalRewriteRuleMap
                 -- ^ Local rewrite rules
-          , envLocalEquation :: Maybe LocalEquation
-                -- ^ Are we checking in an @rew context?
-                -- If so, the equation better hold definitionally
           }
     deriving (Generic)
 
@@ -4281,7 +4289,6 @@ initEnv = TCEnv { envContext             = CxEmpty
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
                 , envLocalRewriteRules      = empty
-                , envLocalEquation          = Nothing
                 }
 
 class LensTCEnv a where
@@ -4477,9 +4484,6 @@ eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurr
 
 eLocalRewriteRules :: Lens' TCEnv LocalRewriteRuleMap
 eLocalRewriteRules f e = f (envLocalRewriteRules e) <&> \ x -> e { envLocalRewriteRules = x }
-
-eLocalEquation :: Lens' TCEnv (Maybe LocalEquation)
-eLocalEquation f e = f (envLocalEquation e) <&> \x -> e { envLocalEquation = x }
 
 {-# SPECIALISE currentModality :: TCM Modality #-}
 -- | The current modality.
