@@ -84,6 +84,8 @@ with ``@♭`` trigger the ``UnsupportedIndexedMatch`` warning (see
 properly.
 
 
+.. _sharp:
+
 The Sharp Modality
 ----------------------------
 
@@ -116,5 +118,3 @@ in the context become crisp, for example, in the following, we can use
 
   unit : ∀ {@♭ A : Set} → A → ♯ (♭ A)
   unit a .ε = con a
-
-.. _copattern-matching-with-sharp:
