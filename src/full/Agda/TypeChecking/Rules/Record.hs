@@ -454,11 +454,11 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- So we want to check that `@.., (c^-1 . c) x : A |- x : A` is allowed by the modalities.
       --
       -- Currently only sharp and continuous have left adjoints under composition.
+      -- This check happens at scope checking time, so we should only be left
+      -- with annotations with left adjoints here
       tel <- if hasLeftAdjoint (UnderComposition (getCohesion ai))
           then pure $ over listTel (map (inverseApplyCohesion (getCohesion ai))) tel
-          else do
-            warning $ FixingCohesion "of field" (getCohesion ai) Continuous
-            pure tel
+          else __IMPOSSIBLE__
 
       -- For now, we forbid any polarity annotations on record fields (we would need to do as above,
       -- and eta-equality or projection existence would be in danger).
