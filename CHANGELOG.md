@@ -367,6 +367,11 @@ Changes to type checker and other components defining the Agda language.
   `B.X` would have type `Set` while `C.X` would have type `Set → Set` (as if
   the user wrote `module C Y = B Y`). After this change, `C.X : Set` instead.
 
+* Added the [Sharp modality](https://agda.readthedocs.io/en/v2.9.0/language/flat.html#the-sharp-modality),
+  which adds a right adjoint to the existing flat modality enabled via the
+  `--cohesion` flag. This also enables the use of attributes in record
+  fields for any cohesion modality which has a left adjoint (currently
+  just sharp and continuous).
 
 Reflection
 ----------

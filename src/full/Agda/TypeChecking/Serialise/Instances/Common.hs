@@ -432,7 +432,7 @@ instance EmbPrj Cohesion where
 
   value 0 = return Flat
   value 1 = return Continuous
-  value 2 = return Continuous
+  value 2 = return Sharp
   value 3 = return Squash
   value _ = malformed
 
