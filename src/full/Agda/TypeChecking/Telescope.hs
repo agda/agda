@@ -38,7 +38,7 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
+import Control.Monad.Trans.Maybe (MaybeT)
 
 -- | Flatten telescope: @(Γ : Tel) -> [Type Γ]@.
 --
@@ -439,26 +439,30 @@ telViewUpTo n t = telViewUpTo' n (const True) t
 --   the first @n@ (or arbitrary many if @n < 0@) function domains
 --   as long as they satify @p@.
 telViewUpTo' :: (MonadReduce m, MonadAddContext m) => Int -> (Dom Type -> Bool) -> Type -> m TelView
-telViewUpTo' n p t = fromMaybe __IMPOSSIBLE__ <$>
-  (runMaybeT $ safeTelViewUpTo' n p t)
-
--- | If there are @rew arguments in the type then trying to construct the
---   telescope might fail.
-safeTelViewUpTo' :: (MonadReduce m, MonadAddContext m)
-  => Int -> (Dom Type -> Bool) -> Type -> MaybeT m TelView
-safeTelViewUpTo' 0 p t = return $ TelV EmptyTel t
-safeTelViewUpTo' n p t = do
+telViewUpTo' 0 p t = return $ TelV EmptyTel t
+telViewUpTo' n p t = do
   t <- reduce t
   case unEl t of
-    Pi a b | p a -> case rewDom a of
-      -- Domain of pi type is a substituted @rew argument
-      Just (RewDom _ Nothing) -> mzero
-      _                       -> do
-        -- Force the name to avoid retaining the rest of b.
-        let !bn = absName b
-        absV a bn <$> do
-          underAbstractionAbs a b $ \b -> safeTelViewUpTo' (n - 1) p b
+    Pi a b | p a ->
+          -- Force the name to avoid retaining the rest of b.
+      let !bn = absName b in
+      absV a bn <$> do
+        underAbstractionAbs (dropInvalidRew a) b $
+          \b -> telViewUpTo' (n - 1) p b
     _ -> return $ TelV EmptyTel t
+  where
+    -- We drop invalidated local rewrite rules
+    -- Note that the returned telescope might still contain invalidated
+    -- rewrite rules so adding the telescope to the context might fail
+    dropInvalidRew a = if invalidRew a then a { rewDom = Nothing } else a
+
+-- | Returns Nothing if there are invalidated local rewrite rules present in
+--   the telescope
+safeTelViewUpTo' :: (MonadReduce m, MonadAddContext m)
+  => Int -> (Dom Type -> Bool) -> Type -> MaybeT m TelView
+safeTelViewUpTo' n p t = do
+  telv@(TelV tel _) <- telViewUpTo' n p t
+  if any invalidRew tel then mzero else pure telv
 
 {-# INLINE telViewPath #-}
 telViewPath :: PureTCM m => Type -> m TelView

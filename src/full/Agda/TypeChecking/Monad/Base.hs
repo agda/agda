@@ -3848,7 +3848,7 @@ data Call
   | NoHighlighting
   | ModuleContents  -- ^ Interaction command: show module contents.
   | SetRange Range  -- ^ used by 'setCurrentRange'
-  deriving Generic
+  deriving (Generic, Show)
 
 instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"

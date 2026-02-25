@@ -102,6 +102,12 @@ type Dom = Dom' Term
 domEq :: Dom' t e -> Maybe (LocalEquation' t)
 domEq = fmap rewDomEq . rewDom
 
+-- | Is this Dom annotated as a local rewrite rule and if so, has the rewrite
+--   been invalidated due to a substitution?
+invalidRew :: Dom' t e -> Bool
+invalidRew Dom { rewDom = Just (RewDom { rewDomRew = Nothing }) } = True
+invalidRew _                                                      = False
+
 instance Decoration (Dom' t) where
   traverseF f (Dom ai x t b r a) = Dom ai x t b r <$> f a
 
