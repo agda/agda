@@ -13,5 +13,9 @@ module _ (n : Nat) (@rew p : n ≡ nat) where
   test : Nat
   test = 42
 
-test2 : 0 ≡ nat → Nat
-test2 p = test 0 p
+module _ (n : Nat) (@rew p : n ≡ {!!}) where
+  test2 : n ≡ _
+  test2 = refl
+
+test3 : 0 ≡ nat → Nat
+test3 p = test 0 p

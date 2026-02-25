@@ -3,6 +3,9 @@
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 
+-- Used to hit __IMPOSSIBLE__
+-- Now the local rewrites just don't get elaborated because of generalised
+-- variables, which still isn't great but at least it doesn't crash
 module LocalRewriteGeneralised where
 
 variable
@@ -16,13 +19,19 @@ postulate
 postulate
   Path : (A : Set) → A → A → Set
 
--- __IMPOSSIBLE__ in Telescope.hs
-module _ {x : A} (f : I → A) (@rew f0 : f i0 ≡ x) where
-  test : f i0 ≡ x
-  test = refl
+-- Used to be __IMPOSSIBLE__ in Telescope.hs
+module _ (f : I → A) (@rew f0 : f i0 ≡ x) where
+  postulate
+    test : f i0 ≡ x
 
--- __IMPOSSIBLE__ in MetaVars.hs
--- module _ (f : I → A) {x y : A}
---          (@rew f0 : f i0 ≡ x) where
---   postulate
---     toPath2 : Path A x y
+-- Used to be __IMPOSSIBLE__ in MetaVars.hs
+module _ (f : I → A) {x y : A}
+         (@rew f0 : f i0 ≡ x) where
+  postulate
+    test2 : f i0 ≡ x
+
+-- Work-around which doesn't hit any warnings
+module _ (f : I → A) {x : A} where
+  module _ (@rew f0 : f i0 ≡ x) where
+    test3 : f i0 ≡ x
+    test3 = refl

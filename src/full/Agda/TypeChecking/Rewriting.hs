@@ -255,7 +255,12 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
 checkLocalRewriteRule ::
   RewriteSource -> LocalEquation -> TCM (Maybe RewriteRule)
-checkLocalRewriteRule s eq = runMaybeT $ checkRewriteRule' eq s
+checkLocalRewriteRule s eq = runMaybeT $
+  -- For now, we fail if the local rewrite rule contains metas ANYWHERE
+  -- I think it should be possible to do better than this, but it is hard
+  Set1.ifNull (allMetas Set.singleton eq)
+  {- then -} (checkRewriteRule' eq s)
+  {- else -} (illegalRule s . ContainsUnsolvedMetaVariables)
 
 checkRewriteRule' :: LocalEquation -> RewriteSource -> MaybeT TCM RewriteRule
 checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
@@ -317,8 +322,8 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
 
     ps <- fromRightM failureBlocked $ lift $
       catchPatternErr (pure . Left) $
-        Right <$> patternFrom NeverSing NeverSing telStart 0
-                              (t , headToTerm telStart f) es
+        Right <$> patternFrom
+          NeverSing NeverSing telStart 0 (t , headToTerm telStart f) es
 
     reportSDoc "rewriting" 30 $
       "Pattern generated from lhs: " <+> prettyTCM (headToPat telStart f ps)

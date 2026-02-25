@@ -1,0 +1,25 @@
+LocalRewriteGeneralised.agda:23.10-42: warning: -W[no]RewriteContainsUnsolvedMetaVariables
+f0 : f i0 ≡ _x_15 (genTel = genTel)  is not a legal rewrite rule,
+since it contains the unsolved meta variables:
+  _A_13 _x_15
+when checking the parameters of module _
+
+LocalRewriteGeneralised.agda:28.10-29.30: warning: -W[no]RewriteContainsUnsolvedMetaVariables
+f0 : f i0 ≡ x  is not a legal rewrite rule, since it contains the
+unsolved meta variable:
+  _A_25
+when checking the parameters of module _
+
+———— All done; warnings encountered ————————————————————————
+
+LocalRewriteGeneralised.agda:23.10-42: warning: -W[no]RewriteContainsUnsolvedMetaVariables
+f0 : f i0 ≡ _x_15 (genTel = genTel)  is not a legal rewrite rule,
+since it contains the unsolved meta variables:
+  _A_13 _x_15
+when checking the parameters of module _
+
+LocalRewriteGeneralised.agda:28.10-29.30: warning: -W[no]RewriteContainsUnsolvedMetaVariables
+f0 : f i0 ≡ x  is not a legal rewrite rule, since it contains the
+unsolved meta variable:
+  _A_25
+when checking the parameters of module _
