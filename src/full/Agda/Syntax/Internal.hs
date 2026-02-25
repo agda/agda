@@ -1096,6 +1096,15 @@ suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
 -- * Eliminations.
 ---------------------------------------------------------------------------
 
+{-
+Note: 'unSpine' is computed quite often, so it makes sense to optimize it. The first optimization is
+to check with 'hasProj' and skip building a new term if the spine doesn't contain projections. The
+second optimization is to use an unboxed sum type to distinguish the three cases for reconstructing
+a term with spines ('Var', 'Def' and 'MetaV'), thereby avoiding heap allocation.
+
+Docs on unboxed sums: https://downloads.haskell.org/ghc/9.14.1/docs/users_guide/exts/primitives.html#unboxed-sums
+-}
+
 hasProj :: Elims -> Bool
 hasProj = \case
   []       -> False
