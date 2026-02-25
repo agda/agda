@@ -153,6 +153,9 @@ import Agda.Utils.Update
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.Atomic
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictState qualified as Strict
+
 
 import Agda.Utils.Impossible
 
@@ -6017,9 +6020,11 @@ class Monad m => MonadTCEnv m where
   askTC   :: m TCEnv
   localTC :: (TCEnv -> TCEnv) -> m a -> m a
 
+  {-# INLINE askTC #-}
   default askTC :: (MonadTrans t, MonadTCEnv n, t n ~ m) => m TCEnv
   askTC = lift askTC
 
+  {-# INLINE localTC #-}
   default localTC
     :: (MonadTransControl t, MonadTCEnv n, t n ~ m)
     =>  (TCEnv -> TCEnv) -> m a -> m a
@@ -6031,6 +6036,8 @@ instance MonadTCEnv m => MonadTCEnv (IdentityT m)
 instance MonadTCEnv m => MonadTCEnv (MaybeT m)
 instance MonadTCEnv m => MonadTCEnv (ReaderT r m)
 instance MonadTCEnv m => MonadTCEnv (StateT s m)
+instance MonadTCEnv m => MonadTCEnv (Strict.ReaderT r m)
+instance MonadTCEnv m => MonadTCEnv (Strict.StateT s m)
 instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
 
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
@@ -6060,12 +6067,15 @@ class Monad m => MonadTCState m where
   putTC :: TCState -> m ()
   modifyTC :: (TCState -> TCState) -> m ()
 
+  {-# INLINE getTC #-}
   default getTC :: (MonadTrans t, MonadTCState n, t n ~ m) => m TCState
   getTC = lift getTC
 
+  {-# INLINE putTC #-}
   default putTC :: (MonadTrans t, MonadTCState n, t n ~ m) => TCState -> m ()
   putTC = lift . putTC
 
+  {-# INLINE modifyTC #-}
   default modifyTC :: (MonadTrans t, MonadTCState n, t n ~ m) => (TCState -> TCState) -> m ()
   modifyTC = lift . modifyTC
 
@@ -6074,6 +6084,8 @@ instance MonadTCState m => MonadTCState (ListT m)
 instance MonadTCState m => MonadTCState (ExceptT err m)
 instance MonadTCState m => MonadTCState (ReaderT r m)
 instance MonadTCState m => MonadTCState (StateT s m)
+instance MonadTCState m => MonadTCState (Strict.ReaderT r m)
+instance MonadTCState m => MonadTCState (Strict.StateT s m)
 instance MonadTCState m => MonadTCState (ChangeT m)
 instance MonadTCState m => MonadTCState (IdentityT m)
 instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
@@ -6486,6 +6498,8 @@ instance MonadTCM tcm => MonadTCM (ListT tcm)
 instance MonadTCM tcm => MonadTCM (MaybeT tcm)
 instance MonadTCM tcm => MonadTCM (ReaderT r tcm)
 instance MonadTCM tcm => MonadTCM (StateT s tcm)
+instance MonadTCM tcm => MonadTCM (Strict.ReaderT r tcm)
+instance MonadTCM tcm => MonadTCM (Strict.StateT s tcm)
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
 
 -- | We store benchmark statistics in an IORef.

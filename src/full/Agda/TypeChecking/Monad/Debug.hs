@@ -30,21 +30,22 @@ import Agda.TypeChecking.Monad.Base
 
 import Agda.Interaction.Options
 import Agda.Interaction.Response.Base (Response_boot(..))
+import Agda.Interaction.Options.ProfileOptions
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
+import Agda.Utils.DocTree (renderToTree)
+import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty
-import Agda.Interaction.Options.ProfileOptions
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictState qualified as Strict
+import Agda.Utils.Trie qualified as Trie
 import Agda.Utils.Update
-import qualified Agda.Utils.Trie as Trie
-
-import Agda.Utils.Impossible
-import Agda.Utils.DocTree (renderToTree)
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
@@ -65,44 +66,51 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
   -- default implementation of transformed debug monad
 
+  {-# INLINE formatDebugMessage #-}
   default formatDebugMessage
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> TCM Doc -> m Doc
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
+  {-# INLINE traceDebugMessage #-}
   default traceDebugMessage
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> Doc -> m a -> m a
   traceDebugMessage k n s = liftThrough $ traceDebugMessage k n s
 
 #ifdef DEBUG
+  {-# INLINE verboseBracket #-}
   default verboseBracket
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> String -> m a -> m a
   verboseBracket k n s = liftThrough $ verboseBracket k n s
 #else
+  {-# INLINE verboseBracket #-}
   default verboseBracket
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> String -> m a -> m a
   verboseBracket k n s ma = ma
-  {-# INLINE verboseBracket #-}
 #endif
 
+  {-# INLINE getVerbosity #-}
   default getVerbosity
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => m Verbosity
   getVerbosity = lift getVerbosity
 
+  {-# INLINE getProfileOptions #-}
   default getProfileOptions
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => m ProfileOptions
   getProfileOptions = lift getProfileOptions
 
+  {-# INLINE isDebugPrinting #-}
   default isDebugPrinting
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => m Bool
   isDebugPrinting = lift isDebugPrinting
 
+  {-# INLINE nowDebugPrinting #-}
   default nowDebugPrinting
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => m a -> m a
@@ -204,6 +212,8 @@ instance MonadDebug m => MonadDebug (ExceptT e m)
 instance MonadDebug m => MonadDebug (MaybeT m)
 instance MonadDebug m => MonadDebug (ReaderT r m)
 instance MonadDebug m => MonadDebug (StateT s m)
+instance MonadDebug m => MonadDebug (Strict.ReaderT r m)
+instance MonadDebug m => MonadDebug (Strict.StateT s m)
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m)
 instance MonadDebug m => MonadDebug (IdentityT m)
 

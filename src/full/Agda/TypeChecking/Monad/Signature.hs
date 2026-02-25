@@ -5,61 +5,63 @@ module Agda.TypeChecking.Monad.Signature where
 import Prelude hiding (null)
 
 import Control.Monad.Except          ( ExceptT )
-import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
-import Control.Monad.Writer          ( WriterT )
-import Control.Monad.Trans.Maybe     ( MaybeT  )
-import Control.Monad.Trans.Identity  ( IdentityT )
+import Control.Monad.State           ( StateT  )
 import Control.Monad.Trans           ( MonadTrans, lift )
+import Control.Monad.Trans.Identity  ( IdentityT )
+import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Writer          ( WriterT )
 
 import Data.Either
 import Data.Foldable                 ( for_ )
+import Data.HashMap.Strict           qualified as HMap
 import Data.List                     qualified as List
+import Data.Map                      qualified as Map
+import Data.Maybe
 import Data.Set                      ( Set )
 import Data.Set                      qualified as Set
-import Data.Map                      qualified as Map
-import Data.HashMap.Strict           qualified as HMap
-import Data.Maybe
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
-import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, renamingSize, ScopeCopyInfo(..))
+import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
 import Agda.Syntax.Treeless (Compiled(..), TTerm, ArgUsage)
 
+import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
+import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Constraints
+import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
-import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Statistics
-import Agda.TypeChecking.DropArgs
-import Agda.TypeChecking.Warnings
+import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Coverage.SplitTree
-import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
+import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
+import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
+import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import {-# SOURCE #-} Agda.TypeChecking.Reduce
-import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
+
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
 import Agda.Utils.Function ( applyWhen )
@@ -72,9 +74,10 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictState qualified as Strict
 import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
 
@@ -1119,6 +1122,8 @@ instance HasConstInfo m => HasConstInfo (ListT m)
 instance HasConstInfo m => HasConstInfo (MaybeT m)
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
+instance HasConstInfo m => HasConstInfo (Strict.ReaderT r m)
+instance HasConstInfo m => HasConstInfo (Strict.StateT s m)
 instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
 instance HasConstInfo m => HasConstInfo (BlockT m)
 
@@ -1148,7 +1153,7 @@ setPolarity q pol = do
 getForcedArgs :: HasConstInfo m => QName -> m [IsForced]
 getForcedArgs q = defForced <$> getConstInfo q
 
--- | Returns the occurences given explicitely as polarity annotations in the function type
+-- | Returns the occurences given explicitly as polarity annotations in the function type
 getOccurrencesFromType :: Type -> TCM [Occurrence]
 getOccurrencesFromType t = do
   polarityEnabled <- optPolarity <$> pragmaOptions

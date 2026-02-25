@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UnboxedSums #-}
+{-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wunused-matches #-}
 
@@ -15,11 +18,12 @@ import Prelude hiding (null)
 
 import Control.Monad.Identity
 import Control.DeepSeq
+import GHC.Exts
+import GHC.Word
 
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Sum(..) )
-import Data.String
 import System.IO.Unsafe (unsafePerformIO)
 
 import GHC.Generics (Generic)
@@ -1096,48 +1100,67 @@ suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
 -- * Eliminations.
 ---------------------------------------------------------------------------
 
-{-
-Note: 'unSpine' is computed quite often, so it makes sense to optimize it. The first optimization is
-to check with 'hasProj' and skip building a new term if the spine doesn't contain projections. The
-second optimization is to use an unboxed sum type to distinguish the three cases for reconstructing
-a term with spines ('Var', 'Def' and 'MetaV'), thereby avoiding heap allocation.
-
-Docs on unboxed sums: https://downloads.haskell.org/ghc/9.14.1/docs/users_guide/exts/primitives.html#unboxed-sums
--}
-
 hasProj :: Elims -> Bool
 hasProj = \case
   []       -> False
   Proj{}:_ -> True
   _:es     -> hasProj es
 
-#if __GLASGOW_HASKELL__ < 906
-data SpineHead' = SHVar !Int | SHDef !QName | SHMetaV {-# UNPACK #-} !MetaId
-newtype SpineHead = SpineHead SpineHead'
+{- |
+We define an unboxed sum type that's isomorphic to the following.
+
+@
+   data SpineHead = SHVar !Int | SHDef !QName | SHMetaV {-# UNPACK #-} !MetaId
+@
+
+The noise with pattern synonyms and unboxed types is just the necessary boilerplate to produce the
+above type with correct memory layout.
+
+The reason for the unboxing is that 'unSpine' is a hot function in 'Agda.TypeChecking.Free.Generic',
+and we'd like to avoid heap allocating either a closure or a boxed sum type just for the purpose
+of rebuilding a 'Term' from an 'Elims'.
+-}
+
+#if  __GLASGOW_HASKELL__ <= 902
+type SpineHead = (# Int# | QName | (# Word#, Word# #) #)
 #else
-data SpineHead' = SHVar !Int | SHDef !QName | SHMetaV {-# UNPACK #-} !MetaId
-data SpineHead = SpineHead {-# UNPACK #-} !SpineHead'
+type SpineHead = (# Int# | QName | (# Word64#, Word64# #) #)
 #endif
 
+pattern SHVar :: Int -> SpineHead
+pattern SHVar x <- (# (I# -> x) | | #) where SHVar (I# x) = (# x | | #)
+{-# INLINE SHVar #-}
+
+pattern SHDef :: QName -> SpineHead
+pattern SHDef f = (# | f | #)
+{-# INLINE SHDef #-}
+
+pattern SHMetaV :: MetaId -> SpineHead
+pattern SHMetaV x <- (# | | ((\(# x, y #) -> MetaId (W64# x) (ModuleNameHash (W64# y))) -> x) #) where
+  SHMetaV (MetaId (W64# x) (ModuleNameHash (W64# y))) = (# | | (# x, y #) #)
+{-# INLINE SHMetaV #-}
+{-# COMPLETE SHVar, SHDef, SHMetaV #-}
+
 applySpineHead :: SpineHead -> Elims -> Term
-applySpineHead h !es = case h of
-  SpineHead (SHVar x  ) -> Var x es
-  SpineHead (SHDef f  ) -> Def f es
-  SpineHead (SHMetaV x) -> MetaV x es
+applySpineHead h es = case h of
+  SHVar x   -> Var x es
+  SHDef f   -> Def f es
+  SHMetaV x -> MetaV x es
 
 unSpineLoop :: SpineHead -> Elims -> Elims -> Term
-unSpineLoop !h !res es = case es of
-  []             -> applySpineHead h $! reverse res
-  Proj _ f : es' -> let !v = defaultArg $! (applySpineHead h $! reverse res) in
-                    unSpineLoop (SpineHead (SHDef f)) [Apply v] es'
-  e        : es' -> unSpineLoop h (e : res) es'
+unSpineLoop h res es =
+  case es of
+    []             -> applySpineHead h $! reverse res
+    Proj _ f : es' -> let !v = defaultArg $! (applySpineHead h $! reverse res) in
+                      unSpineLoop (SHDef f) [Apply v] es'
+    e        : es' -> unSpineLoop h (e : res) es'
 
 -- | Convert top-level postfix projections into prefix projections.
 unSpine :: Term -> Term
 unSpine t = case t of
-  Var i es   | hasProj es -> unSpineLoop (SpineHead (SHVar i  )) [] es
-  Def f es   | hasProj es -> unSpineLoop (SpineHead (SHDef f  )) [] es
-  MetaV x es | hasProj es -> unSpineLoop (SpineHead (SHMetaV x)) [] es
+  Var i es   | hasProj es -> unSpineLoop (SHVar i)   [] es
+  Def f es   | hasProj es -> unSpineLoop (SHDef f)   [] es
+  MetaV x es | hasProj es -> unSpineLoop (SHMetaV x) [] es
   t -> t
 
 -- | Convert 'Proj' projection eliminations

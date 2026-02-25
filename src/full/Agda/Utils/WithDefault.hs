@@ -61,6 +61,7 @@ not' = \case
   Default -> Default
   Value b -> Value (not b)
 
+{-# INLINE collapseDefault #-}
 -- | Provided that the default value is a known boolean (in practice we only use
 -- @True@ or @False@), we can collapse a potentially uninitialised value to a boolean.
 --

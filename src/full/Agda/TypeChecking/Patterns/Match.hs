@@ -382,7 +382,7 @@ matchPatternsP :: MonadMatch m
 matchPatternsP ps qs = do
   mconcat <$> zipWithM matchPatternP (map namedArg ps) qs
 
-
+{-# SPECIALIZE properlyMatching :: Pattern' a -> TCM Bool #-}
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: HasConstInfo m => Pattern' a -> m Bool
 properlyMatching = properlyMatching' True True
