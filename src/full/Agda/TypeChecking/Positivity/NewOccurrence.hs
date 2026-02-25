@@ -226,7 +226,7 @@ addEdge src = do
   occ    <- asks occ
   expand \ret -> case occ of
     Unused -> ret $ pure ()
-    occ    -> ret $ modify $ addEdgeToGraph src target (Edge occ path)
+    occ    -> ret $ modify $ addEdgeToGraph target src (Edge occ path)
 
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArg d p i e = expand \ret -> ret do
@@ -249,9 +249,9 @@ class ComputeOccurrences a where
   occurrences = mapM_ occurrences
 
 instance ComputeOccurrences Term where
-  occurrences t = case unSpine t of
+  occurrences t = expand \ret -> case unSpine t of
 
-    Var x es -> do
+    Var x es -> ret do
       locals <- asks locals
 
       tda <- asks topDefArgs
@@ -279,7 +279,7 @@ instance ComputeOccurrences Term where
         addEdge (ArgNode topDef argix)
         elims 0 ps es
 
-    Def d es -> asks inf >>= \case
+    Def d es -> ret $ asks inf >>= \case
 
       -- ∞ application
       Just inf | d == inf -> case es of
@@ -339,17 +339,17 @@ instance ComputeOccurrences Term where
             defOcc <- liftTCM $ mutualDefOcc d
             underOcc defOcc $ elims d (defType def) 0 (defArgOccurrences def) es
 
-    Con _ _ es -> occurrences es -- András 2026-02-17: why not push something here?
-    MetaV m es -> underPathSetOcc MetaArg Mixed (occurrences es)
-    Pi a b     -> underPathOcc LeftOfArrow JustNeg (occurrences a) >> occurrences b
-    Lam _ t    -> occurrences t
-    Level l    -> occurrences l
-    Lit{}      -> pure ()
-    Sort{}     -> pure ()
+    Con _ _ es -> ret $ occurrences es -- András 2026-02-17: why not push something here?
+    MetaV m es -> ret $ underPathSetOcc MetaArg Mixed (occurrences es)
+    Pi a b     -> ret $ underPathOcc LeftOfArrow JustNeg (occurrences a) >> occurrences b
+    Lam _ t    -> ret $ occurrences t
+    Level l    -> ret $ occurrences l
+    Lit{}      -> ret $ pure ()
+    Sort{}     -> ret $ pure ()
     -- Jesper, 2020-01-12: this information is also used for the
     -- occurs check, so we need to look under DontCare (see #4371)
-    DontCare t -> occurrences t
-    Dummy{}    -> pure ()
+    DontCare t -> ret $ occurrences t
+    Dummy{}    -> ret $ pure ()
 
 addClauseArgMatches :: NAPs -> OccM ()
 addClauseArgMatches ps = underPathSetOcc Matched Mixed $ go 0 ps where
@@ -444,11 +444,6 @@ mutualDefOcc d = isDataOrRecordType d >>= \case
   Just IsData -> pure GuardPos
   _           -> pure StrictPos
 
--- | Backwards compatibility: add graph node with empty target map if it doesn't already exist.
---   TODO: this is probably a bug in the old code.
-initNode :: Node -> OccM ()
-initNode n = modify \m -> if Map.member n m then m else Map.insert n mempty m
-
 -- | Compute occurrences in a given definition.
 computeDefOccurrences :: QName -> OccM ()
 computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
@@ -468,9 +463,9 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
                          go (i + 1) as (DefArgInEnv i occs : acc)
 
   defOcc <- liftTCM $ mutualDefOcc q
-  underPathOcc (`InDefOf` q) defOcc $ case theDef def of
+  underPathOcc (`InDefOf` q) defOcc $ expand \ret -> case theDef def of
 
-    Function{funClauses = cs} -> do
+    Function{funClauses = cs} -> ret do
 
       cs <- liftTCM $ mapM etaExpandClause =<< instantiateFull cs
       performAnalysis <- liftTCM $ optOccurrence <$> pragmaOptions
@@ -491,9 +486,9 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
                                go (i + 1) ps
           go 0 (namedClausePats cl)
 
-    Datatype{dataClause = Just c} -> occurrences =<< liftTCM (instantiateFull c)
+    Datatype{dataClause = Just c} -> ret $ occurrences =<< liftTCM (instantiateFull c)
 
-    Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> do
+    Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> ret do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
       -- include each index of an inductive family.
       TelV telD _ <- liftTCM $ telView $ defType def
@@ -572,10 +567,10 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
               DontCare{} -> __IMPOSSIBLE__  -- not a type
               Dummy{}    -> __IMPOSSIBLE__
 
-    Record{recClause = Just c} ->
+    Record{recClause = Just c} -> ret do
       occurrences =<< liftTCM (instantiateFull c)
 
-    Record{recPars = np, recTel = tel} -> do
+    Record{recPars = np, recTel = tel} -> ret do
       let (tel0, tel1) = splitTelescopeAt np tel
       pvars <- liftTCM $ paramsToDefArgs tel0
       local (\env -> env {topDefArgs = pvars}) do
@@ -583,13 +578,13 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
-    Constructor{}      -> mempty
-    Axiom{}            -> mempty
-    DataOrRecSig{}     -> mempty
-    Primitive{}        -> mempty
-    PrimitiveSort{}    -> mempty
-    GeneralizableVar{} -> mempty
-    AbstractDefn{}     -> __IMPOSSIBLE__
+    Constructor{}      -> ret mempty
+    Axiom{}            -> ret mempty
+    DataOrRecSig{}     -> ret mempty
+    Primitive{}        -> ret mempty
+    PrimitiveSort{}    -> ret mempty
+    GeneralizableVar{} -> ret mempty
+    AbstractDefn{}     -> ret __IMPOSSIBLE__
 
 
 transposeGraph :: OccGraph -> OccGraph

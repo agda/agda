@@ -87,6 +87,26 @@ trimGraphs (Graph.Graph m) (Graph.Graph m') =
   , fmap (convedge' . convnode') (convnode' m')
   )
 
+erasePaths :: Graph Node (Edge OccursWhere) -> Graph Node (Edge ())
+erasePaths = (fmap . fmap) (const ())
+
+fixupNewGraph :: Graph New.Node New.Edge -> Graph Node (Edge OccursWhere)
+fixupNewGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
+
+  assocs = [(tgt, src, e) | (src, tgts) <- Map.toList m, (tgt, e) <- Map.toList tgts]
+
+  convNode (New.ArgNode x i) = ArgNode x i
+  convNode (New.DefNode x)   = DefNode x
+
+  convEdge (New.Edge occ _) = Edge occ empty
+
+  go :: Map Node (Map Node (Edge OccursWhere))
+        -> (New.Node, New.Node, New.Edge) -> Map Node (Map Node (Edge OccursWhere))
+  go m (convNode -> src, convNode -> tgt, convEdge -> e) =
+    Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+    Map.insertWith (\_ tgts -> tgts) tgt mempty $
+    m
+
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
 --
@@ -96,18 +116,22 @@ trimGraphs (Graph.Graph m) (Graph.Graph m') =
 --   to the signature.
   --
 checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
-checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
+checkStrictlyPositive mi qset = do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
 
   g@(Graph.Graph gmap) <- buildOccurrenceGraph qset
-  filteredg <- pure $ Graph.Graph $ Map.filter (not . null) gmap
+  -- filteredg <- pure $ Graph.Graph $ Map.filter (not . null) gmap
 
-  gnew <- Graph.Graph <$> New.buildOccurrenceGraph qset
-  let (g', gnew') = trimGraphs g gnew
+  -- gnew <- Graph.Graph <$> New.buildOccurrenceGraph qset
+  !g <- (fixupNewGraph . Graph.Graph <$> New.buildOccurrenceGraph qset)
+  -- let (g', gnew') = trimGraphs g gnew
 
-  let (!gstar, !sccs) =
+  -- let g' = erasePaths g
+  --     gnew' = erasePaths gnew
+
+  let (gstar, sccs) =
         Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
@@ -124,23 +148,41 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
     , nest 2 $ prettyTCM gstar
     ]
 
-  when (g' /= gnew') do
-    reportSDoc "tc.pos.graph" 1 $ vcat
-      [ "positivity graph for" <+> fsep (map prettyTCM qs)
-      , nest 2 $ prettyTCM filteredg
-      , text ""
-      -- , text (show g')
-      , text ""
-      ]
-    reportSDoc "tc.pos.graph" 1 $ vcat
-      [ "new occurrence graph"
-      , nest 2 $ prettyTCM gnew
-      , text ""
-      -- , text (show gnew')
-      , "COMPARISON" <+> text (show (g' == gnew'))
-      , text ""
-      ]
-    error "OCCURRENCE GRAPH MISMATCH"
+  -- when (g' /= gnew') do
+  --   reportSDoc "tc.pos.graph" 1 $ vcat
+  --     [ "positivity graph for" <+> fsep (map prettyTCM qs)
+  --     , nest 2 $ prettyTCM g
+  --     , text ""
+  --     -- , text (show g')
+  --     , text ""
+  --     ]
+  --   reportSDoc "tc.pos.graph" 1 $ vcat
+  --     [ "new occurrence graph"
+  --     , nest 2 $ prettyTCM gnew
+  --     , text ""
+  --     -- , text (show gnew')
+  --     -- , "COMPARISON" <+> text (show (g' == gnew'))
+  --     -- , text ""
+  --     ]
+  --   error "OCCURRENCE GRAPH MISMATCH\n"
+
+  -- when (g' /= gnew') do
+  --   reportSDoc "tc.pos.graph" 1 $ vcat
+  --     [ "positivity graph for" <+> fsep (map prettyTCM qs)
+  --     , nest 2 $ prettyTCM filteredg
+  --     , text ""
+  --     -- , text (show g')
+  --     , text ""
+  --     ]
+  --   reportSDoc "tc.pos.graph" 1 $ vcat
+  --     [ "new occurrence graph"
+  --     , nest 2 $ prettyTCM gnew
+  --     , text ""
+  --     -- , text (show gnew')
+  --     , "COMPARISON" <+> text (show (g' == gnew'))
+  --     , text ""
+  --     ]
+  --   error "OCCURRENCE GRAPH MISMATCH"
 
   -- remember argument occurrences for qs in the signature
   setArgOccs qset qs gstar
@@ -175,7 +217,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
                                         | otherwise      -> "mutually recursive"
       setMutual q qs
 
-  mapM_ (checkPos g gstar) qs
+  Bench.billTo [Bench.Positivity] (mapM_ (checkPos g gstar) qs)
   reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
   where

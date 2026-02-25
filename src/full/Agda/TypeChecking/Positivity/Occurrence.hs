@@ -93,7 +93,7 @@ data Occurrence
   | JustPos   -- ^ Positive occurrence, but not strictly positive.
   | StrictPos -- ^ Strictly positive occurrence.
   | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
-  | Unused    --  ^ No occurrence.
+  | Unused    -- ^ No occurrence.
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 -- Pretty instances.
