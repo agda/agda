@@ -15,9 +15,9 @@ import Control.Monad.State
 import Control.Monad.Reader
 
 import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 import Data.Functor.Identity
 

@@ -29,10 +29,11 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.PatternSynonyms
+import Agda.Syntax.TopLevelModuleName
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
-import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
@@ -42,15 +43,16 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.FileId ( File, getIdFile, registerFileId' )
-import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.FileId ( File, getIdFile, registerFileId' )
+import Agda.Utils.Atomic
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.Tuple
+import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
+import qualified Control.Monad.Catch as Catch
 
 -- | Resets the non-persistent part of the type checking state.
 
@@ -62,26 +64,24 @@ resetState = modifyTC \ s -> initStateFromPersistentState (s ^. lensPersistentSt
 --   Keep only the session state (backend information, 'Benchmark', file ids).
 
 resetAllState :: TCM ()
-resetAllState = modifyTC \ s -> initStateFromSessionState (s ^. lensSessionState)
+resetAllState = modifyTC \ s -> initStateFromSessionState (stPersistentSession (stPersistentState s))
 
--- | Overwrite the 'TCState', but not the 'SessionTCState' part.
-putTCPreservingSession :: TCState -> TCM ()
-putTCPreservingSession = bracket_ get put . putTC where
-  get = (,) <$> useTC lensSessionState <*> useTC stStatistics
-
-  put (sess, stat) = do
-    setTCLens lensSessionState sess
-    setTCLens stStatistics stat
+-- | Set the 'TCState', preserving any parts of the state which should
+-- persist through speculation (e.g., statistics).
+putTCPreservingStats :: TCState -> TCM ()
+putTCPreservingStats = bracket_ get put . putTC where
+  get = useTC stStatistics
+  put = setTCLens stStatistics
 
 -- | Restore 'TCState' after performing subcomputation.
 --
---   In contrast to 'Agda.Utils.Monad.localState', the
---   'SessionTCState' from the subcomputation is saved.
+-- Parts of the state which should not be reset on speculation (e.g.,
+-- statistics) will not be reset.
 localTCState :: TCM a -> TCM a
-localTCState = bracket_ getTC putTCPreservingSession
+localTCState = bracket_ getTC putTCPreservingStats
 
--- | Same as 'localTCState' but also returns the state in which we were just
---   before reverting it.
+-- | Same as 'localTCState', but also returns the state in which we were
+-- just before reverting it.
 localTCStateSaving :: TCM a -> TCM (a, TCState)
 localTCStateSaving compute = localTCState $ liftA2 (,) compute getTC
 
@@ -396,12 +396,12 @@ registerFileIdWithBuiltin f (FileDictWithBuiltins d b primLibDir) =
       Nothing -> b
       Just c  -> EnumMap.insert fi c b
 
-instance MonadIO m => MonadFileId (TCMT m) where
-  fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
-  idFromFile = stateTCLens stFileDict . registerFileIdWithBuiltin
+instance (MonadIO m, Catch.MonadMask m) => MonadFileId (TCMT m) where
+  fileFromId fi = useSession lensFileDict <&> (`getIdFile` fi)
+  idFromFile = stateSessionLens lensFileDict . registerFileIdWithBuiltin
 
 instance MonadFileId ReduceM where
-  fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
+  fileFromId fi = useSession lensFileDict <&> (`getIdFile` fi)
   idFromFile = __IMPOSSIBLE__
     -- we cannot write to the state here, so we cannot do sth like
     -- stateTCLens stFileDict . registerFileIdWithBuiltin
@@ -409,7 +409,7 @@ instance MonadFileId ReduceM where
 -- | Does the given 'FileId' belong to one of Agda's builtin modules?
 
 isBuiltinModule :: ReadTCState m => FileId -> m (Maybe IsBuiltinModule)
-isBuiltinModule fi = EnumMap.lookup fi <$> useTC stBuiltinModuleIds
+isBuiltinModule fi = EnumMap.lookup fi <$> useSession lensBuiltinModuleIds
 
 -- | Does the given 'FileId' belong to one of Agda's builtin modules that only uses safe postulates?
 --
@@ -508,7 +508,7 @@ currentModuleNameHash = do
 topLevelModuleNameWithSourceFileCompleter :: ReadTCState m
   => m (TopLevelModuleName -> TopLevelModuleNameWithSourceFile)
 topLevelModuleNameWithSourceFileCompleter = do
-  ModuleToSource _dict m2s <- useTC stModuleToSource
+  ModuleToSource _dict m2s <- useSession lensModuleToSource
   return \ m -> TopLevelModuleNameWithSourceFile m $ Map.findWithDefault __IMPOSSIBLE__ m m2s
 
 ---------------------------------------------------------------------------
@@ -518,7 +518,7 @@ topLevelModuleNameWithSourceFileCompleter = do
 -- | Look for a backend of the given name.
 
 lookupBackend :: ReadTCState m => BackendName -> m (Maybe Backend)
-lookupBackend name = useTC stBackends <&> \ backends ->
+lookupBackend name = useSession lensBackends <&> \ backends ->
   listToMaybe [ b | b@(Backend b') <- backends, backendName b' == name ]
 
 -- | Get the currently active backend (if any).
@@ -548,16 +548,13 @@ addForeignCode backend code = do
 
 {-# INLINE getInteractionOutputCallback #-}
 getInteractionOutputCallback :: ReadTCState m => m InteractionOutputCallback
-getInteractionOutputCallback
-  = useTC stInteractionOutputCallback
+getInteractionOutputCallback = useSession lensInteractionOutputCallback
 
 appInteractionOutputCallback :: Response -> TCM ()
-appInteractionOutputCallback r
-  = getInteractionOutputCallback >>= \ cb -> cb r
+appInteractionOutputCallback r = getInteractionOutputCallback >>= \ cb -> cb r
 
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
-setInteractionOutputCallback
-  = setTCLens' stInteractionOutputCallback
+setInteractionOutputCallback = setSession lensInteractionOutputCallback
 
 ---------------------------------------------------------------------------
 -- * Pattern synonyms
@@ -581,7 +578,8 @@ getAllPatternSyns :: ReadTCState m => m PatternSynDefns
 getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 
 lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn
-lookupPatternSyn (AmbQ xs) = do
+lookupPatternSyn ambX = do
+  let xs = getAmbiguous ambX
   defs <- traverse lookupSinglePatternSyn xs
   case mergePatternSynDefs defs of
     Just def   -> return def

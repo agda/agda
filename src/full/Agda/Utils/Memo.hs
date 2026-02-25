@@ -5,8 +5,8 @@ module Agda.Utils.Memo where
 import Control.Monad.State
 import System.IO.Unsafe
 import Data.IORef
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
+import Data.Map qualified as Map
+import Data.HashMap.Strict qualified as HMap
 import Data.Hashable
 
 import Agda.Utils.Lens

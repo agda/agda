@@ -2,8 +2,8 @@
 module Agda.Utils.MinimalArray.MutablePrim where
 
 import Data.Coerce
-import qualified Data.Primitive.PrimArray as A
-import qualified Agda.Utils.MinimalArray.Prim as PA
+import Data.Primitive.PrimArray qualified as A
+import Agda.Utils.MinimalArray.Prim qualified as PA
 import Control.Monad.Primitive
 import Data.Primitive.Types
 

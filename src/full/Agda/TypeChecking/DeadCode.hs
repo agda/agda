@@ -114,7 +114,7 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
     go rootRewrites
     go rootModSections
     go rootBuiltins
-    foldMap (go . PSyn) rootPatSyns
+    foldMap go rootPatSyns
 
   let filterMeta :: (MetaId, MetaVariable) -> IO (Maybe (MetaId, RemoteMetaVariable))
       filterMeta (!i, !m) = HT.lookup seenMetas i >>= \case

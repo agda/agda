@@ -76,15 +76,15 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
 
 import Prelude hiding ( lookup, null, unzip )
 
-import qualified Data.Array.IArray as Array
+import Data.Array.IArray qualified as Array
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import qualified Data.Graph as Graph
+import Data.Sequence qualified as Seq
+import Data.Graph qualified as Graph
 import Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as IntMap
-import qualified Data.IntSet as IntSet
-import qualified Data.List as List
-import qualified Data.Map.Strict as Map
+import Data.IntMap.Strict qualified as IntMap
+import Data.IntSet qualified as IntSet
+import Data.List qualified as List
+import Data.Map.Strict qualified as Map
 import Data.Map.Strict (Map)
 import Data.Foldable (toList)
 

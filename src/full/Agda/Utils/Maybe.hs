@@ -16,7 +16,7 @@ import Control.Monad.Trans.Maybe
 
 import Data.Maybe
 
-import qualified Agda.Utils.Null as Null
+import Agda.Utils.Null qualified as Null
 
 -- * Conversion.
 

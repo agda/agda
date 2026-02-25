@@ -11,6 +11,8 @@ import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.Void (Void)
 
+import Agda.Syntax.Abstract.Name
+  ( AbstractName(..), AbstractModule(..), KindOfName, NameMetadata(..), WhyInScope(..) )
 import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern ( noDotOrEqPattern )
 import Agda.Syntax.Common
@@ -200,6 +202,12 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
 instance {-# OVERLAPS #-} EmbPrj A.Pattern where
   icod_ = icod_ <=< noDotOrEqPattern (return $ A.WildP empty)
   value = fmap (__IMPOSSIBLE__ :: Void -> A.Expr) <.> value
+
+instance EmbPrj A.PatternSynDefn where
+  icod_ (A.PatternSynDefn a b) = icodeN' A.PatternSynDefn a b
+  value = vcase \case
+    N2 a b -> valuN A.PatternSynDefn a b
+    _ -> malformed
 
 instance EmbPrj ParenPreference where
   icod_ PreferParen     = icodeN' PreferParen

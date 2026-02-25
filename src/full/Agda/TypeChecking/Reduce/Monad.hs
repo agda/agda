@@ -53,13 +53,13 @@ instance MonadAddContext ReduceM where
 instance MonadDebug ReduceM where
 
   traceDebugMessage k n s cont = do
-    ReduceEnv env st _ <- askR
+    ReduceEnv env st _ _ <- askR
     unsafePerformIO $ do
       _ <- runTCM env st $ traceDebugMessage k n s $ pure ()
       return $ cont
 
   formatDebugMessage k n d = do
-    ReduceEnv env st _ <- askR
+    ReduceEnv env st _ _ <- askR
     unsafePerformIO $ do
       (s , _) <- runTCM env st $ formatDebugMessage k n d
       return $ return s
@@ -80,7 +80,7 @@ instance MonadDebug ReduceM where
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
-    ReduceEnv env st _ <- askR
+    ReduceEnv env st _ _ <- askR
     defaultGetConstInfo st env q
 
 instance PureTCM ReduceM where

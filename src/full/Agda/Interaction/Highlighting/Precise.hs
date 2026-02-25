@@ -41,9 +41,9 @@ import qualified Data.Set as Set
 
 import GHC.Generics (Generic)
 
-import qualified Agda.Syntax.Common   as Common
+import Agda.Syntax.Common qualified as Common
 import Agda.Syntax.TopLevelModuleName
-import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
+import Agda.Syntax.Abstract.Name ( KindOfName(..) )
 
 import Agda.Utils.Range
 

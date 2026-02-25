@@ -2,6 +2,14 @@ Issue1944-instance.agda:23.14-20: error: [AmbiguousOverloadedProjection]
 Cannot resolve overloaded projection test because
 principal argument x has type A while it should be of record type
   candidates in scope:
-- test : ({A = A₁ : Set} ⦃ r : Testable A₁ ⦄ → A₁ → Bool)
 - test : ({A = A₁ : Set} → Testable A₁ → A₁ → Bool)
+- test : ({A = A₁ : Set} ⦃ r : Testable A₁ ⦄ → A₁ → Bool)
+Issue1944-instance.Testable.test is in scope as
+  * a record field Issue1944-instance.Testable.test
+    brought into scope by
+    - the opening of Testable at Issue1944-instance.agda:17.6-14
+    - its definition at Issue1944-instance.agda:15.5-9
+  * a record field Issue1944-instance._.test brought into scope by
+    - the application of Testable at Issue1944-instance.agda:16.6-14
+    - its definition at Issue1944-instance.agda:15.5-9
 when checking that the expression test x has type Bool

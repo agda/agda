@@ -242,7 +242,7 @@ freshAbstractName :: Fixity' -> C.Name -> ScopeM A.Name
 freshAbstractName fx x = do
   i <- fresh
   return $ A.Name
-    { nameId          = i
+    { _nameId         = i
     , nameConcrete    = x
     , nameCanonical   = x
     , nameBindingSite = getRange x
@@ -497,7 +497,7 @@ addNameToInverseScope :: KindOfName -> C.Name -> AbstractName -> ScopeInfo -> Sc
 addNameToInverseScope kind x y s =
   let !y' = anameName y
   in s { _scopeInScope     = Set.insert y' (_scopeInScope s)
-       , _scopeInverseName = HMap.insertWith (<>) (A.nameId $ qnameName y')
+       , _scopeInverseName = HMap.insertWith (<>) (A.nameId y')
                              (NameMapEntry kind (C.QName x :| [])) (_scopeInverseName s)
        }
 
@@ -692,7 +692,7 @@ copyScope oldc new0 s =
         refresh :: A.Name -> WSM A.Name
         refresh x = do
           i <- lift fresh
-          return $ x { A.nameId = i }
+          return $ x { A._nameId = i }
 
         copyRecordConstr :: A.QName -> A.QName -> WSM ()
         copyRecordConstr from to = getRecordConstructor from >>= \case

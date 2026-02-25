@@ -31,14 +31,14 @@ import GHC.Word
 import GHC.Num.Integer
 import System.IO.Unsafe
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Internal as B
-import qualified Data.Text as T
-import qualified Data.Text.Array as T
-import qualified Data.Text.Internal as T
-import qualified Data.Text.Internal.Lazy as TL
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Unsafe as T
+import Data.ByteString qualified as B
+import Data.ByteString.Internal qualified as B
+import Data.Text qualified as T
+import Data.Text.Array qualified as T
+import Data.Text.Internal qualified as T
+import Data.Text.Internal.Lazy qualified as TL
+import Data.Text.Lazy qualified as TL
+import Data.Text.Unsafe qualified as T
 
 import Data.Bits
 

@@ -696,7 +696,7 @@ litqname q =
     , (mem "fixity", litfixity fx)]
   where
     mem = MemberId
-    NameId n (ModuleNameHash m) = nameId $ qnameName q
+    NameId n (ModuleNameHash m) = nameId q
     fx = theFixity $ nameFixity $ qnameName q
 
     litfixity :: Fixity -> Exp

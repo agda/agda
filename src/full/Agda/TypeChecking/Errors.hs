@@ -7,7 +7,6 @@ module Agda.TypeChecking.Errors
   , prettyError
   , prettyShadowedModule
   , tcErrString
-  , tcErrModuleToSource
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
@@ -148,18 +147,6 @@ tcErrString err =
       GenericException msg -> [ msg ]
       IOException _ r e    -> [ prettyShow r, showIOException e ]
       PatternErr{}         -> [ "PatternErr" ]
-
--- | If the 'TCErr' carries a 'TCState', return the 'ModuleToSource'
--- from there, since that's the 'ModuleToSource' we need for
--- highlighting the actual error message.
-tcErrModuleToSource :: TCErr -> Maybe ModuleToSource
-tcErrModuleToSource = \case
-  err@TypeError{}    -> Just $! tcErrState err ^. stModuleToSource
-  IOException st _ _ -> (^. stModuleToSource) <$> st
-
-  GenericException{} -> Nothing
-  ParserError{}      -> Nothing
-  PatternErr{}       -> Nothing
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -792,7 +779,9 @@ instance PrettyTCM TypeError where
       ]
 
     AmbiguousOverloadedProjection ds reason -> do
-      let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
+      let
+        x = headAmbQ ds
+        nameRaw = pretty $ A.nameConcrete $ A.qnameName x
       vcat
         [ fsep
           [ text "Cannot resolve overloaded projection"
@@ -801,9 +790,18 @@ instance PrettyTCM TypeError where
           , pure reason
           ]
         , nest 2 $ text "candidates in scope:"
-        , vcat $ for ds $ \ d -> do
+        , vcat $ for (getAmbiguous ds) $ \ d -> do
             t <- typeOfConst d
             text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
+        -- , vcat . concat $ for (unAmbQ ds) \ d ->
+        --     [ text "-" <+> nest 2 (nameRaw <+> text ":" <+> (prettyTCM =<< typeOfConst (fromAmbQName d))) ]
+        --       ++
+        --     case d of
+        --       AmbQName{} -> []
+        --       AmbAbstractName x -> [ nest 2 $ prettyTCM x ]
+        , case whyInScopeDataFromAmbiguousQName (qnameToConcrete x) ds of
+            Nothing -> empty
+            Just why -> explainWhyInScope why
         ]
 
     AmbiguousConstructor c disambs -> vcat
@@ -1089,7 +1087,7 @@ instance PrettyTCM TypeError where
       ]
       where
         (x, _) = List1.head defs
-        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
+        prDef (x, (A.PatternSynDefn xs p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 
     IllegalInstanceVariableInPatternSynonym x -> fsep $ concat
@@ -1386,8 +1384,8 @@ instance PrettyTCM TypeError where
             pwords "missing"
           CannotQuoteHidden ->
             pwords "implicit"
-          CannotQuoteAmbiguous (List2 x y zs) ->
-            pwords "ambiguous:" ++ [ pretty $ AmbQ $ x :| y : zs ]
+          CannotQuoteAmbiguous xs ->
+            pwords "ambiguous:" ++ [ pretty xs ]
           CannotQuoteExpression e -> case e of
             -- These expression can be quoted:
             A.Def' _ NoSuffix -> __IMPOSSIBLE__

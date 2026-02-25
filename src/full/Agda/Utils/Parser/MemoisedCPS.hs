@@ -37,16 +37,16 @@ import Control.Monad.State.Strict (State, evalState, runState, get, modify')
 
 import Data.Array
 import Data.Hashable
-import qualified Data.HashMap.Strict as Map
+import Data.HashMap.Strict qualified as Map
 import Data.HashMap.Strict (HashMap)
 
 
-import qualified Data.IntMap.Strict as IntMap
+import Data.IntMap.Strict qualified as IntMap
 import Data.IntMap.Strict (IntMap)
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Maybe
 
-import qualified Agda.Utils.Null as Null
+import Agda.Utils.Null qualified as Null
 import Agda.Syntax.Common.Pretty hiding (annotate)
 
 import Agda.Utils.Impossible

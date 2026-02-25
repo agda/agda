@@ -389,7 +389,7 @@ fastCase :: BuiltinEnv -> Case CompiledClauses -> FastCase FastCompiledClauses
 fastCase env (Branches proj con _ lit wild fT _) =
   FBranches
     { fprojPatterns   = proj
-    , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses env . content) (stripSuc con)
+    , fconBranches    = Map.mapKeysMonotonic nameId $ fmap (fastCompiledClauses env . content) (stripSuc con)
     , fsucBranch      = fmap (fastCompiledClauses env . content) $ flip Map.lookup con . conName =<< bSuc env
     , flitBranches    = fmap (fastCompiledClauses env) lit
     , ffallThrough    = Just True == fT
@@ -401,7 +401,7 @@ fastCase env (Branches proj con _ lit wild fT _) =
 
 {-# INLINE lookupCon #-}
 lookupCon :: QName -> FastCase c -> Maybe c
-lookupCon c (FBranches _ cons _ _ _ _) = Map.lookup (nameId $ qnameName c) cons
+lookupCon c (FBranches _ cons _ _ _ _) = Map.lookup (nameId c) cons
 
 -- QName memo -------------------------------------------------------------
 
@@ -412,7 +412,7 @@ memoQName f = unsafePerformIO $ do
   return (unsafePerformIO . f' tbl)
   where
     f' tbl x = do
-      let i = nameId (qnameName x)
+      let i = nameId x
       m <- readIORef tbl
       case Map.lookup i m of
         Just y  -> return y
@@ -850,7 +850,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
     -- Checking for built-in zero and suc
     BuiltinEnv{ bZero = zero, bSuc = suc, bRefl = refl0 } = bEnv
-    conNameId = nameId . qnameName . conName
+    conNameId = nameId . conName
     isZero = case zero of
                Nothing -> const False
                Just z  -> (conNameId z ==) . conNameId

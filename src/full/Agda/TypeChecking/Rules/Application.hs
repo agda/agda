@@ -144,7 +144,7 @@ checkApplication cmp hd args e t =
 
     -- Subcase: ambiguous projection
     A.Proj o p -> do
-      checkProjApp cmp e o (unAmbQ p) hd args t
+      checkProjApp cmp e o p hd args t
 
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
@@ -153,14 +153,14 @@ checkApplication cmp hd args e t =
       checkConstructorApplication cmp e t con hd args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0) -> do
+    A.Con ambC -> do
       let cont c = checkConstructorApplication cmp e t c hd args
-      afterDisambiguation cont $ disambiguateConstructor cs0 args t
+      afterDisambiguation cont $ disambiguateConstructor ambC args t
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
-      (ns, p) <- lookupPatternSyn n
-      p <- return $ setRange (getRange n) $ killRange $ vacuous p   -- Pattern' Void -> Pattern' Expr
+      A.PatternSynDefn ns p0 <- lookupPatternSyn n
+      let p = setRange (getRange n) $ killRange $ vacuous p0   -- Pattern' Void -> Pattern' Expr
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.
@@ -259,7 +259,7 @@ inferApplication exh hd args e | not (defOrVar hd) = do
 inferApplication exh hd args e = postponeInstanceConstraints $ do
   SortKit{..} <- sortKit
   case unScope hd of
-    A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) hd args
+    A.Proj o p | isAmbiguous p -> inferProjApp e o p hd args
     A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
     _ -> do
       (f, t0) <- inferHead hd
@@ -1098,10 +1098,11 @@ decideOn c = do
   return $ Right c
 
 -- | Returns an unblocking action in case of failure.
-disambiguateConstructor :: List1 QName -> A.Args -> Type -> DisambiguateConstructor
-disambiguateConstructor cs0 args t = do
-  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
+disambiguateConstructor :: AmbiguousQName -> A.Args -> Type -> DisambiguateConstructor
+disambiguateConstructor ambC args t = do
+  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow ambC
   reportSDoc "tc.check.term.con" 40 $ vcat $ "Arguments:" : map (nest 2 . prettyTCM) args
+  let cs0 = getAmbiguous ambC
 
   -- Get the datatypes of the various constructors
   let getData Constructor{conData = d} = d
@@ -1288,7 +1289,7 @@ checkUnambiguousProjectionApplication cmp e t x o hd args = do
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-inferProjApp :: A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.Args -> TCM (Term, Type)
+inferProjApp :: A.Expr -> ProjOrigin -> AmbiguousQName -> A.Expr -> A.Args -> TCM (Term, Type)
 inferProjApp e o ds hd args0 = do
   (v, t, _) <- inferOrCheckProjApp e o ds hd args0 Nothing
   return (v, t)
@@ -1296,7 +1297,7 @@ inferProjApp e o ds hd args0 = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.Args -> Type -> TCM Term
+checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> AmbiguousQName -> A.Expr -> A.Args -> Type -> TCM Term
 checkProjApp cmp e o ds hd args0 t = do
   (v, ti, targetCheck) <- inferOrCheckProjApp e o ds hd args0 (Just (cmp, t))
   coerce' cmp targetCheck v ti t
@@ -1308,7 +1309,7 @@ checkProjAppToKnownPrincipalArg ::
   Comparison
   -> A.Expr
   -> ProjOrigin
-  -> List1 QName
+  -> AmbiguousQName
   -> A.Expr
   -> A.Args
   -> Type
@@ -1331,7 +1332,7 @@ inferOrCheckProjApp
      -- ^ The whole expression which constitutes the application.
   -> ProjOrigin
      -- ^ The origin of the projection involved in this projection application.
-  -> List1 QName
+  -> AmbiguousQName
      -- ^ The projection name (potentially ambiguous).
   -> A.Expr
      -- ^ The projection as expression.
@@ -1380,7 +1381,7 @@ inferOrCheckProjApp e o ds hd args mt = do
       ifBlocked (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
       caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds Nothing ta)
         \ (_q, _pars, RecordData{ _recFields = fs }) -> do
-          case forMaybe fs $ \ f -> Fold.find (unDom f ==) ds of
+          case forMaybe fs $ \ f -> Fold.find (unDom f ==) (getAmbiguous ds) of
             [] -> refuseProjNoMatching ds
             [d] -> do
               storeDisambiguatedProjection d
@@ -1405,7 +1406,7 @@ inferOrCheckProjAppToKnownPrincipalArg
      -- ^ The whole expression which constitutes the application.
   -> ProjOrigin
      -- ^ The origin of the projection involved in this projection application.
-  -> List1 QName
+  -> AmbiguousQName
      -- ^ The projection name (potentially ambiguous).
   -> A.Expr
      -- ^ The projection (as application head).
@@ -1498,7 +1499,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
             guard =<< do isNothing <$> do lift $ checkModality' d def
             return (orig, (d, (pars, (dom, u, tb))))
 
-      cands <- List1.groupOn fst . List1.catMaybes <$> mapM (runMaybeT . try) ds
+      cands <- List1.groupOn fst . List1.catMaybes <$> mapM (runMaybeT . try) (getAmbiguous ds)
       case cands of
         [] -> refuseProjNoMatching ds
         (_:_:_) -> refuseProj ds $ fwords "several matching candidates can be applied."
@@ -1536,13 +1537,13 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
               return (v, tc, NotCheckedTarget)
 
 -- | Throw 'AmbiguousOverloadedProjection' with additional explanation.
-refuseProj :: List1 QName -> TCM Doc -> TCM a
+refuseProj :: AmbiguousQName -> TCM Doc -> TCM a
 refuseProj ds reason = typeError . AmbiguousOverloadedProjection ds =<< reason
 
-refuseProjNotApplied, refuseProjNoMatching :: List1 QName -> TCM a
+refuseProjNotApplied, refuseProjNoMatching :: AmbiguousQName -> TCM a
 refuseProjNotApplied    ds = refuseProj ds $ fwords "it is not applied to a visible argument"
 refuseProjNoMatching    ds = refuseProj ds $ fwords "no matching candidate found"
-refuseProjNotRecordType :: List1 QName -> Maybe Term -> Type -> TCM a
+refuseProjNotRecordType :: AmbiguousQName -> Maybe Term -> Type -> TCM a
 refuseProjNotRecordType ds pValue pType = do
   let dType = prettyTCM pType
   let dValue = caseMaybe pValue (return empty) prettyTCM

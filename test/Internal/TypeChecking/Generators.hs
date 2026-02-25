@@ -14,7 +14,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Fixity
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (ConName)
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Free
@@ -151,7 +151,7 @@ makeConfiguration ds cs ps vs = TermConf
       n <- tick
       return $ QName { qnameModule = MName []
                      , qnameName   = Name
-                        { nameId          = NameId n (ModuleNameHash 1)
+                        { _nameId         = NameId n (ModuleNameHash 1)
                         , nameConcrete    = C.simpleName s
                         , nameCanonical   = C.simpleName s
                         , nameBindingSite = noRange

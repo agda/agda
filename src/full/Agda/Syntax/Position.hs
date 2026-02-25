@@ -100,11 +100,12 @@ import Agda.Utils.FileName
 import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import Agda.Utils.List2 (List2)
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
+import Agda.Utils.Map1 (Map1)
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Set1 (Set1)
-import qualified Agda.Utils.Set1 as Set1
+import Agda.Utils.Set1 qualified as Set1
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 import Agda.Utils.Tuple (sortPair)
 import Agda.Utils.Word (packW64, splitW64)
@@ -560,6 +561,7 @@ instance {-# OVERLAPPING #-} KillRange String where
 
 instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a]
 instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Map k a)
+instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Map1 k a)
 
 instance KillRange a => KillRange (Drop a)
 instance KillRange a => KillRange (List1 a)

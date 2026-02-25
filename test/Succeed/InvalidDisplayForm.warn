@@ -1,3 +1,4 @@
+
 InvalidDisplayForm.agda:8.1-22: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for R because it is recursive
 when checking the pragma DISPLAY R = R
@@ -112,7 +113,7 @@ when checking the pragma DISPLAY L4 (Set = Set) = Set
 
 InvalidDisplayForm.agda:50.1-37: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for L5 because its left-hand side
-contains an ambiguous constructor: InvalidDisplayForm.D.c,
+contains an ambiguous constructor: InvalidDisplayForm.D.c;
 InvalidDisplayForm.E.c
 when checking the pragma DISPLAY L5 p = Set
 
@@ -264,7 +265,7 @@ when checking the pragma DISPLAY L4 (Set = Set) = Set
 
 InvalidDisplayForm.agda:50.1-37: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for L5 because its left-hand side
-contains an ambiguous constructor: InvalidDisplayForm.D.c,
+contains an ambiguous constructor: InvalidDisplayForm.D.c;
 InvalidDisplayForm.E.c
 when checking the pragma DISPLAY L5 p = Set
 

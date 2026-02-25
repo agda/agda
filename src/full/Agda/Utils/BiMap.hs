@@ -15,9 +15,9 @@ import Control.Monad.Identity
 import Control.Monad.State
 
 import Data.Function (on)
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Maybe
 import Data.Ord
 import Data.Tuple

@@ -1038,9 +1038,9 @@ instance NameToExpr ResolvedName where
   nameToExpr = \case
     VarName x _          -> Var x
     DefinedName _ x s    -> withSuffix s $ nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
-    FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
-    ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
-    PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
+    FieldName xs         -> Proj ProjSystem . ambigName $ xs
+    ConstructorName _ xs -> Con . ambigName $ xs
+    PatternSynResName xs -> PatternSyn . ambigName $ xs
     UnknownName          -> __IMPOSSIBLE__
     where
       withSuffix NoSuffix   e       = e
@@ -1054,7 +1054,14 @@ mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
 mkLet _ []     e = e
 mkLet i (d:ds) e = Let i (d :| ds) e
 
-type PatternSynDefn = ([WithHiding Name], Pattern' Void)
+-- | The definition of a pattern synonym (excluding its name).
+data PatternSynDefn = PatternSynDefn
+  { patSynParams :: ![WithHiding Name]
+      -- ^ The parameters of the pattern synonym.
+  , patSynPat    :: !(Pattern' Void)
+      -- ^ The definiting pattern of the pattern synonym.
+  } deriving (Show, Generic)
+
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [WithHiding Name] -> Expr -> Expr
@@ -1269,3 +1276,10 @@ rhsSpine = \case
 whereDeclarationsSpine :: WhereDeclarations -> WhereDeclarationsSpine
 whereDeclarationsSpine (WhereDecls _ _ md) =
   WhereDeclsS (fmap declarationSpine md)
+
+-- Instances
+
+instance KillRange PatternSynDefn where
+  killRange (PatternSynDefn a b) =  killRangeN PatternSynDefn a b
+
+instance NFData PatternSynDefn

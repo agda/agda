@@ -26,7 +26,7 @@ import Data.Function (on)
 import Data.Hashable       ( Hashable )
 import Data.Maybe          ( catMaybes, listToMaybe )
 import Data.Text           ( Text )
-import qualified Data.Text as Text
+import Data.Text qualified as Text
 
 import System.Directory
 import System.FilePath

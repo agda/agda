@@ -464,7 +464,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         ]
       case namedArg q of
         ProjP o d -> case A.isProjP p of
-          Just (o', AmbQ ds) -> do
+          Just (o', ambP) -> do
             -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
             when (o /= o') $ setCurrentRange p0 $ addContext delta do
               reportSLn "tc.with.strip" 90 $ "p0 = " ++ show p0
@@ -474,7 +474,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- We disambiguate the projection in the with clause
             -- to the projection in the parent clause.
             d  <- liftTCM $ getOriginalProjection d
-            found <- existsM ds $ \ d' -> liftTCM $ (Just d ==) . fmap projOrig <$> isProjection d'
+            found <- existsM (getAmbiguous ambP) $ \ d' -> liftTCM $ (Just d ==) . fmap projOrig <$> isProjection d'
             if not found then mismatch else do
               (self1, t1, ps) <- liftTCM $ do
                 t <- reduce t
@@ -531,9 +531,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
               case appView e of
                 -- If dot-pattern is an application of the constructor, try to preserve the
                 -- arguments.
-                Application (A.Con (A.AmbQ cs')) es -> do
-                  cs' <- liftTCM $ List1.rights <$> mapM getConForm cs'
-                  unless (c `elem` cs') mismatch
+                Application (A.Con cs') es -> do
+                  unlessM (liftTCM $ c `elemConForms` cs') mismatch
                   return $ (map . fmap . fmap) (A.DotP r) es
                 _  -> return $ map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
@@ -556,12 +555,11 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             let ps' = map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
 
-          A.ConP _ (A.AmbQ cs') ps' -> do
+          A.ConP _ ambC ps' -> do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
             -- Andreas, 2017-08-13, herein, ignore abstract constructors.
-            cs' <- liftTCM $ List1.rights <$> mapM getConForm cs'
-            unless (c `elem` cs') mismatch
+            unlessM (liftTCM $ c `elemConForms` ambC) mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'
 
@@ -658,6 +656,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
           -- Keep going
           strip self' t' psi (qs' ++ qs)
+
+-- | Is the first name equal to the 'constructorForm' of any disambiguation of the second name?
+elemConForms :: ConHead -> AmbiguousQName -> TCM Bool
+elemConForms c cs =
+  existsM (getAmbiguous cs) \ c' ->
+    getConForm c' <&> \case
+      Left{}   -> False
+      Right c' -> c == c'
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.

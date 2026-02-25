@@ -501,29 +501,7 @@ lensOpenedModules f s = f (openedModules s) <&> \ !x -> s { openedModules = x }
 -- - Where does the name come from? (to explain to user)
 ------------------------------------------------------------------------
 
--- | For the sake of parsing left-hand sides, we distinguish
---   constructor and record field names from defined names.
-
--- Note: order does matter in this enumeration, see 'isDefName'.
-data KindOfName
-  = ConName                  -- ^ Constructor name ('Inductive' or don't know).
-  | CoConName                -- ^ Constructor name (definitely 'CoInductive').
-  | FldName                  -- ^ Record field name.
-  | PatternSynName           -- ^ Name of a pattern synonym.
-  | GeneralizeName           -- ^ Name to be generalized
-  | DisallowedGeneralizeName -- ^ Generalizable variable from a let open
-  | MacroName                -- ^ Name of a macro
-  | QuotableName             -- ^ A name that can only be quoted.
-  -- Previous category @DefName@:
-  -- (Refined in a flat manner as Enum and Bounded are not hereditary.)
-  | DataName                 -- ^ Name of a @data@.
-  | RecName                  -- ^ Name of a @record@.
-  | FunName                  -- ^ Name of a defined function.
-  | AxiomName                -- ^ Name of a @postulate@.
-  | PrimName                 -- ^ Name of a @primitive@.
-  | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
-  -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
-  deriving (Eq, Ord, Show, Enum, Bounded, Generic)
+-- Agda.Syntax.Abstract.Name.KindOfName
 
 -- | All kinds of regular definitions.
 defNameKinds :: [KindOfName]
@@ -595,97 +573,6 @@ data WithKind a = WithKind
   , kindedThing :: a
   } deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
--- | Where does a name come from?
---
---   This information is solely for reporting to the user,
---   see 'Agda.Interaction.InteractionTop.whyInScope'.
-data WhyInScope
-  = Defined
-    -- ^ Defined in this module.
-  | Opened C.QName WhyInScope
-    -- ^ Imported from another module.
-  | Applied C.QName WhyInScope
-    -- ^ Imported by a module application.
-  deriving (Show, Generic)
-
--- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
-data AbstractName = AbsName
-  { anameName    :: A.QName
-    -- ^ The resolved qualified name.
-  , anameKind    :: KindOfName
-    -- ^ The kind (definition, constructor, record field etc.).
-  , anameLineage :: WhyInScope
-    -- ^ Explanation where this name came from.
-  , anameMetadata :: NameMetadata
-    -- ^ Additional information needed during scope checking. Currently used
-    --   for generalized data/record params.
-  }
-  deriving (Show, Generic)
-
-instance Eq AbstractName where
-  n == n' = A.nameId (qnameName (anameName n)) ==
-            A.nameId (qnameName (anameName n'))
-
-instance Ord AbstractName where
-  compare n n' =
-    compare (A.nameId (qnameName (anameName n )))
-            (A.nameId (qnameName (anameName n')))
-
-instance Hashable AbstractName where
-  hashWithSalt salt n =
-    hashWithSalt salt (A.nameId (qnameName (anameName n)))
-
-data NameMetadata = NameMetadata
-  { nameDataGeneralizedVars :: Map A.QName A.Name
-  , nameDataIsInstance      :: IsInstance
-  }
-  deriving (Show, Generic)
-
-instance Null NameMetadata where
-  empty = NameMetadata empty empty
-  null (NameMetadata m i) = null m && null i
-
-noMetadata :: NameMetadata
-noMetadata = empty
-
-generalizedVarsMetadata :: Map A.QName A.Name -> NameMetadata
-generalizedVarsMetadata m = NameMetadata m empty
-
-instanceMetadata :: IsInstance -> NameMetadata
-instanceMetadata i = NameMetadata empty i
-
-instance IsInstanceDef NameMetadata where
-  isInstanceDef = isInstanceDef . nameDataIsInstance
-
-instance IsInstanceDef AbstractName where
-  isInstanceDef = isInstanceDef . anameMetadata
-
--- | A decoration of abstract syntax module names.
-data AbstractModule = AbsModule
-  { amodName    :: A.ModuleName
-    -- ^ The resolved module name.
-  , amodLineage :: WhyInScope
-    -- ^ Explanation where this name came from.
-  }
-  deriving (Show, Generic)
-
-instance LensFixity AbstractName where
-  lensFixity = lensAnameName . lensFixity
-
--- | Van Laarhoven lens on 'anameName'.
-lensAnameName :: Lens' AbstractName A.QName
-lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
-
-instance Eq AbstractModule where
-  (==) = (==) `on` amodName
-
-instance Ord AbstractModule where
-  compare = compare `on` amodName
-
--- | Van Laarhoven lens on 'amodName'.
-lensAmodName :: Lens' AbstractModule A.ModuleName
-lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
-
 
 data ResolvedName
   = -- | Local variable bound by λ, Π, module telescope, pattern, @let@.
@@ -720,10 +607,6 @@ instance Pretty ResolvedName where
     ConstructorName _ xs -> "constructor" <+> pretty xs
     PatternSynResName x  -> "pattern"     <+> pretty x
     UnknownName          -> "<unknown name>"
-
-instance Pretty A.Suffix where
-  pretty NoSuffix   = mempty
-  pretty (Suffix i) = text (show i)
 
 -- | Why is a resolved name ambiguous?  What did it resolve to?
 --
@@ -763,6 +646,11 @@ data WhyInScopeData
         -- ^ The defined names that @x@ could denote.
       [AbstractModule]
         -- ^ The modules that @x@ could denote.
+
+whyInScopeDataFromAmbiguousQName :: C.QName -> AmbiguousQName -> Maybe WhyInScopeData
+whyInScopeDataFromAmbiguousQName q x = case ambAbstractNames x of
+  [] -> Nothing
+  xs -> Just $ WhyInScopeData q empty Nothing xs empty
 
 whyInScopeDataFromAbstractName :: C.QName -> AbstractName -> WhyInScopeData
 whyInScopeDataFromAbstractName q x = WhyInScopeData q empty Nothing [x] empty
@@ -1498,7 +1386,7 @@ inverseScopeLookupName' amb q scope =
 inverseScopeLookupName'' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> Maybe NameMapEntry
 inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup ] $ do
 
-  NameMapEntry k xs <- HMap.lookup (A.nameId $ qnameName q) (scope ^. scopeInverseName)
+  NameMapEntry k xs <- HMap.lookup (A.nameId q) (scope ^. scopeInverseName)
 
   !xs <- List1.nonEmpty $ List.sortOn (length . C.qnameParts &!& Down . getRange) $ do
     -- List comprehension written in monadic form
@@ -1608,7 +1496,7 @@ recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty)
           let !qualx = applyQuals (C.QName x) quals
           when (not (internalName qualx)) do
             forM_ ys \y -> do
-              let nid   = A.nameId $ qnameName $ anameName y
+              let nid   = A.nameId y
               let entry = NameMapEntry (anameKind y) (qualx :| [])
               updNames qualx nid entry
 
@@ -1679,12 +1567,6 @@ instance SetBindingSite AbstractModule where
 -- * (Debug) printing
 ------------------------------------------------------------------------
 
-instance Pretty AbstractName where
-  pretty = pretty . anameName
-
-instance Pretty AbstractModule where
-  pretty = pretty . amodName
-
 instance Pretty NameSpaceId where
   pretty = text . \case
     PublicNS        -> "public"
@@ -1748,27 +1630,16 @@ instance Pretty ScopeInfo where
 ------------------------------------------------------------------------
 
 instance KillRange ScopeInfo where
-  killRange m = m
+  killRange = id
 
-instance HasRange AbstractName where
-  getRange = getRange . anameName
-
-instance SetRange AbstractName where
-  setRange r x = x { anameName = setRange r $ anameName x }
-
-instance NFData Scope
-instance NFData DataOrRecordModule
-instance NFData NameSpaceId
-instance NFData ScopeInfo
-instance NFData KindOfName
-instance NFData NameMapEntry
-instance NFData BindingSource
-instance NFData LocalVar
-instance NFData NameSpace
-instance NFData NameOrModule
-instance NFData WhyInScope
-instance NFData AbstractName
-instance NFData NameMetadata
-instance NFData AbstractModule
-instance NFData ResolvedName
 instance NFData AmbiguousNameReason
+instance NFData BindingSource
+instance NFData DataOrRecordModule
+instance NFData LocalVar
+instance NFData NameMapEntry
+instance NFData NameOrModule
+instance NFData NameSpace
+instance NFData NameSpaceId
+instance NFData ResolvedName
+instance NFData Scope
+instance NFData ScopeInfo

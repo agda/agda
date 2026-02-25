@@ -27,11 +27,11 @@ import Data.Vector.Hashtables
 import Data.Vector.Hashtables.Internal
 import Data.Vector.Hashtables.Internal.Mask
 
-import qualified Data.Primitive.PrimArray as A
+import Data.Primitive.PrimArray qualified as A
 
 import Data.Vector.Generic.Mutable (MVector)
-import qualified Data.Vector.Mutable as VM
-import qualified Data.Vector.Unboxed.Mutable as VUM
+import Data.Vector.Mutable qualified as VM
+import Data.Vector.Unboxed.Mutable qualified as VUM
 
 import Agda.Utils.Monad
 

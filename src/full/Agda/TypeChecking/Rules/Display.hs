@@ -112,10 +112,10 @@ patternToTerm p ret =
   where
     fail = throwError . ("its left-hand side contains " ++)
     failP s = fail . (s ++) . (": " ++) . render =<< prettyA p
-    ambigErr thing (AmbQ xs) =
+    ambigErr thing x =
       fail . render =<< do
         text ("an ambiguous " ++ thing ++ ":") <?>
-          fsep (punctuate comma (fmap pretty xs))
+          fsep (punctuate ";" (fmap pretty (getAmbiguous x)))
 
 bindWild :: M a -> M a
 bindWild ret = do

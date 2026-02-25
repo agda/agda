@@ -1741,7 +1741,7 @@ disambiguateProjection
   -> TCM (QName, Bool, QName, Arg Type, ArgInfo)
        -- ^ @Bool@ signifies whether copattern matching is allowed at
        --   the inferred record type.
-disambiguateProjection h ambD@(AmbQ ds) b = do
+disambiguateProjection h ambD b = do
   -- If the target is not a record type, that's an error.
   -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
   caseEitherM (liftTCM $ tryRecordType $ unArg b) notRecord
@@ -1766,6 +1766,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             (_    , (d,_) : (d1,_) : disambs) ->
               typeError $ AmbiguousProjection d $ d1 :| map fst disambs
   where
+    ds = getAmbiguous ambD
     tryDisambiguate constraintsOk fs r vs comatching failure = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
@@ -1860,7 +1861,7 @@ disambiguateConstructor
   -> QName             -- ^ Name of the datatype.
   -> Args              -- ^ Parameters of the datatype
   -> TCM (ConHead, Type)
-disambiguateConstructor ambC@(AmbQ cs) d pars = do
+disambiguateConstructor ambC d pars = do
   d <- canonicalName d
   cons <- theDef <$> getConstInfo d >>= \case
     def@Datatype{} -> return $ dataCons def
@@ -1881,6 +1882,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
           AmbiguousConstructor c $ fmap (conName . snd3) $ List2.concat21 $ List2 d0 d1 ds
 
   where
+    cs = getAmbiguous ambC
     tryDisambiguate
       :: Bool     -- May we constrain/solve metas to arrive at unique disambiguation?
       -> QName    -- Data/record type.

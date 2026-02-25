@@ -2,8 +2,6 @@
 
 module Agda.TypeChecking.Rules.Application where
 
-import Data.List.NonEmpty (NonEmpty)
-
 import Agda.Syntax.Common (NamedArg, ProjOrigin)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
@@ -35,7 +33,7 @@ checkProjAppToKnownPrincipalArg ::
      Comparison
   -> A.Expr
   -> ProjOrigin
-  -> NonEmpty QName
+  -> AmbiguousQName
   -> A.Expr
   -> A.Args
   -> Type
