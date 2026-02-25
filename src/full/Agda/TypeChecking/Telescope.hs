@@ -11,7 +11,7 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid
+-- import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty ( Pretty )
@@ -233,7 +233,7 @@ varDependencies tel = addLocks . allDependencies tel
                   -- Ignore all deps outside the telescope
                   deps
                 (ti:telRev) ->
-                  loop (VarSet.insert ix deps) telRev ix (VarSet.union (allFreeVars ti) work)
+                  loop (VarSet.insert ix deps) telRev ix (VarSet.union (freeVarSet ti) work)
 
 
 
@@ -257,7 +257,7 @@ varDependents tel vs =
       case tel of
         [] -> deps
         (ti:tel) ->
-          if getAny $ runFree (Any . (`VarSet.member` work)) IgnoreNot ti then
+          if anyFreeVar (`VarSet.member` work) ti then
             loop (VarSet.insert ix deps) tel (ix - 1) (VarSet.insert ix work)
           else
             loop deps tel (ix - 1) work
@@ -314,12 +314,9 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     checkDependencies soFar []     = True
     checkDependencies soFar (j:js) = ok && checkDependencies (IntSet.insert j soFar) js
       where
-        t   = indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)  -- ts0[n-1-j]
-        -- Skip the construction of intermediate @IntSet@s in the check @ok@.
-        -- ok  = (allFreeVars t `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ])
-        --       `IntSet.isSubsetOf` soFar
-        good i = All $ (i < n) `implies` (i `IntSet.member` soFar) where implies = (<=)
-        ok = getAll $ runFree good IgnoreNot t
+        t = indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)  -- ts0[n-1-j]
+        good i = (i < n) `implies` (i `IntSet.member` soFar) where implies = (<=)
+        ok = allFreeVar good t
 
     ok    = all (< n) is && checkDependencies IntSet.empty is
 
@@ -357,7 +354,7 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, reverseP perm)
     -- Jesper, 2019-12-31: Previous implementation that does some
     -- unneccessary reordering but is otherwise correct (keep!)
     -- -- is0 is the part of Γ that is needed to type u
-    -- is0   = varDependencies tel $ allFreeVars u
+    -- is0   = varDependencies tel $ freeVarSet u
     -- -- is1 is the rest of Γ (minus the variable we are instantiating)
     -- is1   = IntSet.delete j $
     --           IntSet.fromAscList [ 0 .. n-1 ] `IntSet.difference` is0
@@ -368,7 +365,7 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, reverseP perm)
     -- ok    = not $ j `IntSet.member` is0
 
     -- is0 is the part of Γ that is needed to type u
-    is0   = varDependencies tel $ allFreeVars u
+    is0   = varDependencies tel $ freeVarSet u
     -- is1 is the part of Γ that depends on variable j
     is1   = varDependents tel $ singleton j
     -- lasti is the last (rightmost) variable of is0

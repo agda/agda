@@ -984,7 +984,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- even though the lhs is not a pattern, we can prune the y from _2
 
       let
-                vars              = freeVars args
+                vars              = freeVarMap args
                 relevantVL        = filterVarMapToList isRelevant vars
                 shapeIrrelevantVL = filterVarMapToList isShapeIrrelevant vars
                 irrelevantVL      = filterVarMapToList (liftM2 (&&) isIrrelevant isUnguarded) vars
@@ -1038,7 +1038,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- free in v
       -- Ulf, 2011-09-22: we need to respect irrelevant vars as well, otherwise
       -- we'll build solutions where the irrelevant terms are not valid
-      let fvs = allFreeVars v
+      let fvs = freeVarSet v
       reportSDoc "tc.meta.assign" 20 $
         "fvars rhs:" <+> sep (map (text . show) $ VarSet.toAscList fvs)
 
@@ -1084,7 +1084,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
           -- Check ids is time respecting.
           () <- do
-            let idvars = map (second allFreeVars) ids
+            let idvars = map (second freeVarSet) ids
             -- earlierThan α v := v "arrives" before α
             let earlierThan l j = j > l
             TelV tel' _ <- telViewUpToPath (length args) t
@@ -1854,7 +1854,7 @@ tryAddBoundary dir x iid args v target = do
   let
     t = jMetaType $ mvJudgement mvar
     n = length args
-    rhsv = allFreeVars v
+    rhsv = freeVarSet v
 
     allVars :: SubstCand -> Bool
     allVars sub = rhsv `VarSet.isSubsetOf` VarSet.fromList (map fst sub)

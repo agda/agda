@@ -79,6 +79,7 @@ instance Monoid Occurs where
 -- Andreas, 2019-07-10: this free variable computation should be rewritten
 -- in the style of TypeChecking.Free.Lazy.
 -- https://github.com/agda/agda/commit/03eb3945114a4ccdb449f22d69db8d6eaa4699b8#commitcomment-34249120
+-- András, 2026-02-13: now called TypeChecking.Free.Generic
 
 class HasFree a where
   freeVars :: a -> IntMap Occurs

@@ -306,11 +306,12 @@ castConstraintToCurrentContext' cl = do
       -- We are always fine to weaken.
       | n >= 0 = pure $ raise n c
       | otherwise =
-        case VarSet.lookupMin $ allFreeVars c of
+        case VarSet.lookupMin $ freeVarSet c of
           Nothing -> pure $ raise n c
           Just k | -n < k -> pure $ raise n c
                  | otherwise -> mzero
 
+{-# SPECIALIZE allFreeVarIgnoreAll :: (Int -> Bool) -> TCM.Constraint -> Bool #-}
 
 -- | A hazardous hack, may the Gods have mercy on us.
 --
@@ -340,7 +341,8 @@ castConstraintToCurrentContext c = do
             -- Check that all the free variables of the constraint are contained in
             -- coveredVars.
             -- We ignore the free variables occurring in sorts.
-            guard $ getAll $ runFree (All . (`VarSet.member` coveredVars)) IgnoreAll (clValue cl)
+            -- guard $ getAll $ runFree (All . (`VarSet.member` coveredVars)) IgnoreAll (clValue cl)
+            guard $ allFreeVarIgnoreAll (`VarSet.member` coveredVars) (clValue cl)
             -- Turn cand into a substitution.
             -- Since we ignored the free variables in sorts, we better patch up
             -- the substitution with some dummy term rather than __IMPOSSIBLE__.

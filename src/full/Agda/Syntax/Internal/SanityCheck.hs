@@ -18,7 +18,7 @@ import qualified Agda.Utils.VarSet as VarSet
 
 sanityCheckVars :: (Pretty a, Free a) => Telescope -> a -> TCM ()
 sanityCheckVars tel v =
-  case filter bad (VarSet.toAscList $ allFreeVars v) of
+  case filter bad (VarSet.toAscList $ freeVarSet v) of
     [] -> return ()
     xs -> do
       alwaysReportSDoc "impossible" 1 . return $

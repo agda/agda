@@ -7,7 +7,6 @@
 {-# LANGUAGE RoleAnnotations      #-}
 
 {-# OPTIONS_GHC -Wunused-imports #-}
--- {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-
 András, 2023-10-2:

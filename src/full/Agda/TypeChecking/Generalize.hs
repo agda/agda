@@ -540,7 +540,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- and we need to get rid of the dependency on Δ.
 
         -- We can only do this if A does not depend on Δ, so check this first.
-        case VarSet.minView (allFreeVars _A) of
+        case VarSet.minView (freeVarSet _A) of
           Just (j, _) | j < i -> typeError . GeneralizationPrepruneErrorCyclicDependencies =<< buildClosure x
           _                   -> return ()
 

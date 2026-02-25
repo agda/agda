@@ -1,9 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications    #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -ddump-to-file #-}
 
 -- | This module contains the definition of hereditary substitution
 -- and application operating on internal syntax which is in β-normal
@@ -1736,21 +1733,21 @@ piSortAbs
 piSortAbs a s1 NoAbs{} _ _ = __IMPOSSIBLE__
 piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
   (Right (SmallSort u1) , Right (SmallSort u2)) -> case occ of
-    StronglyRigid -> Right $ Inf (funUniv u1 u2) 0
-    Unguarded     -> Right $ Inf (funUniv u1 u2) 0
+    StronglyRigid -> let !u = funUniv u1 u2 in Right (Inf u 0)
+    Unguarded     -> let !u = funUniv u1 u2 in Right (Inf u 0)
     -- Jesper, 2026-02-17: A weakly rigid occurrence might disappear after
     -- normalisation (see #8393) so we refrain from making a final verdict here.
     -- unless we are sure further normalisation will not remove the dependency
     WeaklyRigid -> case norm of
-      CodomainNormalised -> Right $ Inf (funUniv u1 u2) 0
+      CodomainNormalised -> let !u = funUniv u1 u2 in Right (Inf u 0)
       CodomainNotNormalised -> Left alwaysUnblock
-    Flexible ms -> Left $ metaSetToBlocker ms
-  (Right (LargeSort u1 n) , Right (SmallSort u2)) -> Right $ Inf (funUniv u1 u2) n
+    Flexible ms -> Left $! metaSetToBlocker ms
+  (Right (LargeSort u1 n) , Right (SmallSort u2)) -> let !u = funUniv u1 u2 in Right (Inf u n)
   -- large sorts cannot depend on variables
-  (_                      , Right LargeSort{}   ) -> __IMPOSSIBLE__
-  (Left blocker          , Right _              ) -> Left blocker
-  (Right _               , Left blocker         ) -> Left blocker
-  (Left blocker1         , Left blocker2        ) -> Left $ unblockOnBoth blocker1 blocker2
+  (_             , Right LargeSort{}) -> __IMPOSSIBLE__
+  (Left blocker  , Right _          ) -> Left blocker
+  (Right _       , Left blocker     ) -> Left blocker
+  (Left blocker1 , Left blocker2    ) -> Left $! unblockOnBoth blocker1 blocker2
 
 -- Andreas, 2019-06-20
 -- KEEP the following commented out code for the sake of the discussion on irrelevance.

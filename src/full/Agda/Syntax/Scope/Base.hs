@@ -1,6 +1,3 @@
--- {-# OPTIONS_GHC -Wunused-imports #-}
-
--- {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}

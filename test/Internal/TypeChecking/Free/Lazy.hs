@@ -1,7 +1,7 @@
 
 module Internal.TypeChecking.Free.Lazy () where
 
-import Agda.TypeChecking.Free.Lazy
+import Agda.TypeChecking.Free
 
 import qualified Data.HashSet as HashSet
 

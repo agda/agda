@@ -26,7 +26,6 @@ module Agda.TypeChecking.Reduce
 
 import Control.Monad.Except ( MonadError(..) )
 
-import qualified Data.IntMap as IntMap
 import Data.List ( intercalate )
 import Data.Maybe
 import Data.Map (Map)
@@ -47,14 +46,12 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
-import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Reduce
+import Agda.TypeChecking.Free.Base
+import {-# SOURCE #-} Agda.TypeChecking.Free.Reduce (forceNoAbsSort)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract
-
-import Agda.TypeChecking.Reduce.Monad
 
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
@@ -69,7 +66,6 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -441,7 +437,7 @@ instance Reduce Sort where
         -- proper Abs we call piSortAbs directly.
         PiSort a s1 s2Abs -> do
           let dom = El s1 <$> a
-          forceNoAbs dom s2Abs >>= \case
+          forceNoAbsSort dom s2Abs >>= \case
             -- If the codomain sort is non-dependent, we reduce to a FunSort
             Right s2 -> reduceB' $ FunSort s1 s2
             Left (s2Abs, flexRig) -> do
@@ -461,10 +457,10 @@ instance Reduce Sort where
               case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
                 -- We already have all blocking information from reduction,
                 -- so we discard the blocking tag from piSortAbs.
-                Left _ -> return $ blockedOn block $ PiSort a s1 s2Abs
+                Left _ -> return $! blockedOn block $ PiSort a s1 s2Abs
                 -- The only sort that piSortAbs can reduce is Inf,
                 -- so there is no need to try reducing it further.
-                Right s -> return $ notBlocked s
+                Right s -> return $! notBlocked s
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
           NotBlocked _ (s1',s2') -> funSortM' s1' s2' >>= \case

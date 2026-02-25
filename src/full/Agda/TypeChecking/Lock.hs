@@ -73,7 +73,7 @@ checkLockedVars t ty lk lk_ty = do
 
   cxt <- getContext
 
-  let fv = freeVarsIgnore IgnoreInAnnotations (t,ty)
+  let fv = freeVarMapIgnoreAnn (t,ty)
   let
     rigid = rigidVars fv
     -- flexible = IMap.keysSet $ flexibleVars fv
@@ -108,7 +108,7 @@ checkLockedVars t ty lk lk_ty = do
 getLockVar :: Term -> TCMT IO (Maybe Int)
 getLockVar lk = do
   let
-    fv = freeVarsIgnore IgnoreInAnnotations lk
+    fv = freeVarMapIgnoreAnn lk
     flex = flexibleVars fv
 
     isLock i = fmap (getLock . domInfo) (domOfBV i) <&> \case

@@ -7,9 +7,8 @@ module Internal.TypeChecking.Free ( tests ) where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free (freeIn, freeVars)
-import Agda.TypeChecking.Free.Lazy
-
+import Agda.TypeChecking.Free.Base
+import Agda.TypeChecking.Free
 import Agda.Utils.Singleton
 
 import qualified Data.IntMap as Map

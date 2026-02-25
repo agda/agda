@@ -309,7 +309,7 @@ instance Match NLPat Term where
                 perm = Perm n $ reverse vars
                 tel :: Telescope
                 tel = permuteContext perm k
-            ok <- addContext k $ reallyFree badVars v
+            ok <- addContext k $ liftReduce $ reallyFree badVars v
             case ok of
               Left b         -> block b
               Right Nothing  -> no ""

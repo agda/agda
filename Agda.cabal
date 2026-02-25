@@ -736,7 +736,8 @@ library
       Agda.TypeChecking.EtaContract
       Agda.TypeChecking.Forcing
       Agda.TypeChecking.Free
-      Agda.TypeChecking.Free.Lazy
+      Agda.TypeChecking.Free.Base
+      Agda.TypeChecking.Free.Generic
       Agda.TypeChecking.Free.Precompute
       Agda.TypeChecking.Free.Reduce
       Agda.TypeChecking.Functions
@@ -873,6 +874,7 @@ library
       Agda.Utils.Either
       Agda.Utils.Empty
       Agda.Utils.Environment
+      Agda.Utils.ExpandCase
       Agda.Utils.Fail
       Agda.Utils.Favorites
       Agda.Utils.FileId
@@ -932,6 +934,9 @@ library
       Agda.Utils.Singleton
       Agda.Utils.Size
       Agda.Utils.SmallSet
+      Agda.Utils.StrictEndo
+      Agda.Utils.StrictFlipEndo
+      Agda.Utils.StrictReader
       Agda.Utils.StrictState
       Agda.Utils.StrictState2
       Agda.Utils.StrictWriter

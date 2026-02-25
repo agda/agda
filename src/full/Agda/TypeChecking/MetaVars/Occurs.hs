@@ -1,6 +1,6 @@
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_GHC -Wunused-imports #-}
 
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
@@ -19,7 +19,7 @@ module Agda.TypeChecking.MetaVars.Occurs where
 import Prelude hiding (null, zip, zipWith)
 
 import Control.Monad.Except ( ExceptT, runExceptT, catchError, throwError )
-import Control.Monad.Reader ( ReaderT, runReaderT, ask, asks, local )
+import Control.Monad.Reader ( ReaderT, runReaderT, asks, MonadReader(..) )
 
 import Data.Foldable (traverse_)
 import Data.Functor
@@ -40,7 +40,6 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Substitute
@@ -163,7 +162,7 @@ instance IsVarSet () AllowedVar where
 
 -- | Check whether a free variable is allowed in the context as
 --   specified by the modality.
-variableCheck :: VarMap -> Maybe Variable -> AllowedVar
+variableCheck :: VarMap -> Maybe Int -> AllowedVar
 variableCheck xs mi q = All $
   -- Bound variables are always allowed to occur:
   caseMaybe mi True $ \ i ->
@@ -375,15 +374,52 @@ class Occurs t where
   default metaOccurs :: (Foldable f, Occurs a, f a ~ t) => MetaId -> t -> TCM ()
   metaOccurs = traverse_ . metaOccurs
 
+type Variable = Int
+
 -- GHC flags this as redundant constraint, so we turn off -Wredundant-constraints.
 occurs_ :: (Occurs t, TypeOf t ~ ()) => t -> OccursM t
 occurs_ t = occurs t
+
+-- | Subtract, but return Nothing if result is negative.
+subVar :: Int -> Maybe Variable -> Maybe Variable
+subVar n x = do
+  i <- x
+  guard $ i >= n
+  return $ i - n
 
 metaOccurs2 :: (Occurs a, Occurs b) => MetaId -> a -> b -> TCM ()
 metaOccurs2 m x y = metaOccurs m x >> metaOccurs m y
 
 metaOccurs3 :: (Occurs a, Occurs b, Occurs c) => MetaId -> a -> b -> c -> TCM ()
 metaOccurs3 m x y z = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
+
+handleVariable :: (Monad m, IsVarSet a c) => Variable -> ReaderT (FreeEnv' a b c) m c
+handleVariable n = do
+  o <- asks feFlexRig
+  r <- asks feModality
+  s <- asks feSingleton
+  return $ withVarOcc (VarOcc o r) (s $ Just n)
+
+-- | Going under a binder.
+underBinder :: MonadReader (FreeEnv' a b c) m => m z -> m z
+underBinder = underBinders 1
+
+-- | Going under @n@ binders.
+underBinders :: MonadReader (FreeEnv' a b c) m => Nat -> m z -> m z
+underBinders n = local $ \ e -> e { feSingleton = feSingleton e . subVar n }
+
+-- | Changing the 'Modality'.
+underModality :: (MonadReader r m, LensModality r, LensModality o) => o -> m z -> m z
+underModality = local . mapModality . composeModality . getModality
+
+-- | Changing the 'Relevance'.
+underRelevance :: (MonadReader r m, LensRelevance r, LensRelevance o) => o -> m z -> m z
+underRelevance = local . mapRelevance . composeRelevance . getRelevance
+
+-- | In the given computation the 'Quantity' is locally scaled using
+-- the 'Quantity' of the first argument.
+underQuantity :: (MonadReader r m, LensQuantity r, LensQuantity o) => o -> m a -> m a
+underQuantity = local . mapQuantity . composeQuantity . getQuantity
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
@@ -443,7 +479,7 @@ instance Occurs Term where
           nest 2 $ pretty v
         case v of
           Var i es   -> do
-            allowed <- getAll . ($ unitModality) <$> variable i
+            allowed <- getAll . ($ unitModality) <$> (handleVariable i)
             if allowed then Var i <$> weakly (occurs es) else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
@@ -1002,7 +1038,7 @@ killedType args b = do
 reallyNotFreeIn :: (MonadReduce m) => VarSet -> Type -> m (VarSet, Type)
 reallyNotFreeIn xs a | null xs = return (xs, a) -- Shortcut
 reallyNotFreeIn xs a = do
-  let fvs      = freeVars a
+  let fvs      = freeVarMap a
       anywhere = allVars fvs
       rigid    = VarSet.union (stronglyRigidVars fvs) (unguardedVars fvs)
       nonrigid = VarSet.difference anywhere rigid
@@ -1013,9 +1049,9 @@ reallyNotFreeIn xs a = do
        -- occurrences so drop those and leave `a` untouched.
        return (VarSet.difference xs rigid, a)
     else do
-      -- If there are non-rigid occurrences we need to reduce a to see if
+      -- If there are non-rigid occurrences we need to reduce to see if
       -- we can get rid of them (#3177).
-      (fvs, a) <- forceNotFree (VarSet.difference xs rigid) a
+      (fvs, a) <- liftReduce $ forceNotFree (VarSet.difference xs rigid) a
       let xs = nonFreeVars fvs
       return (xs, a)
 

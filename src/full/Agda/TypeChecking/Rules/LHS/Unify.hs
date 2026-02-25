@@ -130,7 +130,7 @@ import Control.Monad.State  ( gets, modify, evalStateT )
 import Control.Monad.Writer ( WriterT(..), MonadWriter(..) )
 import Control.Monad.Except ( runExceptT )
 
-import Data.Semigroup ( All(..) )
+-- import Data.Semigroup ( All(..) )
 import qualified Data.List as List
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
@@ -298,7 +298,7 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
 -- This is naturally sensitive to normalization.
 isHom :: (Free a, Subst a) => Int -> a -> Maybe a
 isHom n x = do
-  guard $ getAll $ runFree (All . (>= n)) IgnoreNot x
+  guard $ allFreeVar (>= n) x
   return $ raise (-n) x
 
 findFlexible :: Int -> FlexibleVars -> Maybe (FlexibleVar Nat)
@@ -368,7 +368,7 @@ dataStrategy k s = do
     ifOccursStronglyRigid i u ret = do
         -- Call forceNotFree to reduce u as far as possible
         -- around any occurrences of i
-        (_ , u) <- forceNotFree (singleton i) u
+        (_ , u) <- liftReduce $ forceNotFree (singleton i) u
         case flexRigOccurrenceIn i u of
           Just StronglyRigid -> ret
           _ -> mzero

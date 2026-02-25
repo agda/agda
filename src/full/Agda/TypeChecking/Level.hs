@@ -8,7 +8,10 @@ import Data.Traversable (Traversable)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free.Lazy
+import Agda.TypeChecking.Free
+
+import Agda.Utils.ExpandCase
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -254,5 +257,6 @@ instance Subst t => Subst (SingleLevel' t) where
   applySubst sub (SinglePlus a)   = SinglePlus $ applySubst sub a
 
 instance Free t => Free (SingleLevel' t) where
-  freeVars' (SingleClosed m) = mempty
-  freeVars' (SinglePlus a)   = freeVars' a
+  freeVars l = expand \ret -> case l of
+    SingleClosed m -> ret mempty
+    SinglePlus a   -> ret $ freeVars a

@@ -59,7 +59,7 @@
 module Agda.TypeChecking.ProjectionLike where
 
 import qualified Data.Map as Map
-import Data.Monoid (Any(..), getAny)
+-- import Data.Monoid (Any(..), getAny)
 
 import Agda.Interaction.Options
 
@@ -69,7 +69,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Free (runFree, IgnoreSorts(..))
+import Agda.TypeChecking.Free (anyFreeVar)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
@@ -405,8 +405,8 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
         noMatch IApplyP{} = True
 
     -- Make sure non of the parameters occurs in the body of the function.
-    checkBody m n b = not . getAny $ runFree badVar IgnoreNot b
-      where badVar x = Any $ m - n <= x && x < m
+    checkBody m n b = not $ anyFreeVar badVar b
+      where badVar x = m - n <= x && x < m
 
     -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
     -- if @t@ is a function-type with domain @t 0 .. (n-1)@

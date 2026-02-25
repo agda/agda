@@ -99,7 +99,7 @@ import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
+import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.DiscrimTree.Types
 
@@ -126,8 +126,9 @@ import Agda.Utils.BiMap (BiMap, HasTag(..))
 import Agda.Utils.BiMap qualified as BiMap
 import Agda.Utils.Boolean   ( fromBool, toBool )
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
-import Agda.Utils.FileId    as X ( FileId, MonadFileId( idFromFile, fileFromId ) )
+import Agda.Utils.ExpandCase
 import Agda.Utils.FileId    ( FileDictBuilder, GetFileId(getFileId), GetIdFile(getIdFile) )
+import Agda.Utils.FileId    as X ( FileId, MonadFileId( idFromFile, fileFromId ) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
@@ -135,22 +136,22 @@ import Agda.Utils.IO        ( CatchIO, catchIO, showIOException )
 import Agda.Utils.IORef.Strict qualified as Strict
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
-import Agda.Utils.List2 (List2, pattern List2)
 import Agda.Utils.List1 qualified as List1
+import Agda.Utils.List2 (List2, pattern List2)
+import Agda.Utils.ListT
 import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
-import Agda.Utils.SmallSet qualified as SmallSet
 import Agda.Utils.Set1 (Set1)
 import Agda.Utils.Singleton
+import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
+import Agda.Utils.SmallSet qualified as SmallSet
 import Agda.Utils.Tuple (Pair, (&&&) )
 import Agda.Utils.Update
-import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.Atomic
 
 import Agda.Utils.Impossible
@@ -1611,27 +1612,29 @@ instance HasRange Constraint where
   getRange UsableAtModality{}    = noRange
 
 instance Free Constraint where
-  freeVars' c =
-    case c of
-      ValueCmp _ t u v      -> freeVars' (t, (u, v))
-      ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
-      ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
-      SortCmp _ s s'        -> freeVars' (s, s')
-      LevelCmp _ l l'       -> freeVars' (l, l')
-      UnBlock _             -> mempty
-      IsEmpty _ t           -> freeVars' t
-      CheckSizeLtSat u      -> freeVars' u
-      FindInstance _ _ cs   -> freeVars' cs
-      ResolveInstanceHead _ q -> mempty
-      CheckFunDef{}         -> mempty
-      HasBiggerSort s       -> freeVars' s
-      HasPTSRule a s        -> freeVars' (a , s)
-      CheckLockedVars a b c d -> freeVars' ((a,b),(c,d))
-      UnquoteTactic t h g   -> freeVars' (t, (h, g))
-      CheckDataSort _ s     -> freeVars' s
-      CheckMetaInst m       -> mempty
-      CheckType t           -> freeVars' t
-      UsableAtModality _ ms mod t -> freeVars' (ms, t)
+  freeVars c = expand \ret -> case c of
+    ValueCmp _ t u v            -> ret $ freeVars (t, u, v)
+    ValueCmpOnFace _ p t u v    -> ret $ freeVars (p, t, u, v)
+    ElimCmp _ _ t u es es'      -> ret $ freeVars (t, u, es, es')
+    SortCmp _ s s'              -> ret $ freeVars (s, s')
+    LevelCmp _ l l'             -> ret $ freeVars (l, l')
+    UnBlock _                   -> ret $ mempty
+    IsEmpty _ t                 -> ret $ freeVars t
+    CheckSizeLtSat u            -> ret $ freeVars u
+    FindInstance _ _ cs         -> ret $ freeVars cs
+    ResolveInstanceHead _ _     -> ret $ mempty
+    CheckFunDef{}               -> ret $ mempty
+    HasBiggerSort s             -> ret $ freeVars s
+    HasPTSRule a s              -> ret $ freeVars (a , s)
+    CheckLockedVars a b c d     -> ret $ freeVars (a, b, c, d)
+    UnquoteTactic t h g         -> ret $ freeVars (t, h, g)
+    CheckDataSort _ s           -> ret $ freeVars s
+    CheckMetaInst m             -> ret $ mempty
+    CheckType t                 -> ret $ freeVars t
+    UsableAtModality _ ms mod t -> ret $ freeVars (ms, t)
+
+{-# SPECIALIZE closed :: Constraint -> Bool #-}
+{-# SPECIALIZE freeVarSet :: Constraint -> VarSet #-}
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1702,9 +1705,10 @@ data CompareAs
   deriving (Show, Generic)
 
 instance Free CompareAs where
-  freeVars' (AsTermsOf a) = freeVars' a
-  freeVars' AsSizes       = mempty
-  freeVars' AsTypes       = mempty
+  freeVars ca = expand \ret -> case ca of
+    (AsTermsOf a) -> ret $ freeVars a
+    AsSizes       -> ret $ mempty
+    AsTypes       -> ret $ mempty
 
 instance TermLike CompareAs where
   foldTerm f (AsTermsOf a) = foldTerm f a
@@ -2270,16 +2274,6 @@ pattern DDot v = DDot' v []
 
 pattern DTerm :: Term -> DisplayTerm
 pattern DTerm v = DTerm' v []
-
-instance Free DisplayForm where
-  freeVars' (Display n ps t) = underBinder (freeVars' ps) `mappend` underBinder' n (freeVars' t)
-
-instance Free DisplayTerm where
-  freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
-  freeVars' (DCon _ _ vs)      = freeVars' vs
-  freeVars' (DDef _ es)        = freeVars' es
-  freeVars' (DDot' v es)       = freeVars' (v, es)
-  freeVars' (DTerm' v es)      = freeVars' (v, es)
 
 instance Pretty DisplayTerm where
   prettyPrec p v =
@@ -4636,7 +4630,8 @@ data Candidate  = Candidate
   deriving (Show, Generic)
 
 instance Free Candidate where
-  freeVars' (Candidate _ t u _) = freeVars' (t, u)
+  freeVars c = expand \ret -> case c of
+    Candidate _ t u _ -> ret $ freeVars (t, u)
 
 instance HasOverlapMode Candidate where
   lensOverlapMode f x = f (candidateOverlap x) <&> \m -> x{ candidateOverlap = m }
