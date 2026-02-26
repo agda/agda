@@ -106,7 +106,7 @@ reallyFree xs v = do
 forceNoAbs :: (Reduce a, ForceNotFree a)
            => Dom Type -> Abs a -> ReduceM (Either (Abs a, FlexRig) a)
 forceNoAbs dom (NoAbs _ x) = pure $ Right x
-forceNoAbs dom (Abs n x)   = do
+forceNoAbs dom (Abs n x)   = underAbsReduceM dom (Abs n x) \x -> do
   (fvm, x) <- forceNotFree (singleton 0) x
   case fromMaybe __IMPOSSIBLE__ (IntMap.lookup 0 fvm) of
     NotFree           -> pure $! Right $! noabsApp __IMPOSSIBLE__ (Abs n x)
@@ -184,9 +184,13 @@ instance (Reduce a, ForceNotFree a, TermSubst a) => ForceNotFree (Dom a) where
 instance (Reduce a, ForceNotFree a) => ForceNotFree (Abs a) where
   -- Reduction stops at abstractions (lambda/pi) so do reduceIf/forceNotFreeR here.
   forceNotFree' abs = expand \ret -> case abs of
-    a@NoAbs{} -> ret $ traverse forceNotFreeR a
-    a@Abs{}   -> ret $ reduceIfFreeVars
-                   (local (\(FREnv x nfs fr e) -> FREnv (x + 1) nfs fr e) . traverse forceNotFree') a
+    a@NoAbs{}   -> ret $ traverse forceNotFreeR a
+    a@(Abs x _) -> ret do
+      let updEnv :: ReduceEnv -> ReduceEnv
+          updEnv e = extendReduceEnv x __DUMMY_DOM__ e
+      reduceIfFreeVars
+        (local (\(FREnv x nfs fr e) -> FREnv (x + 1) nfs fr (updEnv e)) . traverse forceNotFree')
+        a
 
 instance ForceNotFree a => ForceNotFree [a] where
   forceNotFree' as = expand \ret -> case as of
