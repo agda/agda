@@ -1,4 +1,4 @@
-LocalRewriteNotBound.agda:9.10-44: warning: -W[no]RewriteVariablesNotBoundByLHS
+LocalRewriteNotBound.agda:9.10-48: warning: -W[no]RewriteVariablesNotBoundByLHS
 p : {m : Nat} → n ≡ m  is not a legal rewrite rule, since the
 following variable is not bound by the left hand side:
   m

@@ -688,12 +688,20 @@ toAttribute :: Range -> Expr -> Parser (Maybe Attr)
 toAttribute r e = do
   case exprToAttribute r e of
     Nothing -> Nothing <$ parseWarning (UnknownAttribute r s)
-    Just a -> do
-      let attr = Attr r s a
-      modify' \ st -> st{ parseAttributes = attr : parseAttributes st }
-      return $ Just attr
+    Just a -> fmap Just $ theAttribute $ Attr r s a
   where
     s = prettyShow e
+
+-- | Updates 'parseAttributes' and returns an @rewrite attribute
+rewAttribute :: Range -> Parser (Maybe Attr)
+rewAttribute r = fmap Just $ theAttribute $
+  Attr r "rewrite" (RewriteAttribute IsRewrite)
+
+-- | Updates 'parseAttributes' and returns the attribute
+theAttribute :: Attr -> Parser Attr
+theAttribute attr = do
+  modify' \ st -> st{ parseAttributes = attr : parseAttributes st }
+  return attr
 
 -- | Apply an attribute to thing (usually `Arg`).
 --   This will fail if one of the attributes is already set

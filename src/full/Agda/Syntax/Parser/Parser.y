@@ -504,7 +504,7 @@ ArgIds
   | '..' "{{" SpaceIds "}}" ArgIds   { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 <> $5 }
   | '..' "{{" SpaceIds "}}"          { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 }
 
--- Modalities preceeding identifiers
+-- Modalities preceding identifiers
 
 ModalArgIds :: { (TacticAttribute, List1 (Arg Name)) }
 ModalArgIds : Attributes ArgIds  {% (getTacticAttr $1,) `fmap` mapM (applyAttrs $1) $2 }
@@ -514,7 +514,7 @@ ModalArgIds : Attributes ArgIds  {% (getTacticAttr $1,) `fmap` mapM (applyAttrs 
 
 Attribute :: { Maybe Attr }
 Attribute
-  : '@' 'rewrite'   { Just (Attr (getRange ($1, $2)) "rewrite" (RewriteAttribute IsRewrite)) }
+  : '@' 'rewrite'   {% rewAttribute (getRange ($1,$2)) }
   -- ^ 'rewrite' is a keyword so does not get parsed as an identifier in ExprOrAttr
   | '@' ExprOrAttr  {% toAttribute (getRange ($1,$2)) $2 }
 

@@ -28,11 +28,11 @@ nonetheless, by restricting
 rewrites is prenex-only.
 Semantically, local rewrite rules can
 be eliminated with inlining and so should be conservative over the rest of
-Agda.
+Agda's theory.
 
 .. note:: This page is about the :option:`--local-rewriting` option. This is
   is unrelated to :option:`--local-confluence-check`, which enables a form of
-  confluence checking for :doc:`global REWRITE rules <rewriting>` while using
+  confluence checking for :doc:`global REWRITE rules <rewriting>` whilst using
   the :option:`--rewriting` option.
 
   It is also (currently) distinct from the the :ref:`rewrite construct
@@ -179,7 +179,7 @@ Limitations
 Confluence and termination checking
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Currently, no form of confluence of termination checking is implemented for
+Currently, no form of confluence or termination checking is implemented for
 local rewrite rules. The consequences of non-confluent or non-terminating
 local rewrite rules are similar to :doc:`global rewriting <rewriting>`:
 non-confluence endangers subject reduction and non-termination might cause

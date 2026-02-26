@@ -164,11 +164,11 @@ lockAttributeTable = concat
   ]
 
 -- | Modifiers for @RewriteAnn@
-
+--   I don't think we ever actually hit this because 'rewrite' is a keyword
+--   Of course, we might want to add aliases
 rewriteAttributeTable :: [(String, RewriteAnn)]
 rewriteAttributeTable =
-  [ ("notrew" , IsNotRewrite)
-  , ("rew" , IsRewrite)
+  [ ("rewrite" , IsRewrite)
   ]
 
 -- | Concrete syntax for all attributes.

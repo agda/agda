@@ -1,4 +1,4 @@
-LocalRewriteOutsideTele.agda:8.19-35: error: [LocalRewriteOutsideTelescope]
+LocalRewriteOutsideTele.agda:8.19-39: error: [LocalRewriteOutsideTelescope]
 _ : x ≡ 0  is not a legal rewrite rule, since local rewrite rules
 are (currently) only allowed in module telescopes. Consider
 creating an anonymous module
