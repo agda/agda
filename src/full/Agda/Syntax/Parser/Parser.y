@@ -513,7 +513,10 @@ ModalArgIds : Attributes ArgIds  {% (getTacticAttr $1,) `fmap` mapM (applyAttrs 
 -- Unknown attributes cast a warning and are ignored.
 
 Attribute :: { Maybe Attr }
-Attribute : '@' ExprOrAttr  {% toAttribute (getRange ($1,$2)) $2 }
+Attribute
+  : '@' 'rewrite'   { Just (Attr (getRange ($1, $2)) "rewrite" (RewriteAttribute IsRewrite)) }
+  -- ^ 'rewrite' is a keyword so does not get parsed as an identifier in ExprOrAttr
+  | '@' ExprOrAttr  {% toAttribute (getRange ($1,$2)) $2 }
 
 -- Parse a reverse list of modalities
 
