@@ -117,11 +117,82 @@ fixupNewGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
   --
 checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
 checkStrictlyPositive mi qset = do
-  -- compute the occurrence graph for qs
+
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
 
-  g@(Graph.Graph gmap) <- buildOccurrenceGraph qset
+  -- find out if there's any need for occurrence analyis
+  preprocessBlock qs >>= \case
+    Nothing -> pure ()
+    Just blockInfo -> do
+
+      -- compute the occurrence graph
+      !g@(Graph.Graph gmap) <- buildOccurrenceGraph qset
+      let (!gstar, !sccs) = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+
+      reportSDoc "tc.pos.tick" 100 $ "constructed graph"
+      reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
+                                   " E=" ++ show (length $ Graph.edges g)
+      reportSDoc "tc.pos.graph" 10 $ vcat
+        [ "positivity graph for" <+> fsep (map prettyTCM qs)
+        , nest 2 $ prettyTCM g
+        ]
+      reportSLn "tc.pos.graph" 5 $
+        "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
+      reportSDoc "tc.pos.graph" 50 $ vcat
+        [ "transitive closure of positivity graph for" <+>
+          prettyTCM qs
+        , nest 2 $ prettyTCM gstar
+        ]
+
+      forMGood_ blockInfo \(q, arity, dr) ->
+
+        -- set argument occurrences
+        --------------------------------------------------------------------------------
+        when (arity > 0) do
+          reportSDoc "tc.pos.args" 10 $ "computing arg occurrences of " <+> prettyTCM q
+          n <- getDefArity def
+          n' <- getDefArity' def
+          when (n /= n') $ error "ARITY MISMATCH"
+
+          -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
+          -- Otherwise, we obtain the occurrences from the Graph.
+          let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
+              !args = -- caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
+                map' findOcc [0 .. n-1]  -- [0 .. max m (n - 1)] -- triggers issue #3049
+
+          reportSDoc "tc.pos.args" 10 $ sep
+            [ "args of" <+> prettyTCM q <+> "="
+            , nest 2 $ prettyList $ map prettyTCM args
+            ]
+
+          let mergeOccs :: [Occurrence] -> [Occurrence] -> [Occurrence]
+              mergeOccs poccs toccs =
+                -- Lucas, 2022-12-01:
+                -- `poccs` are the occurences computed by the positivity-checker
+                -- `toccs` are the occurences/polarities explicitely given by the user
+                --   (and enforced through type-checking)
+                -- We consider the polarities explicitely given (toccs) to take priority over the ones
+                -- found out by the positivity checker.
+                -- Note: Alas, this is hard to enforce given that non-annotated variables are
+                -- always annotated with Mixed polarity. If the annotated polarity is Mixed,
+                -- for now we always rely on the result from the positivity analysis.
+                align poccs toccs <&> mergeThese (\a b -> if b == Mixed then a else b)
+
+          -- The list args can take a long time to compute, but contains
+          -- small elements, and is stored in the interface, so
+          -- it is computed deep-strictly.
+          !oldOccs <- getArgOccurrences q
+          let !newOccs = let x = mergeOccs args oldOccs in deepseq x x
+          setArgOccurrences q newOccs
+          reportSDoc "tc.pos.tick" 100 $ "set args"
+
+        -- check positivity
+        --------------------------------------------------------------------------------
+
+
+
+  -- g@(Graph.Graph gmap) <- buildOccurrenceGraph qset
   -- filteredg <- pure $ Graph.Graph $ Map.filter (not . null) gmap
 
   -- gnew <- Graph.Graph <$> New.buildOccurrenceGraph qset
@@ -130,23 +201,6 @@ checkStrictlyPositive mi qset = do
 
   -- let g' = erasePaths g
   --     gnew' = erasePaths gnew
-
-  let (gstar, sccs) =
-        Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
-  reportSDoc "tc.pos.tick" 100 $ "constructed graph"
-  reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
-                               " E=" ++ show (length $ Graph.edges g)
-  reportSDoc "tc.pos.graph" 10 $ vcat
-    [ "positivity graph for" <+> fsep (map prettyTCM qs)
-    , nest 2 $ prettyTCM g
-    ]
-  reportSLn "tc.pos.graph" 5 $
-    "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
-  reportSDoc "tc.pos.graph" 50 $ vcat
-    [ "transitive closure of positivity graph for" <+>
-      prettyTCM qs
-    , nest 2 $ prettyTCM gstar
-    ]
 
   -- when (g' /= gnew') do
   --   reportSDoc "tc.pos.graph" 1 $ vcat
@@ -184,191 +238,169 @@ checkStrictlyPositive mi qset = do
   --     ]
   --   error "OCCURRENCE GRAPH MISMATCH"
 
-  -- remember argument occurrences for qs in the signature
-  setArgOccs qset qs gstar
-  reportSDoc "tc.pos.tick" 100 $ "set args"
+  -- -- remember argument occurrences for qs in the signature
+  -- setArgOccs qset qs gstar
+  -- reportSDoc "tc.pos.tick" 100 $ "set args"
 
-  -- check positivity for all strongly connected components of the graph for qs
-  reportSDoc "tc.pos.graph.sccs" 10 $ do
-    let (triv, others) = partitionEithers $ for sccs $ \case
-          AcyclicSCC v -> Left v
-          CyclicSCC vs -> Right vs
-    sep [ text $ show (length triv) ++ " trivial sccs"
-        , text $ show (length others) ++ " non-trivial sccs with lengths " ++
-            show (map length others)
-        ]
-  reportSLn "tc.pos.graph.sccs" 15 $
-    "  sccs = " ++ prettyShow [ scc | CyclicSCC scc <- sccs ]
+  -- -- check positivity for all strongly connected components of the graph for qs
+  -- reportSDoc "tc.pos.graph.sccs" 10 $ do
+  --   let (triv, others) = partitionEithers $ for sccs $ \case
+  --         AcyclicSCC v -> Left v
+  --         CyclicSCC vs -> Right vs
+  --   sep [ text $ show (length triv) ++ " trivial sccs"
+  --       , text $ show (length others) ++ " non-trivial sccs with lengths " ++
+  --           show (map length others)
+  --       ]
+  -- reportSLn "tc.pos.graph.sccs" 15 $
+  --   "  sccs = " ++ prettyShow [ scc | CyclicSCC scc <- sccs ]
 
-  -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
-  -- occurrences of a name, but we still need to setMutual for them.
-  let sccMap = Map.unions [ case scc of
-                              AcyclicSCC (DefNode q) -> Map.singleton q []
-                              AcyclicSCC ArgNode{}   -> mempty
-                              CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
-                                where qs = [ q | DefNode q <- scc ]
-                          | scc <- sccs ]
-  inAbstractMode $ forM_ qs $ \ q ->
-    whenM (isNothing <$> getMutual q) $ do
-      let qs = fromMaybe [] $ Map.lookup q sccMap
-      reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to " ++
-                                     if | null qs        -> "non-recursive"
-                                        | length qs == 1 -> "recursive"
-                                        | otherwise      -> "mutually recursive"
+  -- -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
+  -- -- occurrences of a name, but we still need to setMutual for them.
+  -- let sccMap = Map.unions [ case scc of
+  --                             AcyclicSCC (DefNode q) -> Map.singleton q []
+  --                             AcyclicSCC ArgNode{}   -> mempty
+  --                             CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
+  --                               where qs = [ q | DefNode q <- scc ]
+  --                         | scc <- sccs ]
+  -- inAbstractMode $ forM_ qs $ \ q ->
+  --   whenM (isNothing <$> getMutual q) $ do
+  --     let qs = fromMaybe [] $ Map.lookup q sccMap
+  --     reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to " ++
+  --                                    if | null qs        -> "non-recursive"
+  --                                       | length qs == 1 -> "recursive"
+  --                                       | otherwise      -> "mutually recursive"
       setMutual q qs
 
-  Bench.billTo [Bench.Positivity] (mapM_ (checkPos g gstar) qs)
-  reportSDoc "tc.pos.tick" 100 $ "checked positivity"
+  -- Bench.billTo [Bench.Positivity] (mapM_ (checkPos g gstar) qs)
+  -- reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
-  where
-    checkPos :: Graph Node (Edge OccursWhere) ->
-                Graph Node Occurrence ->
-                QName -> TCM ()
-    checkPos g gstar q = inConcreteOrAbstractMode q $ \ def -> do
-      -- we check positivity only for data or record definitions
-      whenJust (isDatatype def) $ \ dr -> do
-        reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
+  -- where
+  --   checkPos :: Graph Node (Edge OccursWhere) ->
+  --               Graph Node Occurrence ->
+  --               QName -> TCM ()
+  --   checkPos g gstar q = inConcreteOrAbstractMode q $ \ def -> do
+  --     -- we check positivity only for data or record definitions
+  --     whenJust (isDatatype def) $ \ dr -> do
+  --       reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
 
-        let loop :: Maybe Occurrence
-            loop = Graph.lookup (DefNode q) (DefNode q) gstar
+  --       let loop :: Maybe Occurrence
+  --           loop = Graph.lookup (DefNode q) (DefNode q) gstar
 
-            g' :: Graph Node (Edge (Seq OccursWhere))
-            g' = fmap (fmap DS.singleton) g
+  --           g' :: Graph Node (Edge (Seq OccursWhere))
+  --           g' = fmap (fmap DS.singleton) g
 
-            -- Note the property
-            -- Internal.Utils.Graph.AdjacencyMap.Unidirectional.prop_productOfEdgesInBoundedWalk,
-            -- which relates productOfEdgesInBoundedWalk to
-            -- gaussJordanFloydWarshallMcNaughtonYamada.
+  --           -- Note the property
+  --           -- Internal.Utils.Graph.AdjacencyMap.Unidirectional.prop_productOfEdgesInBoundedWalk,
+  --           -- which relates productOfEdgesInBoundedWalk to
+  --           -- gaussJordanFloydWarshallMcNaughtonYamada.
 
-            reason bound =
-              case productOfEdgesInBoundedWalk
-                     occ g' (DefNode q) (DefNode q) bound of
-                Just (Edge _ how) -> how
-                Nothing           -> __IMPOSSIBLE__
+  --           reason bound =
+  --             case productOfEdgesInBoundedWalk
+  --                    occ g' (DefNode q) (DefNode q) bound of
+  --               Just (Edge _ how) -> how
+  --               Nothing           -> __IMPOSSIBLE__
 
-            how :: String -> Occurrence -> TCM Doc
-            how msg bound = fsep $
-                  [prettyTCM q] ++ pwords "is" ++
-                  pwords (msg ++ ", because it occurs") ++
-                  [prettyTCM (reason bound)]
+  --           how :: String -> Occurrence -> TCM Doc
+  --           how msg bound = fsep $
+  --                 [prettyTCM q] ++ pwords "is" ++
+  --                 pwords (msg ++ ", because it occurs") ++
+  --                 [prettyTCM (reason bound)]
 
-        -- if we have a negative loop, raise error
+  --       -- if we have a negative loop, raise error
 
-        -- ASR (23 December 2015). We don't raise a strictly positive
-        -- error if the NO_POSITIVITY_CHECK pragma was set on in the
-        -- mutual block. See Issue 1614.
-        when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
-          whenM positivityCheckEnabled $
-            case loop of
-            Just o | o <= JustPos ->
-              warning $ NotStrictlyPositive q (reason JustPos)
-            _ -> return ()
+  --       -- ASR (23 December 2015). We don't raise a strictly positive
+  --       -- error if the NO_POSITIVITY_CHECK pragma was set on in the
+  --       -- mutual block. See Issue 1614.
+  --       when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
+  --         whenM positivityCheckEnabled $
+  --           case loop of
+  --           Just o | o <= JustPos ->
+  --             warning $ NotStrictlyPositive q (reason JustPos)
+  --           _ -> return ()
 
-        -- if we find an unguarded record, mark it as such
-        case dr of
-          IsData -> return ()
-          IsRecord pat -> case loop of
-            Just o | o <= StrictPos -> do
-              reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
-              unguardedRecord q pat
-              checkInduction q
-            -- otherwise, if the record is recursive, mark it as well
-            Just o | o <= GuardPos -> do
-              reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
-              recursiveRecord q
-              checkInduction q
-            -- If the record is not recursive, switch on eta
-            -- unless it is coinductive or a no-eta-equality record.
-            Nothing -> do
-              reportSDoc "tc.pos.record" 10 $
-                "record type " <+> prettyTCM q <+>
-                "is not recursive"
-              nonRecursiveRecord q
-            _ -> return ()
+  --       -- if we find an unguarded record, mark it as such
+  --       case dr of
+  --         IsData -> return ()
+  --         IsRecord pat -> case loop of
+  --           Just o | o <= StrictPos -> do
+  --             reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
+  --             unguardedRecord q pat
+  --             checkInduction q
+  --           -- otherwise, if the record is recursive, mark it as well
+  --           Just o | o <= GuardPos -> do
+  --             reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
+  --             recursiveRecord q
+  --             checkInduction q
+  --           -- If the record is not recursive, switch on eta
+  --           -- unless it is coinductive or a no-eta-equality record.
+  --           Nothing -> do
+  --             reportSDoc "tc.pos.record" 10 $
+  --               "record type " <+> prettyTCM q <+>
+  --               "is not recursive"
+  --             nonRecursiveRecord q
+  --           _ -> return ()
 
-    checkInduction :: QName -> TCM ()
-    checkInduction q =
-      -- ASR (01 January 2016). We don't raise this error if the
-      -- NO_POSITIVITY_CHECK pragma was set on in the record. See
-      -- Issue 1760.
-      when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
-        whenM positivityCheckEnabled $ do
-        -- Check whether the recursive record has been declared as
-        -- 'Inductive' or 'Coinductive'.  Otherwise, error.
-        unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
-          setCurrentRange (nameBindingSite $ qnameName q) $
-            typeError $ RecursiveRecordNeedsInductivity q
+  --   checkInduction :: QName -> TCM ()
+  --   checkInduction q =
+  --     -- ASR (01 January 2016). We don't raise this error if the
+  --     -- NO_POSITIVITY_CHECK pragma was set on in the record. See
+  --     -- Issue 1760.
+  --     when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
+  --       whenM positivityCheckEnabled $ do
+  --       -- Check whether the recursive record has been declared as
+  --       -- 'Inductive' or 'Coinductive'.  Otherwise, error.
+  --       unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
+  --         setCurrentRange (nameBindingSite $ qnameName q) $
+  --           typeError $ RecursiveRecordNeedsInductivity q
 
-    occ (Edge o _) = o
+  --   occ (Edge o _) = o
 
-    isDatatype :: Definition -> Maybe DataOrRecord
-    isDatatype def = do
-      case theDef def of
-        Datatype{dataClause = Nothing} -> Just IsData
-        Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
-        _ -> Nothing
+  --   -- Set the polarity of the arguments to a couple of definitions
+  --   setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
+  --   setArgOccs qset qs g = do
+  --     -- Andreas, 2018-05-11, issue #3049: we need to be pessimistic about
+  --     -- argument polarity beyond the formal arity of the function.
+  --     --
+  --     -- -- Compute a map from each name in q to the maximal argument index
+  --     -- let maxs = Map.fromListWith max
+  --     --      [ (q, i) | ArgNode q i <- Set.toList $ Graph.nodes g, q `Set.member` qset ]
+  --     forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> when (hasDefinition $ theDef def) $ do
+  --       reportSDoc "tc.pos.args" 10 $ "checking args of" <+> prettyTCM q
+  --       n <- getDefArity def
+  --       n' <- getDefArity' def
+  --       -- when (n /= n') $ error "MALLAC"
+  --       -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
+  --       -- Otherwise, we obtain the occurrences from the Graph.
+  --       let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
+  --           args = -- caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
+  --             map findOcc [0 .. n-1]  -- [0 .. max m (n - 1)] -- triggers issue #3049
 
-    -- Set the polarity of the arguments to a couple of definitions
-    setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
-    setArgOccs qset qs g = do
-      -- Andreas, 2018-05-11, issue #3049: we need to be pessimistic about
-      -- argument polarity beyond the formal arity of the function.
-      --
-      -- -- Compute a map from each name in q to the maximal argument index
-      -- let maxs = Map.fromListWith max
-      --      [ (q, i) | ArgNode q i <- Set.toList $ Graph.nodes g, q `Set.member` qset ]
-      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> when (hasDefinition $ theDef def) $ do
-        reportSDoc "tc.pos.args" 10 $ "checking args of" <+> prettyTCM q
-        n <- getDefArity def
-        n' <- getDefArity' def
-        -- when (n /= n') $ error "MALLAC"
-        -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
-        -- Otherwise, we obtain the occurrences from the Graph.
-        let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
-            args = -- caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
-              map findOcc [0 .. n-1]  -- [0 .. max m (n - 1)] -- triggers issue #3049
+  --       reportSDoc "tc.pos.args" 10 $ sep
+  --         [ "args of" <+> prettyTCM q <+> "="
+  --         , nest 2 $ prettyList $ map prettyTCM args
+  --         ]
+  --       -- The list args can take a long time to compute, but contains
+  --       -- small elements, and is stored in the interface, so
+  --       -- it is computed deep-strictly.
+  --       !oldOccs <- getArgOccurrences q
+  --       let !newOccs = let x = mergeOccs args oldOccs in deepseq x x
+  --       setArgOccurrences q newOccs
 
-        reportSDoc "tc.pos.args" 10 $ sep
-          [ "args of" <+> prettyTCM q <+> "="
-          , nest 2 $ prettyList $ map prettyTCM args
-          ]
-        -- The list args can take a long time to compute, but contains
-        -- small elements, and is stored in the interface, so
-        -- it is computed deep-strictly.
-        !oldOccs <- getArgOccurrences q
-        let !newOccs = let x = mergeOccs args oldOccs in deepseq x x
-        setArgOccurrences q newOccs
+  --     where
+  --     mergeOccs :: [Occurrence] -> [Occurrence] -> [Occurrence]
+  --     mergeOccs poccs toccs =
+  --       -- Lucas, 2022-12-01:
+  --       -- `poccs` are the occurences computed by the positivity-checker
+  --       -- `toccs` are the occurences/polarities explicitely given by the user
+  --       --   (and enforced through type-checking)
+  --       -- We consider the polarities explicitely given (toccs) to take priority over the ones
+  --       -- found out by the positivity checker.
+  --       -- Note: Alas, this is hard to enforce given that non-annotated variables are
+  --       -- always annotated with Mixed polarity. If the annotated polarity is Mixed,
+  --       -- for now we always rely on the result from the positivity analysis.
+  --       align poccs toccs <&> mergeThese (\a b -> if b == Mixed then a else b)
 
-      where
-      mergeOccs :: [Occurrence] -> [Occurrence] -> [Occurrence]
-      mergeOccs poccs toccs =
-        -- Lucas, 2022-12-01:
-        -- `poccs` are the occurences computed by the positivity-checker
-        -- `toccs` are the occurences/polarities explicitely given by the user
-        --   (and enforced through type-checking)
-        -- We consider the polarities explicitely given (toccs) to take priority over the ones
-        -- found out by the positivity checker.
-        -- Note: Alas, this is hard to enforce given that non-annotated variables are
-        -- always annotated with Mixed polarity. If the annotated polarity is Mixed,
-        -- for now we always rely on the result from the positivity analysis.
-        align poccs toccs <&> mergeThese (\a b -> if b == Mixed then a else b)
 
-      -- Andreas, 2018-11-23, issue #3404
-      -- Only assign argument occurrences to things which have a definition.
-      -- Things without a definition would be judged "constant" in all arguments,
-      -- since no occurrence could possibly be found, naturally.
-      hasDefinition :: Defn -> Bool
-      hasDefinition = \case
-        Axiom{}            -> False
-        DataOrRecSig{}     -> False
-        GeneralizableVar{} -> False
-        AbstractDefn{}     -> False
-        Primitive{}        -> False
-        PrimitiveSort{}    -> False
-        Constructor{}      -> False
-        Function{}         -> True
-        Datatype{}         -> True
-        Record{}           -> True
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = do
@@ -383,6 +415,47 @@ getDefArity' def = do
         _      -> pure n
   n <- liftReduce (go (defType def) 0)
   pure $! n - projectionArgs def
+
+-- Andreas, 2018-11-23, issue #3404
+-- Only assign argument occurrences to things which have a definition.
+-- Things without a definition would be judged "constant" in all arguments,
+-- since no occurrence could possibly be found, naturally.
+hasDefinition :: Defn -> Bool
+hasDefinition = \case
+  Axiom{}            -> False
+  DataOrRecSig{}     -> False
+  GeneralizableVar{} -> False
+  AbstractDefn{}     -> False
+  Primitive{}        -> False
+  PrimitiveSort{}    -> False
+  Constructor{}      -> False
+  Function{}         -> True
+  Datatype{}         -> True
+  Record{}           -> True
+
+isDatatype :: Definition -> Maybe DataOrRecord
+isDatatype def = do
+  case theDef def of
+    Datatype{dataClause = Nothing} -> Just IsData
+    Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
+    _ -> Nothing
+
+-- Result: [(name, arity, DataOrRecord)] or Nothing if we don't need any occurrence/positivity
+-- checking.
+preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe DataOrRecord)]))
+preprocessBlock qs = do
+  info <- forMGood qs \q -> inConcreteOrAbstractMode q \def -> do
+    !arity <- case hasDefinition (theDef def) of
+      True  -> getDefArity' def
+      False -> pure 0
+    let !dr = isDatatype def
+    pure (q, arity, dr)
+  case any (\(_, arity, dr) -> arity /= 0 || isJust dr) info of
+    True -> pure $ Just info
+    _    -> pure Nothing
+
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- Computing occurrences --------------------------------------------------
 

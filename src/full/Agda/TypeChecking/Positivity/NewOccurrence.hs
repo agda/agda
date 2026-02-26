@@ -207,7 +207,7 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
         go a = (unEl <$> reduce a) >>= \case
           Pi a b -> do
             let p = modalPolarityToOccurrence $ modPolarityAnn $ getModalPolarity a
-            ~ps <- go (unAbs b) -- lazy because we might have fewer args in Elims than Pi args
+            ~ps <- underAbsReduceM a b \b -> go b
             pure (p:ps)
           _ -> pure []
     liftReduce (go a)
