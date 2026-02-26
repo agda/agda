@@ -1,3 +1,4 @@
+{-# LANGUAGE MagicHash #-}
 
 -- | Computing the polarity (variance) of function arguments,
 --   for the sake of subtyping.
@@ -217,6 +218,13 @@ dependentPolarity :: Type -> [Polarity] -> [Polarity] -> ReduceM [Polarity]
 dependentPolarity t qs ps
   | all (== Invariant) qs && all (== Invariant) ps = pure ps -- Nothing can be possibly adjusted
   | otherwise = evalStateT (go t qs ps) mempty where
+
+  -- 2026-02-26 András: this should exist more generically!
+  {-# INLINE extendEnv #-}
+  extendEnv :: String -> Dom Type -> StateT VarSet ReduceM a -> StateT VarSet ReduceM a
+  extendEnv x a act = StateT \s -> ReduceM \e ->
+    unReduceM (runStateT# act s) $! extendReduceEnv x a e
+
   -- Andreas, 2014-04-11 see Issue 1099
   -- Free variable analysis is not in the monad,
   -- hence metas must have been instantiated before!
@@ -239,7 +247,7 @@ dependentPolarity t qs ps
                 when (p /= Nonvariant) (modify (`setRelInIgnoring` dom))
                 pure (p:ps)
           case b of
-            Abs _ t -> do
+            Abs x t -> extendEnv x dom do
               modify (VarSet.weaken 1)
               case p of
                 Invariant -> do
