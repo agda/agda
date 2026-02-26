@@ -6,7 +6,7 @@ open import Agda.Builtin.Equality.Rewrite
 module LocalRewriteBoolSlow where
 
 module Foo (Bool : Set) (tt ff : Bool) (not : Bool → Bool)
-           (@rew not-tt : not tt ≡ ff) (@rew not-ff : not ff ≡ tt)
+           (@rewrite not-tt : not tt ≡ ff) (@rewrite not-ff : not ff ≡ tt)
            where
   test1 : not (not tt) ≡ tt
   test1 = refl

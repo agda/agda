@@ -7,4 +7,4 @@ are not equal at type Nat
 when checking the following local rewrite rule constraint:
    |-  nat  =  1  :  Nat
 when checking that nat0 is a valid argument to a function accepting
-arguments of type (@rew p : nat ≡ 1)
+arguments of type (@rewrite p : nat ≡ 1)

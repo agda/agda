@@ -7,5 +7,5 @@ open import Agda.Builtin.Nat
 -- Confluence checking for local rewrite rules is not yet implemented
 module LocalRewriteNonConfluent where
 
-module _ (f g : Nat → Nat) (@rew p : ∀ {n} → f (g n) ≡ 0) (@rew q : g 0 ≡ 0)
+module _ (f g : Nat → Nat) (@rewrite p : ∀ {n} → f (g n) ≡ 0) (@rewrite q : g 0 ≡ 0)
          where

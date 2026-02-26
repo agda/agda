@@ -690,10 +690,10 @@ checkArgumentsE'
               tel <- runMaybeT $ safeTelViewUpTo' sArgsLen visible sFunType
               case tel of
                 Nothing             -> do
-                  -- Telescope has substituted @rew arguments in it, so we have
+                  -- Telescope has substituted @rewrite arguments in it, so we have
                   -- to delay checking the target type
                   -- We could make this a bit more efficient by counting the
-                  -- number of @rew arguments and skipping exactly that many
+                  -- number of @rewrite arguments and skipping exactly that many
                   -- args
                   return s { sSkipCheck = Skip }
                 Just (TelV tel tgt) -> do

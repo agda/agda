@@ -230,7 +230,6 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
     ]
   def <- instantiateDef =<< getConstInfo q
 
-
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $

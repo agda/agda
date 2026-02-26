@@ -6,7 +6,7 @@ open import Agda.Builtin.Equality.Rewrite
 
 module LocalRewriteMeta where
 
-module _ (x : Nat) (@rew _ : x ≡ 0) where
+module _ (x : Nat) (@rewrite _ : x ≡ 0) where
   foo : Nat
   foo = 0
 

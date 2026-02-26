@@ -12,7 +12,7 @@ map f []        = []
 map f (x ,- xs) = f x ,- map f xs
 
 module _ (_++_ : ∀{A : Set} → List A → List A → List A)
-         (@rew map-++ : ∀ {A B : Set} (f : A → B) xs ys
+         (@rewrite map-++ : ∀ {A B : Set} (f : A → B) xs ys
                       → map f (xs ++ ys) ≡ map f xs ++ map f ys)
          where
 

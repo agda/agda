@@ -141,8 +141,8 @@ assignTerm x tel v = do
 assignTermTCM' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTermTCM' x tel v = do
     -- TODO: The 'prettyTCM v' here can hit impossible because we are not in the
-    -- right context. Really, we should abstract over 'tel' but this is not
-    -- so easy because we only have the names.
+    -- right context. Really, we should abstract add 'tel' to the context but
+    -- this is not so easy because we only have the names.
     reportSDoc "tc.meta.assign" 70 $ vcat
       [ "assignTerm" <+> prettyTCM x <+> " := " <+> prettyTCM v
       , nest 2 $ "tel =" <+> prettyList_ (map (text . unArg) tel)
@@ -753,7 +753,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
                 catchPatternErr (\x -> waitFor x) $ do
                  ifM (isSingletonRecord r ps) expand dontExpand
                 else dontExpand
-            ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
+            ) $ {- else -} {- else -} {- else -} {- else -} ifM (andM [ return $ Levels `elem` kinds
                             , typeInType
                             , (Just lvl ==) <$> getBuiltin' builtinLevel
                             ]) (do
@@ -779,11 +779,11 @@ etaExpandBlocked (Blocked b t)  = do
     Blocked b' _ | b /= b' -> etaExpandBlocked t
     _                      -> return t
 
--- | Is the term an @rew function?
+-- | Is the term an @rewrite function?
+--   Does not need to do reduction because of syntactic restrictions on
+--   the placement of @rewrite
 isRewPi :: Term -> Bool
-isRewPi (Pi a b) = case getRewriteAnn a of
-  IsRewrite    -> True
-  IsNotRewrite -> isRewPi $ unEl $ unAbs b
+isRewPi (Pi a b) = isJust (rewDom a) || isRewPi (unEl $ unAbs b)
 isRewPi _        = False
 
 {-# SPECIALIZE assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM () #-}
@@ -798,7 +798,6 @@ assignWrapper dir x es v doAssign = do
   where dontAssign = do
           reportSLn "tc.meta.assign" 10 "don't assign metas"
           patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
-
 
 allRewDoms :: Tele (Dom Type) -> [RewDom]
 allRewDoms = mapMaybe rewDom . flattenTel
@@ -874,11 +873,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
 
-  -- Instantiating metas with @rew functions is never allowed to ensure
+  -- Instantiating metas with @rewrite functions is never allowed to ensure
   -- quantification is always prenex
-  if isRewPi v
-    then patternViolation neverUnblock
-    else return ()
+  when (isRewPi v) $ patternViolation neverUnblock
 
   -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
   -- we equate the sort of the solution with the sort of the

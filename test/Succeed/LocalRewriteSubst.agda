@@ -83,9 +83,9 @@ module FSubst
 
   module IdProofs
     (↑F  : ∀ {Γ} → Var Γ → F Γ)
-    (@rew ↑vz : ∀ {Γ} → ↑F (vz {Γ = Γ}) ≡ fz)
+    (@rewrite ↑vz : ∀ {Γ} → ↑F (vz {Γ = Γ}) ≡ fz)
     (↑vs : ∀ {Γ} {x : Var Γ} → ↑F (vs x) ≡ fs (↑F x))
-    (@rew ↑F↑ : ∀ {Γ} {x : Var Γ} → F↑ (↑F x) ≡ var x)
+    (@rewrite ↑F↑ : ∀ {Γ} {x : Var Γ} → F↑ (↑F x) ≡ var x)
     where
 
     lookup-⁺ : lookup x (δ ⁺) ≡ fs (lookup x δ)

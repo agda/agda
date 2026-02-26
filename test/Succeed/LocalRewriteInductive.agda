@@ -31,8 +31,8 @@ record Naturals : Set₁ where
 open Naturals using (elim-ze≡; elim-su≡)
 
 module UsingNaturals (𝒩 : Naturals)
-                     (@rew elim-ze : elim-ze≡ 𝒩)
-                     (@rew elim-su : elim-su≡ 𝒩)
+                     (@rewrite elim-ze : elim-ze≡ 𝒩)
+                     (@rewrite elim-su : elim-su≡ 𝒩)
                      where
   open Naturals 𝒩
 

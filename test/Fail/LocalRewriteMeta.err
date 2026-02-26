@@ -7,4 +7,4 @@ are not equal at type Nat
 when checking the following local rewrite rule constraint:
    |-  x  =  0  :  Nat
 when checking that ? is a valid argument to a function of type
-(@rew _ : x ≡ 0) → Nat
+(@rewrite _ : x ≡ 0) → Nat

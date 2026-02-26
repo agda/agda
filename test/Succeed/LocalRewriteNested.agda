@@ -7,7 +7,7 @@ open import Agda.Builtin.Equality.Rewrite
 module LocalRewriteNested where
 
 module Foo (n : Nat) (m : Nat) where
-  module Bar (@rew p : n + m ≡ m) (l : Nat) where
+  module Bar (@rewrite p : n + m ≡ m) (l : Nat) where
     test : n + m ≡ m
     test = refl
 

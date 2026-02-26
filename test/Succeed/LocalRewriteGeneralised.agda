@@ -20,18 +20,18 @@ postulate
   Path : (A : Set) → A → A → Set
 
 -- Used to be __IMPOSSIBLE__ in Telescope.hs
-module _ (f : I → A) (@rew f0 : f i0 ≡ x) where
+module _ (f : I → A) (@rewrite f0 : f i0 ≡ x) where
   postulate
     test : f i0 ≡ x
 
 -- Used to be __IMPOSSIBLE__ in MetaVars.hs
 module _ (f : I → A) {x y : A}
-         (@rew f0 : f i0 ≡ x) where
+         (@rewrite f0 : f i0 ≡ x) where
   postulate
     test2 : f i0 ≡ x
 
 -- Work-around which doesn't hit any warnings
 module _ (f : I → A) {x : A} where
-  module _ (@rew f0 : f i0 ≡ x) where
+  module _ (@rewrite f0 : f i0 ≡ x) where
     test3 : f i0 ≡ x
     test3 = refl

@@ -745,7 +745,7 @@ Experimental features
 
      .. versionadded:: 2.9.0
 
-     Enable declaring local rewrite rules with the ``@rew`` attribute (see
+     Enable declaring local rewrite rules with the ``@rewrite`` attribute (see
      :ref:`local-rewriting`).
 
 .. option:: --no-local-rewriting
@@ -1983,11 +1983,11 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: LetBoundLocalRewrite
 
-     Let-binding annotated with '@rew'.
+     Let-binding annotated with '@rewrite'.
 
 .. option:: LocalRewriteOutsideTelescope
 
-     '@rew' arguments are (currently) only allowed in module telescopes.
+     '@rewrite' arguments are (currently) only allowed in module telescopes.
 
 .. option:: SafeFlagEta
 

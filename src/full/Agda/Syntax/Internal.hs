@@ -58,12 +58,12 @@ import Agda.Utils.Impossible
 
 data RewDom' t = RewDom
   { rewDomEq  :: LocalEquation' t
-    -- ^ Elaborated "@rew" equation
+    -- ^ Elaborated "@rewrite" equation
   , rewDomRew :: Maybe RewriteRule
-    -- ^ "@rew" equation transformed into a directed rewrite rule.
+    -- ^ "@rewrite" equation transformed into a directed rewrite rule.
     --
     -- @Nothing@ iff invalidated by a substitution. If we are checking
-    -- against an "@rew" domain, this is fine, but if we are inside an "@rew"
+    -- against an "@rewrite" domain, this is fine, but if we are inside an "@rewrite"
     -- context, this is probably an internal error.
   } deriving (Show, Generic)
 
@@ -90,9 +90,9 @@ data Dom' t e = Dom
     -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
   , rewDom    :: Maybe (RewDom' t)
-    -- ^ Elaborated "@rew" equation
+    -- ^ Elaborated "@rewrite" equation
     --
-    -- Will only be present if domain annotated with "@rew" (@annRewrite@
+    -- Will only be present if domain annotated with "@rewrite" (@annRewrite@
     -- is @IsRewrite@) AND the type successfully elaborated into a rewrite rule.
   , unDom     :: e
   } deriving (Show, Functor, Foldable, Traversable)

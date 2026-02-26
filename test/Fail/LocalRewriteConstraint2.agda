@@ -6,7 +6,7 @@ open import Agda.Builtin.Equality.Rewrite
 
 module LocalRewriteConstraint2 where
 
-module Foo (x : Nat) (@rew p : x ≡ 1) where
+module Foo (x : Nat) (@rewrite p : x ≡ 1) where
   foo : Nat
   foo = 0
 

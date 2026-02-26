@@ -6,4 +6,4 @@ open import Agda.Builtin.Nat
 
 module LocalRewriteNotEnabled where
 
-module _ (n : Nat) (@rew p : n ≡ 0) where
+module _ (n : Nat) (@rewrite p : n ≡ 0) where

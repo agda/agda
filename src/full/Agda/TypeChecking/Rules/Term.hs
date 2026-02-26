@@ -349,7 +349,7 @@ checkDomain lamOrPi n xs e = do
     cxt <- getContext
     let s = LocalRewrite cxt n t
 
-  -- For now, we disallow '@rew' domains on pi types
+  -- For now, we disallow '@rewrite' domains on pi types
   -- In the future, this should be allowed only when the pi type is not in
   -- higher-order position (checked syntactically)
     r <- case lamOrPi of
@@ -424,7 +424,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
           ExtendTel (setTacRew tac rew dom) $
             setTacRewTel (raise 1 tac) (raise 1 rew) <$> tel
         -- We need to convert to Dom and set the domTactic and domRew fields
-        -- here in order to not drop @tactic and @rew annotations
+        -- here in order to not drop @tactic and @rewrite annotations
         xs' = setTacRew tac rew
                 . domNameFromNamedArgName
                 . modMod lamOrPi experimental
@@ -665,7 +665,6 @@ checkLambda' cmp r tac xps typ body target = do
           unless (namedSame dom x) $
             setCurrentRange x $ typeError $ WrongHidingInLHS
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-
         info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523
         -- Ensure we are not stepping under a possibly non-existing size.
@@ -1509,7 +1508,6 @@ checkExpr' cmp e t =
     tReduced <- reduce t
     reportSDoc "tc.term.expr.top" 15 $
         "    --> " <+> prettyTCM tReduced
-
 
     e <- scopedExpr e
 

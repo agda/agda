@@ -6,7 +6,7 @@ open import Agda.Builtin.Nat
 
 module LocalRewritePartialApp where
 
-module Foo (f : Nat → Nat) (@rew ◆◆ : f 0 ≡ 1) where
+module Foo (f : Nat → Nat) (@rewrite ◆◆ : f 0 ≡ 1) where
   foo : Nat
   foo = 42
 

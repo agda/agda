@@ -6,7 +6,7 @@ open import Agda.Builtin.Equality.Rewrite
 
 module LocalRewriteInferMeta2 where
 
-module _ (f : Nat → Nat) (@rew p : f 0 ≡ 1) where
+module _ (f : Nat → Nat) (@rewrite p : f 0 ≡ 1) where
   foo : Nat
   foo = 0
 

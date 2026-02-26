@@ -10,7 +10,7 @@ module LocalRewriteVarLHS where
 postulate
   Vec : Nat → Set
 
-module Foo (n : Nat) (@rew p : n ≡ 0) where
+module Foo (n : Nat) (@rewrite p : n ≡ 0) where
   test : Nat
   test = 42
 

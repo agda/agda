@@ -7,8 +7,8 @@ module LocalRewriteBoolTeleSlow where
 
 module Foo (Bool : Set) (tt ff : Bool)
            (elim : (P : Bool → Set) → P tt → P ff → ∀ b → P b)
-           (@rew elim-tt : ∀ {P t f} → elim P t f tt ≡ t)
-           (@rew elim-ff : ∀ {P t f} → elim P t f ff ≡ f) where
+           (@rewrite elim-tt : ∀ {P t f} → elim P t f tt ≡ t)
+           (@rewrite elim-ff : ∀ {P t f} → elim P t f ff ≡ f) where
   not : Bool → Bool
   not = elim (λ _ → Bool) ff tt
 

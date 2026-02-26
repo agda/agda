@@ -30,9 +30,9 @@ postulate
   funext : ∀ {f g : A → B} → (∀ x → f x ≡ g x) → f ≡ g
 
 module Foo (Car : Set) (_◆_ : Car → Car → Car) (id : Car)
-           (@rew ◆◆ : ∀ {x y z} → (x ◆ y) ◆ z ≡ x ◆ (y ◆ z))
-           (@rew ◆id : ∀ {x} → x ◆ id ≡ x)
-           (@rew id◆ : ∀ {x} → id ◆ x ≡ x)
+           (@rewrite ◆◆ : ∀ {x y z} → (x ◆ y) ◆ z ≡ x ◆ (y ◆ z))
+           (@rewrite ◆id : ∀ {x} → x ◆ id ≡ x)
+           (@rewrite id◆ : ∀ {x} → id ◆ x ≡ x)
            where
   foo : ∀ {x y} → ((id ◆ (x ◆ id)) ◆ y) ◆ id ≡ x ◆ y
   foo = refl

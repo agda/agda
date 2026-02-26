@@ -1648,7 +1648,7 @@ rewritingPragmaOptions = ("Rewriting and confluence",) $ concat
                     "disable confluence checking of REWRITE rules (default)"
     ]
   , pragmaFlag      "local-rewriting" lensOptLocalRewriting
-                    "enable declaring local rewrite rules with the @rew annotation" ""
+                    "enable declaring local rewrite rules with the @rewrite annotation" ""
                     $ Just "disable local rewrite rules"
   ]
 

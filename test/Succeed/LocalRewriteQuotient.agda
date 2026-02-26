@@ -51,7 +51,7 @@ record Quotients : Set₁ where
 open Quotients using (lift-mk≡)
 
 -- We define this outside of 'UsingQuotients' because of an incompatibility
--- between '--cubical' and datatypes with '@rew' arguments in their telescope.
+-- between '--cubical' and datatypes with '@rewrite' arguments in their telescope.
 -- Specifically, what should the generated type for 'transp' be?
 record PreInt : Set where
   constructor _-_
@@ -60,7 +60,7 @@ record PreInt : Set where
     neg : Nat
 
 module UsingQuotients (𝒬 : Quotients)
-                      (@rew lift-mk : lift-mk≡ 𝒬) where
+                      (@rewrite lift-mk : lift-mk≡ 𝒬) where
   open Quotients 𝒬
 
   _≈Int_ : PreInt → PreInt → Set

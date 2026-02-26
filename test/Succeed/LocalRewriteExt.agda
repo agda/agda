@@ -28,7 +28,7 @@ postulate
   fromPath1 : {p : Path A x y} → fromPath p i1 ≡ y
 
 module _ {A : Set} (f : I → A) {x y : A}
-         (@rew f0 : f i0 ≡ x) (@rew f1 : f i1 ≡ y) where
+         (@rewrite f0 : f i0 ≡ x) (@rewrite f1 : f i1 ≡ y) where
   postulate
     toPath : Path A x y
 

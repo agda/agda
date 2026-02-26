@@ -233,7 +233,6 @@ instance PrettyTCM Call where
       , prettyTCM c
       ]
 
-
     where
     hPretty :: MonadPretty m => Arg (Named_ Expr) -> m Doc
     hPretty a = do

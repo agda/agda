@@ -13,12 +13,12 @@ record Box (A : Set) : Set where
 
 open Box
 
-module Test1 (A : Set) (r s : Box A) (@rew rew : r .unbox ≡ s .unbox) where
+module Test1 (A : Set) (r s : Box A) (@rewrite rew : r .unbox ≡ s .unbox) where
 
   ext : r ≡ s
   ext = refl
 
-module Test2 (A : Set) (r : Nat → Box A) (@rew rew : r 0 .unbox ≡ r 1 .unbox) where
+module Test2 (A : Set) (r : Nat → Box A) (@rewrite rew : r 0 .unbox ≡ r 1 .unbox) where
 
   ext : r 0 ≡ r 1
   ext = refl
@@ -27,7 +27,7 @@ postulate
   A : Set
   r s : Box A
 
-module Test3 (@rew rew : r .unbox ≡ s .unbox) where
+module Test3 (@rewrite rew : r .unbox ≡ s .unbox) where
 
   ext : r ≡ s
   ext = refl

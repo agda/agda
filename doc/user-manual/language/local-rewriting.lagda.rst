@@ -9,7 +9,7 @@ Local Rewriting
 Local rewrite rules is an experimental feature which enables parameterising
 over computation rules. Specifically, it allows declaring
 module parameters targetting a rewrite relation as local rewrite rules by
-annotating with them the ``@rew`` attribute. Consequently:
+annotating with them the ``@rewrite`` attribute. Consequently:
 
 * Inside the module, local rewrite rules will automatically apply during
   reduction, rewriting instances of the left-hand side with the right-hand side,
@@ -24,7 +24,7 @@ by Yann Leray and Théo Winterhalter. Unlike their presentation, we do not
 make a strong syntactic
 distinction between the "interface environment" and the "local context", but
 nonetheless, by restricting
-``@rew`` attributes to module parameters, quantification over
+``@rewrite`` attributes to module parameters, quantification over
 rewrites is prenex-only.
 Semantically, local rewrite rules can
 be eliminated with inlining and so should be conservative over the rest of
@@ -151,7 +151,7 @@ successor automatically, so we have to manually invoke ``ind-zero`` and
 ``ind-suc`` multiple times.
 
 Local rewrite rules resolve this tedium. We can simply annotate the ``ind-zero``
-and ``ind-suc`` equations with ``@rew`` and recover the simple associativity
+and ``ind-suc`` equations with ``@rewrite`` and recover the simple associativity
 proof, whilst staying parametric over encoding details.
 
 ::
@@ -159,8 +159,8 @@ proof, whilst staying parametric over encoding details.
   module ParametricAdditionRew
     (Nat : Set) (zero : Nat) (suc : Nat → Nat)
     (ind : (P : Nat → Set) → P zero → (∀ n → P n → P (suc n)) → ∀ n → P n)
-    (@rew ind-zero : ∀ {P z s} → ind P z s zero ≡ z)
-    (@rew ind-suc  : ∀ {P z s n} → ind P z s (suc n) ≡ s n (ind P z s n))
+    (@rewrite ind-zero : ∀ {P z s} → ind P z s zero ≡ z)
+    (@rewrite ind-suc  : ∀ {P z s n} → ind P z s (suc n) ≡ s n (ind P z s n))
     where
     _+_ : Nat → Nat → Nat
     n + m = ind (λ _ → Nat) m (λ _ → suc) n
@@ -194,7 +194,7 @@ are not allowed. This is to avoid typechecking under invalid rewrite rules
 
 .. code-block:: agda
 
-  module _ (f : Nat → Nat) (@rew p : f 1 ≡ 0) where
+  module _ (f : Nat → Nat) (@rewrite p : f 1 ≡ 0) where
     bad : f ≡ (λ x → x) → Nat
     bad refl = {!!} -- Substituting 'f' for 'λ x → x' here would invalidate the
                     -- local rewrite rule 'p'
@@ -220,7 +220,7 @@ parameters will throw a ``CannotGenerateTransportLocalRewrite`` error:
 
 ::
 
-  module _ (n : Nat) (@rew _ : n ≡ 0) where
+  module _ (n : Nat) (@rewrite _ : n ≡ 0) where
     data Foo : Set where
       mk : Foo
 

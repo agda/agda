@@ -177,6 +177,7 @@ import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
+
 -- | Result of 'unifyIndices'.
 type UnificationResult = UnificationResult'
   ( Telescope                  -- @tel@

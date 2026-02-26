@@ -6,7 +6,7 @@ open import Agda.Builtin.Equality.Rewrite
 
 module LocalRewrite where
 
-module Foo (n : Nat) (m : Nat) (@rew p : n + m ≡ m) (l : Nat) where
+module Foo (n : Nat) (m : Nat) (@rewrite p : n + m ≡ m) (l : Nat) where
   test : n + m ≡ m
   test = refl
 

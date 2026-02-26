@@ -6,7 +6,7 @@ open import Agda.Builtin.Nat
 
 module LocalRewriteNoEtaImplicit where
 
-module _ (n : Nat) {@rew p : n ≡ 0} where
+module _ (n : Nat) {@rewrite p : n ≡ 0} where
   foo : Nat
   foo = 42
 

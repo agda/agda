@@ -615,8 +615,8 @@ warnIfRew s rewAnn = when (isRewrite rewAnn) $ void $ runMaybeT $
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
 addLetBinding info o x v t0 ret = do
-  -- For now, we disallow @rew in let bindings.
-  -- I think one could justify some implementation where @rew merely
+  -- For now, we disallow @rewrite in let bindings.
+  -- I think one could justify some implementation where @rewrite merely
   -- constrains the type of the let (i.e. the equation must already hold
   -- definitionally in the context we create the let binding) but this is not
   -- really useful.

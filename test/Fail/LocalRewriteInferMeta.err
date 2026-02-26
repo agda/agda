@@ -1,6 +1,6 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  (@rew p : 0 ≡ 1) → Nat =< _A_9 (blocked on _A_9)
+  (@rewrite p : 0 ≡ 1) → Nat =< _A_9 (blocked on _A_9)
 
 LocalRewriteInferMeta.agda:16.7-45: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

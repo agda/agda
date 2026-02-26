@@ -1922,7 +1922,7 @@ instance NFData RewriteAnn where
 
 instance Pretty RewriteAnn where
   pretty = \case
-    IsRewrite    -> "@rew"
+    IsRewrite    -> "@rewrite"
     IsNotRewrite -> empty
 
 class LensRewriteAnn a where

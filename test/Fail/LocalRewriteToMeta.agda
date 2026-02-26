@@ -9,11 +9,11 @@ module LocalRewriteToMeta where
 nat : Nat
 nat = {!!}
 
-module _ (n : Nat) (@rew p : n ≡ nat) where
+module _ (n : Nat) (@rewrite p : n ≡ nat) where
   test : Nat
   test = 42
 
-module _ (n : Nat) (@rew p : n ≡ {!!}) where
+module _ (n : Nat) (@rewrite p : n ≡ {!!}) where
   test2 : n ≡ _
   test2 = refl
 

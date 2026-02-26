@@ -7,5 +7,5 @@ open import Agda.Primitive.Cubical
 
 module LocalRewriteDataCubical where
 
-module _ (n : Nat) (@rew p : n ≡ 0) where
+module _ (n : Nat) (@rewrite p : n ≡ 0) where
   data Foo : Set where
