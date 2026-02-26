@@ -11,6 +11,7 @@ import qualified Data.HashSet as HashSet
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -43,6 +44,8 @@ foldrMetaSet f e ms = HashSet.foldr f e $ theMetaSet ms
 metaSetToBlocker :: MetaSet -> Blocker
 metaSetToBlocker ms = unblockOnAny $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
 
+instance Pretty MetaSet where
+  pretty = pretty . Set.fromList . HashSet.toList . theMetaSet
 
 ---------------------------------------------------------------------------
 -- * Flexible and rigid occurrences (semigroup)
@@ -158,6 +161,13 @@ flexRigToBlocker :: FlexRig -> Blocker
 flexRigToBlocker (Flexible ms) = metaSetToBlocker ms
 flexRigToBlocker _ = neverUnblock
 
+instance Pretty a => Pretty (FlexRig' a) where
+  pretty = \case
+    Flexible a    -> "FL" <> parens (pretty a)
+    WeaklyRigid   -> "WR"
+    StronglyRigid -> "SR"
+    Unguarded     -> empty
+
 ---------------------------------------------------------------------------
 -- * Multi-dimensional feature vector for variable occurrence (semigroup)
 
@@ -246,6 +256,9 @@ constructorFlexRig (ConHead _ _ i fs) es = case i of
   -- -- Inductive record constructors do not admit infinite cycles,
   -- -- but this cannot be proven inside Agda.
   -- -- Thus, unification should not prove it either.
+
+instance Pretty a => Pretty (VarOcc' a) where
+  pretty (VarOcc a b) = pretty a <+> pretty b
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
@@ -380,7 +393,7 @@ data FreeEnv' a b c = FreeEnv
     -- ^ Are we flexible or rigid?
   , feModality  :: !Modality
     -- ^ What is the current relevance and quantity?
-  , feSingleton :: !(Maybe Variable -> c)
+  , feSingleton :: !(b -> Maybe Variable -> c)
     -- ^ Method to return a single variable.
   }
 
@@ -410,5 +423,5 @@ initFreeEnv e sing = FreeEnv
   { feExtra       = e
   , feFlexRig     = Unguarded
   , feModality    = unitModality      -- multiplicative monoid
-  , feSingleton   = maybe mempty sing
+  , feSingleton   = \_ -> maybe mempty sing
   }

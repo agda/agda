@@ -83,6 +83,38 @@ with ``@♭`` trigger the ``UnsupportedIndexedMatch`` warning (see
 :ref:`indexed-inductive-types`), and the code might not compute
 properly.
 
-Also note that the :option:`--cohesion` flag does not include a sharp modality
-or shape modality as in `Cohesive Homotopy Type Theory
-<https://arxiv.org/abs/1509.07584>`_.
+
+.. _sharp:
+
+The Sharp Modality
+----------------------------
+
+The :option:`--cohesion` flag also enables the sharp modality as presented
+in `Cohesive Homotopy Type Theory <https://arxiv.org/abs/1509.07584>`_.
+The annotation ``@♯/@sharp`` is an idempotent monadic modality, which is
+right adjoint to the ``@♭`` modality.
+
+We can define ``♯`` as the following record type:
+
+::
+
+  record ♯ {l} (@♯ A : Set l) : Set l where
+    constructor conSharp
+    field
+      @♯ ε : A
+
+  open ♯
+
+  _ : ∀ {@♭ l} {@♭ A : Set l} → @♭ ♯ A → A
+  _ = ε
+
+When providing a ``@♯`` argument, every non ``@⊤`` variable becomes
+``@♭`` annotated. As a record, we can define elements of ``♯`` by
+copattern matching. After copattern matching with ``ε``, all variables
+in the context become crisp, for example, in the following, we can use
+``a`` in the constuctor of ``♭``.
+
+.. code-block:: agda
+
+  unit : ∀ {@♭ A : Set} → A → ♯ (♭ A)
+  unit a .ε = con a

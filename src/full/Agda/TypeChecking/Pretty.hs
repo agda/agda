@@ -13,6 +13,7 @@ import Control.Monad.Except
 
 import qualified Data.Foldable as Fold
 import Data.Map (Map)
+import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -50,6 +51,8 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.DiscrimTree.Types
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Free.Base
+import Agda.TypeChecking.Free.Generic
 
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
@@ -262,7 +265,9 @@ instance PrettyTCM Relevance                  where prettyTCM = pretty ; {-# INL
 instance PrettyTCM Quantity                   where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 instance PrettyTCM Erased                     where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 instance PrettyTCM ModalPolarity              where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Cohesion                   where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 instance PrettyTCM PolarityModality           where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM MetaSet                    where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 
 instance PrettyTCM A.Expr                     where prettyTCM = prettyA; {-# INLINE prettyTCM #-}
 instance PrettyTCM A.Pattern                  where prettyTCM = prettyA; {-# INLINE prettyTCM #-}
@@ -297,6 +302,18 @@ instance PrettyTCM AbstractName where prettyTCM = prettyTCM . anameName         
 instance PrettyTCM ConHead      where prettyTCM = prettyTCM . conName             ; {-# SPECIALIZE prettyTCM :: ConHead      -> TCM Doc #-}
 instance PrettyTCM DBPatVar     where prettyTCM = prettyTCM . var . dbPatVarIndex ; {-# SPECIALIZE prettyTCM :: DBPatVar     -> TCM Doc #-}
 instance PrettyTCM EqualityView where prettyTCM = prettyTCM . equalityUnview      ; {-# SPECIALIZE prettyTCM :: EqualityView -> TCM Doc #-}
+
+instance PrettyTCM a => PrettyTCM (VarOcc' a) where
+  prettyTCM (VarOcc a b) = prettyTCM a <+> pretty b
+  {-# SPECIALIZE prettyTCM :: PrettyTCM a => VarOcc' a -> TCM Doc #-}
+
+instance PrettyTCM a => PrettyTCM (FlexRig' a) where
+  prettyTCM = \case
+    Flexible a    -> "FL" <> parens (prettyTCM a)
+    WeaklyRigid   -> "WR"
+    StronglyRigid -> "SR"
+    Unguarded     -> empty
+  {-# SPECIALIZE prettyTCM :: PrettyTCM a => FlexRig' a -> TCM Doc #-}
 
 instance PrettyTCM ModuleName where
   prettyTCM x =
@@ -430,6 +447,11 @@ instance (PrettyTCM k, PrettyTCM v) => PrettyTCM (Map k v) where
     [ hang (prettyTCM k <+> "=") 2 (prettyTCM v) | (k, v) <- Map.toList m ])
 {-# SPECIALIZE prettyTCM :: (PrettyTCM k, PrettyTCM v) => Map k v -> TCM Doc  #-}
 
+instance PrettyTCM a => PrettyTCM (VarMap' a) where
+  prettyTCM (VarMap vars) = "VarMap" <> braces (sep $ punctuate comma
+    [ hang (prettyTCM (var k) <+> "=") 2 (prettyTCM v) | (k, v) <- IntMap.toList vars ])
+  {-# SPECIALIZE prettyTCM :: PrettyTCM a => VarMap' a -> TCM Doc #-}
+
 -- instance {-# OVERLAPPING #-} PrettyTCM ArgName where
 --   prettyTCM = text . P.prettyShow
 
@@ -447,6 +469,7 @@ instance PrettyTCM Modality where
     [ prettyTCM (getQuantity mod)
     , prettyTCM (getRelevance mod)
     , prettyTCM (getModalPolarity mod)
+    , prettyTCM (getCohesion mod)
     ]
 {-# SPECIALIZE prettyTCM :: Modality -> TCM Doc #-}
 

@@ -111,6 +111,7 @@ attributesForModality mod@(Modality r q c p)
     cohesion = case c of
       Flat{}       -> Just "@♭"
       Continuous{} -> Nothing
+      Sharp{}      -> Just "@♯"
       Squash{}     -> Just "@⊤"
     polarity = case modPolarityAnn p of
       MixedPolarity    -> "@mixed"

@@ -114,6 +114,7 @@ import Agda.Utils.Set1 ( Set1 )
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
+import Agda.Utils.POMonoid (hasLeftAdjoint)
 
 import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 import Agda.ImpossibleTest (impossibleTest, impossibleTestReduceM)
@@ -1903,7 +1904,7 @@ scopeCheckLetDef wh d = setCurrentRange d do
 
 checkFieldArgInfo :: Bool -> ArgInfo -> ScopeM ArgInfo
 checkFieldArgInfo warn =
-    ensureContinuous msg >=>
+    ensureLeftAdjoint msg >=>
     ensureMixedPolarity msg
   where
     msg = if warn then Just "of field" else Nothing
@@ -2990,7 +2991,7 @@ checkConstructorArgInfo :: ArgInfo -> ScopeM ArgInfo
 checkConstructorArgInfo =
     ensureRelevant msg >=>
     ensureNotLinear msg >=>
-    ensureContinuous msg >=>
+    ensureLeftAdjoint msg >=>
     ensureMixedPolarity msg
   where
     msg = Just "of constructor"
@@ -3014,9 +3015,9 @@ ensureNotLinear s info = do
       -- warning $ FixingQuantity s q q'
       -- return $ setQuantity q' info
 
-ensureContinuous :: LensCohesion a => Maybe String -> a -> ScopeM a
-ensureContinuous ms info
-  | isContinuous info = return info
+ensureLeftAdjoint :: LensCohesion a => Maybe String -> a -> ScopeM a
+ensureLeftAdjoint ms info
+  | hasLeftAdjoint (UnderComposition (getCohesion info)) = return info
   | otherwise = setCohesion Continuous info <$ do
       whenJust ms \ s -> warning $ FixingCohesion s (getCohesion info) Continuous
 
