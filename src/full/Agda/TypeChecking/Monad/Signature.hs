@@ -1021,7 +1021,7 @@ getAllRewriteRulesForDefHead f =
 -- | A local rewrite rule forces us to consider the definition as defined
 --   by copatterns
 --   This is necessary because binding local rewrite rules does not update
---   defCopattern
+--   defCopatternLHS'
 rewUsesCopatterns :: HasConstInfo m => RewriteHead -> m Bool
 rewUsesCopatterns h =
   any lrewHasProjectionPattern <$> getLocalRewriteRulesFor h
@@ -1030,7 +1030,7 @@ rewUsesCopatterns h =
 --   Accounts for local rewrite rules
 defCopatternLHS :: HasConstInfo m => QName -> Definition -> m Bool
 defCopatternLHS f d = do
-  rewForces <- rewUsesCopatterns (RewDefHead f)
+  rewForces <- rewUsesCopatterns $ RewDefHead f
   pure $ defCopatternLHS' d || rewForces
 
 getAllRewriteRulesForVarHead :: HasConstInfo m

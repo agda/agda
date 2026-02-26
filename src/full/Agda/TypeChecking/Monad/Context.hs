@@ -52,6 +52,7 @@ import Agda.TypeChecking.Warnings (warning, MonadWarning)
 import Agda.Utils.Monad (mzero, void)
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.IntMap as IntMap
+import Agda.Utils.Null (empty)
 
 -- * Modifying the context
 
@@ -76,6 +77,7 @@ inTopContext cont =
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
         $ locallyScope scopeLocals (const [])
         $ locallyTC eLetBindings (const Map.empty)
+        $ locallyTC eLocalRewriteRules (const empty)
         $ withoutModuleCheckpoints
         $ cont
 
