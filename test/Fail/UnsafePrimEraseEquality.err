@@ -1,4 +1,4 @@
-UnsafePrimEraseEquality.agda:4.3-66: error: [SafeFlagWithoutKFlagPrimEraseEquality]
+UnsafePrimEraseEquality.agda:6.3-69: error: [SafeFlagWithoutKFlagPrimEraseEquality]
 Cannot use primEraseEquality with safe and without-K flags.
 when checking that the type of the primitive function
-primEraseEquality is ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+primEraseEquality is ∀ {@0 a} {A : Set a} {x y : A} → x ≡ y → x ≡ y

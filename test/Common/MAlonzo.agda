@@ -2,8 +2,8 @@
 
 module Common.MAlonzo where
 
+open import Agda.Builtin.Coinduction
 open import Common.Prelude hiding (putStrLn)
-open import Common.Coinduction
 
 {-# FOREIGN GHC import qualified Data.Text.IO #-}
 

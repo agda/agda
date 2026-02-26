@@ -4,7 +4,7 @@
 
 module Issue153 where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 record R : Set₁ where
   field

@@ -4,7 +4,7 @@
 
 module Issue291b where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 open import Common.Equality
 
 data RUnit : Set where

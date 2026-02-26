@@ -2,7 +2,7 @@
 
 module CoinductiveAfterEvaluation where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 data Functor : Set where
   Id : Functor

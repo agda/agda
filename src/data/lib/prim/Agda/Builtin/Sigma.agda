@@ -1,10 +1,11 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types
+            --no-guardedness --level-universe --erasure #-}
 
 module Agda.Builtin.Sigma where
 
 open import Agda.Primitive
 
-record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+record Σ {@0 a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
   constructor _,_
   field
     fst : A

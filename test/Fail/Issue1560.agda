@@ -7,7 +7,7 @@
 
 {-# OPTIONS --guardedness #-}
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 -- Andreas, 2017-04-26: removing fake mutual speeds up from 1.8s to 1.3s
 -- However, the purpose of this test is to be slow on old versions of Agda

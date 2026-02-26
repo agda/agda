@@ -1,9 +1,10 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types
+            --no-guardedness --level-universe --erasure #-}
 
 module Agda.Builtin.List where
 
 infixr 5 _∷_
-data List {a} (A : Set a) : Set a where
+data List {@0 a} (A : Set a) : Set a where
   []  : List A
   _∷_ : (x : A) (xs : List A) → List A
 

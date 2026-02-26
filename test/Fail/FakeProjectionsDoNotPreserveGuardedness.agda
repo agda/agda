@@ -5,8 +5,8 @@
 
 module FakeProjectionsDoNotPreserveGuardedness where
 
+open import Agda.Builtin.Coinduction
 import Common.Level
-open import Common.Coinduction
 
 -- Products
 

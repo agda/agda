@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical=no-glue #-}
+{-# OPTIONS --cubical=no-glue --erasure #-}
 
 module Agda.Primitive.Cubical where
 
@@ -47,7 +47,7 @@ postulate
 {-# BUILTIN PARTIALP PartialP #-}
 
 postulate
-  isOneEmpty : ∀ {ℓ} {A : Partial i0 (Set ℓ)} → PartialP i0 A
+  isOneEmpty : ∀ {@0 ℓ} {A : Partial i0 (Set ℓ)} → PartialP i0 A
 
 {-# BUILTIN ISONEEMPTY isOneEmpty #-}
 
@@ -57,22 +57,21 @@ postulate
   #-}
 
 primitive
-  primPOr : ∀ {ℓ} (i j : I) {A : Partial (primIMax i j) (Set ℓ)}
+  primPOr : ∀ {@0 ℓ} (i j : I) {A : Partial (primIMax i j) (Set ℓ)}
             → (u : PartialP i (λ z → A (IsOne1 i j z)))
             → (v : PartialP j (λ z → A (IsOne2 i j z)))
             → PartialP (primIMax i j) A
 
   -- Computes in terms of primHComp and primTransp
-  primComp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) {φ : I} (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1
+  primComp : ∀ {@0 ℓ} (A : (i : I) → Set (ℓ i)) {φ : I} (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1
 
 syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 
 primitive
-  primTransp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a : A i0) → A i1
-  primHComp  : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A
-
+  primTransp : ∀ {@0 ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a : A i0) → A i1
+  primHComp  : ∀ {@0 ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A
 
 postulate
-  PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
+  PathP : ∀ {@0 ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
 
 {-# BUILTIN PATHP        PathP     #-}

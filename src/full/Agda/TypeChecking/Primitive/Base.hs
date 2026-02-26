@@ -56,15 +56,19 @@ gpi info name a b = do
   return $ El (mkPiSort dom (Abs y b))
               (Pi dom (Abs y b))
 
-hPi, nPi :: (MonadAddContext m, MonadDebug m)
-         => String -> m Type -> m Type -> m Type
+hPi, nPi, ePi ::
+  (MonadAddContext m, MonadDebug m) =>
+  String -> m Type -> m Type -> m Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
+ePi = gpi erasedHiddenArgInfo
 
-hPi', nPi' :: (MonadAddContext m, MonadDebug m)
-           => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
+hPi', nPi', ePi' ::
+  (MonadAddContext m, MonadDebug m) =>
+  String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 hPi' s a b = hPi s a (bind' s (\ x -> b x))
 nPi' s a b = nPi s a (bind' s (\ x -> b x))
+ePi' s a b = ePi s a (bind' s (\ x -> b x))
 
 {-# INLINABLE pPi' #-}
 pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
@@ -114,10 +118,12 @@ gApply' info a b = do
     y <- b
     pure $ x `apply` [Arg info y]
 
-(<@>),(<#>),(<..>) :: Applicative m => m Term -> m Term -> m Term
+(<@>), (<#>), (<..>), (<#@>) ::
+  Applicative m => m Term -> m Term -> m Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
 (<..>) = gApply' defaultIrrelevantArgInfo
+(<#@>) = gApply' erasedHiddenArgInfo
 
 (<@@>) :: Applicative m => m Term -> (m Term,m Term,m Term) -> m Term
 t <@@> (x,y,r) = do
@@ -170,6 +176,13 @@ argH = Arg $ setHiding Hidden defaultArgInfo
 
 domH :: e -> Dom e
 domH = setHiding Hidden . defaultDom
+
+-- | An abbreviation for @'Arg' 'erasedHiddenArgInfo'@.
+argE :: e -> Arg e
+argE = Arg erasedHiddenArgInfo
+
+domE :: e -> Dom e
+domE = setHiding Hidden . setQuantity zeroQuantity . defaultDom
 
 ---------------------------------------------------------------------------
 -- * Accessing the primitive functions

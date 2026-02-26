@@ -138,7 +138,7 @@ checkMacroType t = do
 
   let telList = telToList tel
       resType = abstract (telFromList (drop (length telList - 1) telList)) tr
-  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#@> primLevelZero <@> primUnit)
   equalType resType expectedType
     `catchError` \ _ -> typeError $ MacroResultTypeMismatch expectedType
 

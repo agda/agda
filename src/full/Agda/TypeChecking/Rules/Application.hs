@@ -25,6 +25,7 @@ import qualified Data.IntSet   as IntSet
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
+import Agda.Interaction.Options.Base
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern (patternToExpr)
@@ -1593,7 +1594,14 @@ inferLeveledSort u q suffix = \case
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
     List1.unlessNull args $ warning . TooManyArgumentsToSort q
-    l <- applyRelevanceToContext shapeIrrelevant $ checkLevel arg
+    -- If --erasure has been turned on, then the argument of
+    -- Set/Prop/SSet is erased.
+    erasureEnabled <- optErasure <$> pragmaOptions
+    l <- applyRelevanceToContext shapeIrrelevant $
+         (if erasureEnabled
+          then applyQuantityToJudgement zeroQuantity
+          else id)
+         (checkLevel arg)
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
 
 inferUnivOmega ::
@@ -1632,10 +1640,15 @@ checkSharpApplication e t c args = do
   -- postpone checking of patterns when we don't know their types (Issue480).
   forcedType <- do
     lvl <- levelType
-    (_, l) <- newValueMeta RunMetaOccursCheck CmpLeq lvl
+    (_, l) <- do
+      erasureEnabled <- optErasure <$> pragmaOptions
+      (if erasureEnabled
+       then applyQuantityToJudgement zeroQuantity
+       else id)
+        (newValueMeta RunMetaOccursCheck CmpLeq lvl)
     lv  <- levelView l
     (_, a) <- newValueMeta RunMetaOccursCheck CmpEq (sort $ Type lv)
-    return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
+    return $ El (Type lv) $ Def inf [Apply $ argE l, Apply $ defaultArg a]
 
   wrapper <- inFreshModuleIfFreeParams $
              setRunTimeModeUnlessInHardCompileTimeMode $ do
@@ -1707,7 +1720,7 @@ pathAbs (OType _) t = __IMPOSSIBLE__
 pathAbs (PathType s path l a x y) t = do
   return $ Lam defaultArgInfo t
 
--- | @primComp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1@
+-- | @primComp : ∀ {@0 ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1@
 --
 --   Check:  @u i0 = (λ _ → a) : Partial φ (A i0)@.
 --
@@ -1719,7 +1732,7 @@ checkPrimComp c rs vs _ = do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       let lz = unArg l `apply` [iz]
           az = unArg a `apply` [iz]
-      ty <- el's (pure (unArg l `apply` [iz])) $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
+      ty <- el's (pure (unArg l `apply` [iz])) $ primPartial <#@> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
       bAz <- el' (pure $ lz) (pure $ az)
       a0 <- blockArg bAz (rs !!! 4) a0 $ do
         equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
@@ -1728,7 +1741,7 @@ checkPrimComp c rs vs _ = do
       return $ l : a : phi : u : a0 : rest
     _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
--- | @primHComp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A@
+-- | @primHComp : ∀ {@0 ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A@
 --
 --   Check:  @u i0 = (λ _ → a) : Partial φ A@.
 --
@@ -1740,7 +1753,7 @@ checkPrimHComp c rs vs _ = do
       -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       -- ty = Partial φ A
-      ty <- el's (pure (unArg l)) $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
+      ty <- el's (pure (unArg l)) $ primPartial <#@> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
       -- (λ _ → a) = u i0 : ty
       bA <- el' (pure $ unArg l) (pure $ unArg a)
       a0 <- blockArg bA (rs !!! 4) a0 $ do
@@ -1750,7 +1763,7 @@ checkPrimHComp c rs vs _ = do
       return $ l : a : phi : u : a0 : rest
     _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
--- | @transp : ∀{ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a0 : A i0) → A i1@
+-- | @transp : ∀{@0 ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a0 : A i0) → A i1@
 --
 --   Check:  If φ, then @A i = A i0 : Set (ℓ i)@ must hold for all @i : I@.
 --
@@ -1781,7 +1794,7 @@ blockArg t r a m =
 -- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
 -- May not be haddock-parseable.
 
--- ' @primPOr : ∀ {ℓ} (φ₁ φ₂ : I) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
+-- ' @primPOr : ∀ {@0 ℓ} (φ₁ φ₂ : I) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
 -- '         → (u : PartialP φ₁ (λ (o : IsOne φ₁) → A (IsOne1 φ₁ φ₂ o)))
 -- '         → (v : PartialP φ₂ (λ (o : IsOne φ₂) → A (IsOne2 φ₁ φ₂ o)))
 -- '         → PartialP (φ₁ ∨ φ₂) A@
@@ -1810,7 +1823,7 @@ checkPOr c rs vs _ = do
       return $ l : phi1 : phi2 : a : u : v : rest
    _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
--- | @prim^glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
+-- | @prim^glue : ∀ {@0 ℓ ℓ'} {A : Set ℓ} {φ : I}
 --              → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
 --              → (t : PartialP φ T) → (a : A) → primGlue A T e@
 --
@@ -1828,13 +1841,13 @@ check_glue c rs vs _ = do
             bT  <- open . unArg $ bT
             e   <- open . unArg $ e
             t   <- open . unArg $ t
-            let f o = cl primEquivFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o)
+            let f o = cl primEquivFun <#@> lb <#@> la <#> (bT <..> o) <#> bA <@> (e <..> o)
             glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             lb  <- open . unArg $ lb
             phi <- open . unArg $ phi
             bA  <- open . unArg $ bA
-            el's lb $ cl primPartialP <#> lb <@> phi <@> glam defaultIrrelevantArgInfo "o" (\ _ -> bA)
+            el's lb $ cl primPartialP <#@> lb <@> phi <@> glam defaultIrrelevantArgInfo "o" (\ _ -> bA)
       let a' = Lam defaultIrrelevantArgInfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
@@ -1842,7 +1855,7 @@ check_glue c rs vs _ = do
    _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 
--- | @prim^glueU : ∀ {ℓ} {φ : I}
+-- | @prim^glueU : ∀ {@0 ℓ} {φ : I}
 --              → {T : I → Partial φ (Set ℓ)} → {A : Set ℓ [ φ ↦ T i0 ]}
 --              → (t : PartialP φ (T i1)) → (a : outS A) → hcomp T (outS A)@
 --
@@ -1859,7 +1872,7 @@ check_glueU c rs vs _ = do
             bT  <- open . unArg $ bT
             bA  <- open . unArg $ bA
             t   <- open . unArg $ t
-            let f o = cl primTrans <#> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
+            let f o = cl primTrans <#@> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
             glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             la  <- open . unArg $ la
@@ -1872,7 +1885,7 @@ check_glueU c rs vs _ = do
             phi <- open . unArg $ phi
             bT  <- open . unArg $ bT
             bA  <- open . unArg $ bA
-            el' la (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
+            el' la (cl primSubOut <#@> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
       a <- blockArg ta (rs !!! 5) a $ equalTerm ty a' v
       return $ la : phi : bT : bA : t : a : rest
    _ -> typeError $ CubicalPrimitiveNotFullyApplied c

@@ -5,13 +5,13 @@
 -- not just reduce them.
 
 -- Andreas, 2024-08-20, trigger warning WithoutKFlagPrimEraseEquality
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --erasure #-}
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 
 primitive
-  primEraseEquality : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+  primEraseEquality : ∀ {@0 a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
   -- Warning:
   -- Using primEraseEquality with the without-K flag is inconsistent.
 

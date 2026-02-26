@@ -3,7 +3,7 @@
 
 module Issue89 where
 
-open import Common.Coinduction renaming (∞ to ∞_)
+open import Agda.Builtin.Coinduction renaming (∞ to ∞_)
 
 ------------------------------------------------------------------------
 -- Streams

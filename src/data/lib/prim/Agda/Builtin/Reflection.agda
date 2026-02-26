@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types
+            --no-guardedness --level-universe --erasure #-}
 
 module Agda.Builtin.Reflection where
 
@@ -120,7 +121,7 @@ data Modality : Set where
 data ArgInfo : Set where
   arg-info : (v : Visibility) (m : Modality) → ArgInfo
 
-data Arg {a} (A : Set a) : Set a where
+data Arg {@0 a} (A : Set a) : Set a where
   arg : (i : ArgInfo) (x : A) → Arg A
 
 {-# BUILTIN ARGINFO    ArgInfo  #-}
@@ -140,7 +141,7 @@ data Blocker : Set where
 
 -- Name abstraction --
 
-data Abs {a} (A : Set a) : Set a where
+data Abs {@0 a} (A : Set a) : Set a where
   abs : (s : String) (x : A) → Abs A
 
 {-# BUILTIN ABS    Abs #-}
@@ -276,22 +277,22 @@ data ErrorPart : Set where
 -- TC monad --
 
 postulate
-  TC               : ∀ {a} → Set a → Set a
-  returnTC         : ∀ {a} {A : Set a} → A → TC A
-  bindTC           : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
+  TC               : ∀ {@0 a} → Set a → Set a
+  returnTC         : ∀ {@0 a} {A : Set a} → A → TC A
+  bindTC           : ∀ {@0 a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
   unify            : Term → Term → TC ⊤
-  typeError        : ∀ {a} {A : Set a} → List ErrorPart → TC A
+  typeError        : ∀ {@0 a} {A : Set a} → List ErrorPart → TC A
   inferType        : Term → TC Type
   checkType        : Term → Type → TC Term
   normalise        : Term → TC Term
   reduce           : Term → TC Term
-  catchTC          : ∀ {a} {A : Set a} → TC A → TC A → TC A
-  quoteTC          : ∀ {a} {A : Set a} → A → TC Term
-  unquoteTC        : ∀ {a} {A : Set a} → Term → TC A
+  catchTC          : ∀ {@0 a} {A : Set a} → TC A → TC A → TC A
+  quoteTC          : ∀ {@0 a} {A : Set a} → A → TC Term
+  unquoteTC        : ∀ {@0 a} {A : Set a} → Term → TC A
   quoteωTC         : ∀ {A : Setω} → A → TC Term
   getContext       : TC Telescope
-  extendContext    : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
-  inContext        : ∀ {a} {A : Set a} → Telescope → TC A → TC A
+  extendContext    : ∀ {@0 a} {A : Set a} → String → Arg Type → TC A → TC A
+  inContext        : ∀ {@0 a} {A : Set a} → Telescope → TC A → TC A
   freshName        : String → TC Name
   declareDef       : Arg Name → Type → TC ⊤
   declarePostulate : Arg Name → Type → TC ⊤
@@ -300,7 +301,7 @@ postulate
   defineFun        : Name → List Clause → TC ⊤
   getType          : Name → TC Type
   getDefinition    : Name → TC Definition
-  blockTC          : ∀ {a} {A : Set a} → Blocker → TC A
+  blockTC          : ∀ {@0 a} {A : Set a} → Blocker → TC A
   commitTC         : TC ⊤
   isMacro          : Name → TC Bool
   pragmaForeign    : String → String → TC ⊤
@@ -308,21 +309,21 @@ postulate
 
   -- If 'true', makes the following primitives also normalise
   -- their results: inferType, checkType, quoteTC, getType, and getContext
-  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  withNormalisation : ∀ {@0 a} {A : Set a} → Bool → TC A → TC A
   askNormalisation  : TC Bool
 
   -- If 'true', makes the following primitives to reconstruct hidden arguments:
   -- getDefinition, normalise, reduce, inferType, checkType and getContext
-  withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  withReconstructed : ∀ {@0 a} {A : Set a} → Bool → TC A → TC A
   askReconstructed  : TC Bool
 
   -- Whether implicit arguments at the end should be turned into metavariables
-  withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  withExpandLast : ∀ {@0 a} {A : Set a} → Bool → TC A → TC A
   askExpandLast  : TC Bool
 
   -- White/blacklist specific definitions for reduction while executing the TC computation
   -- 'true' for whitelist, 'false' for blacklist
-  withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+  withReduceDefs : ∀ {@0 a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
   askReduceDefs  : TC (Σ Bool λ _ → List Name)
 
   formatErrorParts : List ErrorPart → TC String
@@ -332,15 +333,15 @@ postulate
 
   -- Fail if the given computation gives rise to new, unsolved
   -- "blocking" constraints.
-  noConstraints : ∀ {a} {A : Set a} → TC A → TC A
+  noConstraints : ∀ {@0 a} {A : Set a} → TC A → TC A
 
   -- Run the given computation at the type level, allowing use of erased things.
-  workOnTypes : ∀ {a} {A : Set a} → TC A → TC A
+  workOnTypes : ∀ {@0 a} {A : Set a} → TC A → TC A
 
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
-  runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+  runSpeculative : ∀ {@0 a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
 
   -- Get a list of all possible instance candidates for the given meta
   -- variable (it does not have to be an instance meta).
@@ -475,11 +476,11 @@ private
   combineReduceDefs (true  , defs₁) (false , defs₂) = (true  , filter (_∉ defs₂) defs₁)
   combineReduceDefs (false , defs₁) (false , defs₂) = (false , defs₁ ++ defs₂)
 
-onlyReduceDefs dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+onlyReduceDefs dontReduceDefs : ∀ {@0 a} {A : Set a} → List Name → TC A → TC A
 onlyReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (true  , defs) exDefs) x)
 dontReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (false , defs) exDefs) x)
 
-blockOnMeta   : ∀ {a} {A : Set a} → Meta → TC A
+blockOnMeta   : ∀ {@0 a} {A : Set a} → Meta → TC A
 blockOnMeta m = blockTC (blockerMeta m)
 
 {-# WARNING_ON_USAGE onlyReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `onlyReduceDefs`" #-}

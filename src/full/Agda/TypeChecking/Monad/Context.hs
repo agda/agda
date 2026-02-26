@@ -23,6 +23,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, nameToRawName)
+import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -484,6 +485,33 @@ instance AddContext Telescope where
     loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
 {-# SPECIALIZE addContext :: Telescope -> TCM a -> TCM a #-}
+
+{-# NOINLINE extendReduceEnv #-}
+extendReduceEnv :: String -> Dom Type -> ReduceEnv -> ReduceEnv
+extendReduceEnv x !a !env =
+  let !tcs          = redSt env
+      (!nid, !tcs') = nextFresh tcs
+      ~n            = let x' = case x of "" -> "x"; _ -> x
+                          cn = C.Name noRange InScope (C.stringNameParts x')
+                      in Name nid cn cn noRange noFixity' False
+      !re           = redEnv env
+      !ec           = envContext re
+      !ec'          = CxExtendVar n a ec
+      !re'          = re {envContext = ec'}
+  in env {redEnv = re', redSt = tcs'}
+
+{-# INLINE underAbsReduceM #-}
+-- | Go under an abstraction in 'ReduceM'. This performs the minimal adjustment to make 'reduce'
+--   work, which is to extend the local 'Context' with a name and a type.
+underAbsReduceM :: Dom Type -> Abs a -> (a -> ReduceM b) -> ReduceM b
+underAbsReduceM a t k = ReduceM \env -> case t of
+  Abs   x t -> unReduceM (k t) $! extendReduceEnv x a env
+  NoAbs _ t -> unReduceM (k t) env
+
+{-# INLINE underAbsReduceM_ #-}
+-- | Go under an abstraction in 'ReduceM' while adding a dummy type to the context.
+underAbsReduceM_ :: Abs a -> (a -> ReduceM b) -> ReduceM b
+underAbsReduceM_ = underAbsReduceM __DUMMY_DOM__
 
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
 {-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}

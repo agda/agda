@@ -2,7 +2,7 @@
 
 module Issue826-2 where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 data _≡_ {A : Set} (x y : A) : Set where
 

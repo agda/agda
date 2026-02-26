@@ -58,7 +58,7 @@ primPOr :: TCM PrimitiveImpl
 primPOr = do
   requireCubical CWithoutGlue
   t    <- runNamesT [] $
-          hPi' "a" (els (pure LevelUniv) (cl primLevel))    $ \ a  ->
+          ePi' "a" (els (pure LevelUniv) (cl primLevel))    $ \ a  ->
           nPi' "i" primIntervalType $ \ i  ->
           nPi' "j" primIntervalType $ \ j  ->
           hPi' "A" (pPi' "o" (imax i j) $ \o -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
@@ -88,7 +88,7 @@ primPartial' :: TCM PrimitiveImpl
 primPartial' = do
   requireCubical CWithoutGlue
   t <- runNamesT [] $
-       hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
+       ePi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ _ ->
         nPi' "A" (sort . tmSort <$> a) $ \ bA ->
         (sort . tmSSort <$> a))
@@ -104,7 +104,7 @@ primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
   requireCubical CWithoutGlue
   t <- runNamesT [] $
-       hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
+       ePi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ phi ->
         nPi' "A" (pPi' "o" phi $ \ _ -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
         (sort . tmSSort <$> a))
@@ -119,11 +119,11 @@ primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
   requireCubical CWithoutGlue
   t    <- runNamesT [] $
-          hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
+          ePi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
-          hPi' "u" (el's a $ cl primPartial <#> a <@> phi <@> bA) $ \ u ->
-          el's a (cl primSub <#> a <@> bA <@> phi <@> u) --> el' a bA
+          hPi' "u" (el's a $ cl primPartial <#@> a <@> phi <@> bA) $ \ u ->
+          el's a (cl primSub <#@> a <@> bA <@> phi <@> u) --> el' a bA
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [a,bA,phi,u,x] -> do
@@ -143,7 +143,7 @@ primTrans' :: TCM PrimitiveImpl
 primTrans' = do
   requireCubical CWithoutGlue
   t    <- runNamesT [] $
-          hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
+          ePi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
           nPi' "φ" primIntervalType $ \ phi ->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
@@ -154,7 +154,7 @@ primHComp' :: TCM PrimitiveImpl
 primHComp' = do
   requireCubical CWithoutGlue
   t    <- runNamesT [] $
-          hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
+          ePi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
           nPi' "i" primIntervalType (\ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
@@ -180,13 +180,13 @@ mkComp s = do
 
   let
     forward la bA r u = pure tTrans
-      <#> lam "i" (\i -> la <@> (i `imax` r))
+      <#@> lam "i" (\i -> la <@> (i `imax` r))
       <@> lam "i" (\i -> bA <@> (i `imax` r))
       <@> r
       <@> u
 
   pure $ \la bA phi u u0 ->
-    pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
+    pure tHComp <#@> (la <@> pure io) <#> (bA <@> pure io) <#> phi
                 <@> lam "i" (\i -> ilam "o" $ \o ->
                         forward la bA i (u <@> i <..> o))
                 <@> forward la bA (pure iz) u0
@@ -200,7 +200,7 @@ mkCompLazy
 mkCompLazy s = do
   let getTermLocal = getTerm s
   tComp <- getTermLocal builtinComp
-  pure $ \la bA phi u u0 -> pure tComp <#> la <#> bA <#> phi <@> u <@> u0
+  pure $ \la bA phi u u0 -> pure tComp <#@> la <#> bA <#> phi <@> u <@> u0
 
 -- | Implementation of Kan operations for Pi types. The implementation
 -- of @transp@ and @hcomp@ for Pi types has many commonalities, so most
@@ -251,7 +251,7 @@ doPiKanOp cmd t ab = do
           la <- open . f $ Level lx
           bA <- open . f . unEl . unDom $ x
           pure $ Just $ \iOrNot phi a0 ->
-            pure tTrans <#> lam "j" (\j -> la <@> iOrNot j)
+            pure tTrans <#@> lam "j" (\j -> la <@> iOrNot j)
               <@> lam "j" (\ j -> bA <@> iOrNot j)
               <@> phi
               <@> a0
@@ -293,7 +293,7 @@ doPiKanOp cmd t ab = do
           bT <- (raise 1 b `absApp`) <$> u1
           u <- open (raise 1 (unArg u))
           pure tHComp
-            <#> (Level <$> toLevel bT)
+            <#@> (Level <$> toLevel bT)
             <#> pure (unEl bT)
             <#> phi
             <@> lam "i" (\ i -> ilam "o" $ \ o -> gApply (getHiding a) (u <@> i <..> o) u1)
@@ -320,7 +320,7 @@ doPiKanOp cmd t ab = do
           bT <- bind "i" $ \ x -> fmap bB . v $ x
 
           pure tTrans
-            <#> (tLam <$> traverse (fmap Level . toLevel) bT)
+            <#@> (tLam <$> traverse (fmap Level . toLevel) bT)
             <@> (pure . tLam $ unEl <$> bT)
             <@> phi
             <@> gApply (getHiding a) u0 (v (pure iz))
@@ -350,7 +350,7 @@ doPathPKanOp (HCompOp phi u u0) (IsNot l) (IsNot (bA,x,y)) = do
     -- fixing the endpoints at (j ∨ ~ j) in the new direction to those
     -- in the Path type.
     lam "j" $ \ j ->
-      pure tHComp <#> l <#> (bA <@> j) <#> (phi `imax` (ineg j `imax` j))
+      pure tHComp <#@> l <#> (bA <@> j) <#> (phi `imax` (ineg j `imax` j))
         <@> lam "i'" (\i -> combineSys l (bA <@> i)
           [ (phi,    ilam "o" (\ o -> u <@> i <..> o <@@> (x, y, j)))
           , (j,      ilam "o" (const y))
@@ -450,7 +450,7 @@ primTransHComp cmd ts nelims = do
             IZero -> fmap (reduced . notBlocked . argN) . runNamesT [] $ do
                 l <- open . unArg . famThing $ l
                 c <- open . unArg . ignoreBlocking $ sc
-                lam "i" $ \ i -> clP builtinIsOneEmpty <#> l <#> ilam "o" (\ _ -> c)
+                lam "i" $ \ i -> clP builtinIsOneEmpty <#@> l <#> ilam "o" (\ _ -> c)
 
             -- Otherwise we have some interesting formula (though
             -- definitely not IOne!) and we have to keep the partial
@@ -624,7 +624,7 @@ primTransHComp cmd ts nelims = do
           combine l ty d [] = d
           combine l ty d [(psi,u)] = u
           combine l ty d ((psi,u):xs)
-            = pure tPOr <#> l <@> psi <@> foldr (imax . fst) iz xs
+            = pure tPOr <#@> l <@> psi <@> foldr (imax . fst) iz xs
                         <#> ilam "o" (\ _ -> ty) -- the type
                         <@> u <@> (combine l ty d xs)
           noRed' su = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
@@ -633,7 +633,7 @@ primTransHComp cmd ts nelims = do
                      IZero -> notBlocked $ argN $ runNames [] $ do
                                  l <- open . unArg $ l
                                  c <- open . unArg . ignoreBlocking $ sc
-                                 lam "i" $ \ i -> pure tEmpty <#> l
+                                 lam "i" $ \ i -> pure tEmpty <#@> l
                                                               <#> ilam "o" (\ _ -> c)
                      _     -> su
           sameConHeadBack Nothing Nothing su k = noRed' su
@@ -714,10 +714,10 @@ primTransHComp cmd ts nelims = do
              u   <- open . unArg $ u
              u0  <- open . unArg $ u0
              -- hcomp (sc 1) [psi |-> transp sc phi u] (transp sc phi u0)
-             pure hcomp <#> (l <@> pure io) <#> (bC <@> pure io) <#> psi
+             pure hcomp <#@> (l <@> pure io) <#> (bC <@> pure io) <#> psi
                    <@> lam "j" (\ j -> ilam "o" $ \ o ->
-                        pure transp <#> l <@> bC <@> phi <@> (u <@> j <..> o))
-                   <@> (pure transp <#> l <@> bC <@> phi <@> u0)
+                        pure transp <#@> l <@> bC <@> phi <@> (u <@> j <..> o))
+                   <@> (pure transp <#@> l <@> bC <@> phi <@> u0)
         _ -> noRed
     compData mtrX isHITorIx nargs cmd l t sbA sphi u u0 = do
       () <- reportSDoc "impossible" 10 $ "compData" <+> (nest 2 . vcat)
@@ -742,7 +742,7 @@ primComp :: TCM PrimitiveImpl
 primComp = do
   requireCubical CWithoutGlue
   t    <- runNamesT [] $
-          hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
+          ePi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
           nPi' "i" primIntervalType (\ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
@@ -880,8 +880,8 @@ transpSysTel' flag delta us phi args = do
       lift . throwError =<< buildClosure t
     bapp :: forall m a. (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
     bapp t u = lazyAbsApp <$> t <*> u
-    doGTransp l t us phi a | null us = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
-                           | otherwise = pure tComp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <#> face <@> uphi <@> a
+    doGTransp l t us phi a | null us = pure tTransp <#@> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
+                           | otherwise = pure tComp <#@> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <#> face <@> uphi <@> a
       where
         -- [phi -> a; us]
         face = foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (phi : map fst us)
@@ -892,7 +892,7 @@ transpSysTel' flag delta us phi args = do
     combine l ty d [] = d
     combine l ty d [(psi,u)] = u
     combine l ty d ((psi,u):xs)
-            = pure tPOr <#> l <@> psi <@> (foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (map fst xs))
+            = pure tPOr <#@> l <@> psi <@> (foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (map fst xs))
                         <#> ilam "o" (\ _ -> ty) -- the type
                         <@> u <@> (combine l ty d xs)
 
@@ -1053,7 +1053,7 @@ pathTelescope' tel lhs rhs = do
   go pathp (ExtendTel a tel) (u : lhs) (v : rhs) = do
     let t = unDom a
     l <- subst 0 __DUMMY_TERM__ <$> getLevel t
-    let a' = El (Type l) (apply pathp $ [argH $ Level l] ++ map argN [Lam defaultArgInfo (Abs "i" $ unEl t), unArg u, unArg v])
+    let a' = El (Type l) (apply pathp $ [argE $ Level l] ++ map argN [Lam defaultArgInfo (Abs "i" $ unEl t), unArg u, unArg v])
         -- Γ,eq : u ≡ v, i : I ⊢ m = eq i : t[i]
         -- m  = runNames [] $ do
         --        [u,v] <- mapM (open . unArg) [u,v]
@@ -1287,7 +1287,7 @@ hcomp ty sys u0 = do
   ty <- open $ ty
   face <- (foldr max (pure iz) $ map fst $ sys)
   sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
-  pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
+  pure tHComp <#@> l <#> ty <#> pure face <@> pure sys <@> u0
 
 transpSys :: (HasBuiltins m, MonadError TCErr m, MonadReduce m) =>
                NamesT m (Abs Type) -- ty
@@ -1308,14 +1308,14 @@ transpSys ty sys phi u = do
   l <- open $ Lam defaultArgInfo . fmap (Level . fst) $ l_ty
   ty <- open $ Lam defaultArgInfo . fmap snd $ l_ty
 
-  if null sys then pure tTransp <#> l <@> ty <@> phi <@> u else do
+  if null sys then pure tTransp <#@> l <@> ty <@> phi <@> u else do
 
   let face = max phi (foldr max (pure iz) $ map fst $ sys)
   sys <- (open =<<) $ lam "i'" $ \ i -> do
     let base = (phi, ilam "o" $ \ _ -> u)
     combineSys l ty $ base : [(phi, u <@> i) | (phi,u) <- sys]
 
-  pure tComp <#> l <@> ty <#> face <@> sys <@> u
+  pure tComp <#@> l <@> ty <#> face <@> sys <@> u
 
 debugClause :: String -> Clause -> TCM ()
 debugClause s c = do

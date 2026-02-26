@@ -7,7 +7,7 @@
 
 module CoinductionAndUnivalence where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 open import Common.Equality
 
 prop = Set

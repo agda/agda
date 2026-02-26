@@ -4,7 +4,7 @@
 -- 2012-03-15, reported by Nisse
 module Issue585 where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 data ℕ : Set where
   zero : ℕ
