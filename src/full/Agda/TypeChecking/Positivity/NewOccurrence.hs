@@ -19,6 +19,7 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
+import Data.HashMap.Strict qualified as HMap
 import Data.Set (Set)
 import Data.Set qualified as Set
 
@@ -47,6 +48,7 @@ import Agda.Utils.Monad
 import Agda.Utils.StrictReader
 import Agda.Utils.StrictState
 import Agda.Utils.ExpandCase
+import Agda.Utils.Lens
 
 --------------------------------------------------------------------------------
 {-
@@ -241,6 +243,17 @@ occurrencesInMutDefArg d p i e = expand \ret -> ret $
   local (\e -> e {path = MutDefArg (path e) d i, target = ArgNode d i, occ = p}) $
     occurrences e
 
+lookupDef :: QName -> TCM Definition
+lookupDef q = do
+  st <- getTC
+  let defs  = st ^. stSignature . sigDefinitions
+      idefs = st ^. stImports   . sigDefinitions
+  case HMap.lookup q defs of
+    Just d  -> pure d
+    Nothing -> case HMap.lookup q idefs of
+      Just d -> pure d
+      Nothing -> __IMPOSSIBLE__
+
 class ComputeOccurrences a where
   occurrences :: a -> OccM ()
 
@@ -290,7 +303,6 @@ instance ComputeOccurrences Term where
 
       _ -> do
         mutuals <- asks mutuals
-        def     <- liftTCM $ getConstInfo d
 
         -- it's a mutual definition
         if Set.member d mutuals then do
@@ -307,37 +319,37 @@ instance ComputeOccurrences Term where
               elims d defOcc 0 es
 
         -- not a mutual definition
-        else case theDef def of
+        else do
+          def <- liftTCM $ getConstInfo d
+          case theDef def of
+            Constructor{} -> do
+              -- reportSLn "" 1 $ "CONSTRUCTOR " ++ P.prettyShow d
+              let elims i es = expand \ret -> case es of
+                    []   -> ret $ pure ()
+                    e:es -> ret do occurrencesInDefArg d StrictPos i e
+                                   elims (i + 1) es
+              elims 0 es
 
+            _ -> do
+              -- reportSLn "" 1 $ "NOTMUTUAL " ++ P.prettyShow d ++ " " ++ show (defArgOccurrences def)
+              let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
+                  elims' d i ps es = expand \ret -> case (ps, es) of
+                    (_   , []  ) -> ret $ pure ()
+                    (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
+                                           elims' d (i + 1) ps es
+                    ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
+                                           elims' d (i + 1) ps es
 
-          Constructor{} -> do
-            -- reportSLn "" 1 $ "CONSTRUCTOR " ++ P.prettyShow d
-            let elims i es = expand \ret -> case es of
-                  []   -> ret $ pure ()
-                  e:es -> ret do occurrencesInDefArg d StrictPos i e
-                                 elims (i + 1) es
-            elims 0 es
+              let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
+                  elims d a i ps es = expand \ret -> case (ps, es) of
+                    (_   , []  ) -> ret $ pure ()
+                    (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
+                                           elims d a (i + 1) ps es
+                    ([]  , e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
+                                           elims' d i (drop i ps) (e:es)
 
-          _ -> do
-            -- reportSLn "" 1 $ "NOTMUTUAL " ++ P.prettyShow d ++ " " ++ show (defArgOccurrences def)
-            let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
-                elims' d i ps es = expand \ret -> case (ps, es) of
-                  (_   , []  ) -> ret $ pure ()
-                  (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
-                                         elims' d (i + 1) ps es
-                  ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
-                                         elims' d (i + 1) ps es
-
-            let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
-                elims d a i ps es = expand \ret -> case (ps, es) of
-                  (_   , []  ) -> ret $ pure ()
-                  (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
-                                         elims d a (i + 1) ps es
-                  ([]  , e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
-                                         elims' d i (drop i ps) (e:es)
-
-            defOcc <- liftTCM $ mutualDefOcc d
-            underOcc defOcc $ elims d (defType def) 0 (defArgOccurrences def) es
+              defOcc <- liftTCM $ mutualDefOcc d
+              underOcc defOcc $ elims d (defType def) 0 (defArgOccurrences def) es
 
     Con _ _ es -> ret $ occurrences es -- András 2026-02-17: why not push something here?
     MetaV m es -> ret $ underPathSetOcc MetaArg Mixed (occurrences es)

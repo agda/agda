@@ -192,6 +192,7 @@ class Monad m => ReadTCState m where
   -- hold onto the result of this function for very long.
   getSessionState :: m SessionState
 
+  {-# INLINE withTCState #-}
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
 
@@ -5949,6 +5950,7 @@ instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
   getSessionState = ReduceM redSess
 
+  {-# INLINE locallyTCState #-}
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a

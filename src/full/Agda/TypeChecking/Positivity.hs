@@ -125,7 +125,7 @@ checkStrictlyPositive mi qset = do
   -- filteredg <- pure $ Graph.Graph $ Map.filter (not . null) gmap
 
   -- gnew <- Graph.Graph <$> New.buildOccurrenceGraph qset
-  !g <- (fixupNewGraph . Graph.Graph <$> New.buildOccurrenceGraph qset)
+  -- !g <- (fixupNewGraph . Graph.Graph <$> New.buildOccurrenceGraph qset)
   -- let (g', gnew') = trimGraphs g gnew
 
   -- let g' = erasePaths g
@@ -320,6 +320,8 @@ checkStrictlyPositive mi qset = do
       forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> when (hasDefinition $ theDef def) $ do
         reportSDoc "tc.pos.args" 10 $ "checking args of" <+> prettyTCM q
         n <- getDefArity def
+        n' <- getDefArity' def
+        -- when (n /= n') $ error "MALLAC"
         -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
         -- Otherwise, we obtain the occurrences from the Graph.
         let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
@@ -372,6 +374,15 @@ getDefArity :: Definition -> TCM Int
 getDefArity def = do
   TelV tel _ <- telView (defType def)
   return $ size tel - projectionArgs def
+
+getDefArity' :: Definition -> TCM Int
+getDefArity' def = do
+  let go :: Type -> Int -> ReduceM Int
+      go !a !n = (unEl <$> reduce a) >>= \case
+        Pi a b -> underAbsReduceM a b \b -> go b (n + 1)
+        _      -> pure n
+  n <- liftReduce (go (defType def) 0)
+  pure $! n - projectionArgs def
 
 -- Computing occurrences --------------------------------------------------
 
