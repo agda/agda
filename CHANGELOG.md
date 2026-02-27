@@ -154,6 +154,9 @@ Errors
   * `GeneralizationPrepruneErrorCyclicDependencies`, reproduced by Nils Anders Danielsson
     (see Issue [#3672](https://github.com/agda/agda/issues/3672#issuecomment-482715807)).
 
+* The error `RecursiveRecordNeedsInductivity` has been removed.
+  Recursive records default to `inductive`.
+
 Warnings
 --------
 

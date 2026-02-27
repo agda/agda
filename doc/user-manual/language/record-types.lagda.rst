@@ -564,8 +564,8 @@ Recursive records
 -----------------
 
 A recursive record is a record where the record type itself appears in the type
-of one of its fields. Recursive records need to be declared as either
-``inductive`` or ``coinductive``.
+of one of its fields.
+Recursive records can declared as either ``inductive`` (default) or ``coinductive``.
 
 Inductive records
 ~~~~~~~~~~~~~~~~~

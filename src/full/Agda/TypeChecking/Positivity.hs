@@ -182,12 +182,10 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
             Just o | o <= StrictPos -> do
               reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
               unguardedRecord q pat
-              checkInduction q
             -- otherwise, if the record is recursive, mark it as well
             Just o | o <= GuardPos -> do
               reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
               recursiveRecord q
-              checkInduction q
             -- If the record is not recursive, switch on eta
             -- unless it is coinductive or a no-eta-equality record.
             Nothing -> do
@@ -196,19 +194,6 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
                 "is not recursive"
               nonRecursiveRecord q
             _ -> return ()
-
-    checkInduction :: QName -> TCM ()
-    checkInduction q =
-      -- ASR (01 January 2016). We don't raise this error if the
-      -- NO_POSITIVITY_CHECK pragma was set on in the record. See
-      -- Issue 1760.
-      when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
-        whenM positivityCheckEnabled $ do
-        -- Check whether the recursive record has been declared as
-        -- 'Inductive' or 'Coinductive'.  Otherwise, error.
-        unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
-          setCurrentRange (nameBindingSite $ qnameName q) $
-            typeError $ RecursiveRecordNeedsInductivity q
 
     occ (Edge o _) = o
 
