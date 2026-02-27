@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Strict #-}
-{-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 {-# OPTIONS_GHC -fmax-worker-args=20 #-}
 {-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
@@ -14,14 +14,21 @@ module Agda.TypeChecking.Positivity.NewOccurrence where
 
 import Prelude hiding ( null, (!!) )
 
+import Control.Monad.IO.Class
+
 -- import Data.Foldable
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.HashMap.Strict qualified as HMap
 import Data.Set (Set)
 import Data.Set qualified as Set
+
+import Control.Monad.Primitive
+import Data.Hashable
+
+import Data.Vector.Mutable qualified as VM
+import Data.Vector.Unboxed.Mutable  qualified as UM
+import Data.Vector.Hashtables qualified as HT
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
@@ -40,13 +47,12 @@ import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Utils.Impossible
 import Agda.Utils.List
-import Agda.Utils.Map qualified as Map
+-- import Agda.Utils.Map qualified as Map
 import Agda.Utils.Maybe
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
 import Agda.Utils.Monad
 import Agda.Utils.StrictReader
-import Agda.Utils.StrictState
 import Agda.Utils.ExpandCase
 import Agda.Utils.Lens
 
@@ -128,6 +134,11 @@ instance PrettyTCM Path where
 data Node = DefNode QName | ArgNode QName Nat
   deriving (Eq, Ord, Show)
 
+instance Hashable Node where
+  hashWithSalt h = \case
+    DefNode x   -> (1 :: Int) `hashWithSalt` x
+    ArgNode x i -> (2 :: Int) `hashWithSalt` x `hashWithSalt` i
+
 instance P.Pretty Node where
   pretty = \case
     DefNode q   -> P.pretty q
@@ -145,15 +156,19 @@ data OccEnv = OccEnv {
   , topDefArgs :: [DefArgInEnv] -- ^ Occurrence info for definitions args.
   , inf        :: Maybe QName   -- ^ Name for ∞ builtin.
   , locals     :: Int           -- ^ Number of local binders (on the top of the definition args).
-  , mutuals    :: Set QName     -- ^ Definitions in the current mutual group.
+  , mutuals    :: Mutuals       -- ^ Definitions in the current mutual group.
   , target     :: Node          -- ^ We add occurrences pointing to this node.
   , path       :: Path          -- ^ Path from the target node to the current position.
   , occ        :: Occurrence    -- ^ Occurence of current position.
+  , graph      :: OccGraph
   }
 
-data Edge     = Edge Occurrence Path deriving (Eq, Show)
-type OccGraph = Map Node (Map Node Edge)
-type OccM     = ReaderT OccEnv (StateT OccGraph TCM)
+data Edge = Edge Occurrence Path deriving (Eq, Show)
+
+type Targets  = HT.Dictionary (PrimState IO) VM.MVector Node  VM.MVector Edge
+type OccGraph = HT.Dictionary (PrimState IO) VM.MVector Node  VM.MVector Targets
+type Mutuals  = HT.Dictionary (PrimState IO) VM.MVector QName UM.MVector ()
+type OccM     = ReaderT OccEnv TCM
 
 instance PrettyTCMWithNode Edge where
   prettyTCMWithNode (WithNode n (Edge o w)) = vcat
@@ -212,23 +227,27 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
           _ -> pure []
     liftReduce (go a)
 
-addEdgeToGraph :: Node -> Node -> Edge -> OccGraph -> OccGraph
-addEdgeToGraph src target e g =
-  Map.insertWithGood
-    (\(!e,!target) _ m -> Map.insertWithGood (\_ -> mergeEdges) () target e m)
-    (e,target)
-    src
-    (Map.singleton target e)
-    g
+addEdgeToGraph :: OccGraph -> Node -> Node -> Edge -> IO ()
+addEdgeToGraph graph src target e = do
+  HT.lookup graph src >>= \case
+    Nothing -> do
+      tgts <- HT.initialize 1
+      HT.insert tgts target e
+      HT.insert graph src tgts
+    Just tgts -> do
+      HT.lookup tgts target >>= \case
+        Nothing  -> HT.insert tgts target e
+        Just e'  -> HT.insert tgts target $! mergeEdges e e'
 
 addEdge :: Node -> OccM ()
 addEdge src = do
   target <- asks target
   path   <- asks path
   occ    <- asks occ
+  graph  <- asks graph
   expand \ret -> case occ of
     Unused -> ret $ pure ()
-    occ    -> ret $ modify $ addEdgeToGraph target src (Edge occ path)
+    occ    -> ret $ liftIO $ addEdgeToGraph graph target src (Edge occ path)
 
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArg d p i e = expand \ret -> ret do
@@ -304,52 +323,54 @@ instance ComputeOccurrences Term where
       _ -> do
         mutuals <- asks mutuals
 
-        -- it's a mutual definition
-        if Set.member d mutuals then do
-          addEdge (DefNode d)
-          expand \ret -> case es of
-            [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
-            es -> ret do
-              let elims d p i es = expand \ret -> case es of
-                    []   -> ret $ pure ()
-                    e:es -> ret do occurrencesInMutDefArg d p i e
-                                   elims d p (i + 1) es
 
-              defOcc <- liftTCM $ mutualDefOcc d
-              elims d defOcc 0 es
+        liftIO (((/= (-1)) <$> HT.findEntry mutuals d)) >>= \case
+          -- it's a mutual definition
+          True -> do
+            addEdge (DefNode d)
+            expand \ret -> case es of
+              [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
+              es -> ret do
+                let elims d p i es = expand \ret -> case es of
+                      []   -> ret $ pure ()
+                      e:es -> ret do occurrencesInMutDefArg d p i e
+                                     elims d p (i + 1) es
 
-        -- not a mutual definition
-        else do
-          def <- liftTCM $ getConstInfo d
-          case theDef def of
-            Constructor{} -> do
-              -- reportSLn "" 1 $ "CONSTRUCTOR " ++ P.prettyShow d
-              let elims i es = expand \ret -> case es of
-                    []   -> ret $ pure ()
-                    e:es -> ret do occurrencesInDefArg d StrictPos i e
-                                   elims (i + 1) es
-              elims 0 es
+                defOcc <- liftTCM $ mutualDefOcc d
+                elims d defOcc 0 es
 
-            _ -> do
-              -- reportSLn "" 1 $ "NOTMUTUAL " ++ P.prettyShow d ++ " " ++ show (defArgOccurrences def)
-              let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims' d i ps es = expand \ret -> case (ps, es) of
-                    (_   , []  ) -> ret $ pure ()
-                    (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
-                                           elims' d (i + 1) ps es
-                    ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
-                                           elims' d (i + 1) ps es
+          -- not a mutual definition
+          False -> do
+            def <- liftTCM $ getConstInfo d
+            case theDef def of
+              Constructor{} -> do
+                -- reportSLn "" 1 $ "CONSTRUCTOR " ++ P.prettyShow d
+                let elims i es = expand \ret -> case es of
+                      []   -> ret $ pure ()
+                      e:es -> ret do occurrencesInDefArg d StrictPos i e
+                                     elims (i + 1) es
+                elims 0 es
 
-              let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims d a i ps es = expand \ret -> case (ps, es) of
-                    (_   , []  ) -> ret $ pure ()
-                    (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
-                                           elims d a (i + 1) ps es
-                    ([]  , e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
-                                           elims' d i (drop i ps) (e:es)
+              _ -> do
+                -- reportSLn "" 1 $ "NOTMUTUAL " ++ P.prettyShow d ++ " " ++ show (defArgOccurrences def)
+                let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
+                    elims' d i ps es = expand \ret -> case (ps, es) of
+                      (_   , []  ) -> ret $ pure ()
+                      (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
+                                             elims' d (i + 1) ps es
+                      ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
+                                             elims' d (i + 1) ps es
 
-              defOcc <- liftTCM $ mutualDefOcc d
-              underOcc defOcc $ elims d (defType def) 0 (defArgOccurrences def) es
+                let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
+                    elims d a i ps es = expand \ret -> case (ps, es) of
+                      (_   , []  ) -> ret $ pure ()
+                      (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
+                                             elims d a (i + 1) ps es
+                      ([]  , e:es) -> ret do ps <- liftTCM $ getOccurrencesFromType a
+                                             elims' d i (drop i ps) (e:es)
+
+                defOcc <- liftTCM $ mutualDefOcc d
+                underOcc defOcc $ elims d (defType def) 0 (defArgOccurrences def) es
 
     Con _ _ es -> ret $ occurrences es -- András 2026-02-17: why not push something here?
     MetaV m es -> ret $ underPathSetOcc MetaArg Mixed (occurrences es)
@@ -599,22 +620,21 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
     AbstractDefn{}     -> ret __IMPOSSIBLE__
 
 
-transposeGraph :: OccGraph -> OccGraph
-transposeGraph m = foldl' ins mempty assocs where
-  assocs = [(i, j, e) | (i, m) <- Map.toList m, (j, e) <- Map.toList m]
-  ins acc (i, j, e) = addEdgeToGraph j i e acc
+-- transposeGraph :: OccGraph -> OccGraph
+-- transposeGraph m = foldl' ins mempty assocs where
+--   assocs = [(i, j, e) | (i, m) <- Map.toList m, (j, e) <- Map.toList m]
+--   ins acc (i, j, e) = addEdgeToGraph j i e acc
 
 
-buildOccurrenceGraph :: Set QName -> TCM OccGraph
-buildOccurrenceGraph topQs = do
+buildOccurrenceGraph :: [QName] -> TCM OccGraph
+buildOccurrenceGraph qs = do
 
-  inf <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
+  inf     <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
+  mutuals <- liftIO $ HT.fromList $ map (,()) qs
+  graph   <- liftIO $ HT.initialize (length qs)
 
-  let go :: [QName] -> OccGraph -> TCM OccGraph
-      go qs acc = expand \ret -> case qs of
-        []   -> ret $ pure acc
-        q:qs -> ret do let env = OccEnv q [] inf 0 topQs (DefNode q) Root StrictPos
-                       acc <- execStateT (runReaderT (computeDefOccurrences q) env) acc
-                       go qs acc
+  forMGood_ qs \q -> do
+    let env = OccEnv q [] inf 0 mutuals (DefNode q) Root StrictPos graph
+    runReaderT (computeDefOccurrences q) env
 
-  go (Set.toList topQs) mempty
+  pure graph

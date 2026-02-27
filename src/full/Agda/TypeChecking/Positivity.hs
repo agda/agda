@@ -90,25 +90,25 @@ trimGraphs (Graph.Graph m) (Graph.Graph m') =
 erasePaths :: Graph Node (Edge OccursWhere) -> Graph Node (Edge ())
 erasePaths = (fmap . fmap) (const ())
 
-fixupNewGraph :: Graph New.Node New.Edge -> Graph Node (Edge OccursWhere)
-fixupNewGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
+-- fixupNewGraph :: Graph New.Node New.Edge -> Graph Node (Edge OccursWhere)
+-- fixupNewGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
 
-  assocs = [(tgt, src, e) | (src, tgts) <- Map.toList m, (tgt, e) <- Map.toList tgts]
+--   assocs = [(tgt, src, e) | (src, tgts) <- Map.toList m, (tgt, e) <- Map.toList tgts]
 
-  convNode (New.ArgNode x i) = ArgNode x i
-  convNode (New.DefNode x)   = DefNode x
+--   convNode (New.ArgNode x i) = ArgNode x i
+--   convNode (New.DefNode x)   = DefNode x
 
-  convEdge (New.Edge occ _) = Edge occ empty
+--   convEdge (New.Edge occ _) = Edge occ empty
 
-  go :: Map Node (Map Node (Edge OccursWhere))
-        -> (New.Node, New.Node, New.Edge) -> Map Node (Map Node (Edge OccursWhere))
-  go m (convNode -> src, convNode -> tgt, convEdge -> e) =
-    Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
-    Map.insertWith (\_ tgts -> tgts) tgt mempty $
-    m
+--   go :: Map Node (Map Node (Edge OccursWhere))
+--         -> (New.Node, New.Node, New.Edge) -> Map Node (Map Node (Edge OccursWhere))
+--   go m (convNode -> src, convNode -> tgt, convEdge -> e) =
+--     Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+--     Map.insertWith (\_ tgts -> tgts) tgt mempty $
+--     m
 
-buildOccurrenceGraph' :: Set QName -> TCM (Graph Node (Edge OccursWhere))
-buildOccurrenceGraph' qs = fixupNewGraph . Graph.Graph <$!> Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
+-- buildOccurrenceGraph' :: Set QName -> TCM (Graph Node (Edge OccursWhere))
+-- buildOccurrenceGraph' qs = fixupNewGraph . Graph.Graph <$!> Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
 
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
@@ -131,7 +131,13 @@ checkStrictlyPositive mi qset = do
 
       -- compute the occurrence graph
       --------------------------------------------------------------------------------
-      !g <- (buildOccurrenceGraph' qset)
+      !g <- (buildOccurrenceGraph qset)
+
+      _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
+
+      -- master 3.9
+      -- new    3.3
+      -- new with avoiding unused args 3.3
 
       reportSDoc "tc.pos.tick" 100 $ "constructed graph"
       reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
