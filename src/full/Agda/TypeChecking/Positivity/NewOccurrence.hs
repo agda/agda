@@ -30,6 +30,8 @@ import Data.Vector.Mutable qualified as VM
 import Data.Vector.Unboxed.Mutable  qualified as UM
 import Data.Vector.Hashtables qualified as HT
 
+import System.IO.Unsafe
+
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -55,6 +57,7 @@ import Agda.Utils.Monad
 import Agda.Utils.StrictReader
 import Agda.Utils.ExpandCase
 import Agda.Utils.Lens
+import Agda.Utils.MinimalArray.MutableLifted qualified as Array
 
 --------------------------------------------------------------------------------
 {-
@@ -163,12 +166,12 @@ data OccEnv = OccEnv {
   , graph      :: OccGraph
   }
 
-data Edge = Edge Occurrence Path deriving (Eq, Show)
-
-type Targets  = HT.Dictionary (PrimState IO) VM.MVector Node  VM.MVector Edge
-type OccGraph = HT.Dictionary (PrimState IO) VM.MVector Node  VM.MVector Targets
-type Mutuals  = HT.Dictionary (PrimState IO) VM.MVector QName UM.MVector ()
-type OccM     = ReaderT OccEnv TCM
+data Edge        = Edge Occurrence Path deriving (Eq, Show)
+type Targets     = HT.Dictionary (PrimState IO) VM.MVector Node VM.MVector Edge
+data SourceEntry = SourceEntry QName Targets (Array.IOArray Targets)
+type OccGraph    = Array.IOArray SourceEntry
+type Mutuals     = HT.Dictionary (PrimState IO) VM.MVector QName UM.MVector Int
+type OccM        = ReaderT OccEnv TCM
 
 instance PrettyTCMWithNode Edge where
   prettyTCMWithNode (WithNode n (Edge o w)) = vcat
@@ -227,27 +230,47 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
           _ -> pure []
     liftReduce (go a)
 
-addEdgeToGraph :: OccGraph -> Node -> Node -> Edge -> IO ()
-addEdgeToGraph graph src target e = do
-  HT.lookup graph src >>= \case
-    Nothing -> do
-      tgts <- HT.initialize 1
-      HT.insert tgts target e
-      HT.insert graph src tgts
-    Just tgts -> do
-      HT.lookup tgts target >>= \case
-        Nothing  -> HT.insert tgts target e
-        Just e'  -> HT.insert tgts target $! mergeEdges e e'
+{-# NOINLINE lookupMutuals #-}
+lookupMutuals :: Mutuals -> QName -> IO Int
+lookupMutuals = HT.lookup'
+
+{-# NOINLINE lookupTargets #-}
+lookupTargets :: Targets -> Node -> IO (Maybe Edge)
+lookupTargets = HT.lookup
+
+{-# NOINLINE insertTargets #-}
+insertTargets :: Targets -> Node -> Edge -> IO ()
+insertTargets = HT.insert
+
+{-# NOINLINE addToTargets #-}
+addToTargets :: Targets -> Node -> Edge -> IO ()
+addToTargets tgts tgt e = lookupTargets tgts tgt >>= \case
+  Nothing -> insertTargets tgts tgt e
+  Just e' -> insertTargets tgts tgt $! mergeEdges e e'
+
+{-# NOINLINE addEdgeToGraph #-}
+addEdgeToGraph :: Mutuals -> OccGraph -> Node -> Node -> Edge -> ()
+addEdgeToGraph mutuals graph src target e = unsafeDupablePerformIO $ case src of
+  DefNode q -> do
+    src <- lookupMutuals mutuals q
+    SourceEntry _ tgts _ <- Array.read graph src
+    addToTargets tgts target e
+  ArgNode q i -> do
+    src <- lookupMutuals mutuals q
+    SourceEntry _ _ args <- Array.read graph src
+    tgts <- Array.read args i
+    addToTargets tgts target e
 
 addEdge :: Node -> OccM ()
 addEdge src = do
-  target <- asks target
-  path   <- asks path
-  occ    <- asks occ
-  graph  <- asks graph
+  target  <- asks target
+  path    <- asks path
+  occ     <- asks occ
+  graph   <- asks graph
+  mutuals <- asks mutuals
   expand \ret -> case occ of
     Unused -> ret $ pure ()
-    occ    -> ret $ liftIO $ addEdgeToGraph graph target src (Edge occ path)
+    occ    -> ret $ seq (addEdgeToGraph mutuals graph target src (Edge occ path)) (pure ())
 
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArg d p i e = expand \ret -> ret do
@@ -272,6 +295,15 @@ lookupDef q = do
     Nothing -> case HMap.lookup q idefs of
       Just d -> pure d
       Nothing -> __IMPOSSIBLE__
+
+{-# NOINLINE isMutual #-}
+isMutual :: Mutuals -> QName -> Bool
+isMutual mutuals q = unsafeDupablePerformIO do
+  HT.lookup mutuals q >>= \case
+    Nothing -> pure False
+    Just _  -> pure True
+  -- (-1) -> pure False
+  -- _    -> pure True
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM ()
@@ -322,9 +354,8 @@ instance ComputeOccurrences Term where
 
       _ -> do
         mutuals <- asks mutuals
+        case isMutual mutuals d of
 
-
-        liftIO (((/= (-1)) <$> HT.findEntry mutuals d)) >>= \case
           -- it's a mutual definition
           True -> do
             addEdge (DefNode d)
@@ -625,16 +656,39 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
 --   assocs = [(i, j, e) | (i, m) <- Map.toList m, (j, e) <- Map.toList m]
 --   ins acc (i, j, e) = addEdgeToGraph j i e acc
 
+initOccurrences :: [(QName, Int, a, b)] -> IO (OccGraph, Mutuals)
+initOccurrences qs = do
+  mutuals :: Mutuals <- HT.initialize 1
+  forMGood_ qs \(q, arity, _, _) -> do
+    id <- HT.size mutuals
+    HT.insert mutuals q id
 
-buildOccurrenceGraph :: [QName] -> TCM OccGraph
+  s <- HT.size mutuals
+  graph <- Array.new s undefined
+  let go :: Int -> [(QName, Int, a, b)] -> IO ()
+      go i [] =
+        pure ()
+      go i ((q, arity, _, _):qs) = do
+        tgts <- HT.initialize 1
+        args <- Array.new arity undefined
+        let init i | i == arity = pure ()
+            init i = do
+              tgts <- HT.initialize 1
+              Array.write args i tgts
+              init (i + 1)
+        init 0
+        Array.write graph i $! SourceEntry q tgts args
+        go (i + 1) qs
+
+  go 0 qs
+  pure (graph, mutuals)
+
+
+buildOccurrenceGraph :: [(QName,Int, a, b)] -> TCM OccGraph
 buildOccurrenceGraph qs = do
-
-  inf     <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
-  mutuals <- liftIO $ HT.fromList $ map (,()) qs
-  graph   <- liftIO $ HT.initialize (length qs)
-
-  forMGood_ qs \q -> do
+  inf <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
+  (graph, mutuals) <- liftIO $ initOccurrences qs
+  forMGood_ qs \(q, _, _, _) -> do
     let env = OccEnv q [] inf 0 mutuals (DefNode q) Root StrictPos graph
     runReaderT (computeDefOccurrences q) env
-
   pure graph

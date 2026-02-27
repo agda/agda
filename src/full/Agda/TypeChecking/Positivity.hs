@@ -133,7 +133,7 @@ checkStrictlyPositive mi qset = do
       --------------------------------------------------------------------------------
       !g <- (buildOccurrenceGraph qset)
 
-      _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
+      _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph blockInfo)
 
       -- master 3.9
       -- new    3.3
